@@ -11,6 +11,24 @@ bomb extras for more bombs, and use clever chain reactions to corner your oppone
 This is the Qt-free rewrite of the project: a native SDL3/OpenGL ES 3.0 client and a dedicated
 game server, both written in C++23 with no Qt dependency.
 
+# Get a Build
+
+Every push to `main` is built for all four platforms. These links always give you the newest
+successful build and need no GitHub account:
+
+|Platform|Download|
+|-|-|
+|Windows|[dynablaster-windows.zip](https://nightly.link/varnholt/dynablaster_revenge_sdl/workflows/build/main/dynablaster-windows.zip)|
+|Linux|[dynablaster-linux.zip](https://nightly.link/varnholt/dynablaster_revenge_sdl/workflows/build/main/dynablaster-linux.zip)|
+|macOS|[dynablaster-macos.zip](https://nightly.link/varnholt/dynablaster_revenge_sdl/workflows/build/main/dynablaster-macos.zip)|
+|Web|[dynablaster-wasm.zip](https://nightly.link/varnholt/dynablaster_revenge_sdl/workflows/build/main/dynablaster-wasm.zip)|
+
+The desktop archives contain `dynablaster_revenge`/`dynablaster_revenge.exe` next to its `data/`
+directory - run it from that folder. The web archive holds the Emscripten output (`.html`/`.js`/
+`.wasm`/`.data`) and needs to be served over HTTP, not opened as a local file. Note: browser
+multiplayer doesn't work yet - the web build reaches the main menu only, since SDL3_net has no
+WebSocket backend to talk to a real game server from inside a browser sandbox.
+
 # Project layout
 
 - `client/` - the game client (SDL3 windowing/input, OpenGL ES 3.0 rendering, C++23)
