@@ -68,3 +68,20 @@ jobs:
 
       - name: Build server
         run: cmake --build server/build --parallel
+
+  wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: emscripten-core/setup-emsdk@v15
+        with:
+          version: 6.0.1
+
+      # client only - no raw sockets in a browser, so the server (and real client<->server
+      # networking) doesn't work here. See client/src/main.cpp's __EMSCRIPTEN__ NET_Init handling.
+      - name: Configure client
+        run: emcmake cmake -S client -B client/build-wasm -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build client
+        run: cmake --build client/build-wasm --target dynablaster_sdl --parallel
