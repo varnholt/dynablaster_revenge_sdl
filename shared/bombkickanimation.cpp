@@ -174,12 +174,12 @@ void BombKickAnimation::setDirection(Constants::Direction dir)
    \param x x position
    \param y y position
 */
-void BombKickAnimation::ignite(int x, int y)
+void BombKickAnimation::ignite(int32_t x, int32_t y)
 {
    for (BombKickAnimation* anim : sAnimations)
    {
-      int ax = static_cast<int32_t>(floor(anim->getX()));
-      int ay = static_cast<int32_t>(floor(anim->getY()));
+      int32_t ax = static_cast<int32_t>(floor(anim->getX()));
+      int32_t ay = static_cast<int32_t>(floor(anim->getY()));
 
       if (ax == x && ay == y)
       {
@@ -283,9 +283,9 @@ Constants::Direction BombKickAnimation::getDirection() const
 /*!
    \return x direction
 */
-int BombKickAnimation::getDirectionX() const
+int32_t BombKickAnimation::getDirectionX() const
 {
-   int dir = 0;
+   int32_t dir = 0;
 
    switch (getDirection())
    {
@@ -307,9 +307,9 @@ int BombKickAnimation::getDirectionX() const
 /*!
    \return y direction
 */
-int BombKickAnimation::getDirectionY() const
+int32_t BombKickAnimation::getDirectionY() const
 {
-   int dir = 0;
+   int32_t dir = 0;
 
    switch (getDirection())
    {
@@ -401,7 +401,7 @@ void BombKickAnimation::readyToExplode()
    \param x player x position
    \param y player y position
 */
-void BombKickAnimation::updatePlayerPosition(int id, float x, float y)
+void BombKickAnimation::updatePlayerPosition(int32_t id, float x, float y)
 {
    mPlayerPositions[id] = Point(static_cast<int32_t>(floor(x)), static_cast<int32_t>(floor(y)));
 }
@@ -410,7 +410,7 @@ void BombKickAnimation::updatePlayerPosition(int id, float x, float y)
 /*!
    \param id player id
 */
-void BombKickAnimation::removePlayerPosition(int id)
+void BombKickAnimation::removePlayerPosition(int32_t id)
 {
    mPlayerPositions.erase(id);
 }

@@ -11,9 +11,9 @@
   constructor
 */
 StoneMapItem::StoneMapItem(
-   int id,
-   int x,
-   int y
+   int32_t id,
+   int32_t x,
+   int32_t y
 )
    : MapItem(Stone, id, true, true, x, y),
      mExtraMapItem(nullptr)

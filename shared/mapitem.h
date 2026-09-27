@@ -1,5 +1,6 @@
-#ifndef MAPITEM_H
-#define MAPITEM_H
+#pragma once
+
+#include <cstdint>
 
 #include "constants.h"
 
@@ -23,57 +24,57 @@ class MapItem
       //! construct from data
       MapItem(
          ItemType type,
-         int id,
+         int32_t id,
          bool blocking,
          bool destroyable,
-         int posX,
-         int posY
+         int32_t posX,
+         int32_t posY
       );
 
       //! construct from packet
       MapItem(MapItemCreatedPacket *packet);
-      
+
       //! destructor
       virtual ~MapItem();
 
       //! getter for item type
-      ItemType getType() const;
+      [[nodiscard]] ItemType getType() const;
 
       //! setter for unique id
-      void setUniqueId(int);
+      void setUniqueId(int32_t);
 
       //! getter for unique id
-      int getUniqueId() const;
+      [[nodiscard]] int32_t getUniqueId() const;
 
       //! getter for blocking flag
-      bool isBlocking() const;
+      [[nodiscard]] bool isBlocking() const;
 
       //! getter for destroyable flag
-      bool isDestroyable() const;
+      [[nodiscard]] bool isDestroyable() const;
 
       //! setter for x position
-      void setX(int x);
+      void setX(int32_t x);
 
       //! setter for y position
-      void setY(int y);
+      void setY(int32_t y);
 
       //! getter for x position
-      int getX() const;
+      [[nodiscard]] int32_t getX() const;
 
       //! getter for y position
-      int getY() const;
+      [[nodiscard]] int32_t getY() const;
 
       //! getter for appearance
-      int getAppearance() const;
+      [[nodiscard]] int32_t getAppearance() const;
 
       //! setter for "being destroyed" flag
       void setCurrentlyDestroyed(bool destroyed);
 
       //! getter for "being destroyed" flag
-      bool isCurrentlyDestroyed() const;
+      [[nodiscard]] bool isCurrentlyDestroyed() const;
 
       //! get direction from which the item was destroyed
-      Constants::Direction getDestroyDirection() const;
+      [[nodiscard]] Constants::Direction getDestroyDirection() const;
 
       //! set direction from which the item was destroyed
       void setDestroyDirection(Constants::Direction direction);
@@ -88,10 +89,10 @@ class MapItem
       ItemType mType;
 
       //! unique number to identify the item
-      int mUniqueId;
+      int32_t mUniqueId;
 
       //! item id (mapping between mesh/texture and id)
-      int mAppearance;
+      int32_t mAppearance;
 
       //! item is blocking
       bool mBlocking;
@@ -100,13 +101,13 @@ class MapItem
       bool mDestroyable;
 
       //! item's x position on the map
-      int mX;
+      int32_t mX;
 
       //! item's y position on the map
-      int mY;
+      int32_t mY;
 
       //! continuous counter for unique id
-      static int mCurrentId;
+      static int32_t mCurrentId;
 
       //! mapitem is currently being destroyed (avoid "double-destruction")
       bool mCurrentlyDestroyed;
@@ -114,5 +115,3 @@ class MapItem
       //! direction from which the item was destroyed
       Constants::Direction mDestroyDirection;
 };
-
-#endif

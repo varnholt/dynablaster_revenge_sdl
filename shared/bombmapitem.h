@@ -1,5 +1,4 @@
-#ifndef BOMBMAPITEM_H
-#define BOMBMAPITEM_H
+#pragma once
 
 // base
 #include "mapitem.h"
@@ -28,16 +27,16 @@ public:
    };
 
    //! constructor
-   BombMapItem(int playerId, int flames, int id, int x, int y);
+   BombMapItem(int32_t playerId, int32_t flames, int32_t id, int32_t x, int32_t y);
 
    //! destructor
    virtual ~BombMapItem();
 
    //! getter for player id
-   int8_t getPlayerId() const;
+   [[nodiscard]] int8_t getPlayerId() const;
 
    //! getter for flames
-   int8_t getFlames() const;
+   [[nodiscard]] int8_t getFlames() const;
 
    //! bomb is kicked
    void kick();
@@ -46,19 +45,19 @@ public:
    void setDetonationOrigin(DetonationOrigin origin);
 
    //! getter for detonation origin
-   DetonationOrigin getDetonationOrigin() const;
+   [[nodiscard]] DetonationOrigin getDetonationOrigin() const;
 
    //! set detonation interval
-   void setInterval(int ms);
+   void setInterval(int32_t ms);
 
    //! get detonation interval
-   int getInterval() const;
+   [[nodiscard]] int32_t getInterval() const;
 
    //! setter for owner id
-   void setPlayerId(int id);
+   void setPlayerId(int32_t id);
 
    //! getter for kicked flag
-   bool isKicked() const;
+   [[nodiscard]] bool isKicked() const;
 
    //! setter for kicked flag
    void setKicked(bool kicked);
@@ -70,22 +69,22 @@ public:
    void setIgniterId(int8_t id);
 
    //! getter for igniter id
-   int8_t getIgniterId() const;
+   [[nodiscard]] int8_t getIgniterId() const;
 
    //! getter for shadowed item
-   MapItem* getShadowedItem();
+   [[nodiscard]] MapItem* getShadowedItem();
 
    //! getter for kick animation
-   BombKickAnimation* getBombKickAnimation() const;
+   [[nodiscard]] BombKickAnimation* getBombKickAnimation() const;
 
    //! setter for bomb kick animation - takes ownership
    void setBombKickAnimation(std::unique_ptr<BombKickAnimation> animation);
 
    //! setter for tick time
-   static void setTickTime(int time);
+   static void setTickTime(int32_t time);
 
    //! getter for tick time
-   static int getTickTime();
+   [[nodiscard]] static int32_t getTickTime();
 
 public:
    //! let the bomb explode now
@@ -134,10 +133,8 @@ protected:
    MapItem* mShadowedItem;
 
    //! tick time
-   static int sTickTime;
+   static int32_t sTickTime;
 
    //! bomb igniter
    int8_t mIgniterId;
 };
-
-#endif  // BOMBMAPITEM_H

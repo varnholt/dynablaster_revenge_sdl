@@ -6,14 +6,14 @@
 #include "bombkickanimation.h"
 
 // static variables
-int BombMapItem::sTickTime = 0;
+int32_t BombMapItem::sTickTime = 0;
 
 //-----------------------------------------------------------------------------
 /*!
    \param playerId player's id
    \param intensity bomb intensity (flame count)
 */
-BombMapItem::BombMapItem(int playerId, int flames, int id, int x, int y)
+BombMapItem::BombMapItem(int32_t playerId, int32_t flames, int32_t id, int32_t x, int32_t y)
     : MapItem(Bomb, id, true, false, x, y),
       mPlayerId(playerId),
       mFlames(flames),
@@ -157,7 +157,7 @@ BombMapItem::DetonationOrigin BombMapItem::getDetonationOrigin() const
 /*!
   \param ms timer interval
 */
-void BombMapItem::setInterval(int ms)
+void BombMapItem::setInterval(int32_t ms)
 {
    mTimer.setInterval(ms);
 }
@@ -166,7 +166,7 @@ void BombMapItem::setInterval(int ms)
 /*!
    \return timer interval
 */
-int BombMapItem::getInterval() const
+int32_t BombMapItem::getInterval() const
 {
    return mTimer.interval();
 }
@@ -175,7 +175,7 @@ int BombMapItem::getInterval() const
 /*!
   \param id player id
 */
-void BombMapItem::setPlayerId(int id)
+void BombMapItem::setPlayerId(int32_t id)
 {
    mPlayerId = id;
 }
@@ -256,7 +256,7 @@ void BombMapItem::setBombKickAnimation(std::unique_ptr<BombKickAnimation> animat
 /*!
    \param time tick time
 */
-void BombMapItem::setTickTime(int time)
+void BombMapItem::setTickTime(int32_t time)
 {
    sTickTime = time;
 }
@@ -265,7 +265,7 @@ void BombMapItem::setTickTime(int time)
 /*!
    \return tick time
 */
-int BombMapItem::getTickTime()
+int32_t BombMapItem::getTickTime()
 {
    return sTickTime;
 }

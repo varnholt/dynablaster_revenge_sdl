@@ -1,5 +1,4 @@
-#ifndef BLOCKMAPITEM_H
-#define BLOCKMAPITEM_H
+#pragma once
 
 // base
 #include "mapitem.h"
@@ -10,10 +9,8 @@ class BlockMapItem : public MapItem
 
       //! constructor
       BlockMapItem(
-         int id,
-         int x,
-         int y
+         int32_t id,
+         int32_t x,
+         int32_t y
       );
 };
-
-#endif // BLOCKMAPITEM_H
