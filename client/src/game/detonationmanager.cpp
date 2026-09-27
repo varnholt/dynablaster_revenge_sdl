@@ -294,7 +294,7 @@ void DetonationManager::drawBox(float x, float y, float z, float left, float rig
       activeDevice->allocateVertexBuffer(mBoxVertexBuffer, byteSize, true);
 
    void* dst = activeDevice->lockVertexBuffer(mBoxVertexBuffer, byteSize);
-   memcpy(dst, vertices.data(), static_cast<size_t>(byteSize));
+   std::memcpy(dst, vertices.data(), static_cast<size_t>(byteSize));
    activeDevice->unlockVertexBuffer(mBoxVertexBuffer);
 
    glBindBuffer(GL_ARRAY_BUFFER, mBoxVertexBuffer);

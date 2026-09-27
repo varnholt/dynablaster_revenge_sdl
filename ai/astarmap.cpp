@@ -1,5 +1,6 @@
 // header
 #include "astarmap.h"
+#include <cstring>
 
 // astar
 #include "astarnode.h"
@@ -77,7 +78,7 @@ AStarMap::~AStarMap()
 void AStarMap::initMap()
 {
    mNodeMap = new AStarNode*[mWidth * mHeight];
-   memset(mNodeMap, 0, mWidth * mHeight * sizeof(AStarNode*));
+   std::memset(mNodeMap, 0, mWidth * mHeight * sizeof(AStarNode*));
 }
 
 //-----------------------------------------------------------------------------
@@ -229,7 +230,7 @@ void AStarMap::debugPath(const std::vector<AStarNode*>& path)
 {
    AStarNode** map = new AStarNode*[mWidth * mHeight];
 
-   memset(map, 0, mWidth * mHeight * sizeof(AStarNode*));
+   std::memset(map, 0, mWidth * mHeight * sizeof(AStarNode*));
 
    for (AStarNode* node : path)
       map[node->getY() * mWidth + node->getX()] = node;

@@ -319,7 +319,7 @@ void MenuPageTextEditItem::drawCursor()
       activeDevice->allocateVertexBuffer(mCursorVertexBuffer, sizeof(quad), true);
 
    void* dst = activeDevice->lockVertexBuffer(mCursorVertexBuffer, sizeof(quad));
-   memcpy(dst, quad, sizeof(quad));
+   std::memcpy(dst, quad, sizeof(quad));
    activeDevice->unlockVertexBuffer(mCursorVertexBuffer);
 
    activeDevice->push(Matrix());

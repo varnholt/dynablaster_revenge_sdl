@@ -256,7 +256,7 @@ void GameWinDrawable::initGameData()
       row++;
    }
 
-   memset(mPlayerScoresAnimated, 0, 10 * sizeof(float));
+   std::memset(mPlayerScoresAnimated, 0, 10 * sizeof(float));
 }
 
 int GameWinDrawable::computeScore(PlayerInfo* info) const

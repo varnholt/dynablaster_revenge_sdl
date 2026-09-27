@@ -1,5 +1,6 @@
 // header
 #include "protobot.h"
+#include <cstring>
 
 // astar
 #include "astarmap.h"
@@ -383,7 +384,7 @@ void ProtoBot::updateHazardousTemporary(int ms)
 void ProtoBot::resetHazardousTemporary()
 {
    int fieldSize = mBotMap->getWidth() * mBotMap->getHeight();
-   memset(mHazardousTemorary, 0, sizeof(int) * fieldSize);
+   std::memset(mHazardousTemorary, 0, sizeof(int) * fieldSize);
 }
 
 
@@ -825,7 +826,7 @@ void ProtoBot::resetScores()
 {
    int fieldSize = mBotMap->getWidth() * mBotMap->getHeight();
 
-   memset(
+   std::memset(
       mFieldScores,
       0,
       fieldSize * sizeof(int)
@@ -1174,7 +1175,7 @@ bool ProtoBot::updateEscapeScore()
    int fieldSize = mBotMap->getWidth() * mBotMap->getHeight();
    int* enemies = new int[fieldSize];
 
-   memset(enemies, 0, sizeof(int)*fieldSize);
+   std::memset(enemies, 0, sizeof(int)*fieldSize);
 
    for (const Point& e : enemyPositions)
    {

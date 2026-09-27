@@ -1,4 +1,5 @@
 #include "botmap.h"
+#include <cstring>
 
 #include <format>
 #include <string>
@@ -808,7 +809,7 @@ int* BotMap::getStonesToBeBombedMap()
 {
    int dim = getWidth() * getHeight();
    int* map = new int[dim];
-   memset(map, 0, dim * sizeof(int));
+   std::memset(map, 0, dim * sizeof(int));
 
    std::vector<BotBombMapItem *> bombs = getBombs();
 

@@ -44,14 +44,14 @@ void MemoryStream::getData(void* buf, int size)
    int avail = mSize - mPosition;
    if (size > avail)
       size = avail;
-   memcpy(buf, mBuffer + mPosition, size);
+   std::memcpy(buf, mBuffer + mPosition, size);
    mPosition += size;
 }
 
 //! write buffer
 void MemoryStream::writeData(void* buf, int size)
 {
-   memcpy(mBuffer + mPosition, buf, size);
+   std::memcpy(mBuffer + mPosition, buf, size);
    mPosition += size;
 }
 

@@ -1,6 +1,7 @@
 // cartoon shading implementation
 
 #include "cartoonshading.h"
+#include <cstring>
 #include "gldevice.h"
 #include "image.h"
 #include "image/tga.h"
@@ -26,7 +27,7 @@ public:
       if (geo->getWeightCount() > 0)
       {
          mOrgVerts = new Vector[geo->getVertexCount()];
-         memcpy(mOrgVerts, geo->getVertices(), geo->getVertexCount() * sizeof(Vector));
+         std::memcpy(mOrgVerts, geo->getVertices(), geo->getVertexCount() * sizeof(Vector));
          mWeights = geo->getWeights();
       }
       else

@@ -1,4 +1,5 @@
 #include "mesh.h"
+#include <cstring>
 #include "animation/motionmixer.h"
 #include "math/vector.h"
 #include "renderdevice.h"
@@ -115,8 +116,8 @@ void Mesh::transform(float frame)
          int nv= geo->getVertexCount();
          Vector *vtemp= geo->getSkinVertices();
          Vector *ntemp= geo->getSkinNormals();
-         memset(vtemp, 0, sizeof(Vector)*nv);
-         memset(ntemp, 0, sizeof(Vector)*nv);
+         std::memset(vtemp, 0, sizeof(Vector)*nv);
+         std::memset(ntemp, 0, sizeof(Vector)*nv);
 
          Vector *vtx= geo->getVertices();
          Vector *nrm= geo->getNormals();

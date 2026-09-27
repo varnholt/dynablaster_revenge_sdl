@@ -127,7 +127,7 @@ void FileStream::getData(void* buf, int size)
       int len = size;
       if (len > mCacheLeft)
          len = mCacheLeft;
-      memcpy(dst, mCacheBuf + mCachePos, len);
+      std::memcpy(dst, mCacheBuf + mCachePos, len);
       dst += len;
       mCachePos += len;
       mCacheLeft -= len;
@@ -167,7 +167,7 @@ int FileStream::refill()
    if (mCacheLeft)
    {
       // copy remaining data to front
-      memcpy(mCacheBuf, mCacheBuf + mCachePos, mCacheLeft);
+      std::memcpy(mCacheBuf, mCacheBuf + mCachePos, mCacheLeft);
       // fill up the remaining space
       mCacheLeft += (int)fread(mCacheBuf + mCacheLeft, 1, STREAMCACHESIZE - mCacheLeft, mFile);
    }

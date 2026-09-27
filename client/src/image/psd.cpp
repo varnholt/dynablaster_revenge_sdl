@@ -351,7 +351,7 @@ unsigned int* PSD::Layer::flatten(int w, int h) const
    {
       unsigned int *src= data + (h-1)*dstX;
       unsigned int *dst= data + y*dstX;
-      memcpy(dst, src, dstX*4);
+      std::memcpy(dst, src, dstX*4);
    }
 
    return data;
@@ -447,7 +447,7 @@ void PSD::Layer::Channel::init(int id, int width, int height)
 {
    mID = id;
    mData = new unsigned char[width * height];
-   memset(mData, 0xff, width * height);
+   std::memset(mData, 0xff, width * height);
 }
 
 unsigned char* PSD::Layer::Channel::getScanline(int y) const
@@ -498,7 +498,7 @@ PSD::Layer* PSD::getLayer(const char* name) const
    for (int i = 0; i < mLayerCount; i++)
    {
       const char* layerName = mLayers[i].getName();
-      if (strcmp(layerName, name) == 0)
+      if (std::strcmp(layerName, name) == 0)
          return &mLayers[i];
    }
    return 0;

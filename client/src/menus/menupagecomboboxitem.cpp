@@ -90,7 +90,7 @@ void MenuPageComboBoxItem::drawQuad(PSDLayer* layer, float x, float y, float wid
       activeDevice->allocateVertexBuffer(mQuadVertexBuffer, sizeof(quad), true);
 
    void* dst = activeDevice->lockVertexBuffer(mQuadVertexBuffer, sizeof(quad));
-   memcpy(dst, quad, sizeof(quad));
+   std::memcpy(dst, quad, sizeof(quad));
    activeDevice->unlockVertexBuffer(mQuadVertexBuffer);
 
    activeDevice->push(Matrix());

@@ -552,7 +552,7 @@ void MenuPageListItem::drawRows()
             activeDevice->allocateVertexBuffer(mRowVertexBuffer, sizeof(quad), true);
 
          void* dst = activeDevice->lockVertexBuffer(mRowVertexBuffer, sizeof(quad));
-         memcpy(dst, quad, sizeof(quad));
+         std::memcpy(dst, quad, sizeof(quad));
          activeDevice->unlockVertexBuffer(mRowVertexBuffer);
 
          activeDevice->push(Matrix());

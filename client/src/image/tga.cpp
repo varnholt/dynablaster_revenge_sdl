@@ -1,6 +1,7 @@
 // basic tga loader
 
 #include "tga.h"
+#include <cstring>
 #include "tools/filestream.h"
 
 class TGAHeader
@@ -184,8 +185,8 @@ int loadtga(const char* fname, void** buf, int* sizex, int* sizey)
 
    if (fname)
    {
-      strcpy(name, fname);
-      strcat(name, ".tga");
+      std::strcpy(name, fname);
+      std::strcat(name, ".tga");
    }
 
    FileStream stream;

@@ -19,7 +19,7 @@ MenuPageBackgroundItem::MenuPageBackgroundItem()
 {
    mElapsed.start();
 
-   memset(mBackgroundLayers, 0, (BackgroundColorBlue + 1) * sizeof(PSDLayer*));
+   std::memset(mBackgroundLayers, 0, (BackgroundColorBlue + 1) * sizeof(PSDLayer*));
 }
 
 void MenuPageBackgroundItem::initialize()
@@ -91,7 +91,7 @@ void MenuPageBackgroundItem::draw()
       activeDevice->allocateVertexBuffer(mVertexBuffer, sizeof(quad), true);
 
    void* dst = activeDevice->lockVertexBuffer(mVertexBuffer, sizeof(quad));
-   memcpy(dst, quad, sizeof(quad));
+   std::memcpy(dst, quad, sizeof(quad));
    activeDevice->unlockVertexBuffer(mVertexBuffer);
 
    // positions are already baked in page-pixel space, so the world transform must be identity -

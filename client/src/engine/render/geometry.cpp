@@ -1,4 +1,5 @@
 #include "geometry.h"
+#include <cstring>
 #include "math/vector.h"
 #include "nodes/node.h"
 #include "vcache.h"
@@ -751,7 +752,7 @@ Array<Vector> Geometry::getSkinVertices() const
 
    Vector* vtx = getVertices();
    Vector* vtemp = list.data();
-   memset(vtemp, 0, sizeof(Vector) * nv);
+   std::memset(vtemp, 0, sizeof(Vector) * nv);
 
    for (int b = 0; b < getBoneCount(); b++)
    {

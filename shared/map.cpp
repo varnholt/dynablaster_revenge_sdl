@@ -1,5 +1,6 @@
 // header
 #include "map.h"
+#include <cstring>
 
 // map items
 #include "blockmapitem.h"
@@ -36,7 +37,7 @@ Map::Map(int w, int h)
    mMap = new MapItem*[mWidth*mHeight];
 
    // clear map
-   memset(mMap, 0, mWidth * mHeight * sizeof(MapItem*));
+   std::memset(mMap, 0, mWidth * mHeight * sizeof(MapItem*));
 }
 
 

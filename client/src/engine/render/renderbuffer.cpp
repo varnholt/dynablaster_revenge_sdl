@@ -1,4 +1,5 @@
 #include "renderbuffer.h"
+#include <cstring>
 #include "geometry.h"
 #include "math/vector.h"
 #include "nodes/mesh.h"
@@ -12,7 +13,7 @@ RenderBuffer::RenderBuffer(Geometry* geo)
       mEdgeSize= geo->getEdgeCount();
       mEdge= activeDevice->createIndexBuffer(mEdgeSize*sizeof(short), false);
       dst= activeDevice->lockIndexBuffer(mEdge);
-      memcpy(dst, geo->getEdges(), mEdgeSize*sizeof(short));
+      std::memcpy(dst, geo->getEdges(), mEdgeSize*sizeof(short));
       activeDevice->unlockIndexBuffer(mEdge);
    */
 }
@@ -27,9 +28,9 @@ unsigned int RenderBuffer::createVertexBuffer(void* data, int size, bool dyn)
    buf = activeDevice->createVertexBuffer(size, dyn);
    void* dst = activeDevice->lockVertexBuffer(buf);
    if (data)
-      memcpy(dst, data, size);
+      std::memcpy(dst, data, size);
    else
-      memset(dst, 0, size);
+      std::memset(dst, 0, size);
    activeDevice->unlockVertexBuffer(buf);
    return buf;
 }
@@ -40,9 +41,9 @@ unsigned int RenderBuffer::createIndexBuffer(void* data, int size, bool dyn)
    buf = activeDevice->createIndexBuffer(size, dyn);
    void* dst = activeDevice->lockIndexBuffer(buf);
    if (data)
-      memcpy(dst, data, size);
+      std::memcpy(dst, data, size);
    else
-      memset(dst, 0, size);
+      std::memset(dst, 0, size);
    activeDevice->unlockIndexBuffer(buf);
    return buf;
 }
@@ -85,7 +86,7 @@ void RenderBuffer::update(Node**)
       */
 
       Vector* vram = (Vector*)activeDevice->lockVertexBuffer(mVertex);
-      memcpy(vram, mGeometry->getVertices(), mGeometry->getVertexCount() * sizeof(Vector));
+      std::memcpy(vram, mGeometry->getVertices(), mGeometry->getVertexCount() * sizeof(Vector));
       activeDevice->unlockVertexBuffer(mVertex);
       /*
             Matrix mat;

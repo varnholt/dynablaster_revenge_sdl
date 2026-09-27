@@ -1,5 +1,6 @@
 // header
 #include "game.h"
+#include <cstring>
 
 // shared
 #include "bombkickanimation.h"
@@ -445,7 +446,7 @@ void Game::initializeMap()
    delete mImmuneTimes;
    uint32_t fieldCount = static_cast<uint32_t>(width * height);
    mImmuneTimes = new int[fieldCount];
-   memset(mImmuneTimes, 0, fieldCount * sizeof(int));
+   std::memset(mImmuneTimes, 0, fieldCount * sizeof(int));
 }
 
 //-----------------------------------------------------------------------------

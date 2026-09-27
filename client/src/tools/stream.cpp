@@ -160,7 +160,7 @@ char* Stream::getString()
 
    // allocate and copy string
    char* str = new char[size];
-   memcpy(str, temp, size);
+   std::memcpy(str, temp, size);
 
    return str;
 }

@@ -15,7 +15,7 @@ Image::Image() : Referenced(), mData(0), mWidth(0), mHeight(0)
 Image::Image(int x, int y) : Referenced(), mData(0), mWidth(x), mHeight(y)
 {
    mData = new unsigned int[mWidth * mHeight];
-   memset(mData, 0, x * y * 4);
+   std::memset(mData, 0, x * y * 4);
 }
 
 /*
@@ -92,8 +92,8 @@ void Image::load(const char* filename)
    if (loadtga(filename, (void**)&mData, &mWidth, &mHeight))
    {
       char name[256];
-      strcpy(name, filename);
-      strcat(name, ".tga");
+      std::strcpy(name, filename);
+      std::strcat(name, ".tga");
       FileStream stream;
       if (stream.open(name))
       {
@@ -342,7 +342,7 @@ void Image::copy(int posX, int posY, const Image& image, int replicate)
       for (int y = 0; y < endy - height && y < replicate; y++)
       {
          unsigned int* dst = getScanline(y + height) + posX;
-         memcpy(dst, src, endx * 4);
+         std::memcpy(dst, src, endx * 4);
       }
    }
 }

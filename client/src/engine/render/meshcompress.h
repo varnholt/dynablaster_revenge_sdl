@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstring>
+
 int next(int c)
 {
    int v = c % 3;
@@ -38,15 +40,15 @@ void Geometry::compress()
 
    /*
    vtxVisit= new int[nv];
-   memset(vtxVisit, 0, sizeof(int)*nv);
+   std::memset(vtxVisit, 0, sizeof(int)*nv);
 
    triVisit= new int[nf];
-   memset(triVisit, 0, sizeof(int)*nf);
+   std::memset(triVisit, 0, sizeof(int)*nf);
    */
 
    // for each vertex: find number of connected faces
    int* vtxNumConFaces = new int[nv];
-   memset(vtxNumConFaces, 0, nv * sizeof(int));
+   std::memset(vtxNumConFaces, 0, nv * sizeof(int));
    vindex = getIndices();
    for (i = 0; i < nf * 3; i++)
    {
@@ -67,7 +69,7 @@ void Geometry::compress()
    int** vtxConFaces = new int*[nv];
    for (i = 0; i < nv; i++)
       vtxConFaces[i] = new int[vtxNumConFaces[i]];
-   memset(vtxNumConFaces, 0, nv * sizeof(int));
+   std::memset(vtxNumConFaces, 0, nv * sizeof(int));
    for (i = 0; i < nf; i++)
    {
       for (j = 0; j < 3; j++)

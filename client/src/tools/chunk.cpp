@@ -1,5 +1,5 @@
 #include "chunk.h"
-#include <stdio.h>
+#include <cstdio>
 #include <cstring>
 
 #define BUFFERSIZE 3111
@@ -94,7 +94,7 @@ void Chunk::writeData(void* data, int size)
       int avail = BUFFERSIZE - mBufferPos;
       if (len > avail)
          len = avail;
-      memcpy(mBuffer + mBufferPos, src, len);
+      std::memcpy(mBuffer + mBufferPos, src, len);
       src += len;
       mBufferPos += len;
 

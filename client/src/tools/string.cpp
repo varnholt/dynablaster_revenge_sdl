@@ -12,9 +12,9 @@ String::String(const char* text) : Referenced()
 {
    if (text)
    {
-      int size = strlen(text);
+      int size = std::strlen(text);
       alloc(size);
-      memcpy(mData, text, size + 1);
+      std::memcpy(mData, text, size + 1);
    }
    else
    {
@@ -51,7 +51,7 @@ String String::mid(int start, int end) const
    String s;
    s.alloc(end - start);
    char* dst = (char*)s.data();
-   memcpy(dst, data() + start, end - start);
+   std::memcpy(dst, data() + start, end - start);
    dst[end - start] = 0;
 
    return s;
@@ -188,9 +188,9 @@ void String::append(const String& other)
    int size2 = other.size();
    alloc(size1 + size2);
    if (size1 > 0)
-      memcpy(mData, data, size1);
+      std::memcpy(mData, data, size1);
    if (other.data())
-      memcpy(mData + size1, other.data(), size2 + 1);
+      std::memcpy(mData + size1, other.data(), size2 + 1);
    else
       mData[size1] = 0;
 

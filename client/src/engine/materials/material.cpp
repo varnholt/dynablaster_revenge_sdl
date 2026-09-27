@@ -1,6 +1,8 @@
 // reference implementation of a dummy material
 
 #include "material.h"
+#include <cstdio>
+#include <cstring>
 #include "gldevice.h"
 #include "image/image.h"
 #include "image/imagepool.h"
@@ -342,23 +344,23 @@ void Material::exportGeo(
    char tmp[256];
    // write object info comment
    if (!name.isEmpty())
-      sprintf(tmp, "# object: %s\n", static_cast<const char*>(name));
+      std::sprintf(tmp, "# object: %s\n", static_cast<const char*>(name));
    else
-      sprintf(tmp, "# object: dummy-%d\n", dummyCounter++);
+      std::sprintf(tmp, "# object: dummy-%d\n", dummyCounter++);
 
-   stream->writeData(tmp, static_cast<int32_t>(strlen(tmp)));
-   sprintf(tmp, "# vertices: %d\n", vertexCount);
-   stream->writeData(tmp, static_cast<int32_t>(strlen(tmp)));
-   sprintf(tmp, "# triangles: %d\n", indexCount / 3);
-   stream->writeData(tmp, static_cast<int32_t>(strlen(tmp)));
+   stream->writeData(tmp, static_cast<int32_t>(std::strlen(tmp)));
+   std::sprintf(tmp, "# vertices: %d\n", vertexCount);
+   stream->writeData(tmp, static_cast<int32_t>(std::strlen(tmp)));
+   std::sprintf(tmp, "# triangles: %d\n", indexCount / 3);
+   stream->writeData(tmp, static_cast<int32_t>(std::strlen(tmp)));
 
    // write vertices
    stream->writeChar('\n');
    for (int i = 0; i < vertexCount; i++)
    {
       Vector v = tm * vtx[i];
-      sprintf(tmp, "v %.09f %.09f %.09f\n", -v.x, v.z, v.y);  // flip y/z !
-      stream->writeData(tmp, static_cast<int32_t>(strlen(tmp)));
+      std::sprintf(tmp, "v %.09f %.09f %.09f\n", -v.x, v.z, v.y);  // flip y/z !
+      stream->writeData(tmp, static_cast<int32_t>(std::strlen(tmp)));
    }
 
    // write normals
@@ -366,8 +368,8 @@ void Material::exportGeo(
    for (int i = 0; i < vertexCount; i++)
    {
       const Vector& n = nrm[i];
-      sprintf(tmp, "vn %f %f %f\n", -n.x, n.z, n.y);
-      stream->writeData(tmp, static_cast<int32_t>(strlen(tmp)));
+      std::sprintf(tmp, "vn %f %f %f\n", -n.x, n.z, n.y);
+      stream->writeData(tmp, static_cast<int32_t>(std::strlen(tmp)));
    }
 
    // write uv channel
@@ -375,18 +377,18 @@ void Material::exportGeo(
    for (int i = 0; i < vertexCount; i++)
    {
       if (texcoords)
-         sprintf(tmp, "vt %f %f 0.0\n", texcoords[i].u, 1.0f - texcoords[i].v);
+         std::sprintf(tmp, "vt %f %f 0.0\n", texcoords[i].u, 1.0f - texcoords[i].v);
       else
-         sprintf(tmp, "vt 0.0 0.0 0.0\n");
-      stream->writeData(tmp, static_cast<int32_t>(strlen(tmp)));
+         std::sprintf(tmp, "vt 0.0 0.0 0.0\n");
+      stream->writeData(tmp, static_cast<int32_t>(std::strlen(tmp)));
    }
 
    // write triangles - indices start with 1 (not 0)
    stream->writeChar('\n');
-   sprintf(tmp, "g %s \n", static_cast<const char*>(name));
-   stream->writeData(tmp, static_cast<int32_t>(strlen(tmp)));
-   sprintf(tmp, "s off \n");
-   stream->writeData(tmp, static_cast<int32_t>(strlen(tmp)));
+   std::sprintf(tmp, "g %s \n", static_cast<const char*>(name));
+   stream->writeData(tmp, static_cast<int32_t>(std::strlen(tmp)));
+   std::sprintf(tmp, "s off \n");
+   stream->writeData(tmp, static_cast<int32_t>(std::strlen(tmp)));
    for (int i = 0; i < indexCount; i += 3)
    {
       bool valid = true;
@@ -399,7 +401,7 @@ void Material::exportGeo(
 
       if (valid)
       {
-         sprintf(
+         std::sprintf(
             tmp,
             "f %d/%d/%d %d/%d/%d %d/%d/%d\n",
             i1 + indexOffset,
@@ -412,7 +414,7 @@ void Material::exportGeo(
             i3 + indexOffset,
             i3 + indexOffset
          );
-         stream->writeData(tmp, static_cast<int32_t>(strlen(tmp)));
+         stream->writeData(tmp, static_cast<int32_t>(std::strlen(tmp)));
       }
    }
    stream->writeChar('\n');

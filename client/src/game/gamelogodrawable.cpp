@@ -11,8 +11,7 @@
 
 // cmath
 #include <cmath>
-#include <string.h>
-
+#include <cstring>
 // the real page-name string MenuDrawable's pageChangedSignal carries for the actual
 // main menu page (client/src/menus/gamemenudefines.h's MAINMENU - that header itself isn't
 // ported, it's all networking/gameplay action-name constants unrelated to rendering).
@@ -258,11 +257,11 @@ void GameLogoDrawable::initializeLayers()
 
       PSDLayer* layer = new PSDLayer(psdlayer);
 
-      if (strcmp(psdlayer->getName(), LAYER_DYNABLASTER) == 0)
+      if (std::strcmp(psdlayer->getName(), LAYER_DYNABLASTER) == 0)
       {
          mLayerDynablaster = layer;
       }
-      else if (strcmp(psdlayer->getName(), LAYER_REVENGE) == 0)
+      else if (std::strcmp(psdlayer->getName(), LAYER_REVENGE) == 0)
       {
          mLayerRevenge = layer;
       }
