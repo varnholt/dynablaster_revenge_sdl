@@ -40,9 +40,9 @@ SettingsValue::SettingsValue(const std::string& text) : _text(text), _valid(true
 {
 }
 
-int SettingsValue::toInt(bool* ok) const
+int32_t SettingsValue::toInt(bool* ok) const
 {
-   int result = 0;
+   int32_t result = 0;
    const auto [ptr, ec] = std::from_chars(_text.data(), _text.data() + _text.size(), result);
    const auto success = (ec == std::errc()) && ptr == _text.data() + _text.size();
    if (ok)
@@ -260,7 +260,7 @@ SettingsValue Settings::value(const std::string& key, const char* default_value)
    return value(key, std::string(default_value));
 }
 
-SettingsValue Settings::value(const std::string& key, int default_value) const
+SettingsValue Settings::value(const std::string& key, int32_t default_value) const
 {
    const auto& values = _file->values;
    const auto it = values.find(qualifiedKey(key));
@@ -299,7 +299,7 @@ void Settings::setValue(const std::string& key, const char* value)
    setValue(key, std::string(value));
 }
 
-void Settings::setValue(const std::string& key, int value)
+void Settings::setValue(const std::string& key, int32_t value)
 {
    setValue(key, std::to_string(value));
 }

@@ -2,26 +2,26 @@
 
 #include <cstdlib>
 
-Point::Point(int x, int y) : _x(x), _y(y)
+Point::Point(int32_t x, int32_t y) : _x(x), _y(y)
 {
 }
 
-int Point::x() const
+int32_t Point::x() const
 {
    return _x;
 }
 
-int Point::y() const
+int32_t Point::y() const
 {
    return _y;
 }
 
-void Point::setX(int x)
+void Point::setX(int32_t x)
 {
    _x = x;
 }
 
-void Point::setY(int y)
+void Point::setY(int32_t y)
 {
    _y = y;
 }

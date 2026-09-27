@@ -8,7 +8,7 @@
 //-----------------------------------------------------------------------------
 /*!
  */
-ServerConfiguration::ServerConfiguration() : mBombTickTime(0)
+ServerConfiguration::ServerConfiguration() : _bomb_tick_time(0)
 {
 }
 
@@ -16,18 +16,18 @@ ServerConfiguration::ServerConfiguration() : mBombTickTime(0)
 /*!
    \param time bomb tick time
 */
-void ServerConfiguration::setBombTickTime(int time)
+void ServerConfiguration::setBombTickTime(int32_t time)
 {
-   mBombTickTime = time;
+   _bomb_tick_time = time;
 }
 
 //-----------------------------------------------------------------------------
 /*!
    \return bomb tick time
 */
-int ServerConfiguration::getBombTickTime() const
+int32_t ServerConfiguration::getBombTickTime() const
 {
-   return mBombTickTime;
+   return _bomb_tick_time;
 }
 
 //-----------------------------------------------------------------------------
@@ -48,11 +48,11 @@ BinaryWriter& operator<<(BinaryWriter& out, const ServerConfiguration& config)
 */
 BinaryReader& operator>>(BinaryReader& in, ServerConfiguration& config)
 {
-   int bombTickTime = 0;
+   int32_t bomb_tick_time = 0;
 
-   in >> bombTickTime;
+   in >> bomb_tick_time;
 
-   config.setBombTickTime(bombTickTime);
+   config.setBombTickTime(bomb_tick_time);
 
    return in;
 }

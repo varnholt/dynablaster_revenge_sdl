@@ -1,6 +1,6 @@
-#ifndef PLAYERSTATS_H
-#define PLAYERSTATS_H
+#pragma once
 
+#include <cstdint>
 
 class PlayerStats
 {
@@ -9,27 +9,27 @@ public:
 
    explicit PlayerStats();
 
-   unsigned int getWins() const;
+   [[nodiscard]] uint32_t getWins() const;
 
-   unsigned int getKills() const;
+   [[nodiscard]] uint32_t getKills() const;
 
-   unsigned int getDeaths() const;
+   [[nodiscard]] uint32_t getDeaths() const;
 
-   unsigned int getSurvivalTime() const;
+   [[nodiscard]] uint32_t getSurvivalTime() const;
 
-   unsigned int getExtrasCollected() const;
+   [[nodiscard]] uint32_t getExtrasCollected() const;
 
-   void setWins(unsigned int);
+   void setWins(uint32_t);
 
-   void setKills(unsigned int);
+   void setKills(uint32_t);
 
-   void setDeaths(unsigned int);
+   void setDeaths(uint32_t);
 
-   void setSurvivalTime(unsigned int time);
+   void setSurvivalTime(uint32_t time);
 
-   void setExtrasCollected(unsigned int extrasCollected);
+   void setExtrasCollected(uint32_t extrasCollected);
 
-   void increaseSurvivalTime(unsigned int);
+   void increaseSurvivalTime(uint32_t);
 
    void increaseWins();
 
@@ -44,15 +44,13 @@ public:
 
 protected:
 
-   unsigned int mWins;
+   uint32_t _wins;
 
-   unsigned int mKills;
+   uint32_t _kills;
 
-   unsigned int mDeaths;
+   uint32_t _deaths;
 
-   unsigned int mSurvivalTime;
+   uint32_t _survival_time;
 
-   unsigned int mExtrasCollected;
+   uint32_t _extras_collected;
 };
-
-#endif // PLAYERSTATS_H

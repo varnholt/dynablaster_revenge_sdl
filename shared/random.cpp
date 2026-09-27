@@ -13,14 +13,14 @@ std::mt19937& engine()
 }
 }  // namespace
 
-int bounded(int bound)
+int32_t bounded(int32_t bound)
 {
    if (bound <= 0)
    {
       return 0;
    }
 
-   std::uniform_int_distribution<int> distribution(0, bound - 1);
+   std::uniform_int_distribution<int32_t> distribution(0, bound - 1);
    return distribution(engine());
 }
 }  // namespace Random
