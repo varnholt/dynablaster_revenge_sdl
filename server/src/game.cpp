@@ -513,9 +513,9 @@ void Game::initializePlayerStartPositions()
  */
 void Game::broadcastCreateMapItems()
 {
-   std::vector<MapItemCreatedPacket*> createPackets = mMap->getMapItemCreatedPackets();
-   for (int i = 0; i < static_cast<int>(createPackets.size()); i++)
-      mOutgoingPackets.push_back(createPackets[i]);
+   auto createPackets = mMap->getMapItemCreatedPackets();
+   for (auto& packet : createPackets)
+      mOutgoingPackets.push_back(packet.release());
 }
 
 //-----------------------------------------------------------------------------
@@ -523,9 +523,9 @@ void Game::broadcastCreateMapItems()
  */
 void Game::broadcastClearMapItems()
 {
-   std::vector<MapItemRemovedPacket*> removePackets = mMap->getMapItemRemovedPackets();
-   for (int i = 0; i < static_cast<int>(removePackets.size()); i++)
-      mOutgoingPackets.push_back(removePackets[i]);
+   auto removePackets = mMap->getMapItemRemovedPackets();
+   for (auto& packet : removePackets)
+      mOutgoingPackets.push_back(packet.release());
 }
 
 //-----------------------------------------------------------------------------
@@ -2733,12 +2733,12 @@ void Game::processSpectator(NET_StreamSocket* tcpSocket)
          );
 
          // show him the current map
-         std::vector<MapItemCreatedPacket*> createPackets = mMap->getMapItemCreatedPackets();
-         for (int i = 0; i < static_cast<int>(createPackets.size()); i++)
+         auto createPackets = mMap->getMapItemCreatedPackets();
+         for (auto& packet : createPackets)
          {
             sendPacket(
                tcpSocket,
-               createPackets[i]
+               packet.release()
             );
          }
 

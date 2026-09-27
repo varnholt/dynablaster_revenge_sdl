@@ -1,6 +1,5 @@
 // header
 #include "map.h"
-#include <cstring>
 
 // map items
 #include "blockmapitem.h"
@@ -17,9 +16,6 @@
 #include "logging.h"
 #include "random.h"
 
-// cmath
-#include <limits.h>
-
 #include <cstdlib>
 #include <memory>
 #include <unordered_set>
@@ -28,16 +24,11 @@
 /*!
    constructor
 */
-Map::Map(int w, int h)
+Map::Map(int32_t w, int32_t h)
    : mWidth(w),
      mHeight(h),
-     mMap(0)
+     mMap(static_cast<size_t>(mWidth) * static_cast<size_t>(mHeight), nullptr)
 {
-   // init map
-   mMap = new MapItem*[mWidth*mHeight];
-
-   // clear map
-   std::memset(mMap, 0, mWidth * mHeight * sizeof(MapItem*));
 }
 
 
@@ -49,9 +40,9 @@ Map::~Map()
 {
    // a stone's extra (if any) is now owned by the stone itself (unique_ptr) and cleans
    // itself up automatically - no separate delete needed here
-   for (int i = 0; i < mWidth * mHeight; i++)
+   for (MapItem* item : mMap)
    {
-      delete mMap[i];
+      delete item;
    }
 }
 
@@ -62,9 +53,9 @@ Map::~Map()
    \param x x position
    \param y y position
 */
-MapItem* Map::getItem(int x, int y) const
+MapItem* Map::getItem(int32_t x, int32_t y) const
 {
-   return mMap[y * mWidth + x];
+   return mMap[static_cast<size_t>(y) * static_cast<size_t>(mWidth) + static_cast<size_t>(x)];
 }
 
 
@@ -74,9 +65,9 @@ MapItem* Map::getItem(int x, int y) const
    \param y y position
    \param mapitem
 */
-void Map::setItem(int x, int y, MapItem* item)
+void Map::setItem(int32_t x, int32_t y, MapItem* item)
 {
-   mMap[y * mWidth + x]=item;
+   mMap[static_cast<size_t>(y) * static_cast<size_t>(mWidth) + static_cast<size_t>(x)] = item;
 }
 
 
@@ -214,9 +205,9 @@ int32_t Map::getHeight() const
 /*!
    \param max maximum player count
 */
-int Map::getMaxPlayers()
+int32_t Map::getMaxPlayers() const
 {
-   return mStartPositions.size();
+   return static_cast<int32_t>(mStartPositions.size());
 }
 
 
@@ -234,9 +225,9 @@ void Map::setStartPositions(const std::vector<Point>& positions)
 /*!
    \return player's start position
 */
-Point Map::getStartPosition(int playerNumber)
+Point Map::getStartPosition(int32_t playerNumber) const
 {
-   return mStartPositions.at(playerNumber);
+   return mStartPositions.at(static_cast<size_t>(playerNumber));
 }
 
 
@@ -245,14 +236,14 @@ Point Map::getStartPosition(int playerNumber)
    \return a new map generated with the given data
 */
 Map* Map::generateMap(
-   int width,
-   int height,
-   int stoneCount,
-   int extraBombCount,
-   int extraFlameCount,
-   int extraSpeedUpCount,
-   int extraKickCount,
-   int extraSkullCount,
+   int32_t width,
+   int32_t height,
+   int32_t stoneCount,
+   int32_t extraBombCount,
+   int32_t extraFlameCount,
+   int32_t extraSpeedUpCount,
+   int32_t extraKickCount,
+   int32_t extraSkullCount,
    const std::vector<Point>& startPositions
 )
 {
@@ -469,13 +460,13 @@ Map* Map::generateMap(
          if (
                item
             && item->getType() == MapItem::Stone
-            && !((StoneMapItem*)item)->getExtraMapItem()
+            && !(static_cast<StoneMapItem*>(item))->getExtraMapItem()
          )
          {
             // create bomb extras
             if (extraBombPlaced < extraBombCount)
             {
-               ((StoneMapItem*)item)->setExtraMapItem(
+               (static_cast<StoneMapItem*>(item))->setExtraMapItem(
                   std::make_unique<ExtraMapItem>(
                      -1,
                      Constants::ExtraBomb,
@@ -490,7 +481,7 @@ Map* Map::generateMap(
             // create flame extras
             else if (extraFlamePlaced < extraFlameCount)
             {
-               ((StoneMapItem*)item)->setExtraMapItem(
+               (static_cast<StoneMapItem*>(item))->setExtraMapItem(
                   std::make_unique<ExtraMapItem>(
                      -1,
                      Constants::ExtraFlame,
@@ -505,7 +496,7 @@ Map* Map::generateMap(
             // create speedup extras
             else if (extraSpeedUpPlaced < extraSpeedUpCount)
             {
-               ((StoneMapItem*)item)->setExtraMapItem(
+               (static_cast<StoneMapItem*>(item))->setExtraMapItem(
                   std::make_unique<ExtraMapItem>(
                      -1,
                      Constants::ExtraSpeedup,
@@ -520,7 +511,7 @@ Map* Map::generateMap(
             // create kick extras
             else if (extraKickPlaced < extraKickCount)
             {
-               ((StoneMapItem*)item)->setExtraMapItem(
+               (static_cast<StoneMapItem*>(item))->setExtraMapItem(
                   std::make_unique<ExtraMapItem>(
                      -1,
                      Constants::ExtraKick,
@@ -545,7 +536,7 @@ Map* Map::generateMap(
                // generate skull faces and init start time
                extra->setSkullFaces(PlayerDisease::generateSkullFaces());
 
-               ((StoneMapItem*)item)->setExtraMapItem(std::move(extra));
+               (static_cast<StoneMapItem*>(item))->setExtraMapItem(std::move(extra));
 
                extraSkullPlaced++;
             }
@@ -565,9 +556,9 @@ Map* Map::generateMap(
 /*!
    \param socket socket to send map to
 */
-std::vector<MapItemCreatedPacket*> Map::getMapItemCreatedPackets()
+std::vector<std::unique_ptr<MapItemCreatedPacket>> Map::getMapItemCreatedPackets()
 {
-   std::vector<MapItemCreatedPacket*> packets;
+   std::vector<std::unique_ptr<MapItemCreatedPacket>> packets;
 
    MapItem* item = 0;
 
@@ -579,10 +570,7 @@ std::vector<MapItemCreatedPacket*> Map::getMapItemCreatedPackets()
 
          if (item)
          {
-            MapItemCreatedPacket* packet =
-               new MapItemCreatedPacket(item);
-
-            packets.push_back(packet);
+            packets.push_back(std::make_unique<MapItemCreatedPacket>(item));
          }
       }
    }
@@ -595,9 +583,9 @@ std::vector<MapItemCreatedPacket*> Map::getMapItemCreatedPackets()
 /*!
    \param socket socket to send map to
 */
-std::vector<MapItemRemovedPacket*> Map::getMapItemRemovedPackets()
+std::vector<std::unique_ptr<MapItemRemovedPacket>> Map::getMapItemRemovedPackets()
 {
-   std::vector<MapItemRemovedPacket*> packets;
+   std::vector<std::unique_ptr<MapItemRemovedPacket>> packets;
 
    MapItem* item = 0;
 
@@ -609,15 +597,17 @@ std::vector<MapItemRemovedPacket*> Map::getMapItemRemovedPackets()
 
          if (item)
          {
-            packets.push_back(new MapItemRemovedPacket(item));
+            packets.push_back(std::make_unique<MapItemRemovedPacket>(item));
 
             // map items may contain shadowed items
             if (item->getType() == MapItem::Bomb)
             {
-               BombMapItem* bomb = (BombMapItem*)item;
+               BombMapItem* bomb = static_cast<BombMapItem*>(item);
 
                if (bomb->getShadowedItem())
-                  packets.push_back(new MapItemRemovedPacket(bomb->getShadowedItem()));
+               {
+                  packets.push_back(std::make_unique<MapItemRemovedPacket>(bomb->getShadowedItem()));
+               }
             }
          }
       }
@@ -644,7 +634,7 @@ void Map::stopBombs()
          {
             if (item->getType() == MapItem::Bomb)
             {
-               ((BombMapItem*)item)->stopTimer();
+               static_cast<BombMapItem*>(item)->stopTimer();
             }
          }
       }
@@ -660,7 +650,7 @@ void Map::stopBombs()
    \param y2 point b y
    \return manhattan length between point a and b
 */
-int Map::getManhattanLength(int x1, int y1, int x2, int y2)
+int32_t Map::getManhattanLength(int32_t x1, int32_t y1, int32_t x2, int32_t y2)
 {
    return std::abs(std::abs(x1) - std::abs(x2)) + std::abs(std::abs(y1) - std::abs(y2));
 }
@@ -676,8 +666,8 @@ int Map::getManhattanLength(int x1, int y1, int x2, int y2)
 std::vector<Point> Map::getManhattanFiltered(
    const Point &pos,
    const std::vector<Point>& points,
-   int manhattanLengthMax,
-   int manhattanLengthMin
+   int32_t manhattanLengthMax,
+   int32_t manhattanLengthMin
 )
 {
    std::vector<Point> filtered;
