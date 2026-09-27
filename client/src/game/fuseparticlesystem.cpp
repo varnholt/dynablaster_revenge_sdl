@@ -17,7 +17,10 @@ constexpr float BOMB_OFFSET_Z = 0.48f;
 
 // visual size of a spark in screen pixels at unit view-space depth - tune against a real bomb in
 // game, no analytical way to derive this from the original's world-space quad size (0.05 units).
-constexpr float PARTICLE_PIXEL_SIZE = 400.0f;
+// first guess (400) was reported way too big in a real playtest; PlayerDeathEffect's calibrated
+// particles land around 50-150px (50.0f * xSkip, see DeathFlowFieldAnimation::initialize()) at
+// native resolution, so this cuts to a comparable ballpark rather than a blind smaller guess.
+constexpr float PARTICLE_PIXEL_SIZE = 48.0f;
 }  // namespace
 
 FuseParticleSystem::FuseParticleSystem()
