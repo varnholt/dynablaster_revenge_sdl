@@ -16,7 +16,7 @@
    \param yPos player y position
    \param angle optional rotation angle
 */
-MapItemMovePacket::MapItemMovePacket(int id, float speed, Constants::Direction dir, int nominalX, int nominalY)
+MapItemMovePacket::MapItemMovePacket(int32_t id, float speed, Constants::Direction dir, int32_t nominalX, int32_t nominalY)
     : Packet(Packet::MAPITEMMOVE), mMapItemId(id), mSpeed(speed), mDirection(dir), mNominalX(nominalX), mNominalY(nominalY)
 {
    mPacketName = PACKETNAME;
@@ -62,7 +62,7 @@ Constants::Direction MapItemMovePacket::getDirection() const
 /*!
    \return nominal x
 */
-int MapItemMovePacket::getNominalX() const
+int32_t MapItemMovePacket::getNominalX() const
 {
    return mNominalX;
 }
@@ -71,7 +71,7 @@ int MapItemMovePacket::getNominalX() const
 /*!
    \return nominal y
 */
-int MapItemMovePacket::getNominalY() const
+int32_t MapItemMovePacket::getNominalY() const
 {
    return mNominalY;
 }
@@ -80,7 +80,7 @@ int MapItemMovePacket::getNominalY() const
 /*!
    \return player id
 */
-int MapItemMovePacket::getMapItemId()
+int32_t MapItemMovePacket::getMapItemId() const
 {
    return mMapItemId;
 }
@@ -94,7 +94,7 @@ void MapItemMovePacket::enqueue(BinaryWriter& out)
    // write player id
    out << mMapItemId;
    out << mSpeed;
-   out << (int8_t)mDirection;
+   out << static_cast<int8_t>(mDirection);
    out << mNominalX;
    out << mNominalY;
 }
@@ -109,7 +109,7 @@ void MapItemMovePacket::dequeue(BinaryReader& in)
 
    in >> mMapItemId >> mSpeed >> direction >> mNominalX >> mNominalY;
 
-   mDirection = (Constants::Direction)direction;
+   mDirection = static_cast<Constants::Direction>(direction);
 }
 
 //-----------------------------------------------------------------------------

@@ -13,7 +13,7 @@
 
    \param uniqueId unique id
 */
-ExtraShakePacket::ExtraShakePacket(int uniqueId) : Packet(Packet::EXTRASHAKE), mMapItemUniqueId(uniqueId)
+ExtraShakePacket::ExtraShakePacket(int32_t uniqueId) : Packet(Packet::EXTRASHAKE), mMapItemUniqueId(uniqueId)
 {
    mPacketName = PACKETNAME;
 }
@@ -39,7 +39,7 @@ ExtraShakePacket::~ExtraShakePacket()
 /*!
    \return unique id
 */
-int ExtraShakePacket::getMapItemUniqueId() const
+int32_t ExtraShakePacket::getMapItemUniqueId() const
 {
    return mMapItemUniqueId;
 }

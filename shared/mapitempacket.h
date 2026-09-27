@@ -1,5 +1,6 @@
-#ifndef MAPITEMPACKET_H
-#define MAPITEMPACKET_H
+#pragma once
+
+#include <cstdint>
 
 #include "mapitem.h"
 #include "packet.h"
@@ -10,7 +11,7 @@ public:
    //! constructor
    MapItemPacket(Packet::TYPE type);
 
-   //! alternative constructor
+   //! alternative constructor - item is only read from, not owned by this packet
    MapItemPacket(Packet::TYPE packetType, MapItem* item);
 
    //! debug packet
@@ -23,22 +24,20 @@ public:
    virtual void dequeue(BinaryReader&);
 
    //! getter for item's x pos
-   int getX() const;
+   [[nodiscard]] int32_t getX() const;
 
    //! getter for item's y pos
-   int getY() const;
+   [[nodiscard]] int32_t getY() const;
 
    //! getter for item type
-   MapItem::ItemType getItemType() const;
+   [[nodiscard]] MapItem::ItemType getItemType() const;
 
    //! getter for item's unique id
-   int getUniqueId() const;
+   [[nodiscard]] int32_t getUniqueId() const;
 
 private:
-   int mX;
-   int mY;
-   int mUniqueId;
+   int32_t mX;
+   int32_t mY;
+   int32_t mUniqueId;
    MapItem::ItemType mItemType;
 };
-
-#endif  // MAPITEMREMOVEDPACKET_H

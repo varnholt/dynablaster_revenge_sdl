@@ -1,5 +1,6 @@
-#ifndef EXTRASHAKEPACKET_H
-#define EXTRASHAKEPACKET_H
+#pragma once
+
+#include <cstdint>
 
 #include "packet.h"
 
@@ -7,7 +8,7 @@ class ExtraShakePacket : public Packet
 {
 public:
    //! write constructor
-   ExtraShakePacket(int uniqueId);
+   ExtraShakePacket(int32_t uniqueId);
 
    //! read constructor
    ExtraShakePacket();
@@ -25,11 +26,9 @@ public:
    void dequeue(BinaryReader&);
 
    //! getter for item unique id
-   int getMapItemUniqueId() const;
+   [[nodiscard]] int32_t getMapItemUniqueId() const;
 
 private:
    //! unique id
-   int mMapItemUniqueId;
+   int32_t mMapItemUniqueId;
 };
-
-#endif  // ExtraShakePacket_H

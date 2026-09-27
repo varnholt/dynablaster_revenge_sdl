@@ -1,18 +1,32 @@
-#ifndef GAMESTATSPACKET_H
-#define GAMESTATSPACKET_H
+#pragma once
 
+#include <cstdint>
 #include <vector>
 
 #include "packet.h"
 
 #include "playerstats.h"
 
+// one player's slice of a GameStatsPacket - id plus both stat sets, kept together so
+// enqueue()/dequeue() can stream a single std::vector<PlayerGameStats> through BinaryWriter/
+// BinaryReader's generic vector operator<</>> instead of the old three-parallel-vectors-plus-
+// one-shared-size-field layout.
+struct PlayerGameStats
+{
+   int32_t player_id = 0;
+   PlayerStats overall_stats;
+   PlayerStats round_stats;
+};
+
+BinaryWriter& operator<<(BinaryWriter& out, const PlayerGameStats& stats);
+BinaryReader& operator>>(BinaryReader& in, PlayerGameStats& stats);
+
 class GameStatsPacket : public Packet
 {
 public:
    //! write constructor
    GameStatsPacket(
-      const std::vector<int>& ids, const std::vector<PlayerStats>& overallStats, const std::vector<PlayerStats>& roundStats
+      const std::vector<int32_t>& ids, const std::vector<PlayerStats>& overallStats, const std::vector<PlayerStats>& roundStats
    );
 
    //! read constructor
@@ -31,26 +45,15 @@ public:
    void dequeue(BinaryReader&);
 
    //! getter for the overall player stats
-   std::vector<PlayerStats> getOverallStats() const;
+   [[nodiscard]] std::vector<PlayerStats> getOverallStats() const;
 
    //! getter for the round player stats
-   std::vector<PlayerStats> getRoundStats() const;
+   [[nodiscard]] std::vector<PlayerStats> getRoundStats() const;
 
    //! getter for list of player ids
-   std::vector<int> getPlayerIds() const;
+   [[nodiscard]] std::vector<int32_t> getPlayerIds() const;
 
 private:
-   //! dequeue stats list
-   void dequeueStatsList(BinaryReader& in, int size, std::vector<PlayerStats>* list);
-
-   //! list of player ids
-   std::vector<int> mPlayerIds;
-
-   //! player stats to send
-   std::vector<PlayerStats> mOverallStats;
-
-   //! player rounds stats to send
-   std::vector<PlayerStats> mRoundStats;
+   //! per-player id + overall/round stats, one entry per player
+   std::vector<PlayerGameStats> mPlayerStats;
 };
-
-#endif  // GAMESTATSPACKET_H

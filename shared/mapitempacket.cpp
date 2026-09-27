@@ -19,12 +19,12 @@ MapItemPacket::MapItemPacket(Packet::TYPE type, MapItem* item)
    mPacketName = PACKETNAME;
 }
 
-int MapItemPacket::getX() const
+int32_t MapItemPacket::getX() const
 {
    return mX;
 }
 
-int MapItemPacket::getY() const
+int32_t MapItemPacket::getY() const
 {
    return mY;
 }
@@ -34,7 +34,7 @@ MapItem::ItemType MapItemPacket::getItemType() const
    return mItemType;
 }
 
-int MapItemPacket::getUniqueId() const
+int32_t MapItemPacket::getUniqueId() const
 {
    return mUniqueId;
 }
@@ -42,7 +42,7 @@ int MapItemPacket::getUniqueId() const
 void MapItemPacket::enqueue(BinaryWriter& out)
 {
    // write members
-   out << (int)mItemType;
+   out << static_cast<int32_t>(mItemType);
    out << mX;
    out << mY;
    out << mUniqueId;
@@ -53,7 +53,7 @@ void MapItemPacket::dequeue(BinaryReader& in)
    // read members
    int32_t itemType = 0;
    in >> itemType;
-   mItemType = (MapItem::ItemType)itemType;
+   mItemType = static_cast<MapItem::ItemType>(itemType);
 
    in >> mX >> mY >> mUniqueId;
 }

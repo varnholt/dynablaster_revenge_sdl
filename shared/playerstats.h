@@ -2,12 +2,15 @@
 
 #include <cstdint>
 
+class BinaryWriter;
+class BinaryReader;
+
 class PlayerStats
 {
 
 public:
 
-   explicit PlayerStats();
+   PlayerStats();
 
    [[nodiscard]] uint32_t getWins() const;
 
@@ -54,3 +57,6 @@ protected:
 
    uint32_t _extras_collected;
 };
+
+BinaryWriter& operator<<(BinaryWriter& out, const PlayerStats& stats);
+BinaryReader& operator>>(BinaryReader& in, PlayerStats& stats);

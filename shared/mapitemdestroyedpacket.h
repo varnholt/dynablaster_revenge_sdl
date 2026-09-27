@@ -1,5 +1,4 @@
-#ifndef MAPITEMDESTROYEDPACKET_H
-#define MAPITEMDESTROYEDPACKET_H
+#pragma once
 
 // base
 #include "mapitemremovedpacket.h"
@@ -26,13 +25,13 @@ public:
    void dequeue(BinaryReader&);
 
    //! getter for destroyer id
-   int32_t getPlayerId() const;
+   [[nodiscard]] int32_t getPlayerId() const;
 
    //! getter for direction
-   Constants::Direction getDirection() const;
+   [[nodiscard]] Constants::Direction getDirection() const;
 
    //! getter for intensity of destruction
-   float getIntensity() const;
+   [[nodiscard]] float getIntensity() const;
 
 private:
    //! player id
@@ -44,5 +43,3 @@ private:
    //! intensity the item was destroyed with
    float mIntensity;
 };
-
-#endif  // MAPITEMDESTROYEDPACKET_H

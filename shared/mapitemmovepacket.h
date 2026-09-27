@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 // base
 #include "packet.h"
 
@@ -10,7 +12,7 @@ class MapItemMovePacket : public Packet
 {
 public:
    //! write constructor
-   MapItemMovePacket(int mapItemId, float speed, Constants::Direction direction, int nominalX = -1, int nominalY = -1);
+   MapItemMovePacket(int32_t mapItemId, float speed, Constants::Direction direction, int32_t nominalX = -1, int32_t nominalY = -1);
 
    //! read constructor
    MapItemMovePacket();
@@ -28,23 +30,23 @@ public:
    void dequeue(BinaryReader&);
 
    //! getter for object id
-   int getMapItemId();
+   [[nodiscard]] int32_t getMapItemId() const;
 
    //! getter mapitem speed
-   float getSpeed() const;
+   [[nodiscard]] float getSpeed() const;
 
    //! getter for mapitem direction
-   Constants::Direction getDirection() const;
+   [[nodiscard]] Constants::Direction getDirection() const;
 
    //! getter for nominal x position
-   int getNominalX() const;
+   [[nodiscard]] int32_t getNominalX() const;
 
    //! getter for nominal y position
-   int getNominalY() const;
+   [[nodiscard]] int32_t getNominalY() const;
 
 private:
    //! unique mapitem id
-   int mMapItemId;
+   int32_t mMapItemId;
 
    //! mapitem speed
    float mSpeed;
@@ -53,8 +55,8 @@ private:
    Constants::Direction mDirection;
 
    //! nominal x
-   int mNominalX;
+   int32_t mNominalX;
 
    //! nominal y
-   int mNominalY;
+   int32_t mNominalY;
 };

@@ -12,7 +12,7 @@
    \param event game event
    \param intensity event intensity
 */
-GameEventPacket::GameEventPacket(GameEvent event, float intensity, int x, int y)
+GameEventPacket::GameEventPacket(GameEvent event, float intensity, int32_t x, int32_t y)
     : Packet(Packet::GAMEEVENT), mEvent(event), mIntensity(intensity), mPlayerId(-1), mExtraType(Constants::ExtraBomb), mX(x), mY(y)
 {
    mPacketName = PACKETNAME;
@@ -68,8 +68,8 @@ void GameEventPacket::dequeue(BinaryReader& in)
    // read members
    in >> event >> mIntensity >> mPlayerId >> extra >> mX >> mY;
 
-   mEvent = (GameEvent)event;
-   mExtraType = (Constants::ExtraType)extra;
+   mEvent = static_cast<GameEvent>(event);
+   mExtraType = static_cast<Constants::ExtraType>(extra);
 }
 
 //-----------------------------------------------------------------------------
@@ -122,7 +122,7 @@ Constants::ExtraType GameEventPacket::getExtraType() const
 /*!
    \return x position of event
 */
-int GameEventPacket::getX() const
+int32_t GameEventPacket::getX() const
 {
    return mX;
 }
@@ -131,7 +131,7 @@ int GameEventPacket::getX() const
 /*!
    \return y position of event
 */
-int GameEventPacket::getY() const
+int32_t GameEventPacket::getY() const
 {
    return mY;
 }

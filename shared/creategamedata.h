@@ -1,6 +1,6 @@
-#ifndef CREATEGAMEDATA_H
-#define CREATEGAMEDATA_H
+#pragma once
 
+#include <cstdint>
 #include <string>
 
 // shared
@@ -23,13 +23,13 @@ class CreateGameData
       std::string mLevel;
 
       //! number of rounds
-      int mRounds;
+      int32_t mRounds;
 
       //! game duration (s)
-      int mDuration;
+      int32_t mDuration;
 
       //! maximum player count
-      int mMaxPlayers;
+      int32_t mMaxPlayers;
 
       //! bomb extra enabled
       bool mExtraBombEnabled;
@@ -49,5 +49,3 @@ class CreateGameData
       //! playfield dimension
       Constants::Dimension mDimension;
 };
-
-#endif // CREATEGAMEDATA_H

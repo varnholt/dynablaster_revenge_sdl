@@ -1,5 +1,8 @@
 #include "playerstats.h"
 
+#include "binaryreader.h"
+#include "binarywriter.h"
+
 PlayerStats::PlayerStats()
  : _wins(0),
    _kills(0),
@@ -107,5 +110,30 @@ uint32_t PlayerStats::getSurvivalTime() const
 uint32_t PlayerStats::getExtrasCollected() const
 {
    return _extras_collected;
+}
+
+BinaryWriter& operator<<(BinaryWriter& out, const PlayerStats& stats)
+{
+   out << stats.getWins() << stats.getKills() << stats.getDeaths() << stats.getSurvivalTime() << stats.getExtrasCollected();
+   return out;
+}
+
+BinaryReader& operator>>(BinaryReader& in, PlayerStats& stats)
+{
+   uint32_t wins = 0;
+   uint32_t kills = 0;
+   uint32_t deaths = 0;
+   uint32_t survival_time = 0;
+   uint32_t extras_collected = 0;
+
+   in >> wins >> kills >> deaths >> survival_time >> extras_collected;
+
+   stats.setWins(wins);
+   stats.setKills(kills);
+   stats.setDeaths(deaths);
+   stats.setSurvivalTime(survival_time);
+   stats.setExtrasCollected(extras_collected);
+
+   return in;
 }
 
