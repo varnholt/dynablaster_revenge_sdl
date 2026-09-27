@@ -193,3 +193,9 @@ target_include_directories(dynablaster_server PRIVATE
 )
 
 target_link_libraries(dynablaster_server PRIVATE SDL3::SDL3 SDL3_net::SDL3_net)
+
+add_custom_command(TARGET dynablaster_server POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_CURRENT_SOURCE_DIR}/data
+        $<TARGET_FILE_DIR:dynablaster_server>/data
+)
