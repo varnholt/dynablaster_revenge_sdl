@@ -74,7 +74,7 @@ void PlayerInfectedPacket::dequeue(BinaryReader& in)
    // read members
    in >> mPlayerId >> skull >> mInfectorId >> mExtraPosX >> mExtraPosY;
 
-   mSkullType = (Constants::SkullType)skull;
+   mSkullType = static_cast<Constants::SkullType>(skull);
 }
 
 //-----------------------------------------------------------------------------
@@ -129,7 +129,7 @@ int32_t PlayerInfectedPacket::getInfectorId() const
 /*!
    \param value infector id
 */
-void PlayerInfectedPacket::setInfectorId(const int32_t& value)
+void PlayerInfectedPacket::setInfectorId(int32_t value)
 {
    mInfectorId = value;
 }

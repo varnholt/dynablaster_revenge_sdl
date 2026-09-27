@@ -57,7 +57,7 @@ PlayerSynchronizePacket::SynchronizeProcess PlayerSynchronizePacket::getSynchron
 */
 void PlayerSynchronizePacket::enqueue(BinaryWriter& out)
 {
-   out << (uint8_t)getSynchronizeProcess();
+   out << static_cast<uint8_t>(getSynchronizeProcess());
 }
 
 //-----------------------------------------------------------------------------
@@ -70,7 +70,7 @@ void PlayerSynchronizePacket::dequeue(BinaryReader& in)
 
    in >> process;
 
-   setSynchronizeProcess((SynchronizeProcess)process);
+   setSynchronizeProcess(static_cast<SynchronizeProcess>(process));
 }
 
 //-----------------------------------------------------------------------------

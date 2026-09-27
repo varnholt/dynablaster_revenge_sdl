@@ -1,5 +1,4 @@
-#ifndef JOINGAMERESPONSEPACKET_H
-#define JOINGAMERESPONSEPACKET_H
+#pragma once
 
 #include <string>
 
@@ -34,25 +33,25 @@ public:
    void setGameId(int32_t id);
 
    //! getter for the game id
-   int32_t getGameId() const;
+   [[nodiscard]] int32_t getGameId() const;
 
    //! setter for the player id
    void setPlayerId(int32_t id);
 
    //! getter for the player id
-   int32_t getPlayerId() const;
+   [[nodiscard]] int32_t getPlayerId() const;
 
    //! getter for player nick
-   const std::string& getNick() const;
+   [[nodiscard]] const std::string& getNick() const;
 
    //! getter for successful flag
-   bool isSuccessful() const;
+   [[nodiscard]] bool isSuccessful() const;
 
    //! setter for player color
    void setColor(Constants::Color color);
 
    //! getter for player color
-   Constants::Color getColor() const;
+   [[nodiscard]] Constants::Color getColor() const;
 
 private:
    //! successfully joined
@@ -70,5 +69,3 @@ private:
    //! player's color
    Constants::Color mColor;
 };
-
-#endif

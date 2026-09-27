@@ -1,5 +1,4 @@
-#ifndef LOGINREQUESTPACKET_H
-#define LOGINREQUESTPACKET_H
+#pragma once
 
 #include <string>
 
@@ -28,10 +27,10 @@ public:
    void dequeue(BinaryReader&);
 
    //! getter for player nick
-   const std::string& getNick() const;
+   [[nodiscard]] const std::string& getNick() const;
 
    //! getter for bot flag
-   bool isBot() const;
+   [[nodiscard]] bool isBot() const;
 
 private:
    //! player nick
@@ -40,5 +39,3 @@ private:
    //! player is a bot
    bool mBot;
 };
-
-#endif

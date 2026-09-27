@@ -1,5 +1,4 @@
-#ifndef STOPGAMEREQUESTPACKET_H
-#define STOPGAMEREQUESTPACKET_H
+#pragma once
 
 #include "packet.h"
 
@@ -9,7 +8,7 @@ class StopGameRequestPacket : public Packet
 {
 public:
    //! write constructor, -1 if not accepted
-   StopGameRequestPacket(int id);
+   StopGameRequestPacket(int32_t id);
 
    //! read constructor
    StopGameRequestPacket();
@@ -27,11 +26,9 @@ public:
    void dequeue(BinaryReader&);
 
    //! getter for game id
-   int getId();
+   [[nodiscard]] int32_t getId() const;
 
 private:
    //! game id
    int32_t mId;
 };
-
-#endif  // STOPGAMEREQUESTPACKET_H

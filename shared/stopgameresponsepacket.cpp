@@ -13,7 +13,7 @@
 
    \param name game's name
 */
-StopGameResponsePacket::StopGameResponsePacket(int id, bool finished) : Packet(Packet::STOPGAMERESPONSE), mId(id), mFinished(finished)
+StopGameResponsePacket::StopGameResponsePacket(int32_t id, bool finished) : Packet(Packet::STOPGAMERESPONSE), mId(id), mFinished(finished)
 {
    mPacketName = PACKETNAME;
 }
@@ -39,7 +39,7 @@ StopGameResponsePacket::~StopGameResponsePacket()
 /*!
    \return game's id
 */
-int StopGameResponsePacket::getId()
+int32_t StopGameResponsePacket::getId() const
 {
    return mId;
 }
@@ -48,7 +48,7 @@ int StopGameResponsePacket::getId()
 /*!
    \return stopped flag
 */
-bool StopGameResponsePacket::isFinished()
+bool StopGameResponsePacket::isFinished() const
 {
    return mFinished;
 }

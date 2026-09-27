@@ -1,5 +1,4 @@
-#ifndef LeaveGameResponsePacket_H
-#define LeaveGameResponsePacket_H
+#pragma once
 
 #include "packet.h"
 
@@ -32,13 +31,13 @@ public:
    void setGameId(int32_t id);
 
    //! getter for the game id
-   int32_t getGameId() const;
+   [[nodiscard]] int32_t getGameId() const;
 
    //! setter for the player id
    void setPlayerId(int32_t id);
 
    //! getter for the player id
-   int32_t getPlayerId() const;
+   [[nodiscard]] int32_t getPlayerId() const;
 
 protected:
    //! game's id
@@ -47,5 +46,3 @@ protected:
    //! player's
    int32_t mPlayerId;
 };
-
-#endif  // LeaveGameResponsePacket_H

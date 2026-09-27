@@ -13,7 +13,7 @@
 
    \param name game's name
 */
-StopGameRequestPacket::StopGameRequestPacket(int id) : Packet(Packet::STOPGAMEREQUEST), mId(id)
+StopGameRequestPacket::StopGameRequestPacket(int32_t id) : Packet(Packet::STOPGAMEREQUEST), mId(id)
 {
    mPacketName = PACKETNAME;
 }
@@ -39,7 +39,7 @@ StopGameRequestPacket::~StopGameRequestPacket()
 /*!
    \return game's id
 */
-int StopGameRequestPacket::getId()
+int32_t StopGameRequestPacket::getId() const
 {
    return mId;
 }

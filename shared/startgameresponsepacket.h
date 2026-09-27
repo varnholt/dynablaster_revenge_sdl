@@ -1,5 +1,4 @@
-#ifndef STARTGAMERESPONSEPACKET_H
-#define STARTGAMERESPONSEPACKET_H
+#pragma once
 
 #include "packet.h"
 
@@ -9,7 +8,7 @@ class StartGameResponsePacket : public Packet
 {
 public:
    //! write constructor, -1 if not accepted
-   StartGameResponsePacket(int id, bool started);
+   StartGameResponsePacket(int32_t id, bool started);
 
    //! read constructor
    StartGameResponsePacket();
@@ -27,10 +26,10 @@ public:
    void dequeue(BinaryReader&);
 
    //! getter for game id
-   int getId();
+   [[nodiscard]] int32_t getId() const;
 
    //! getter for game is started flag
-   bool isStarted();
+   [[nodiscard]] bool isStarted() const;
 
 private:
    //! game id
@@ -39,5 +38,3 @@ private:
    //! game was started
    bool mStarted;
 };
-
-#endif  // STARTGAMERESPONSEPACKET_H

@@ -1,5 +1,4 @@
-#ifndef COUNTDOWNPACKET_H
-#define COUNTDOWNPACKET_H
+#pragma once
 
 #include "packet.h"
 
@@ -7,7 +6,7 @@ class CountdownPacket : public Packet
 {
 public:
    //! write constructor
-   CountdownPacket(int timeLeft);
+   CountdownPacket(int8_t timeLeft);
 
    //! read constructor
    CountdownPacket();
@@ -25,11 +24,9 @@ public:
    void dequeue(BinaryReader&);
 
    //! getter for remaining time
-   int getTimeLeft();
+   [[nodiscard]] int8_t getTimeLeft() const;
 
 private:
    //! countdown
    int8_t mTimeLeft;
 };
-
-#endif  // COUNTDOWNPACKET_H

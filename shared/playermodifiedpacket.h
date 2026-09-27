@@ -1,5 +1,4 @@
-#ifndef PLAYERMODIFIEDPACKET_H
-#define PLAYERMODIFIEDPACKET_H
+#pragma once
 
 // base
 #include "packet.h"
@@ -26,11 +25,9 @@ public:
    void dequeue(BinaryReader&);
 
    //! getter for elapsed time
-   Constants::Color getColor() const;
+   [[nodiscard]] Constants::Color getColor() const;
 
 private:
    //! player color
    int32_t mColor;
 };
-
-#endif  // PLAYERMODIFIEDPACKET_H

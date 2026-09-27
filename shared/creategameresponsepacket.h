@@ -1,5 +1,4 @@
-#ifndef CREATEGAMERESPONSEPACKET_H
-#define CREATEGAMERESPONSEPACKET_H
+#pragma once
 
 // shared
 #include "gameinformation.h"
@@ -29,11 +28,9 @@ public:
    void dequeue(BinaryReader&);
 
    //! getter for game information
-   const GameInformation& getGameInformation() const;
+   [[nodiscard]] const GameInformation& getGameInformation() const;
 
 private:
    //! game information
    GameInformation mGameInformation;
 };
-
-#endif  // CREATEGAMERESPONSEPACKET_H

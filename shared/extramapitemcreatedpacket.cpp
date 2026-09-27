@@ -14,11 +14,9 @@
 /*!
    \param item extra-mapitem
 */
-ExtraMapItemCreatedPacket::ExtraMapItemCreatedPacket(ExtraMapItem* item) : MapItemCreatedPacket(item), mExtraType(item->getExtraType())
+ExtraMapItemCreatedPacket::ExtraMapItemCreatedPacket(ExtraMapItem* item)
+    : MapItemCreatedPacket(item), mExtraType(item->getExtraType()), mSkullFaces(6, Constants::SkullReset)
 {
-   for (int i = 0; i < 6; i++)
-      mSkullFaces.push_back(Constants::SkullReset);
-
    mPacketType = Packet::EXTRAMAPITEMCREATED;
    mPacketName = PACKETNAME;
 }
@@ -27,11 +25,8 @@ ExtraMapItemCreatedPacket::ExtraMapItemCreatedPacket(ExtraMapItem* item) : MapIt
 /*!
    read constructor
 */
-ExtraMapItemCreatedPacket::ExtraMapItemCreatedPacket() : MapItemCreatedPacket(), mExtraType(-1)
+ExtraMapItemCreatedPacket::ExtraMapItemCreatedPacket() : MapItemCreatedPacket(), mExtraType(-1), mSkullFaces(6, Constants::SkullReset)
 {
-   for (int i = 0; i < 6; i++)
-      mSkullFaces.push_back(Constants::SkullReset);
-
    mPacketType = Packet::EXTRAMAPITEMCREATED;
    mPacketName = PACKETNAME;
 }
@@ -94,11 +89,11 @@ void ExtraMapItemCreatedPacket::dequeue(BinaryReader& in)
    in >> extraType;
    in >> faces;
 
-   mExtraType = (Constants::ExtraType)extraType;
-   mSkullFaces[0] = (Constants::SkullType)((faces >> 20) & 0x0f);
-   mSkullFaces[1] = (Constants::SkullType)((faces >> 16) & 0x0f);
-   mSkullFaces[2] = (Constants::SkullType)((faces >> 12) & 0x0f);
-   mSkullFaces[3] = (Constants::SkullType)((faces >> 8) & 0x0f);
-   mSkullFaces[4] = (Constants::SkullType)((faces >> 4) & 0x0f);
-   mSkullFaces[5] = (Constants::SkullType)((faces) & 0x0f);
+   mExtraType = static_cast<Constants::ExtraType>(extraType);
+   mSkullFaces[0] = static_cast<Constants::SkullType>((faces >> 20) & 0x0f);
+   mSkullFaces[1] = static_cast<Constants::SkullType>((faces >> 16) & 0x0f);
+   mSkullFaces[2] = static_cast<Constants::SkullType>((faces >> 12) & 0x0f);
+   mSkullFaces[3] = static_cast<Constants::SkullType>((faces >> 8) & 0x0f);
+   mSkullFaces[4] = static_cast<Constants::SkullType>((faces >> 4) & 0x0f);
+   mSkullFaces[5] = static_cast<Constants::SkullType>((faces) & 0x0f);
 }

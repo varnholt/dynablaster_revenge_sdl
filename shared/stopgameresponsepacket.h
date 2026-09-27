@@ -1,5 +1,4 @@
-#ifndef STOPGAMERESPONSEPACKET_H
-#define STOPGAMERESPONSEPACKET_H
+#pragma once
 
 #include "packet.h"
 
@@ -9,7 +8,7 @@ class StopGameResponsePacket : public Packet
 {
 public:
    //! write constructor, -1 if not accepted
-   StopGameResponsePacket(int id, bool finished);
+   StopGameResponsePacket(int32_t id, bool finished);
 
    //! read constructor
    StopGameResponsePacket();
@@ -27,10 +26,10 @@ public:
    void dequeue(BinaryReader&);
 
    //! getter for game id
-   int getId();
+   [[nodiscard]] int32_t getId() const;
 
    //! getter for stopped flag
-   bool isFinished();
+   [[nodiscard]] bool isFinished() const;
 
 private:
    //! game id
@@ -39,5 +38,3 @@ private:
    //! finished flag
    bool mFinished;
 };
-
-#endif  // STOPGAMERESPONSEPACKET_H

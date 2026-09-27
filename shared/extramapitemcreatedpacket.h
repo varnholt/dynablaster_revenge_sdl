@@ -1,5 +1,4 @@
-#ifndef EXTRAMAPITEMCREATEDPACKET_H
-#define EXTRAMAPITEMCREATEDPACKET_H
+#pragma once
 
 #include <vector>
 
@@ -25,13 +24,13 @@ public:
    virtual void dequeue(BinaryReader&);
 
    //! getter for extra type
-   int32_t getExtraType() const;
+   [[nodiscard]] int32_t getExtraType() const;
 
    //! setter for different skull sides
    void setSkullFaces(const std::vector<Constants::SkullType>& faces);
 
    //! getter for skull sides
-   std::vector<Constants::SkullType> getSkullFaces() const;
+   [[nodiscard]] std::vector<Constants::SkullType> getSkullFaces() const;
 
 private:
    //! extra type
@@ -40,5 +39,3 @@ private:
    //! skull sides
    std::vector<Constants::SkullType> mSkullFaces;
 };
-
-#endif  // EXTRAMAPITEMCREATEDPACKET_H

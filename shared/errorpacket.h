@@ -1,5 +1,4 @@
-#ifndef ERRORPACKET_H
-#define ERRORPACKET_H
+#pragma once
 
 #include <string>
 
@@ -28,13 +27,13 @@ public:
    void dequeue(BinaryReader&);
 
    //! getter for error type
-   Constants::ErrorType getErrorType() const;
+   [[nodiscard]] Constants::ErrorType getErrorType() const;
 
    //! setter for error type
    void setErrorType(Constants::ErrorType errorType);
 
    //! getter for error message
-   const std::string& getErrorMessage() const;
+   [[nodiscard]] const std::string& getErrorMessage() const;
 
    //! setter for error message
    void setErrorMessage(const std::string& message);
@@ -46,5 +45,3 @@ protected:
    //! error message
    std::string mErrorMessage;
 };
-
-#endif  // ERRORPACKET_H

@@ -30,7 +30,7 @@ PlayerModifiedPacket::PlayerModifiedPacket() : Packet(Packet::PLAYERMODIFIED)
 */
 Constants::Color PlayerModifiedPacket::getColor() const
 {
-   return (Constants::Color)mColor;
+   return static_cast<Constants::Color>(mColor);
 }
 
 //-----------------------------------------------------------------------------

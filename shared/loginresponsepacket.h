@@ -1,5 +1,4 @@
-#ifndef LOGINRESPONSEPACKET_H
-#define LOGINRESPONSEPACKET_H
+#pragma once
 
 #include <string>
 
@@ -34,16 +33,16 @@ public:
    void setId(int32_t id);
 
    //! getter for the id
-   int32_t getId() const;
+   [[nodiscard]] int32_t getId() const;
 
    //! getter for player nick
-   const std::string& getNick() const;
+   [[nodiscard]] const std::string& getNick() const;
 
    //! getter for broadcast flag
-   bool isBroadcast() const;
+   [[nodiscard]] bool isBroadcast() const;
 
    //! getter for server configuration
-   const ServerConfiguration& getServerConfiguration() const;
+   [[nodiscard]] const ServerConfiguration& getServerConfiguration() const;
 
 private:
    //! individual allowance or broadcast packet
@@ -58,5 +57,3 @@ private:
    //! server configuration data
    ServerConfiguration mServerConfiguration;
 };
-
-#endif

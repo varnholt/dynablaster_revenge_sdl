@@ -80,7 +80,7 @@ int32_t JoinGameResponsePacket::getGameId() const
 void JoinGameResponsePacket::enqueue(BinaryWriter& out)
 {
    // write player data
-   out << mSuccess << mGameId << mPlayerId << mNick << (int32_t)mColor;
+   out << mSuccess << mGameId << mPlayerId << mNick << static_cast<int32_t>(mColor);
 }
 
 //-----------------------------------------------------------------------------
@@ -94,7 +94,7 @@ void JoinGameResponsePacket::dequeue(BinaryReader& in)
    // read player data
    in >> mSuccess >> mGameId >> mPlayerId >> mNick >> color;
 
-   mColor = (Constants::Color)color;
+   mColor = static_cast<Constants::Color>(color);
 }
 
 //-----------------------------------------------------------------------------

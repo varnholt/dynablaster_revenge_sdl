@@ -1,5 +1,4 @@
-#ifndef JOINGAMEREQUESTPACKET_H
-#define JOINGAMEREQUESTPACKET_H
+#pragma once
 
 #include "packet.h"
 
@@ -7,7 +6,7 @@ class JoinGameRequestPacket : public Packet
 {
 public:
    //! write constructor
-   JoinGameRequestPacket(int id);
+   JoinGameRequestPacket(int32_t id);
 
    //! read constructor
    JoinGameRequestPacket();
@@ -25,11 +24,9 @@ public:
    void dequeue(BinaryReader&);
 
    //! getter for game id
-   int getId();
+   [[nodiscard]] int32_t getId() const;
 
 private:
    //! game's id
-   int8_t mId;
+   int32_t mId;
 };
-
-#endif  // JOINGAMEREQUESTPACKET_H

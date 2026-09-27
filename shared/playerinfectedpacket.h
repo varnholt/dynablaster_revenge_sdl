@@ -1,5 +1,4 @@
-#ifndef PLAYERINFECTEDPACKET_H
-#define PLAYERINFECTEDPACKET_H
+#pragma once
 
 // base
 #include "packet.h"
@@ -26,25 +25,25 @@ public:
    void dequeue(BinaryReader&);
 
    //! getter for player id
-   int32_t getPlayerId() const;
+   [[nodiscard]] int32_t getPlayerId() const;
 
    //! getter for skull type
-   Constants::SkullType getSkullType() const;
+   [[nodiscard]] Constants::SkullType getSkullType() const;
 
    //! getter for infector id
-   int32_t getInfectorId() const;
+   [[nodiscard]] int32_t getInfectorId() const;
 
    //! setter for infector id
-   void setInfectorId(const int32_t& value);
+   void setInfectorId(int32_t value);
 
    //! setter for extra position
    void setExtraPos(uint8_t x, uint8_t y);
 
    //! getter for extra position x
-   uint8_t getExtraPosX() const;
+   [[nodiscard]] uint8_t getExtraPosX() const;
 
    //! getter for extra position y
-   uint8_t getExtraPosY() const;
+   [[nodiscard]] uint8_t getExtraPosY() const;
 
 private:
    //! player id
@@ -62,5 +61,3 @@ private:
    //! x position where extra has been picked up
    uint8_t mExtraPosY;
 };
-
-#endif  // PLAYERINFECTEDPACKET_H

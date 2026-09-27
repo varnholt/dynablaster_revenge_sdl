@@ -1,5 +1,4 @@
-#ifndef BOMBPACKET_H
-#define BOMBPACKET_H
+#pragma once
 
 #include "packet.h"
 
@@ -25,13 +24,13 @@ public:
    void dequeue(BinaryReader&);
 
    //! getter for player id
-   int8_t getPlayerId();
+   [[nodiscard]] int8_t getPlayerId() const;
 
    //! getter for the bomb's x field position
-   uint8_t getX();
+   [[nodiscard]] uint8_t getX() const;
 
    //! getter for the bomb's y field position
-   uint8_t getY();
+   [[nodiscard]] uint8_t getY() const;
 
 private:
    //! player id
@@ -43,5 +42,3 @@ private:
    //! the bomb's x field position
    uint8_t y;
 };
-
-#endif

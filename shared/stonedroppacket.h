@@ -1,5 +1,4 @@
-#ifndef STONEDROPPACKET_H
-#define STONEDROPPACKET_H
+#pragma once
 
 #include "packet.h"
 
@@ -25,10 +24,10 @@ public:
    void dequeue(BinaryReader&);
 
    //! getter for stone x position
-   int8_t getX() const;
+   [[nodiscard]] int8_t getX() const;
 
    //! getter for stone y position
-   int8_t getY() const;
+   [[nodiscard]] int8_t getY() const;
 
 private:
    //! x position
@@ -37,5 +36,3 @@ private:
    //! y position
    int8_t mY;
 };
-
-#endif  // STONEDROPPACKET_H

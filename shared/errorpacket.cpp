@@ -44,11 +44,11 @@ void ErrorPacket::enqueue(BinaryWriter& out)
 void ErrorPacket::dequeue(BinaryReader& in)
 {
    // read members
-   int errorType = 0;
+   int32_t errorType = 0;
    in >> errorType;
    in >> mErrorMessage;
 
-   mErrorType = (Constants::ErrorType)errorType;
+   mErrorType = static_cast<Constants::ErrorType>(errorType);
 }
 
 //-----------------------------------------------------------------------------

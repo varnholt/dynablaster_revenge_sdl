@@ -40,7 +40,7 @@ ListGamesResponsePacket::~ListGamesResponsePacket()
 /*!
    \return game's list
 */
-const std::vector<GameInformation> ListGamesResponsePacket::getGames()
+std::vector<GameInformation> ListGamesResponsePacket::getGames() const
 {
    return mGames;
 }
