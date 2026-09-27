@@ -1,7 +1,6 @@
 // header
 #include "gamestatspacket.h"
 
-// Qt
 #include "logging.h"
 
 #include <ranges>
@@ -61,8 +60,8 @@ GameStatsPacket::~GameStatsPacket()
 */
 std::vector<PlayerStats> GameStatsPacket::getOverallStats() const
 {
-   return mPlayerStats | std::views::transform([](const PlayerGameStats& stats) { return stats.overall_stats; }) |
-          std::ranges::to<std::vector>();
+   auto view = mPlayerStats | std::views::transform([](const PlayerGameStats& stats) { return stats.overall_stats; });
+   return {view.begin(), view.end()};
 }
 
 //----------------------------------------------------------------------------
@@ -71,8 +70,8 @@ std::vector<PlayerStats> GameStatsPacket::getOverallStats() const
 */
 std::vector<PlayerStats> GameStatsPacket::getRoundStats() const
 {
-   return mPlayerStats | std::views::transform([](const PlayerGameStats& stats) { return stats.round_stats; }) |
-          std::ranges::to<std::vector>();
+   auto view = mPlayerStats | std::views::transform([](const PlayerGameStats& stats) { return stats.round_stats; });
+   return {view.begin(), view.end()};
 }
 
 //----------------------------------------------------------------------------
@@ -81,8 +80,8 @@ std::vector<PlayerStats> GameStatsPacket::getRoundStats() const
 */
 std::vector<int32_t> GameStatsPacket::getPlayerIds() const
 {
-   return mPlayerStats | std::views::transform([](const PlayerGameStats& stats) { return stats.player_id; }) |
-          std::ranges::to<std::vector>();
+   auto view = mPlayerStats | std::views::transform([](const PlayerGameStats& stats) { return stats.player_id; });
+   return {view.begin(), view.end()};
 }
 
 //----------------------------------------------------------------------------
