@@ -85,7 +85,7 @@ void PlayerRotation::setTargetVector(const Vec2& target)
 /*!
    \return target vector
 */
-const Vec2& PlayerRotation::getTargetVector()
+const Vec2& PlayerRotation::getTargetVector() const
 {
    return mTargetVector;
 }
@@ -192,7 +192,7 @@ void PlayerRotation::updateAngle()
 /*!
    \param vector target direction
 */
-float PlayerRotation::getAngle()
+float PlayerRotation::getAngle() const
 {
    return mAngle;
 }
@@ -203,7 +203,7 @@ float PlayerRotation::getAngle()
 /*!
    \param vector target direction
 */
-float PlayerRotation::getPreviousAngle()
+float PlayerRotation::getPreviousAngle() const
 {
    return mPreviousAngle;
 }

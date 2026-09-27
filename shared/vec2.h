@@ -1,6 +1,4 @@
-#ifndef VEC2_H
-#define VEC2_H
-
+#pragma once
 
 class Vec2
 {
@@ -12,21 +10,19 @@ public:
 
    Vec2(float x, float y);
 
-   float x() const;
-   float y() const;
+   [[nodiscard]] float x() const;
+   [[nodiscard]] float y() const;
 
    void setX(float x);
    void setY(float y);
 
-   float length() const;
+   [[nodiscard]] float length() const;
 
-   Vec2 operator-(const Vec2& other) const;
+   [[nodiscard]] Vec2 operator-(const Vec2& other) const;
 
 
 private:
 
-   float mX;
-   float mY;
+   float _x;
+   float _y;
 };
-
-#endif

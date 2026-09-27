@@ -59,7 +59,7 @@ void PlayerKilledPacket::dequeue(BinaryReader& in)
    // read members
    in >> mPlayerId >> mPlayerKilledById >> direction >> mIntensity;
 
-   mDirection = (Constants::Direction)direction;
+   mDirection = static_cast<Constants::Direction>(direction);
 }
 
 //-----------------------------------------------------------------------------

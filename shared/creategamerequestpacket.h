@@ -1,5 +1,6 @@
-#ifndef CREATEGAMEREQUESTPACKET_H
-#define CREATEGAMEREQUESTPACKET_H
+#pragma once
+
+#include <cstdint>
 
 // base
 #include "packet.h"
@@ -17,9 +18,9 @@ public:
    CreateGameRequestPacket(
       const std::string& name,
       const std::string& level,
-      int rounds,
-      int duration,
-      int maxPlayers,
+      int32_t rounds,
+      int32_t duration,
+      int32_t maxPlayers,
       bool extraBombEnabled,
       bool extraFlameEnabled,
       bool extraSpeedupEnabled,
@@ -44,13 +45,11 @@ public:
    void dequeue(BinaryReader&);
 
    //! getter for game name
-   const std::string getName();
+   [[nodiscard]] std::string getName() const;
 
    //! getter for create game data
-   CreateGameData getData() const;
+   [[nodiscard]] CreateGameData getData() const;
 
 private:
    CreateGameData mData;
 };
-
-#endif  // CREATEGAMEREQUESTPACKET_H

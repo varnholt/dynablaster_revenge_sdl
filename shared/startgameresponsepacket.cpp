@@ -13,7 +13,7 @@
 
    \param name game's name
 */
-StartGameResponsePacket::StartGameResponsePacket(int id, bool started) : Packet(Packet::STARTGAMERESPONSE), mId(id), mStarted(started)
+StartGameResponsePacket::StartGameResponsePacket(int32_t id, bool started) : Packet(Packet::STARTGAMERESPONSE), mId(id), mStarted(started)
 {
    mPacketName = PACKETNAME;
 }
@@ -39,7 +39,7 @@ StartGameResponsePacket::~StartGameResponsePacket()
 /*!
    \return game's id
 */
-int StartGameResponsePacket::getId()
+int32_t StartGameResponsePacket::getId() const
 {
    return mId;
 }
@@ -48,7 +48,7 @@ int StartGameResponsePacket::getId()
 /*!
    \return game's id
 */
-bool StartGameResponsePacket::isStarted()
+bool StartGameResponsePacket::isStarted() const
 {
    return mStarted;
 }

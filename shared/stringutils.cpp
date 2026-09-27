@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <ranges>
 #include <sstream>
 
 namespace StringUtils
@@ -24,8 +25,8 @@ std::string trim(const std::string& str)
 {
    const auto is_whitespace = [](unsigned char character) { return std::isspace(character) != 0; };
 
-   const auto first = std::find_if_not(str.begin(), str.end(), is_whitespace);
-   const auto last = std::find_if_not(str.rbegin(), str.rend(), is_whitespace).base();
+   const auto first = std::ranges::find_if_not(str, is_whitespace);
+   const auto last = std::ranges::find_if_not(str | std::views::reverse, is_whitespace).base();
 
    if (first >= last)
    {

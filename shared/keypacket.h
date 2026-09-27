@@ -1,5 +1,4 @@
-#ifndef KEYPACKET_H
-#define KEYPACKET_H
+#pragma once
 
 // base
 #include "packet.h"
@@ -26,10 +25,10 @@ public:
    void dequeue(BinaryReader&);
 
    //! getter for key combination
-   int8_t getKeys();
+   [[nodiscard]] int8_t getKeys() const;
 
    //! getter for player id
-   int8_t getPlayerId();
+   [[nodiscard]] int8_t getPlayerId() const;
 
    //! debug function
    void debug();
@@ -41,5 +40,3 @@ private:
    //! key combination
    int8_t keys;
 };
-
-#endif

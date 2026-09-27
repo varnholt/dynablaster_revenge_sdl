@@ -4,8 +4,22 @@
 // Qt
 #include "logging.h"
 
+#include <ranges>
+
 // defines
 #define PACKETNAME "GameStats"
+
+BinaryWriter& operator<<(BinaryWriter& out, const PlayerGameStats& stats)
+{
+   out << stats.player_id << stats.overall_stats << stats.round_stats;
+   return out;
+}
+
+BinaryReader& operator>>(BinaryReader& in, PlayerGameStats& stats)
+{
+   in >> stats.player_id >> stats.overall_stats >> stats.round_stats;
+   return in;
+}
 
 //----------------------------------------------------------------------------
 /*!
@@ -13,11 +27,17 @@
    \param receiverId id of the receiver
 */
 GameStatsPacket::GameStatsPacket(
-   const std::vector<int>& ids, const std::vector<PlayerStats>& overallStats, const std::vector<PlayerStats>& roundStats
+   const std::vector<int32_t>& ids, const std::vector<PlayerStats>& overallStats, const std::vector<PlayerStats>& roundStats
 )
-    : Packet(Packet::GAMESTATS), mPlayerIds(ids), mOverallStats(overallStats), mRoundStats(roundStats)
+    : Packet(Packet::GAMESTATS)
 {
    mPacketName = PACKETNAME;
+
+   mPlayerStats.reserve(ids.size());
+   for (const auto& [id, overall, round] : std::views::zip(ids, overallStats, roundStats))
+   {
+      mPlayerStats.push_back(PlayerGameStats{id, overall, round});
+   }
 }
 
 //----------------------------------------------------------------------------
@@ -41,7 +61,8 @@ GameStatsPacket::~GameStatsPacket()
 */
 std::vector<PlayerStats> GameStatsPacket::getOverallStats() const
 {
-   return mOverallStats;
+   return mPlayerStats | std::views::transform([](const PlayerGameStats& stats) { return stats.overall_stats; }) |
+          std::ranges::to<std::vector>();
 }
 
 //----------------------------------------------------------------------------
@@ -50,16 +71,18 @@ std::vector<PlayerStats> GameStatsPacket::getOverallStats() const
 */
 std::vector<PlayerStats> GameStatsPacket::getRoundStats() const
 {
-   return mRoundStats;
+   return mPlayerStats | std::views::transform([](const PlayerGameStats& stats) { return stats.round_stats; }) |
+          std::ranges::to<std::vector>();
 }
 
 //----------------------------------------------------------------------------
 /*!
    \return player ids
 */
-std::vector<int> GameStatsPacket::getPlayerIds() const
+std::vector<int32_t> GameStatsPacket::getPlayerIds() const
 {
-   return mPlayerIds;
+   return mPlayerStats | std::views::transform([](const PlayerGameStats& stats) { return stats.player_id; }) |
+          std::ranges::to<std::vector>();
 }
 
 //----------------------------------------------------------------------------
@@ -68,57 +91,7 @@ std::vector<int> GameStatsPacket::getPlayerIds() const
 */
 void GameStatsPacket::enqueue(BinaryWriter& out)
 {
-   // explicit int32_t cast: QList::size() returns qsizetype (8 bytes) in Qt6, but dequeue()
-   // below reads it back as a plain int (4 bytes) - a mismatch here desyncs the packet stream
-   // for every packet after this one.
-   out << (int32_t)mOverallStats.size();
-
-   // write list of ids
-   for (int id : mPlayerIds)
-   {
-      out << id;
-   }
-
-   std::vector<std::vector<PlayerStats>*> statLists{&mOverallStats, &mRoundStats};
-
-   // write overall stats
-   for (std::vector<PlayerStats>* list : statLists)
-   {
-      for (const PlayerStats& stats : *list)
-      {
-         out << stats.getWins() << stats.getKills() << stats.getDeaths() << stats.getSurvivalTime() << stats.getExtrasCollected();
-      }
-   }
-}
-
-//----------------------------------------------------------------------------
-/*!
-   \param in datastream read members from
-   \param size list size
-   \param list list to fill with values
-*/
-void GameStatsPacket::dequeueStatsList(BinaryReader& in, int size, std::vector<PlayerStats>* list)
-{
-   unsigned int wins = 0;
-   unsigned int kills = 0;
-   unsigned int deaths = 0;
-   unsigned int survivalTime = 0;
-   unsigned int extrasCollected = 0;
-
-   for (int i = 0; i < size; i++)
-   {
-      PlayerStats stats;
-
-      in >> wins >> kills >> deaths >> survivalTime >> extrasCollected;
-
-      stats.setWins(wins);
-      stats.setKills(kills);
-      stats.setDeaths(deaths);
-      stats.setSurvivalTime(survivalTime);
-      stats.setExtrasCollected(extrasCollected);
-
-      list->push_back(stats);
-   }
+   out << mPlayerStats;
 }
 
 //----------------------------------------------------------------------------
@@ -127,21 +100,7 @@ void GameStatsPacket::dequeueStatsList(BinaryReader& in, int size, std::vector<P
 */
 void GameStatsPacket::dequeue(BinaryReader& in)
 {
-   // read size
-   int size = 0;
-   in >> size;
-
-   // read list of ids
-   int id = 0;
-   for (int i = 0; i < size; i++)
-   {
-      in >> id;
-      mPlayerIds.push_back(id);
-   }
-
-   // read list of stats
-   dequeueStatsList(in, size, &mOverallStats);
-   dequeueStatsList(in, size, &mRoundStats);
+   in >> mPlayerStats;
 }
 
 //----------------------------------------------------------------------------

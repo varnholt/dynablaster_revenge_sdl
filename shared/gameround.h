@@ -1,5 +1,6 @@
-#ifndef GAMEROUND_H
-#define GAMEROUND_H
+#pragma once
+
+#include <cstdint>
 
 class GameRound
 {
@@ -11,22 +12,20 @@ class GameRound
 
       void next();
 
-      bool isFinished() const;
+      [[nodiscard]] bool isFinished() const;
 
-      int getCurrent() const;
+      [[nodiscard]] int32_t getCurrent() const;
 
-      int getCount() const;
+      [[nodiscard]] int32_t getCount() const;
 
-      void setCurrent(int current);
+      void setCurrent(int32_t current);
 
-      void setCount(int count);
+      void setCount(int32_t count);
 
 
    protected:
 
-      int mCurrent;
+      int32_t _current;
 
-      int mCount;
+      int32_t _count;
 };
-
-#endif // GAMEROUND_H

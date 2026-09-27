@@ -18,11 +18,11 @@
    \param extraFlameCount number of flame extras to place
 */
 MapCreateRequestPacket::MapCreateRequestPacket(
-   int width,
-   int height,
-   int stoneCount,
-   int extraBombCount,
-   int extraFlameCount,
+   int32_t width,
+   int32_t height,
+   int32_t stoneCount,
+   int32_t extraBombCount,
+   int32_t extraFlameCount,
    const std::vector<Point>& startPositions
 )
     : Packet(Packet::MAPCREATEREQUEST),

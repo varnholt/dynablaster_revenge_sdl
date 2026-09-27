@@ -1,5 +1,4 @@
-#ifndef PACKETSTREAMBUFFER_H
-#define PACKETSTREAMBUFFER_H
+#pragma once
 
 #include <cstddef>
 #include <cstdint>
@@ -20,10 +19,10 @@ public:
    void append(const char* data, size_t length);
 
    //! bytes not yet consumed from the stream
-   size_t bytesAvailable() const;
+   [[nodiscard]] size_t bytesAvailable() const;
 
    //! reader positioned at the first unconsumed byte
-   BinaryReader reader() const;
+   [[nodiscard]] BinaryReader reader() const;
 
    //! commit that 'bytes' bytes were consumed from the current read position
    void consume(size_t bytes);
@@ -33,8 +32,6 @@ public:
    void compact();
 
 private:
-   std::vector<uint8_t> mBuffer;
-   size_t mPos = 0;
+   std::vector<uint8_t> _buffer;
+   size_t _pos = 0;
 };
-
-#endif

@@ -53,7 +53,7 @@ void MapItemDestroyedPacket::dequeue(BinaryReader& in)
    // read members
    in >> mPlayerId >> direction >> mIntensity;
 
-   mDirection = (Constants::Direction)direction;
+   mDirection = static_cast<Constants::Direction>(direction);
 }
 
 //-----------------------------------------------------------------------------

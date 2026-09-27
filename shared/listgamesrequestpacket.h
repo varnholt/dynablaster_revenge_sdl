@@ -1,5 +1,4 @@
-#ifndef LISTGAMESREQUESTPACKET_H
-#define LISTGAMESREQUESTPACKET_H
+#pragma once
 
 #include "packet.h"
 
@@ -23,5 +22,3 @@ public:
    //! dequeues the member variables from datastream
    void dequeue(BinaryReader&);
 };
-
-#endif  // LISTGAMESREQUESTPACKET_H

@@ -1,5 +1,4 @@
-#ifndef MAPITEMCREATEDPACKET_H
-#define MAPITEMCREATEDPACKET_H
+#pragma once
 
 // shared
 #include "mapitempacket.h"
@@ -23,10 +22,10 @@ public:
    virtual void dequeue(BinaryReader&);
 
    //! getter for the mapitem's appearance
-   int32_t getAppearance() const;
+   [[nodiscard]] int32_t getAppearance() const;
 
    //! getter for mapitem's creator
-   int8_t getPlayerId() const;
+   [[nodiscard]] int8_t getPlayerId() const;
 
 private:
    //! the mapitem's appearance
@@ -35,5 +34,3 @@ private:
    //! the mapitem's creator
    int8_t mPlayerId;
 };
-
-#endif  // MAPITEMCREATEDPACKET_H

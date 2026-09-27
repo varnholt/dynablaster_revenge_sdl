@@ -1,5 +1,4 @@
-#ifndef MAPITEMREMOVEDPACKET_H
-#define MAPITEMREMOVEDPACKET_H
+#pragma once
 
 #include "mapitempacket.h"
 
@@ -25,5 +24,3 @@ public:
 
 protected:
 };
-
-#endif  // MAPITEMREMOVEDPACKET_H

@@ -41,7 +41,7 @@ public:
       return *this;
    }
 
-   size_t pos() const;
+   [[nodiscard]] size_t pos() const;
 
    // patches a uint16_t already written at 'offset', used for the leading packet-size
    // field that's only known once the whole payload has been enqueued

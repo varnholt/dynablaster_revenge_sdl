@@ -6,7 +6,7 @@
 
 
 //! mapitem id
-int MapItem::mCurrentId = 0;
+int32_t MapItem::mCurrentId = 0;
 
 
 //-----------------------------------------------------------------------------
@@ -20,11 +20,11 @@ int MapItem::mCurrentId = 0;
 */
 MapItem::MapItem(
    ItemType type,
-   int appearance,
+   int32_t appearance,
    bool blocking,
    bool destroyable,
-   int x,
-   int y
+   int32_t x,
+   int32_t y
 )
  : mType(type),
    mUniqueId(mCurrentId++),
@@ -108,7 +108,7 @@ MapItem::ItemType MapItem::getType() const
 /*!
    \param uniqueId item's unique id
 */
-void MapItem::setUniqueId(int uniqueId)
+void MapItem::setUniqueId(int32_t uniqueId)
 {
    mUniqueId = uniqueId;
 }
@@ -118,7 +118,7 @@ void MapItem::setUniqueId(int uniqueId)
 /*!
    \return item appearance
 */
-int MapItem::getAppearance() const
+int32_t MapItem::getAppearance() const
 {
    return mAppearance;
 }
@@ -148,7 +148,7 @@ bool MapItem::isDestroyable() const
 /*!
    \param x x position
 */
-void MapItem::setX(int x)
+void MapItem::setX(int32_t x)
 {
    mX = x;
 }
@@ -158,7 +158,7 @@ void MapItem::setX(int x)
 /*!
    \param y y position
 */
-void MapItem::setY(int y)
+void MapItem::setY(int32_t y)
 {
    mY = y;
 }
@@ -168,7 +168,7 @@ void MapItem::setY(int y)
 /*!
    \return x position
 */
-int MapItem::getX() const
+int32_t MapItem::getX() const
 {
    return mX;
 }
@@ -178,7 +178,7 @@ int MapItem::getX() const
 /*!
    \return y position
 */
-int MapItem::getY() const
+int32_t MapItem::getY() const
 {
    return mY;
 }
@@ -188,7 +188,7 @@ int MapItem::getY() const
 /*!
    \return unique mapitem id
 */
-int MapItem::getUniqueId() const
+int32_t MapItem::getUniqueId() const
 {
    return mUniqueId;
 }

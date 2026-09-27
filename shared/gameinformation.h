@@ -1,6 +1,6 @@
-#ifndef GAMEINFORMATION_H
-#define GAMEINFORMATION_H
+#pragma once
 
+#include <cstdint>
 #include <string>
 
 // Qt
@@ -19,87 +19,87 @@ public:
 
    //! constructor for writing
    GameInformation(
-      int id,
-      int playerCount,
-      int playerMaximumCount,
+      int32_t id,
+      int32_t playerCount,
+      int32_t playerMaximumCount,
       const std::string& gameName,
       const std::string& levelName,
-      int creatorId,
+      int32_t creatorId,
       Constants::Dimension dimensions,
-      int extras,
-      int duration,
-      int roundsPlayed,
-      int currentRound,
-      int roundCount,
+      int32_t extras,
+      int32_t duration,
+      int32_t roundsPlayed,
+      int32_t currentRound,
+      int32_t roundCount,
       bool spawnExtras
    );
 
    //! getter for game id
-   int getId() const;
+   [[nodiscard]] int32_t getId() const;
 
    //! getter for player count
-   int getPlayerCount() const;
+   [[nodiscard]] int32_t getPlayerCount() const;
 
    //! getter for the player maximum count
-   int getPlayerMaximumCount() const;
+   [[nodiscard]] int32_t getPlayerMaximumCount() const;
 
    //! getter for the game name
-   const std::string getGameName() const;
+   [[nodiscard]] std::string getGameName() const;
 
    //! getter for the level name
-   const std::string getLevelName() const;
+   [[nodiscard]] std::string getLevelName() const;
 
    //! getter for the game creator id
-   int getCreatorId() const;
+   [[nodiscard]] int32_t getCreatorId() const;
 
    //! getter for the map dimension enum
-   Constants::Dimension getMapDimensions() const;
+   [[nodiscard]] Constants::Dimension getMapDimensions() const;
 
    //! setter for the extra enum combination
-   void setExtras(int extra);
+   void setExtras(int32_t extra);
 
    //! getter for the extra enum combination
-   int getExtras() const;
+   [[nodiscard]] int32_t getExtras() const;
 
    //! setter for the game duration
-   void setDuration(int duration);
+   void setDuration(int32_t duration);
 
    //! getter for the game duration
-   int getDuration() const;
+   [[nodiscard]] int32_t getDuration() const;
 
    //! setter for the number of games played
-   void setGamesPlayed(int gamesPlayed);
+   void setGamesPlayed(int32_t gamesPlayed);
 
    //! getter for the number of games played
-   int getGamesPlayed() const;
+   [[nodiscard]] int32_t getGamesPlayed() const;
 
    //! getter for x map scale
-   float getMapScaleX() const;
+   [[nodiscard]] float getMapScaleX() const;
 
    //! getter for y map scale
-   float getMapScaleY() const;
+   [[nodiscard]] float getMapScaleY() const;
 
    //! getter for current round count
-   int getCurrentRound() const;
+   [[nodiscard]] int32_t getCurrentRound() const;
 
    //! getter for round count
-   int getRoundCount() const;
+   [[nodiscard]] int32_t getRoundCount() const;
 
    //! getter for spawn extras flag
-   bool isSpawnExtrasEnabled() const;
+   [[nodiscard]] bool isSpawnExtrasEnabled() const;
 
    //! setter for spawn extras flag
    void setSpawnExtrasEnabled(bool value);
 
 public:
    //! game id
-   int mId;
+   int32_t mId;
 
    //! player count
-   int mPlayerCount;
+   int32_t mPlayerCount;
 
    //! maximum player count
-   int mMaximumPlayerCount;
+   int32_t mMaximumPlayerCount;
 
    //! game name
    std::string mGameName;
@@ -108,25 +108,25 @@ public:
    std::string mLevelName;
 
    //! creator id
-   int mCreatorId;
+   int32_t mCreatorId;
 
    //! game dimensions
    Constants::Dimension mDimensions;
 
    //! extras
-   int mExtras;
+   int32_t mExtras;
 
    //! game duration
-   int mDuration;
+   int32_t mDuration;
 
    //! number of games played
-   int mGamesPlayed;
+   int32_t mGamesPlayed;
 
    //! current round
-   int mCurrentRound;
+   int32_t mCurrentRound;
 
    //! number of rounds
-   int mRoundCount;
+   int32_t mRoundCount;
 
    //! spawn extra flag
    bool mSpawnExtras;
@@ -134,5 +134,3 @@ public:
 
 BinaryWriter& operator<<(BinaryWriter& out, const GameInformation& info);
 BinaryReader& operator>>(BinaryReader& in, GameInformation& info);
-
-#endif  // GAMEINFORMATION_H

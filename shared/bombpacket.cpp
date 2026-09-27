@@ -37,7 +37,7 @@ BombPacket::~BombPacket()
 /*!----------------------------------------------------------------------------
    \return bomb x position
 */
-uint8_t BombPacket::getX()
+uint8_t BombPacket::getX() const
 {
    return x;
 }
@@ -45,7 +45,7 @@ uint8_t BombPacket::getX()
 /*!----------------------------------------------------------------------------
    \return player id
 */
-int8_t BombPacket::getPlayerId()
+int8_t BombPacket::getPlayerId() const
 {
    return playerId;
 }
@@ -53,7 +53,7 @@ int8_t BombPacket::getPlayerId()
 /*!----------------------------------------------------------------------------
    \return bomb y position
 */
-uint8_t BombPacket::getY()
+uint8_t BombPacket::getY() const
 {
    return y;
 }

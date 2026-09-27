@@ -1,111 +1,139 @@
 #include "playerstats.h"
 
+#include "binaryreader.h"
+#include "binarywriter.h"
+
 PlayerStats::PlayerStats()
- : mWins(0),
-   mKills(0),
-   mDeaths(0),
-   mSurvivalTime(0),
-   mExtrasCollected(0)
+ : _wins(0),
+   _kills(0),
+   _deaths(0),
+   _survival_time(0),
+   _extras_collected(0)
 {
 }
 
 
 void PlayerStats::increaseWins()
 {
-   mWins++;
+   _wins++;
 }
 
 
 void PlayerStats::increaseKills()
 {
-   mKills++;
+   _kills++;
 }
 
 
 void PlayerStats::increaseDeaths()
 {
-   mDeaths++;
+   _deaths++;
 }
 
 
 void PlayerStats::increaseExtrasCollected()
 {
-   mExtrasCollected++;
+   _extras_collected++;
 }
 
 
 void PlayerStats::reset()
 {
-   mWins = 0;
-   mKills = 0;
-   mDeaths = 0;
-   mSurvivalTime = 0;
-   mExtrasCollected = 0;
+   _wins = 0;
+   _kills = 0;
+   _deaths = 0;
+   _survival_time = 0;
+   _extras_collected = 0;
 }
 
 
-void PlayerStats::setWins(unsigned int wins)
+void PlayerStats::setWins(uint32_t wins)
 {
-   mWins = wins;
+   _wins = wins;
 }
 
 
-void PlayerStats::setKills(unsigned int kills)
+void PlayerStats::setKills(uint32_t kills)
 {
-   mKills = kills;
+   _kills = kills;
 }
 
 
-void PlayerStats::setDeaths(unsigned int deaths)
+void PlayerStats::setDeaths(uint32_t deaths)
 {
-   mDeaths = deaths;
+   _deaths = deaths;
 }
 
 
-void PlayerStats::setSurvivalTime(unsigned int time)
+void PlayerStats::setSurvivalTime(uint32_t time)
 {
-   mSurvivalTime = time;
+   _survival_time = time;
 }
 
 
-void PlayerStats::setExtrasCollected(unsigned int extrasCollected)
+void PlayerStats::setExtrasCollected(uint32_t extrasCollected)
 {
-   mExtrasCollected = extrasCollected;
+   _extras_collected = extrasCollected;
 }
 
 
-unsigned int PlayerStats::getWins() const
+uint32_t PlayerStats::getWins() const
 {
-   return mWins;
+   return _wins;
 }
 
 
-unsigned int PlayerStats::getKills() const
+uint32_t PlayerStats::getKills() const
 {
-   return mKills;
+   return _kills;
 }
 
 
-unsigned int PlayerStats::getDeaths() const
+uint32_t PlayerStats::getDeaths() const
 {
-   return mDeaths;
+   return _deaths;
 }
 
 
-void PlayerStats::increaseSurvivalTime(unsigned int survivalTime)
+void PlayerStats::increaseSurvivalTime(uint32_t survivalTime)
 {
-   mSurvivalTime += survivalTime;
+   _survival_time += survivalTime;
 }
 
 
-unsigned int PlayerStats::getSurvivalTime() const
+uint32_t PlayerStats::getSurvivalTime() const
 {
-   return mSurvivalTime;
+   return _survival_time;
 }
 
 
-unsigned int PlayerStats::getExtrasCollected() const
+uint32_t PlayerStats::getExtrasCollected() const
 {
-   return mExtrasCollected;
+   return _extras_collected;
+}
+
+BinaryWriter& operator<<(BinaryWriter& out, const PlayerStats& stats)
+{
+   out << stats.getWins() << stats.getKills() << stats.getDeaths() << stats.getSurvivalTime() << stats.getExtrasCollected();
+   return out;
+}
+
+BinaryReader& operator>>(BinaryReader& in, PlayerStats& stats)
+{
+   uint32_t wins = 0;
+   uint32_t kills = 0;
+   uint32_t deaths = 0;
+   uint32_t survival_time = 0;
+   uint32_t extras_collected = 0;
+
+   in >> wins >> kills >> deaths >> survival_time >> extras_collected;
+
+   stats.setWins(wins);
+   stats.setKills(kills);
+   stats.setDeaths(deaths);
+   stats.setSurvivalTime(survival_time);
+   stats.setExtrasCollected(extras_collected);
+
+   return in;
 }
 

@@ -10,10 +10,10 @@
   constructor
 */
 ExtraMapItem::ExtraMapItem(
-   int id,
+   int32_t id,
    Constants::ExtraType type,
-   int x,
-   int y
+   int32_t x,
+   int32_t y
 )
    : MapItem(Extra, id, false, true, x, y),
      mExtraType(type)
@@ -27,7 +27,7 @@ ExtraMapItem::ExtraMapItem(
 */
 ExtraMapItem::ExtraMapItem(ExtraMapItemCreatedPacket* packet)
  : MapItem(packet),
-   mExtraType((Constants::ExtraType)packet->getExtraType())
+   mExtraType(static_cast<Constants::ExtraType>(packet->getExtraType()))
 {
 }
 
@@ -45,7 +45,7 @@ ExtraMapItem::~ExtraMapItem()
 /*!
    \return the extra's type
 */
-Constants::ExtraType ExtraMapItem::getExtraType()
+Constants::ExtraType ExtraMapItem::getExtraType() const
 {
    return mExtraType;
 }

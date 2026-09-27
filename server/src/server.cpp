@@ -518,7 +518,7 @@ void Server::readSocket(NET_StreamSocket* tcpSocket)
 
       // block was read completely
       BinaryReader in = buffer->reader();
-      Packet* packet = Packet::deserialize(in);
+      auto packet = Packet::deserialize(in);
       buffer->consume(in.pos());
 
       if (packet)
@@ -529,7 +529,7 @@ void Server::readSocket(NET_StreamSocket* tcpSocket)
          {
             case Packet::CREATEGAMEREQUEST:
             {
-               processCreateGameRequest(tcpSocket, packet);
+               processCreateGameRequest(tcpSocket, packet.get());
                break;
             }
 
@@ -547,19 +547,19 @@ void Server::readSocket(NET_StreamSocket* tcpSocket)
 
             case Packet::LOGINREQUEST:
             {
-               processLoginRequest(tcpSocket, packet);
+               processLoginRequest(tcpSocket, packet.get());
                break;
             }
 
             case Packet::JOINGAMEREQUEST:
             {
-               processJoinGameRequest(tcpSocket, packet);
+               processJoinGameRequest(tcpSocket, packet.get());
                break;
             }
 
             case Packet::STARTGAMEREQUEST:
             {
-               processStartGameRequest(tcpSocket, packet);
+               processStartGameRequest(tcpSocket, packet.get());
                break;
             }
 
@@ -570,7 +570,7 @@ void Server::readSocket(NET_StreamSocket* tcpSocket)
 
             case Packet::PLAYERSYNCHRONIZEPACKET:
             {
-               processPlayerSynchronize(tcpSocket, packet);
+               processPlayerSynchronize(tcpSocket, packet.get());
                break;
             }
 
@@ -582,12 +582,10 @@ void Server::readSocket(NET_StreamSocket* tcpSocket)
 
             default:
             {
-               processGamePacket(tcpSocket, packet);
+               processGamePacket(tcpSocket, packet.get());
                break;
             }
          }
-
-         delete packet;
       }
    }
 

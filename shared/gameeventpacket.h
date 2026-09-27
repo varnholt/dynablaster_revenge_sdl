@@ -1,5 +1,6 @@
-#ifndef GAMEEVENTPACKET_H
-#define GAMEEVENTPACKET_H
+#pragma once
+
+#include <cstdint>
 
 // shared
 #include "constants.h"
@@ -20,7 +21,7 @@ public:
    };
 
    //! write constructor
-   GameEventPacket(GameEvent event, float intensity = 1.0f, int x = -1, int y = -1);
+   GameEventPacket(GameEvent event, float intensity = 1.0f, int32_t x = -1, int32_t y = -1);
 
    //! read constructor
    GameEventPacket();
@@ -37,10 +38,10 @@ public:
    // BombExplodedPacket
 
    //! getter for the game event
-   GameEvent getGameEvent() const;
+   [[nodiscard]] GameEvent getGameEvent() const;
 
    //! getter for the event's intensity
-   float getIntensity() const;
+   [[nodiscard]] float getIntensity() const;
 
    // ExtraCollectedPacket
 
@@ -51,16 +52,16 @@ public:
    void setExtraType(Constants::ExtraType);
 
    //! getter for player id
-   int32_t getPlayerId() const;
+   [[nodiscard]] int32_t getPlayerId() const;
 
    //! getter for extra type
-   Constants::ExtraType getExtraType() const;
+   [[nodiscard]] Constants::ExtraType getExtraType() const;
 
    //! getter for x position
-   int getX() const;
+   [[nodiscard]] int32_t getX() const;
 
    //! getter for y position
-   int getY() const;
+   [[nodiscard]] int32_t getY() const;
 
 private:
    //! game event
@@ -89,10 +90,8 @@ private:
    Constants::ExtraType mExtraType;
 
    //! affected field x pos
-   int mX;
+   int32_t mX;
 
    //! affected field y pos
-   int mY;
+   int32_t mY;
 };
-
-#endif  // GAMEEVENTPACKET_H

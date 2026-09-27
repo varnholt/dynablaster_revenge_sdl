@@ -57,7 +57,7 @@ void KeyPacket::dequeue(BinaryReader& in)
 /*!----------------------------------------------------------------------------
    \return pressed keys
 */
-int8_t KeyPacket::getKeys()
+int8_t KeyPacket::getKeys() const
 {
    return keys;
 }
@@ -65,7 +65,7 @@ int8_t KeyPacket::getKeys()
 /*!----------------------------------------------------------------------------
    \return player id
 */
-int8_t KeyPacket::getPlayerId()
+int8_t KeyPacket::getPlayerId() const
 {
    return playerId;
 }

@@ -10,7 +10,7 @@
 /*!
   constructor
 */
-Player::Player(int id)
+Player::Player(int32_t id)
    : mId(id),
      mLoggedIn(false),
      mX(0.5),
@@ -25,15 +25,11 @@ Player::Player(int id)
      mKilled(false),
      mKickEnabled(false),
      mPositionSkippedCounter(0),
-     mOverallStats(nullptr),
-     mRoundStats(nullptr),
      mColor(Constants::ColorWhite),
      mLoadingSynchronized(false),
      mBot(false),
      mDisease(nullptr)
 {
-   mOverallStats = new PlayerStats();
-   mRoundStats = new PlayerStats();
 }
 
 
@@ -41,11 +37,7 @@ Player::Player(int id)
 /*!
    destuctor
 */
-Player::~Player()
-{
-   delete mOverallStats;
-   delete mRoundStats;
-}
+Player::~Player() = default;
 
 
 //----------------------------------------------------------------------------
@@ -94,7 +86,7 @@ bool Player::isLoggedIn() const
 /*!
    \return keys currently pressed
 */
-int Player::getKeysPressed()
+int32_t Player::getKeysPressed() const
 {
    return mKeysPressed;
 }
@@ -104,7 +96,7 @@ int Player::getKeysPressed()
 /*!
    \return keys previously pressed
 */
-int Player::getKeysPressedPreviously()
+int32_t Player::getKeysPressedPreviously() const
 {
    return mKeysPreviouslyPressed;
 }
@@ -133,7 +125,7 @@ void Player::setY(float y)
 /*!
    \return x position
 */
-float Player::getX()
+float Player::getX() const
 {
    return mX;
 }
@@ -143,7 +135,7 @@ float Player::getX()
 /*!
    \return y position
 */
-float Player::getY()
+float Player::getY() const
 {
    return mY;
 }
@@ -163,7 +155,7 @@ void Player::setSpeed(float speed)
 /*!
    \return speed
 */
-float Player::getSpeed()
+float Player::getSpeed() const
 {
    float speed = mSpeed;
 
@@ -183,7 +175,7 @@ float Player::getSpeed()
 /*!
    \return id
 */
-int8_t Player::getId()
+int8_t Player::getId() const
 {
    return mId;
 }
@@ -193,7 +185,7 @@ int8_t Player::getId()
 /*!
    \param keys keys pressed
 */
-void Player::setKeysPressed(int keys)
+void Player::setKeysPressed(int32_t keys)
 {
    mKeysPreviouslyPressed = mKeysPressed;
    mKeysPressed = keys;
@@ -225,7 +217,7 @@ void Player::setNick(const std::string& nick)
 /*!
    \return the player's rotation
 */
-const std::string& Player::getNick()
+const std::string& Player::getNick() const
 {
    return mNick;
 }
@@ -245,7 +237,7 @@ void Player::setBombCount(int8_t count)
 /*!
    \return bombs count
 */
-int8_t Player::getBombCount()
+int8_t Player::getBombCount() const
 {
    int8_t bombCount = mBombCount;
 
@@ -279,7 +271,7 @@ void Player::setFlameCount(int8_t count)
 /*!
    \return flame count
 */
-int8_t Player::getFlameCount()
+int8_t Player::getFlameCount() const
 {
    int8_t flameCount = mFlameCount;
 
@@ -311,7 +303,7 @@ void Player::setBombsDroppedCount(int8_t count)
 /*!
    \return bombs dropped count
 */
-int8_t Player::getBombsDroppedCount()
+int8_t Player::getBombsDroppedCount() const
 {
    return mBombsDroppedCount;
 }
@@ -331,7 +323,7 @@ void Player::setKilled(bool killed)
 /*!
    \return true if player is killed
 */
-bool Player::isKilled()
+bool Player::isKilled() const
 {
    return mKilled;
 }
@@ -371,7 +363,7 @@ void Player::setKickEnabled(bool enabled)
 /*!
    \return true if player is able to kick
 */
-bool Player::isKickEnabled()
+bool Player::isKickEnabled() const
 {
    return mKickEnabled;
 }
@@ -381,7 +373,7 @@ bool Player::isKickEnabled()
 /*!
    \return number of skipped position packets
 */
-int Player::getPositionSkipCounter() const
+int32_t Player::getPositionSkipCounter() const
 {
    return mPositionSkippedCounter;
 }
@@ -391,7 +383,7 @@ int Player::getPositionSkipCounter() const
 /*!
    \param count set number of skipped position packets
 */
-void Player::setPositionSkipCounter(int count)
+void Player::setPositionSkipCounter(int32_t count)
 {
    mPositionSkippedCounter= count;
 }
@@ -403,7 +395,7 @@ void Player::setPositionSkipCounter(int count)
 */
 PlayerStats* Player::getOverallStats()
 {
-   return mOverallStats;
+   return &mOverallStats;
 }
 
 
@@ -411,9 +403,9 @@ PlayerStats* Player::getOverallStats()
 /*!
    \return player round stats
 */
-PlayerStats *Player::getRoundStats()
+PlayerStats* Player::getRoundStats()
 {
-   return mRoundStats;
+   return &mRoundStats;
 }
 
 
@@ -568,7 +560,7 @@ void Player::increaseWins()
 /*!
    \param survivalTime player survival time
 */
-void Player::increaseSurvivalTime(unsigned int survivalTime)
+void Player::increaseSurvivalTime(uint32_t survivalTime)
 {
    getOverallStats()->increaseSurvivalTime(survivalTime);
    getRoundStats()->increaseSurvivalTime(survivalTime);

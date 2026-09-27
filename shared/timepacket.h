@@ -1,5 +1,4 @@
-#ifndef TIMEPACKET_H
-#define TIMEPACKET_H
+#pragma once
 
 // base
 #include "packet.h"
@@ -14,7 +13,7 @@ public:
    TimePacket();
 
    //! write constructor
-   TimePacket(int timeLeft);
+   TimePacket(int32_t timeLeft);
 
    //! debugs the member variables
    void debug();
@@ -26,11 +25,9 @@ public:
    void dequeue(BinaryReader&);
 
    //! getter for elapsed time
-   int getTimeLeft() const;
+   [[nodiscard]] int32_t getTimeLeft() const;
 
 private:
    //! elapsed time in ms
    int32_t mTimeLeft;
 };
-
-#endif  // TIMEPACKET_H

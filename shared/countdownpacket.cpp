@@ -13,7 +13,7 @@
 
    \param name game's name
 */
-CountdownPacket::CountdownPacket(int countdown) : Packet(Packet::COUNTDOWN), mTimeLeft(countdown)
+CountdownPacket::CountdownPacket(int8_t countdown) : Packet(Packet::COUNTDOWN), mTimeLeft(countdown)
 {
    mPacketName = PACKETNAME;
 }
@@ -39,7 +39,7 @@ CountdownPacket::~CountdownPacket()
 /*!
    \return time left
 */
-int CountdownPacket::getTimeLeft()
+int8_t CountdownPacket::getTimeLeft() const
 {
    return mTimeLeft;
 }

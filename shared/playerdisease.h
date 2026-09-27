@@ -1,5 +1,4 @@
-#ifndef PLAYERDISEASE_H
-#define PLAYERDISEASE_H
+#pragma once
 
 #include <unordered_set>
 
@@ -8,6 +7,7 @@
 #include "elapsedtimer.h"
 #include "signal.h"
 
+#include <cstdint>
 #include <functional>
 #include <vector>
 
@@ -31,16 +31,16 @@ public:
    void setType(Constants::SkullType);
 
    //! getter for disease type
-   Constants::SkullType getType() const;
+   [[nodiscard]] Constants::SkullType getType() const;
 
    //! setter for disease duration
-   void setDuration(int duration);
+   void setDuration(int32_t duration);
 
    //! getter for disease duration
-   int getDuration() const;
+   [[nodiscard]] int32_t getDuration() const;
 
    //! check if disease is still active
-   bool isActive() const;
+   [[nodiscard]] bool isActive() const;
 
    //! activate disease
    void activate();
@@ -49,28 +49,25 @@ public:
    void randomizeType();
 
    //! getter for player id
-   int getPlayerId() const;
+   [[nodiscard]] int32_t getPlayerId() const;
 
    //! setter for player id
-   void setPlayerId(int playerId);
+   void setPlayerId(int32_t playerId);
 
    //! setter for supported skulls
    static void setSupportedSkulls(const std::unordered_set<Constants::SkullType>& skulls);
 
    //! getter for supported skulls;
-   static std::unordered_set<Constants::SkullType> getSupportedSkulls();
+   [[nodiscard]] static std::unordered_set<Constants::SkullType> getSupportedSkulls();
 
    //! setter for skull faces
    static void setSkullFaces(std::vector<Constants::SkullType>& faces);
 
    //! getter for supported skulls;
-   static std::vector<Constants::SkullType> getSkullFaces();
+   [[nodiscard]] static std::vector<Constants::SkullType> getSkullFaces();
 
    //! generate random skull faces
-   static std::vector<Constants::SkullType> generateSkullFaces();
-
-   //! getter for type by face
-   static Constants::SkullType getTypeByFace(int face);
+   [[nodiscard]] static std::vector<Constants::SkullType> generateSkullFaces();
 
    // skull type implementations
 
@@ -96,13 +93,13 @@ protected:
    Constants::SkullType mType;
 
    //! disease duration
-   int mDuration;
+   int32_t mDuration;
 
    //! active time
    ElapsedTimer mActiveTime;
 
    //! player id
-   int mPlayerId;
+   int32_t mPlayerId;
 
    //! all skulls that are supported/enabled
    static std::unordered_set<Constants::SkullType> sSupportedSkulls;
@@ -113,5 +110,3 @@ protected:
    //! run in the destructor - see addDestroyCallback()
    std::vector<std::function<void()>> mDestroyCallbacks;
 };
-
-#endif  // PLAYERDISEASE_H

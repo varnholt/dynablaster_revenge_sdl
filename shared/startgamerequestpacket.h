@@ -1,5 +1,4 @@
-#ifndef STARTGAMEREQUESTPACKET_H
-#define STARTGAMEREQUESTPACKET_H
+#pragma once
 
 #include "packet.h"
 
@@ -9,7 +8,7 @@ class StartGameRequestPacket : public Packet
 {
 public:
    //! write constructor
-   StartGameRequestPacket(int id);
+   StartGameRequestPacket(int32_t id);
 
    //! read constructor
    StartGameRequestPacket();
@@ -27,11 +26,9 @@ public:
    void dequeue(BinaryReader&);
 
    //! getter for game id
-   int getId();
+   [[nodiscard]] int32_t getId() const;
 
 private:
    //! game id
    int32_t mId;
 };
-
-#endif  // STARTGAMEREQUESTPACKET_H

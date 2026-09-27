@@ -13,7 +13,7 @@
 
    \param name game's name
 */
-JoinGameRequestPacket::JoinGameRequestPacket(int id) : Packet(Packet::JOINGAMEREQUEST), mId(id)
+JoinGameRequestPacket::JoinGameRequestPacket(int32_t id) : Packet(Packet::JOINGAMEREQUEST), mId(id)
 {
    mPacketName = PACKETNAME;
 }
@@ -39,7 +39,7 @@ JoinGameRequestPacket::~JoinGameRequestPacket()
 /*!
    \return game's id
 */
-int JoinGameRequestPacket::getId()
+int32_t JoinGameRequestPacket::getId() const
 {
    return mId;
 }

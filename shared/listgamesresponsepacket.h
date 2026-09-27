@@ -1,5 +1,4 @@
-#ifndef LISTGAMESRESPONSEPACKET_H
-#define LISTGAMESRESPONSEPACKET_H
+#pragma once
 
 #include "packet.h"
 
@@ -32,13 +31,13 @@ public:
    void dequeue(BinaryReader&);
 
    //! getter for game name
-   const std::vector<GameInformation> getGames();
+   [[nodiscard]] std::vector<GameInformation> getGames() const;
 
    //! setter for update flag
    void setUpdate(bool update);
 
    //! getter for update flag
-   bool isUpdate() const;
+   [[nodiscard]] bool isUpdate() const;
 
 private:
    //! game's name
@@ -47,5 +46,3 @@ private:
    //! update game information
    bool mUpdate;
 };
-
-#endif  // LISTGAMESRESPONSEPACKET_H

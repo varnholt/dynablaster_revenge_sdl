@@ -1,5 +1,6 @@
-#ifndef MAPCREATEREQUESTPACKET_H
-#define MAPCREATEREQUESTPACKET_H
+#pragma once
+
+#include <cstdint>
 
 // base
 #include "packet.h"
@@ -13,11 +14,11 @@ class MapCreateRequestPacket : public Packet
 public:
    //! write constructor
    MapCreateRequestPacket(
-      int width,
-      int height,
-      int stoneCount,
-      int extraBombCount,
-      int extraFlameCount,
+      int32_t width,
+      int32_t height,
+      int32_t stoneCount,
+      int32_t extraBombCount,
+      int32_t extraFlameCount,
       const std::vector<Point>& startPositions
    );
 
@@ -55,5 +56,3 @@ private:
    //! player start positions
    std::vector<Point> mStartPositions;
 };
-
-#endif  // MAPCREATEREQUESTPACKET_H

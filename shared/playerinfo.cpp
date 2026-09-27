@@ -24,7 +24,7 @@ PlayerInfo::PlayerInfo()
 PlayerInfo::~PlayerInfo() = default;
 
 
-void PlayerInfo::setId(int id)
+void PlayerInfo::setId(int32_t id)
 {
    mId = id;
 }
@@ -93,7 +93,7 @@ void PlayerInfo::setDeltaAngle(float val)
 }
 
 
-int PlayerInfo::getId() const
+int32_t PlayerInfo::getId() const
 {
    return mId;
 }

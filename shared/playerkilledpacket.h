@@ -1,5 +1,4 @@
-#ifndef PLAYERKILLEDPACKET_H
-#define PLAYERKILLEDPACKET_H
+#pragma once
 
 // base
 #include "packet.h"
@@ -26,7 +25,7 @@ public:
    void dequeue(BinaryReader&);
 
    //! getter for player id
-   int32_t getPlayerId() const;
+   [[nodiscard]] int32_t getPlayerId() const;
 
 private:
    //! player id
@@ -41,5 +40,3 @@ private:
    //! intensity the player was killed with
    float mIntensity;
 };
-
-#endif  // PLAYERKILLEDPACKET_H

@@ -16,9 +16,9 @@
 CreateGameRequestPacket::CreateGameRequestPacket(
    const std::string& name,
    const std::string& level,
-   int rounds,
-   int duration,
-   int maxPlayers,
+   int32_t rounds,
+   int32_t duration,
+   int32_t maxPlayers,
    bool extraBombEnabled,
    bool extraFlameEnabled,
    bool extraSpeedupEnabled,
@@ -73,7 +73,7 @@ CreateGameRequestPacket::~CreateGameRequestPacket()
 /*!
    \return game's name
 */
-const std::string CreateGameRequestPacket::getName()
+std::string CreateGameRequestPacket::getName() const
 {
    return mData.mName;
 }
@@ -110,7 +110,7 @@ void CreateGameRequestPacket::enqueue(BinaryWriter& out)
 */
 void CreateGameRequestPacket::dequeue(BinaryReader& in)
 {
-   int dimension = 0;
+   int32_t dimension = 0;
 
    // read members
    in >> mData.mName >> mData.mLevel
@@ -122,7 +122,7 @@ void CreateGameRequestPacket::dequeue(BinaryReader& in)
 
       >> dimension;
 
-   mData.mDimension = (Constants::Dimension)dimension;
+   mData.mDimension = static_cast<Constants::Dimension>(dimension);
 }
 
 //-----------------------------------------------------------------------------

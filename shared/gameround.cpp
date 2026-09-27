@@ -1,8 +1,8 @@
 #include "gameround.h"
 
 GameRound::GameRound()
-  : mCurrent(0),
-    mCount(0)
+  : _current(0),
+    _count(0)
 {
 }
 
@@ -26,25 +26,25 @@ bool GameRound::isFinished() const
 }
 
 
-int GameRound::getCurrent() const
+int32_t GameRound::getCurrent() const
 {
-   return mCurrent;
+   return _current;
 }
 
 
-int GameRound::getCount() const
+int32_t GameRound::getCount() const
 {
-   return mCount;
+   return _count;
 }
 
 
-void GameRound::setCurrent(int current)
+void GameRound::setCurrent(int32_t current)
 {
-   mCurrent = current;
+   _current = current;
 }
 
 
-void GameRound::setCount(int count)
+void GameRound::setCount(int32_t count)
 {
-   mCount = count;
+   _count = count;
 }

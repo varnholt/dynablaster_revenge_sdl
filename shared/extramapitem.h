@@ -1,5 +1,4 @@
-#ifndef EXTRAMAPITEM_H
-#define EXTRAMAPITEM_H
+#pragma once
 
 // base
 #include "mapitem.h"
@@ -19,10 +18,10 @@ class ExtraMapItem : public MapItem
 
       //! constructor
       ExtraMapItem(
-         int id,
+         int32_t id,
          Constants::ExtraType type,
-         int x,
-         int y
+         int32_t x,
+         int32_t y
       );
 
       //! construct from packet
@@ -32,19 +31,19 @@ class ExtraMapItem : public MapItem
       virtual ~ExtraMapItem();
 
       //! getter for extra type
-      Constants::ExtraType getExtraType();
+      [[nodiscard]] Constants::ExtraType getExtraType() const;
 
       //! initialize start time
       void initializeStartTime();
 
       //! getter elapsed time
-      float getElapsedTime() const;
+      [[nodiscard]] float getElapsedTime() const;
 
       //! setter for skull faces
       void setSkullFaces(const std::vector<Constants::SkullType>& faces);
 
       //! getter for skull faces
-      std::vector<Constants::SkullType> getSkullFaces() const;
+      [[nodiscard]] std::vector<Constants::SkullType> getSkullFaces() const;
 
 
    private:
@@ -58,5 +57,3 @@ class ExtraMapItem : public MapItem
       //! skull face setup
       std::vector<Constants::SkullType> mSkullFaces;
 };
-
-#endif // EXTRAMAPITEM_H

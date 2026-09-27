@@ -10,7 +10,7 @@
 //-----------------------------------------------------------------------------
 /*!
  */
-TimePacket::TimePacket(int left) : Packet(Packet::TIME), mTimeLeft(left)
+TimePacket::TimePacket(int32_t left) : Packet(Packet::TIME), mTimeLeft(left)
 {
    mPacketName = PACKETNAME;
 }
@@ -28,7 +28,7 @@ TimePacket::TimePacket() : Packet(Packet::TIME)
 /*!
    \return server time
 */
-int TimePacket::getTimeLeft() const
+int32_t TimePacket::getTimeLeft() const
 {
    return mTimeLeft;
 }

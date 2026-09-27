@@ -1,5 +1,4 @@
-#ifndef DETONATIONPACKET_H
-#define DETONATIONPACKET_H
+#pragma once
 
 #include "packet.h"
 
@@ -22,25 +21,25 @@ public:
    void dequeue(BinaryReader&);
 
    //! x center
-   int32_t getX() const;
+   [[nodiscard]] int32_t getX() const;
 
    //! y center
-   int32_t getY() const;
+   [[nodiscard]] int32_t getY() const;
 
    //! number of fields the bomb goes up
-   int8_t getUp() const;
+   [[nodiscard]] int8_t getUp() const;
 
    //! number of fields the bomb goes down
-   int8_t getDown() const;
+   [[nodiscard]] int8_t getDown() const;
 
    //! number of fields the bomb goes to the left
-   int8_t getLeft() const;
+   [[nodiscard]] int8_t getLeft() const;
 
    //! number of fields the bomb goes to the right
-   int8_t getRight() const;
+   [[nodiscard]] int8_t getRight() const;
 
    //! number of flames / flame intensity
-   float getIntensity() const;
+   [[nodiscard]] float getIntensity() const;
 
 private:
    //! x center
@@ -64,5 +63,3 @@ private:
    //! number of flames / intensity
    float mIntensity;
 };
-
-#endif  // DETONATIONPACKET_H

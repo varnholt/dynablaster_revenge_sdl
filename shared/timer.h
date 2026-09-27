@@ -3,6 +3,7 @@
 #include "signal.h"
 
 #include <chrono>
+#include <cstdint>
 #include <functional>
 #include <mutex>
 #include <unordered_set>
@@ -19,16 +20,16 @@ public:
    Timer(const Timer&) = delete;
    Timer& operator=(const Timer&) = delete;
 
-   void setInterval(int milliseconds);
-   int interval() const;
+   void setInterval(int32_t milliseconds);
+   [[nodiscard]] int32_t interval() const;
    void start();
-   void start(int milliseconds);
+   void start(int32_t milliseconds);
    void stop();
-   bool isActive() const;
+   [[nodiscard]] bool isActive() const;
 
    Signal<> timeoutSignal;
 
-   static void singleShot(int milliseconds, std::function<void()> callback);
+   static void singleShot(int32_t milliseconds, std::function<void()> callback);
    static void update();
 
 private:

@@ -75,7 +75,7 @@ float PositionPacket::getDeltaX() const
 
 //-----------------------------------------------------------------------------
 //! set player's x delta
-void PositionPacket::setDeltaX(double deltax)
+void PositionPacket::setDeltaX(float deltax)
 {
    mDx = deltax;
 }
@@ -100,7 +100,7 @@ float PositionPacket::getDeltaY() const
 
 //-----------------------------------------------------------------------------
 //! set player's y delta
-void PositionPacket::setDeltaY(double deltay)
+void PositionPacket::setDeltaY(float deltay)
 {
    mDy = deltay;
 }
@@ -143,7 +143,7 @@ float PositionPacket::getSpeed() const
 /*!
    \return player directions
 */
-int8_t PositionPacket::getDirections()
+int8_t PositionPacket::getDirections() const
 {
    return mDirections;
 }
@@ -152,7 +152,7 @@ int8_t PositionPacket::getDirections()
 /*!
    \return player id
 */
-int8_t PositionPacket::getPlayerId()
+int8_t PositionPacket::getPlayerId() const
 {
    return mPlayerId;
 }

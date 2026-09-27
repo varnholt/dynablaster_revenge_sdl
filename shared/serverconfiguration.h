@@ -1,5 +1,6 @@
-#ifndef SERVERCONFIGURATION_H
-#define SERVERCONFIGURATION_H
+#pragma once
+
+#include <cstdint>
 
 class BinaryWriter;
 class BinaryReader;
@@ -11,17 +12,15 @@ public:
    ServerConfiguration();
 
    //! setter for bomb tick time
-   void setBombTickTime(int time);
+   void setBombTickTime(int32_t time);
 
    //! getter for bomb tick time
-   int getBombTickTime() const;
+   [[nodiscard]] int32_t getBombTickTime() const;
 
 protected:
    //! bomb tick time
-   int mBombTickTime;
+   int32_t _bomb_tick_time;
 };
 
 BinaryWriter& operator<<(BinaryWriter& out, const ServerConfiguration& config);
 BinaryReader& operator>>(BinaryReader& in, ServerConfiguration& config);
-
-#endif  // SERVERCONFIGURATION_H

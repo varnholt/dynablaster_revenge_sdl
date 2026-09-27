@@ -13,7 +13,7 @@
 
    \param name game's name
 */
-StartGameRequestPacket::StartGameRequestPacket(int id) : Packet(Packet::STARTGAMEREQUEST), mId(id)
+StartGameRequestPacket::StartGameRequestPacket(int32_t id) : Packet(Packet::STARTGAMEREQUEST), mId(id)
 {
    mPacketName = PACKETNAME;
 }
@@ -39,7 +39,7 @@ StartGameRequestPacket::~StartGameRequestPacket()
 /*!
    \return game's id
 */
-int StartGameRequestPacket::getId()
+int32_t StartGameRequestPacket::getId() const
 {
    return mId;
 }

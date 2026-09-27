@@ -1,5 +1,4 @@
-#ifndef WEIGHTED_H
-#define WEIGHTED_H
+#pragma once
 
 template<typename O, typename W>
 class Weighted
@@ -7,50 +6,44 @@ class Weighted
 
 public:
 
-   Weighted()
-   {
-   }
+   Weighted() = default;
 
    Weighted(O object, W weight)
-    : mObject(object),
-      mWeight(weight)
+    : _object(object),
+      _weight(weight)
    {
 
    }
 
-   bool operator == (const Weighted& other) const
+   [[nodiscard]] bool operator == (const Weighted& other) const
    {
-      return other.mWeight == mWeight;
+      return other._weight == _weight;
    }
 
-   bool operator < (const Weighted& other) const
+   [[nodiscard]] bool operator < (const Weighted& other) const
    {
-      return other.mWeight < mWeight;
+      return other._weight < _weight;
    }
 
-   O getObject() const
+   [[nodiscard]] O getObject() const
    {
-      return mObject;
+      return _object;
    }
 
-   W getWeight() const
+   [[nodiscard]] W getWeight() const
    {
-      return mWeight;
+      return _weight;
    }
 
    void setWeight(W weight)
    {
-       mWeight = weight;
+       _weight = weight;
    }
 
 
 protected:
 
-   O mObject;
-   W mWeight;
+   O _object;
+   W _weight;
 };
-
-#endif // WEIGHTED_H
-
-
 

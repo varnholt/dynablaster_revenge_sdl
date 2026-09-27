@@ -24,14 +24,14 @@ Timer::~Timer()
    _timers.erase(this);
 }
 
-void Timer::setInterval(int milliseconds)
+void Timer::setInterval(int32_t milliseconds)
 {
    _interval = std::chrono::milliseconds(milliseconds);
 }
 
-int Timer::interval() const
+int32_t Timer::interval() const
 {
-   return static_cast<int>(_interval.count());
+   return static_cast<int32_t>(_interval.count());
 }
 
 void Timer::start()
@@ -43,7 +43,7 @@ void Timer::start()
    _timers.insert(this);
 }
 
-void Timer::start(int milliseconds)
+void Timer::start(int32_t milliseconds)
 {
    setInterval(milliseconds);
    start();
@@ -62,7 +62,7 @@ bool Timer::isActive() const
    return _active;
 }
 
-void Timer::singleShot(int milliseconds, std::function<void()> callback)
+void Timer::singleShot(int32_t milliseconds, std::function<void()> callback)
 {
    std::lock_guard<std::mutex> lock(_single_shot_mutex);
    _pending_single_shots.push_back({std::chrono::steady_clock::now() + std::chrono::milliseconds(milliseconds), std::move(callback)});

@@ -1,5 +1,4 @@
-#ifndef POSITIONPACKET_H
-#define POSITIONPACKET_H
+#pragma once
 
 #include "packet.h"
 
@@ -35,37 +34,37 @@ public:
    void dequeue(BinaryReader&);
 
    //! getter for player id
-   int8_t getPlayerId();
+   [[nodiscard]] int8_t getPlayerId() const;
 
    //! getter for player x position
-   float getX() const;
+   [[nodiscard]] float getX() const;
 
    //! getter for player y position
-   float getY() const;
+   [[nodiscard]] float getY() const;
 
    //! getter for player orientation angle
-   float getAngle() const;
+   [[nodiscard]] float getAngle() const;
 
    //! getter for the player's directions
-   int8_t getDirections();
+   [[nodiscard]] int8_t getDirections() const;
 
    //! getter for player's x delta
-   float getDeltaX() const;
+   [[nodiscard]] float getDeltaX() const;
 
    //! set player's x delta
-   void setDeltaX(double deltax);
+   void setDeltaX(float deltax);
 
    //! getter for player's y delta
-   float getDeltaY() const;
+   [[nodiscard]] float getDeltaY() const;
 
    //! set player's y delta
-   void setDeltaY(double deltay);
+   void setDeltaY(float deltay);
 
    //! getter for player's rotation delta
-   float getAngleDelta() const;
+   [[nodiscard]] float getAngleDelta() const;
 
    //! getter for player speed
-   float getSpeed() const;
+   [[nodiscard]] float getSpeed() const;
    //! set player's rotation delta
    void setAngleDelta(float angleDelta);
 
@@ -97,5 +96,3 @@ private:
    //! player speed
    float mSpeed;
 };
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef PLAYERSYNCHRONIZEPACKET_H
-#define PLAYERSYNCHRONIZEPACKET_H
+#pragma once
 
 #include "packet.h"
 
@@ -26,7 +25,7 @@ public:
    void setSynchronizeProcess(SynchronizeProcess process);
 
    //! getter for synchronize process
-   SynchronizeProcess getSynchronizeProcess() const;
+   [[nodiscard]] SynchronizeProcess getSynchronizeProcess() const;
 
    //! debugs the member variables
    void debug();
@@ -41,5 +40,3 @@ protected:
    //! synchronize process
    SynchronizeProcess mSynchronizeProcess;
 };
-
-#endif  // PLAYERSYNCHRONIZEPACKET_H

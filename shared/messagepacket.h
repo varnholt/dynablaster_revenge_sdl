@@ -1,5 +1,4 @@
-#ifndef MESSAGEPACKET_H
-#define MESSAGEPACKET_H
+#pragma once
 
 #include <string>
 
@@ -27,16 +26,16 @@ public:
    void dequeue(BinaryReader&);
 
    //! getter for sender id
-   int8_t getSenderId() const;
+   [[nodiscard]] int8_t getSenderId() const;
 
    //! getter for the message
-   std::string getMessage() const;
+   [[nodiscard]] std::string getMessage() const;
 
    //! getter for the receiver's id
-   int8_t getReceiverId() const;
+   [[nodiscard]] int8_t getReceiverId() const;
 
    //! getter for finished-typing flag
-   bool isTypingFinished() const;
+   [[nodiscard]] bool isTypingFinished() const;
 
 private:
    //! sender id
@@ -51,5 +50,3 @@ private:
    //! player finished typing
    bool mFinishedTyping;
 };
-
-#endif  // MESSAGEPACKET_H

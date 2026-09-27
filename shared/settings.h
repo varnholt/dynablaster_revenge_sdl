@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <string>
@@ -13,7 +14,9 @@ public:
    SettingsValue() = default;
    explicit SettingsValue(const std::string& text);
 
-   int toInt(bool* ok = nullptr) const;
+   // raw-pointer out-param mirrors QVariant::toInt(bool*)'s shape; wide external usage
+   // (client gamesettings.cpp) makes this a client-subsystem-pass concern, not shared/'s
+   int32_t toInt(bool* ok = nullptr) const;
    float toFloat(bool* ok = nullptr) const;
    bool toBool() const;
    std::string toString() const;
@@ -46,14 +49,14 @@ public:
    SettingsValue value(const std::string& key) const;
    SettingsValue value(const std::string& key, const std::string& default_value) const;
    SettingsValue value(const std::string& key, const char* default_value) const;
-   SettingsValue value(const std::string& key, int default_value) const;
+   SettingsValue value(const std::string& key, int32_t default_value) const;
    SettingsValue value(const std::string& key, float default_value) const;
    SettingsValue value(const std::string& key, double default_value) const;
    SettingsValue value(const std::string& key, bool default_value) const;
 
    void setValue(const std::string& key, const std::string& value);
    void setValue(const std::string& key, const char* value);
-   void setValue(const std::string& key, int value);
+   void setValue(const std::string& key, int32_t value);
    void setValue(const std::string& key, float value);
    void setValue(const std::string& key, double value);
    void setValue(const std::string& key, bool value);

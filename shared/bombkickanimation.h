@@ -1,5 +1,4 @@
-#ifndef BOMBKICKANIMATION_H
-#define BOMBKICKANIMATION_H
+#pragma once
 
 // shared
 #include "constants.h"
@@ -7,6 +6,7 @@
 #include "signal.h"
 #include "timer.h"
 
+#include <cstdint>
 #include <functional>
 #include <unordered_map>
 #include <vector>
@@ -47,16 +47,16 @@ public:
    void setY(float y);
 
    //! getter for x position
-   float getX() const;
+   [[nodiscard]] float getX() const;
 
    //! getter for y position
-   float getY() const;
+   [[nodiscard]] float getY() const;
 
    //! getter for map
-   Map* getMap() const;
+   [[nodiscard]] Map* getMap() const;
 
    //! check if ready to explode
-   bool isReadyToExplode() const;
+   [[nodiscard]] bool isReadyToExplode() const;
 
    //! set bomb to "ready" to explode
    void setReadyToExplode(bool ready);
@@ -65,7 +65,7 @@ public:
    void setDirection(Constants::Direction dir);
 
    //! ignite animation at x, y
-   static void ignite(int x, int y);
+   static void ignite(int32_t x, int32_t y);
 
 public:
    // Signal<> replacements for BombKickAnimation's former Qt signals (see
@@ -85,10 +85,10 @@ public:
    void readyToExplode();
 
    //! update a player position
-   void updatePlayerPosition(int id, float x, float y);
+   void updatePlayerPosition(int32_t id, float x, float y);
 
    //! remove player position if player died
-   void removePlayerPosition(int id);
+   void removePlayerPosition(int32_t id);
 
 protected:
    //! update the bomb's position
@@ -102,16 +102,16 @@ protected:
    bool isMoveAllowed();
 
    //! getter for step speed
-   float getStepSize() const;
+   [[nodiscard]] float getStepSize() const;
 
    //! getter for direction
-   Constants::Direction getDirection() const;
+   [[nodiscard]] Constants::Direction getDirection() const;
 
    //! getter for x direction
-   int getDirectionX() const;
+   [[nodiscard]] int32_t getDirectionX() const;
 
    //! getter for y direction
-   int getDirectionY() const;
+   [[nodiscard]] int32_t getDirectionY() const;
 
    //! unmap bomb
    void unmapBomb();
@@ -134,7 +134,7 @@ protected:
    bool checkCollision(BombKickAnimation* animation);
 
    //! getter for colliding flag
-   bool isColliding() const;
+   [[nodiscard]] bool isColliding() const;
 
    //! setter for colliding flag
    void setColliding(bool colliding);
@@ -167,18 +167,27 @@ protected:
    BombMapItem* mBombMapItem;
 
    //! player positions to collide with
-   std::unordered_map<int, Point> mPlayerPositions;
+   std::unordered_map<int32_t, Point> mPlayerPositions;
 
    //! run in the destructor - see addDestroyCallback()
    std::vector<std::function<void()>> mDestroyCallbacks;
 
    // inter-bomb-collisions
 
-   //! list of kick animations
+   //! list of currently active kick animations - non-owning, self-registering tracker (each
+   //! instance adds itself in the constructor, removes itself in the destructor), exactly like
+   //! Timer::_timers; the real owner is whichever BombMapItem holds it via its
+   //! std::unique_ptr<BombKickAnimation> mAnimation.
+   //!
+   //! TODO: deleteAll() below calls `delete` directly through this non-owning pointer. That is
+   //! only safe if every BombMapItem that might still own one of these has already released or
+   //! outlived it by the time deleteAll() runs - Game::~Game() currently calls deleteAll() BEFORE
+   //! `delete mMap`, so any BombMapItem still mid-kick when a match ends will have its mAnimation
+   //! unique_ptr double-delete an already-freed object once Map's destructor tears it down. Fixing
+   //! this needs a teardown-order or ownership change in server/ (Game::~Game()/Map), outside
+   //! shared/'s scope for this pass - flagged here, not fixed.
    static std::vector<BombKickAnimation*> sAnimations;
 
    //! bomb is colliding with another bomb
    bool mColliding;
 };
-
-#endif  // BOMBKICKANIMATION_H
