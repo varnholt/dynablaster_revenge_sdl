@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -15,6 +16,7 @@ class BinaryReader
 {
 public:
    BinaryReader(const uint8_t* data, size_t size);
+   explicit BinaryReader(std::span<const uint8_t> buffer);
    explicit BinaryReader(const std::vector<uint8_t>& buffer);
 
    BinaryReader& operator>>(int8_t& value);
@@ -49,9 +51,9 @@ public:
       return *this;
    }
 
-   bool ok() const;
-   size_t pos() const;
-   size_t bytesAvailable() const;
+   [[nodiscard]] bool ok() const;
+   [[nodiscard]] size_t pos() const;
+   [[nodiscard]] size_t bytesAvailable() const;
 
 private:
    template <typename T>

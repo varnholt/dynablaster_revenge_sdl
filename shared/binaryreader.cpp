@@ -6,6 +6,10 @@ BinaryReader::BinaryReader(const uint8_t* data, size_t size) : _data(data), _siz
 {
 }
 
+BinaryReader::BinaryReader(std::span<const uint8_t> buffer) : _data(buffer.data()), _size(buffer.size())
+{
+}
+
 BinaryReader::BinaryReader(const std::vector<uint8_t>& buffer) : _data(buffer.data()), _size(buffer.size())
 {
 }
