@@ -2140,7 +2140,15 @@ void BombermanClient::host()
                while (!stopToken.stop_requested())
                {
                   Timer::update();
-                  std::this_thread::sleep_for(std::chrono::milliseconds(1));
+
+                  // std::this_thread::sleep_for() is quantized to the OS scheduler's timer
+                  // resolution (~15.6ms on Windows regardless of what's requested) - spin-waiting
+                  // via yield() isn't, so it replaces the sleep here.
+                  auto next = std::chrono::steady_clock::now() + std::chrono::milliseconds(1);
+                  while (std::chrono::steady_clock::now() < next && !stopToken.stop_requested())
+                  {
+                     std::this_thread::yield();
+                  }
                }
             }
          );
