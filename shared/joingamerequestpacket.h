@@ -1,0 +1,35 @@
+#ifndef JOINGAMEREQUESTPACKET_H
+#define JOINGAMEREQUESTPACKET_H
+
+#include "packet.h"
+
+class JoinGameRequestPacket : public Packet
+{
+public:
+   //! write constructor
+   JoinGameRequestPacket(int id);
+
+   //! read constructor
+   JoinGameRequestPacket();
+
+   //! destructor
+   virtual ~JoinGameRequestPacket();
+
+   //! debugs the member variables
+   void debug();
+
+   //! enqueues the member variables to datastream
+   void enqueue(BinaryWriter&);
+
+   //! dequeues the member variables from datastream
+   void dequeue(BinaryReader&);
+
+   //! getter for game id
+   int getId();
+
+private:
+   //! game's id
+   int8_t mId;
+};
+
+#endif  // JOINGAMEREQUESTPACKET_H

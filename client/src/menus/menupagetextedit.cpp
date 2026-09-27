@@ -1,0 +1,352 @@
+// header
+#include "menupagetextedit.h"
+
+// menus
+#include "fontpool.h"
+#include "framework/gldevice.h"
+#include "math/matrix.h"
+
+#include <SDL3/SDL_keycode.h>
+
+#include <algorithm>
+#include <cstring>
+
+#define CURSOR_UPDATE_TIME 500
+
+MenuPageTextEditItem::MenuPageTextEditItem()
+    : mFont(0),
+      mFontXOffset(0),
+      mFontYOffset(0),
+      mFieldWidth(255),
+      mMaxLength(-1),
+      mScale(0.0f),
+      mEditingActive(false),
+      mCursorVisible(false),
+      mAlpha(255),
+      mCursorPosition(0),
+      mCursorTexture(0),
+      mCursorVertexBuffer(0)
+{
+   mPageItemType = PageItemTypeTextedit;
+   mInteractive = true;
+}
+
+void MenuPageTextEditItem::initialize()
+{
+   mFont = FontPool::Instance()->get(mFontName.c_str());
+
+   // init update timer
+   mTimer.setInterval(CURSOR_UPDATE_TIME);
+
+   mTimer.timeoutSignal.connect([this]() { updateCursorHighlight(); });
+}
+
+void MenuPageTextEditItem::draw()
+{
+   if (isVisible())
+   {
+      if (mColor.isValid())
+      {
+         mFont->setColor(mColor.redF(), mColor.greenF(), mColor.blueF(), mAlpha / 255.0f);
+      }
+      else
+      {
+         mFont->setColor(1.0f, 1.0f, 1.0f, mAlpha / 255.0f);
+      }
+
+      /*
+               i0               i0+maxLength
+                [               ]
+         [ABCDEFGHIJKLMNOPQRSTUVWXYZ]
+
+      */
+
+      int i0 = std::max(mCursorPosition - getFieldWidth(), 0);
+      const std::string visibleText = mText.substr(std::min(static_cast<size_t>(i0), mText.size()), getFieldWidth());
+
+      mFont->buildVertices(mScale, visibleText.c_str(), mLayerActive->getLeft() + mFontXOffset, mLayerActive->getBottom() + mFontYOffset);
+
+      mFont->draw();
+
+      if (mEditingActive)
+      {
+         drawCursor();
+      }
+   }
+}
+
+void MenuPageTextEditItem::keyPressed(int key, const std::string& text)
+{
+   if (key == SDLK_BACKSPACE)
+   {
+      if (isCursorAtEnd())
+      {
+         // chop from end
+         if (!mText.empty())
+            mText.pop_back();
+         moveCursorLeft();
+      }
+      else
+      {
+         if (getCursorPosition() > 0)
+         {
+            // replace chars
+            mText.erase(getCursorPosition() - 1, 1);
+            moveCursorLeft();
+         }
+      }
+   }
+   else if (key == SDLK_DELETE)
+   {
+      if (!isCursorAtEnd())
+      {
+         // replace chars
+         mText.erase(getCursorPosition(), 1);
+      }
+   }
+   else if (key == SDLK_LEFT)
+   {
+      moveCursorLeft();
+   }
+   else if (key == SDLK_RIGHT)
+   {
+      moveCursorRight();
+   }
+   else if (key == SDLK_HOME)
+   {
+      moveCursorToStart();
+   }
+   else if (key == SDLK_END)
+   {
+      moveCursorToEnd();
+   }
+   else if (key == SDLK_RETURN || key == SDLK_KP_ENTER || key == SDLK_ESCAPE)
+   {
+      // ignored
+   }
+   else if (!text.empty())
+   {
+      if (isCursorAtEnd())
+      {
+         // append chars
+         if (static_cast<int>(mText.length()) < getMaxLength())
+            mText.append(text);
+      }
+      else
+      {
+         // replace chars
+         mText.replace(getCursorPosition(), 1, text);
+      }
+
+      moveCursorRight();
+   }
+}
+
+void MenuPageTextEditItem::setFontName(const std::string& fontName)
+{
+   mFontName = fontName;
+}
+
+void MenuPageTextEditItem::setFontXOffset(int xOffset)
+{
+   mFontXOffset = xOffset;
+}
+
+void MenuPageTextEditItem::setFontYOffset(int yOffset)
+{
+   mFontYOffset = yOffset;
+}
+
+void MenuPageTextEditItem::setFieldWidth(int fieldWidth)
+{
+   mFieldWidth = fieldWidth;
+}
+
+void MenuPageTextEditItem::setMaxLength(int maxLength)
+{
+   mMaxLength = maxLength;
+}
+
+int MenuPageTextEditItem::getMaxLength() const
+{
+   return mMaxLength;
+}
+
+int MenuPageTextEditItem::getFieldWidth() const
+{
+   return mFieldWidth;
+}
+
+void MenuPageTextEditItem::setScale(float scale)
+{
+   mScale = scale;
+}
+
+float MenuPageTextEditItem::getScale() const
+{
+   return mScale;
+}
+
+void MenuPageTextEditItem::setText(const std::string& text)
+{
+   mText = text.substr(0, std::max(text.length(), static_cast<size_t>(getFieldWidth())));
+   setCursorPosition(static_cast<int>(mText.length()));
+}
+
+void MenuPageTextEditItem::setColor(const Color& color)
+{
+   mColor = color;
+}
+
+void MenuPageTextEditItem::setOutlineColor(const Color& outlineColor)
+{
+   mOutlineColor = outlineColor;
+}
+
+const Color& MenuPageTextEditItem::getColor() const
+{
+   return mColor;
+}
+
+void MenuPageTextEditItem::setAlpha(int alpha)
+{
+   mAlpha = alpha;
+}
+
+bool MenuPageTextEditItem::isActionRequestOnClickEnabled() const
+{
+   return false;
+}
+
+void MenuPageTextEditItem::setCursorPosition(int index)
+{
+   mCursorPosition = index;
+}
+
+int MenuPageTextEditItem::getCursorPosition() const
+{
+   return mCursorPosition;
+}
+
+bool MenuPageTextEditItem::isEditingActive() const
+{
+   return mEditingActive;
+}
+
+void MenuPageTextEditItem::moveCursorRight()
+{
+   setCursorPosition(std::min(getCursorPosition() + 1, static_cast<int>(getText().length())));
+}
+
+void MenuPageTextEditItem::moveCursorLeft()
+{
+   setCursorPosition(std::max(getCursorPosition() - 1, 0));
+}
+
+void MenuPageTextEditItem::moveCursorToStart()
+{
+   setCursorPosition(0);
+}
+
+void MenuPageTextEditItem::moveCursorToEnd()
+{
+   setCursorPosition(static_cast<int>(getText().length()));
+}
+
+const std::string& MenuPageTextEditItem::getText() const
+{
+   return mText;
+}
+
+void MenuPageTextEditItem::activated()
+{
+   mTimer.start();
+
+   // call the timer's slot once initially
+   updateCursorHighlight();
+
+   mEditingActive = true;
+   MenuPageItem::activated();
+}
+
+void MenuPageTextEditItem::deactivated()
+{
+   mTimer.stop();
+   mEditingActive = false;
+   MenuPageItem::deactivated();
+}
+
+void MenuPageTextEditItem::paste(const std::string& text)
+{
+   for (char c : text)
+      keyPressed(SDLK_UNKNOWN, std::string(1, c));
+}
+
+void MenuPageTextEditItem::drawCursor()
+{
+   // the legacy untextured glColor4ub'd quad (glBindTexture(GL_TEXTURE_2D, 0), a special
+   // GL_SRC_ALPHA/GL_SRC_COLOR blend for an invert-highlight look) has no direct GLES3
+   // equivalent - every draw needs a real bound texture and a real shader. Replaced with a
+   // lazily-created 1x1 white texture drawn through the shared texalphaignore shader; the
+   // mColor tint is dropped (see class comment), so this is always a white highlight now.
+   float alphaFactor = std::max(1.0f - 0.75f * (mCursorTime.elapsed() / (float)CURSOR_UPDATE_TIME), 0.0f);
+
+   float left = 0.0f;
+   float right = 0.0f;
+   float top = 0.0f;
+   float bottom = 0.0f;
+
+   mFont->getCursor(mScale, getCursorPosition(), left, right, top, bottom);
+
+   if (mCursorTexture == 0)
+   {
+      unsigned int white = 0xFFFFFFFF;
+      mCursorTexture = activeDevice->createTexture(&white, 1, 1, 0);
+   }
+
+   glBindTexture(GL_TEXTURE_2D, mCursorTexture);
+
+   glBlendFunc(GL_SRC_ALPHA, GL_SRC_COLOR);
+
+   const float quad[] = {
+      left, top, -1.0f, 0.0f, 0.0f, right, top,    -1.0f, 1.0f, 0.0f, right, bottom, -1.0f, 1.0f, 1.0f,
+      left, top, -1.0f, 0.0f, 0.0f, right, bottom, -1.0f, 1.0f, 1.0f, left,  bottom, -1.0f, 0.0f, 1.0f,
+   };
+
+   if (mCursorVertexBuffer == 0)
+      mCursorVertexBuffer = activeDevice->createVertexBuffer(sizeof(quad), true);
+   else
+      activeDevice->allocateVertexBuffer(mCursorVertexBuffer, sizeof(quad), true);
+
+   void* dst = activeDevice->lockVertexBuffer(mCursorVertexBuffer, sizeof(quad));
+   memcpy(dst, quad, sizeof(quad));
+   activeDevice->unlockVertexBuffer(mCursorVertexBuffer);
+
+   activeDevice->push(Matrix());
+   activeDevice->setParameter(activeDevice->getParameterIndex("alpha"), (128.0f / 255.0f) * alphaFactor);
+
+   glBindBuffer(GL_ARRAY_BUFFER, mCursorVertexBuffer);
+   glEnableVertexAttribArray(0);
+   glEnableVertexAttribArray(1);
+   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 5, (GLvoid*)0);
+   glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 5, (GLvoid*)(sizeof(float) * 3));
+
+   glDrawArrays(GL_TRIANGLES, 0, 6);
+
+   glDisableVertexAttribArray(0);
+   glDisableVertexAttribArray(1);
+
+   activeDevice->pop();
+
+   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+}
+
+void MenuPageTextEditItem::updateCursorHighlight()
+{
+   mCursorTime.restart();
+}
+
+bool MenuPageTextEditItem::isCursorAtEnd() const
+{
+   return (getCursorPosition() == static_cast<int>(getText().length()));
+}

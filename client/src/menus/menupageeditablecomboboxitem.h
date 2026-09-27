@@ -1,0 +1,53 @@
+#pragma once
+
+// base
+#include "menupagecomboboxitem.h"
+
+// menus
+#include "menupagetextedit.h"
+
+/// \brief GLES3 port of client/src/menus/menupageeditablecomboboxitem.cpp.
+/// No GL/fixed-function drawing of its own - draws entirely through MenuPageComboBoxItem's
+/// already-ported draw().
+class MenuPageEditableComboBoxItem : public MenuPageComboBoxItem
+{
+public:
+   //! constructor
+   MenuPageEditableComboBoxItem();
+
+   //! initialize item
+   virtual void initialize();
+
+   //! setter for visible flag
+   void setVisible(bool visible);
+
+   //! setter for textedit item
+   void setTextEditItem(MenuPageTextEditItem* item);
+
+   //! getter for textedit item
+   MenuPageTextEditItem* getTextEditItem() const;
+
+   //! link combobox to related textedit
+   static void linkComboBoxToTextEdit(const std::string& textEditKey, const std::string& comboBoxKey);
+
+   //! add label to id/ptr-map
+   static void addTextEdit(const std::string&, MenuPageTextEditItem*);
+
+   //! append an item to the list
+   void appendItem(
+      const std::string& item,
+      const Color& color = Color("#FFFFFF"),
+      bool overrideAlpha = false,
+      const Color& outlineColor = Color()
+   );
+
+protected:
+   //! update clipper boundaries
+   void updateClipperBounds();
+
+   //! linked textedit item
+   MenuPageTextEditItem* mTextEditItem;
+
+   //! map of labels by id
+   static std::map<std::string, MenuPageTextEditItem*> sMapTextEdits;
+};

@@ -1,0 +1,43 @@
+#ifndef TEXTUREPOOL_H
+#define TEXTUREPOOL_H
+
+#include "texture.h"
+#include "tools/array.h"
+#include "tools/singleton.h"
+
+#include <string>
+#include <unordered_map>
+
+class Image;
+
+class TexturePool : public Singleton<TexturePool>
+{
+public:
+   enum Filter
+   {
+      Nearest = 0,
+      Linear = 1,
+      MipMap = 2,
+      Trilinear = Linear | MipMap,
+      Clamp = 4,
+      PremultipliedAlpha = 8
+   };
+
+   TexturePool();
+   ~TexturePool();
+
+   Texture getTexture(const char* filename, int filter = Trilinear);
+   Texture getTexture(Image* image, int filter = Trilinear);
+
+   void remove(const Texture& texture);
+
+   void update();
+
+private:
+   std::unordered_map<std::string, Texture> mPool;
+   Array<unsigned int> mRemoval;
+   bool mBlock;
+   unsigned int mMemory;
+};
+
+#endif

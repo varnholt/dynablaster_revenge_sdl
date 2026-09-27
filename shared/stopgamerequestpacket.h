@@ -1,0 +1,37 @@
+#ifndef STOPGAMEREQUESTPACKET_H
+#define STOPGAMEREQUESTPACKET_H
+
+#include "packet.h"
+
+// Qt
+
+class StopGameRequestPacket : public Packet
+{
+public:
+   //! write constructor, -1 if not accepted
+   StopGameRequestPacket(int id);
+
+   //! read constructor
+   StopGameRequestPacket();
+
+   //! destructor
+   virtual ~StopGameRequestPacket();
+
+   //! debugs the member variables
+   void debug();
+
+   //! enqueues the member variables to datastream
+   void enqueue(BinaryWriter&);
+
+   //! dequeues the member variables from datastream
+   void dequeue(BinaryReader&);
+
+   //! getter for game id
+   int getId();
+
+private:
+   //! game id
+   int32_t mId;
+};
+
+#endif  // STOPGAMEREQUESTPACKET_H

@@ -1,0 +1,1444 @@
+// header
+#include "botclient.h"
+
+// shared
+#include "botbombmapitem.h"
+#include "extramapitem.h"
+#include "mapitem.h"
+
+// Qt
+#include "logging.h"
+
+// SDL
+#include <SDL3_net/SDL_net.h>
+
+// math
+#include <math.h>
+
+// ai
+#include "bot.h"
+#include "botconstants.h"
+#include "botmap.h"
+#include "botplayerinfo.h"
+
+// packets
+#include "countdownpacket.h"
+#include "extramapitemcreatedpacket.h"
+#include "extrashakepacket.h"
+#include "gameeventpacket.h"
+#include "joingamerequestpacket.h"
+#include "joingameresponsepacket.h"
+#include "keypacket.h"
+#include "leavegameresponsepacket.h"
+#include "listgamesrequestpacket.h"
+#include "listgamesresponsepacket.h"
+#include "loginrequestpacket.h"
+#include "loginresponsepacket.h"
+#include "mapitemcreatedpacket.h"
+#include "mapitemdestroyedpacket.h"
+#include "mapitemmovepacket.h"
+#include "mapitemremovedpacket.h"
+#include "messagepacket.h"
+#include "playerdisease.h"
+#include "playerinfectedpacket.h"
+#include "playerkilledpacket.h"
+#include "playersynchronizepacket.h"
+#include "positionpacket.h"
+#include "startgamerequestpacket.h"
+#include "startgameresponsepacket.h"
+#include "stopgameresponsepacket.h"
+
+// std
+#include <stdio.h>
+#include <stdlib.h>
+
+//-----------------------------------------------------------------------------
+/*!
+   \param parent parent object
+*/
+BotClient::BotClient()
+    : mSocket(0),
+      mAddress(nullptr),
+      mConnected(false),
+      mBlockSize(0),
+      mBot(0),
+      mBotMap(0),
+      mGameId(0),
+      mAutoJoin(true),
+      mAutoStart(false),
+      mPlayerId(0),
+      mKeysPressed(0),
+      mGameJoined(false),
+      mSpeed(0.0f),
+      mDeltaX(0.0f),
+      mDeltaY(0.0f)
+{
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+BotClient::~BotClient()
+{
+   delete mBot;
+
+   // bot accesses player info ptrs, so delete them later
+   for (const auto& [id, playerInfo] : mPlayerInfo)
+      delete playerInfo;
+
+   mPlayerInfo.clear();
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+void BotClient::initialize()
+{
+   mPollTimer.timeoutSignal.connect([this]() { poll(); });
+   mPollTimer.start(16);
+
+   // init auto join/start
+   initializeAutoJoinStart();
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+void BotClient::connectToServer()
+{
+   mAddress = NET_ResolveHostname(mHost.c_str());
+
+   if (!mAddress)
+   {
+      clientDisconnect();
+   }
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   poll for connection progress and incoming data, once per tick
+*/
+void BotClient::poll()
+{
+   if (mAddress)
+   {
+      NET_Status status = NET_GetAddressStatus(mAddress);
+
+      if (status == NET_SUCCESS)
+      {
+         NET_Address* address = mAddress;
+         mAddress = nullptr;
+
+         mSocket = NET_CreateClient(address, 6300, 0);
+         NET_UnrefAddress(address);
+
+         if (!mSocket)
+         {
+            clientDisconnect();
+         }
+      }
+      else if (status == NET_FAILURE)
+      {
+         NET_UnrefAddress(mAddress);
+         mAddress = nullptr;
+         clientDisconnect();
+      }
+
+      return;
+   }
+
+   if (mSocket && !mConnected)
+   {
+      NET_Status status = NET_GetConnectionStatus(mSocket);
+
+      if (status == NET_SUCCESS)
+      {
+         clientConnect();
+
+         if (mAutoJoin)
+         {
+            login();
+         }
+      }
+      else if (status == NET_FAILURE)
+      {
+         NET_DestroyStreamSocket(mSocket);
+         mSocket = nullptr;
+         clientDisconnect();
+      }
+
+      return;
+   }
+
+   if (mSocket && mConnected)
+   {
+      readData();
+   }
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+void BotClient::clientConnect()
+{
+   mConnected = true;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+void BotClient::clientDisconnect()
+{
+   mConnected = false;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param host host to set
+*/
+void BotClient::setHost(const std::string& host)
+{
+   mHost = host;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param player's nick
+*/
+void BotClient::setNick(const std::string& nick)
+{
+   mNick = nick;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param botmap bot map
+*/
+void BotClient::setBotMap(BotMap* botmap)
+{
+   mBotMap = botmap;
+}
+
+//----------------------------------------------------------------------------
+/*!
+ */
+void BotClient::initializeAutoJoinStart()
+{
+   if (mAutoJoin)
+   {
+      // login() itself fires from poll() once the connection succeeds - see connectToServer()
+      updatePlayerIdSignal.connect([this](int) { selectGame(); });
+
+      gameSelectedSignal.connect([this]() { joinGame(); });
+   }
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+void BotClient::login()
+{
+   // reset player id
+   mPlayerId = -1;
+
+   // send login packet
+   LoginRequestPacket login(mNick, true);
+   send(&login);
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+void BotClient::selectGame()
+{
+   ListGamesRequestPacket packet;
+   send(&packet);
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param packet packet to send
+*/
+void BotClient::send(Packet* packet)
+{
+   packet->serialize();
+
+   if (mSocket)
+   {
+      NET_WriteToStreamSocket(mSocket, packet->constData(), static_cast<int>(packet->size()));
+   }
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param in datastream
+   \return true if sufficient data was received
+*/
+bool BotClient::packetAvailable()
+{
+   // blocksize not initialized yet
+
+   if (mBlockSize == 0)
+   {
+      // not enough data to read blocksize?
+      if (mBuffer.bytesAvailable() < sizeof(uint16_t))
+         return false;
+
+      // read blocksize
+      BinaryReader sizeReader = mBuffer.reader();
+      sizeReader >> mBlockSize;
+      mBuffer.consume(sizeReader.pos());
+
+      // qDebug("BotClient::packetAvailable: %d bytes", mBlockSize);
+   }
+
+   // enough data?
+   return (mBuffer.bytesAvailable() >= mBlockSize);
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param height map height
+   \param width map width
+*/
+void BotClient::initBotMap(int width, int height)
+{
+   // delete mBotMap;
+   mBotMap = mBot->createMap(width, height);
+   mBot->setBotMap(mBotMap);
+
+   // connect botmap
+   mapItemCreatedSignal.connect([this](MapItem* item) { mBotMap->createMapItem(item); });
+
+   mapItemRemovedSignal.connect([this](MapItem* item) { mBotMap->removeMapItem(item); });
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \return ptr to bot
+*/
+Bot* BotClient::getBot() const
+{
+   return mBot;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param dimensions dimensions to use
+*/
+void BotClient::createMap(Constants::Dimension dimensions)
+{
+   int width = 13;
+   int height = 11;
+
+   switch (dimensions)
+   {
+      case Constants::Dimension13x11:
+         width = 13;
+         height = 11;
+         break;
+      case Constants::Dimension19x17:
+         width = 19;
+         height = 17;
+         break;
+      case Constants::Dimension25x21:
+         width = 25;
+         height = 21;
+         break;
+      default:
+         break;
+   }
+
+   initBotMap(width, height);
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+void BotClient::readData()
+{
+   char chunk[4096];
+   int bytesRead;
+
+   while ((bytesRead = NET_ReadFromStreamSocket(mSocket, chunk, sizeof(chunk))) > 0)
+   {
+      mBuffer.append(chunk, bytesRead);
+   }
+
+   if (bytesRead < 0)
+   {
+      NET_DestroyStreamSocket(mSocket);
+      mSocket = nullptr;
+      clientDisconnect();
+      return;
+   }
+
+   while (packetAvailable())
+   {
+      // block was read completely
+      BinaryReader in = mBuffer.reader();
+      Packet* packet = Packet::deserialize(in);
+      mBuffer.consume(in.pos());
+
+      if (packet)
+      {
+         switch (packet->getType())
+         {
+            case Packet::CREATEGAMERESPONSE:
+            {
+               // processCreateGameResponse(packet);
+               break;
+            }
+
+            case Packet::JOINGAMERESPONSE:
+            {
+               processJoinGameResponse(packet);
+               break;
+            }
+
+            case Packet::LEAVEGAMERESPONSE:
+            {
+               processLeaveGameResponse(packet);
+               break;
+            }
+
+            case Packet::LISTGAMESRESPONSE:
+            {
+               processListGameResponse(packet);
+               break;
+            }
+
+            case Packet::LOGINRESPONSE:
+            {
+               processLoginResponse(packet);
+               break;
+            }
+
+            case Packet::PLAYERINFECTEDPACKET:
+            {
+               processPlayerInfected(packet);
+               break;
+            }
+
+            case Packet::PLAYERKILLED:
+            {
+               processPlayerKilled(packet);
+               break;
+            }
+
+            case Packet::DETONATION:
+            {
+               // processDetonation(packet);
+               break;
+            }
+
+            case Packet::ERROR:
+            {
+               break;
+            }
+
+            case Packet::POSITION:
+            {
+               processPosition(packet);
+               break;
+            }
+
+            case Packet::MAPITEMCREATED:
+            {
+               processMapItemCreated(packet);
+               break;
+            }
+
+            case Packet::EXTRAMAPITEMCREATED:
+            {
+               processExtraMapItemCreated(packet);
+               break;
+            }
+
+            case Packet::MAPITEMDESTROYED:
+            {
+               processMapItemDestroyed(packet);
+               break;
+            }
+
+            case Packet::MAPITEMREMOVED:
+            {
+               processMapItemRemoved(packet);
+               break;
+            }
+
+            case Packet::MAPITEMMOVE:
+            {
+               processMapItemMove(packet);
+               break;
+            }
+
+            case Packet::STARTGAMERESPONSE:
+            {
+               processStartGameResponse(packet);
+               break;
+            }
+
+            case Packet::STOPGAMERESPONSE:
+            {
+               processStopGameResponse(packet);
+               break;
+            }
+
+            case Packet::GAMEEVENT:
+            {
+               processGameEvent(packet);
+               break;
+            }
+
+            case Packet::MESSAGE:
+            {
+               // processMessage(packet);
+               break;
+            }
+
+            case Packet::TIME:
+            {
+               // processTime(packet);
+               break;
+            }
+
+            case Packet::COUNTDOWN:
+            {
+               processCountdown(packet);
+               break;
+            }
+
+            case Packet::EXTRASHAKE:
+            {
+               processExtraShake(packet);
+               break;
+            }
+
+            case Packet::INVALID:
+            {
+               qWarning("BotClient::data: Packet::INVALID received");
+               break;
+            }
+
+            default:
+               break;
+         }
+
+         delete packet;
+      }
+
+      mBlockSize = 0;
+   }
+
+   mBuffer.compact();
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param bot bot instance
+*/
+void BotClient::setBot(Bot* bot)
+{
+   mBot = bot;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+void BotClient::joinGame()
+{
+   if (mPlayerId != -1)
+   {
+      if (!isGameJoined())
+      {
+         if (!mGames.empty())
+         {
+            // qDebug("BotClient::joinGame");
+            JoinGameRequestPacket joinPacket(getGameId());
+            send(&joinPacket);
+
+            PlayerSynchronizePacket syncPacket(PlayerSynchronizePacket::LevelLoaded);
+            send(&syncPacket);
+         }
+      }
+   }
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+void BotClient::startGame()
+{
+   StartGameRequestPacket packet(mGameId);
+   send(&packet);
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+void BotClient::setGameId(int id)
+{
+   mGameId = id;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+int BotClient::getGameId() const
+{
+   return mGameId;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+void BotClient::setAutoJoin(bool enabled)
+{
+   mAutoJoin = enabled;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+void BotClient::setAutoStart(bool enabled)
+{
+   mAutoStart = enabled;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param p packet to process
+*/
+void BotClient::processLoginResponse(Packet* p)
+{
+   LoginResponsePacket* lrp = (LoginResponsePacket*)p;
+
+   // qDebug("BotClient::processLoginResponse: id: %d", lrp->getId());
+
+   if (lrp->getId() >= 0)
+   {
+      mPlayerId = lrp->getId();
+
+      // store server configuration data
+      setServerConfiguration(lrp->getServerConfiguration());
+      getBot()->setServerConfiguration(lrp->getServerConfiguration());
+   }
+
+   updatePlayerIdSignal(mPlayerId);
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param p packet to process
+*/
+void BotClient::processJoinGameResponse(Packet* p)
+{
+   // qDebug("BotClient::processJoinGameResponse");
+
+   JoinGameResponsePacket* response = (JoinGameResponsePacket*)p;
+
+   BotPlayerInfo* info = 0;
+   int id = response->getPlayerId();
+
+   if (!mPlayerInfo.contains(id))
+   {
+      info = new BotPlayerInfo();
+      info->setId(id);
+      info->setNick(response->getNick());
+      info->setColor(Constants::ColorWhite);  // TODO
+
+      mPlayerInfo[id] = info;
+
+      // send infomap to all instances interested in them
+      // playerInfoMapRequest();
+   }
+
+   // ensure it was us who joined as join game responses are
+   // broadcasted to all players
+   if (id == mPlayerId)
+   {
+      setGameJoined(true);
+
+      if (info)
+         mBot->setPlayerInfo(info);
+
+      mGameId = response->getGameId();
+
+      // select just the first one in the list
+      GameInformation gameInfo = mGames[0];
+      createMap(gameInfo.getMapDimensions());
+   }
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param packet packet to process
+*/
+void BotClient::processLeaveGameResponse(Packet* p)
+{
+   LeaveGameResponsePacket* response = dynamic_cast<LeaveGameResponsePacket*>(p);
+
+   if (response)
+   {
+      if (response->getPlayerId() == mPlayerId)
+      {
+         removeSignal();
+      }
+   }
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param packet packet to process
+*/
+void BotClient::processMapItemCreated(Packet* packet)
+{
+   MapItem* item = 0;
+   MapItemCreatedPacket* micp = (MapItemCreatedPacket*)packet;
+
+   switch (micp->getItemType())
+   {
+      case MapItem::Bomb:
+      {
+         int x = micp->getX();
+         int y = micp->getY();
+         BotPlayerInfo* player = 0;
+
+         item = new BotBombMapItem(
+            -1,  // we don't know the player id yet
+            -1,  // we don't know the number of flames yet
+            micp->getAppearance(),
+            x,
+            y
+         );
+
+         item->setUniqueId(micp->getUniqueId());
+
+         player = getPlayerInfo(micp->getPlayerId());
+
+         if (player)
+         {
+            ((BotBombMapItem*)item)->setPlayerId(player->getId());
+            ((BotBombMapItem*)item)->setFlameCount(player->getFlameCount());
+
+            /*
+            if (DEBUG_BOMB_DROP)
+            {
+               qDebug(
+                  "BotClient::processMapItemCreated: bomb dropped at (%d, %d), "
+                  "flames: %d, estimated detonation time: %s",
+                  item->getX(),
+                  item->getY(),
+                  player->getFlameCount(),
+                  qPrintable(QTime::currentTime().addSecs(5).toString())
+               );
+            }
+            */
+         }
+
+         break;
+      }
+
+      default:
+      {
+         item = new MapItem((MapItemCreatedPacket*)packet);
+         break;
+      }
+   }
+
+   addMapItem(item);
+   mapItemCreatedSignal(item);
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param packet packet to process
+*/
+void BotClient::processExtraMapItemCreated(Packet* packet)
+{
+   ExtraMapItem* extra = new ExtraMapItem((ExtraMapItemCreatedPacket*)packet);
+   addMapItem(extra);
+   mapItemCreatedSignal(extra);
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param packet packet to process
+*/
+void BotClient::processMapItemDestroyed(Packet* packet)
+{
+   MapItemDestroyedPacket* destroyedPacket = (MapItemDestroyedPacket*)packet;
+   MapItem* item = getMapItem(destroyedPacket->getUniqueId());
+
+   if (item)
+   {
+      //      qDebug(
+      //         "BotClient::processMapItemDestroyed: player: %d, intensity: %f",
+      //         destroyedPacket->getPlayerId(),
+      //         destroyedPacket->getIntensity()
+      //      );
+
+      queueObsoleteItem(item);
+   }
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param packet packet to process
+*/
+void BotClient::processMapItemRemoved(Packet* packet)
+{
+   MapItemRemovedPacket* removedPacket = (MapItemRemovedPacket*)packet;
+   MapItem* item = getMapItem(removedPacket->getUniqueId());
+
+   if (item)
+   {
+      queueObsoleteItem(item);
+   }
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param packet packet to process
+*/
+void BotClient::processMapItemMove(Packet* packet)
+{
+   MapItemMovePacket* movePacket = (MapItemMovePacket*)packet;
+   MapItem* item = getMapItem(movePacket->getMapItemId());
+
+   if (item)
+   {
+      // in case the move direction is unknown, the item stopped its movement
+      // and can be relocated at its nominal position
+      if (movePacket->getDirection() == Constants::DirectionUnknown)
+      {
+         // relocate the bomb on the map
+         int x = movePacket->getNominalX();
+         int y = movePacket->getNominalY();
+
+         // obsolete as done in the else section
+         MapItem* existingItem = mBotMap->getItem(item->getX(), item->getY());
+         if (existingItem && existingItem->getUniqueId() == item->getUniqueId())
+         {
+            mBotMap->setItem(item->getX(), item->getY(), 0);
+         }
+
+         // remap item
+         mBotMap->setItem(x, y, item);
+
+         item->setX(x);
+         item->setY(y);
+      }
+      else
+      {
+         // notify bot about initiated kick
+         BotBombMapItem* bomb = dynamic_cast<BotBombMapItem*>(item);
+
+         if (bomb)
+         {
+            bombKickedSignal(item->getX(), item->getY(), movePacket->getDirection(), bomb->getFlames());
+         }
+
+         // this case will make the bot react as soon the bomb kick animation
+         // has been started. by just taking care about the remapping case (see above)
+         // the bot is only notified about the result of the bomb kick animation.
+
+         // take bomb out of the map
+         /*
+         MapItem* existingItem = mBotMap->getItem(item->getX(), item->getY());
+
+         if (
+               existingItem
+            && existingItem->getUniqueId() == item->getUniqueId()
+         )
+         {
+            mBotMap->setItem(item->getX(), item->getY(), 0);
+         }
+         */
+      }
+   }
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param id id of the map id
+   \param mapitem map item ptr
+*/
+MapItem* BotClient::getMapItem(int id) const
+{
+   MapItem* item = 0;
+
+   auto it = mMapItems.find(id);
+   if (it != mMapItems.end())
+      item = it->second;
+
+   return item;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param mapitem item to add
+*/
+void BotClient::addMapItem(MapItem* mapItem)
+{
+   mMapItems[mapItem->getUniqueId()] = mapItem;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param mapitem item to remove
+*/
+void BotClient::removeMapItem(MapItem* mapItem)
+{
+   // delete item and take it from the mapitem-map - safe to delete synchronously here: this is
+   // client-side bot-mirror bookkeeping reacting to a queued network packet, never nested
+   // inside the item's own signal dispatch (these mirror objects don't run gameplay logic)
+   mMapItems.erase(mapItem->getUniqueId());
+   delete mapItem;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param id player id
+   \return player info object
+*/
+BotPlayerInfo* BotClient::getPlayerInfo(int id) const
+{
+   auto it = mPlayerInfo.find(id);
+
+   if (it != mPlayerInfo.end())
+      return it->second;
+   else
+      return 0;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param id player id
+   \return player info object list
+*/
+std::vector<BotPlayerInfo*> BotClient::getPlayerInfoList() const
+{
+   std::vector<BotPlayerInfo*> list;
+   list.reserve(mPlayerInfo.size());
+
+   for (const auto& [id, playerInfo] : mPlayerInfo)
+      list.push_back(playerInfo);
+
+   return list;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \return player info map
+*/
+std::map<int, BotPlayerInfo*>* BotClient::getPlayerInfoMap()
+{
+   return &mPlayerInfo;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param config reference to server configuration
+*/
+void BotClient::setServerConfiguration(const ServerConfiguration& config)
+{
+   mServerConfiguration = config;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \return reference to server configuration
+*/
+const ServerConfiguration& BotClient::getServerConfiguration() const
+{
+   return mServerConfiguration;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param packet packet to process
+*/
+void BotClient::processPosition(Packet* packet)
+{
+   PositionPacket* posPacket = (PositionPacket*)packet;
+
+   PlayerInfo* playerInfo = getPlayerInfo(posPacket->getPlayerId());
+
+   if (playerInfo)
+   {
+      playerInfo->setPosition(posPacket->getX(), posPacket->getY(), posPacket->getAngle());
+
+      playerInfo->setDirections(posPacket->getDirections());
+
+      updatePlayerPositionSignal(posPacket->getPlayerId(), posPacket->getX(), posPacket->getY(), posPacket->getAngle());
+
+      if (playerInfo->getId() == getPlayerId())
+      {
+         setSpeed(posPacket->getDeltaX() + posPacket->getDeltaY());
+
+         setDeltaX(posPacket->getDeltaX());
+         setDeltaY(posPacket->getDeltaY());
+      }
+   }
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param packet packet to process
+*/
+void BotClient::processStartGameResponse(Packet* packet)
+{
+   StartGameResponsePacket* response = (StartGameResponsePacket*)packet;
+
+   if (response->isStarted())
+      gameStartedSignal();
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param packet packet to process
+*/
+void BotClient::processGameEvent(Packet* packet)
+{
+   GameEventPacket* gameEventPacket = (GameEventPacket*)packet;
+   int playerId = gameEventPacket->getPlayerId();
+
+   if (playerId != -1)
+   {
+      //      qDebug(
+      //         "processGameEvent: player: %d, picked extra: %d",
+      //         playerId,
+      //         gameEventPacket->getExtraType()
+      //      );
+
+      if (mPlayerInfo.contains(playerId))
+      {
+         BotPlayerInfo* playerInfo = mPlayerInfo[playerId];
+
+         switch (gameEventPacket->getExtraType())
+         {
+            case Constants::ExtraBomb:
+               playerInfo->addBomb();
+               break;
+
+            case Constants::ExtraFlame:
+               playerInfo->addFlame();
+               break;
+
+            case Constants::ExtraSpeedup:
+               playerInfo->addSpeed();
+               break;
+
+            case Constants::ExtraKick:
+               playerInfo->setKickEnabled(true);
+               break;
+
+            default:
+               break;
+         }
+      }
+   }
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param packet packet to process
+*/
+void BotClient::processPlayerInfected(Packet* packet)
+{
+   PlayerInfectedPacket* infectedPacket = (PlayerInfectedPacket*)packet;
+   int id = infectedPacket->getPlayerId();
+
+   auto it = mPlayerInfo.find(id);
+
+   if (it != mPlayerInfo.end())
+   {
+      switch (infectedPacket->getSkullType())
+      {
+         // infection aborted
+         case Constants::SkullReset:
+         {
+            it->second->infect(nullptr);
+            break;
+         }
+
+         // infection started
+         default:
+         {
+            auto disease = std::make_unique<PlayerDisease>();
+            disease->setType(infectedPacket->getSkullType());
+
+            // infect player
+            it->second->infect(std::move(disease));
+            break;
+         }
+      }
+   }
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param packet packet to process
+*/
+void BotClient::processPlayerKilled(Packet* packet)
+{
+   PlayerKilledPacket* killedPacket = (PlayerKilledPacket*)packet;
+   int id = killedPacket->getPlayerId();
+
+   auto it = mPlayerInfo.find(id);
+
+   if (it != mPlayerInfo.end())
+   {
+      it->second->setKilled(true);
+   }
+
+   if (id == mPlayerId)
+      mBot->die();
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param packet stop game response packet
+*/
+void BotClient::processStopGameResponse(Packet* packet)
+{
+   StopGameResponsePacket* stopGamePacket = (StopGameResponsePacket*)packet;
+
+   if (stopGamePacket->getId() == getGameId())
+      mBot->idle();
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param keysPressed walk direction and bomb drop
+*/
+void BotClient::walk(int8_t keysPressed)
+{
+   // keysPressed and mKeysPressed had the same value (up) but the
+   // bot was not moving at all.. no further key packets were sent
+   // to the server since keysPressed and mKeysPressed have been
+   bool sendAgain = false;
+
+   if (keysPressed & Constants::KeyUp)
+   {
+      if (getDeltaY() >= 0.0f)
+         sendAgain = true;
+   }
+   if (keysPressed & Constants::KeyDown)
+   {
+      if (getDeltaY() <= 0.0f)
+         sendAgain = true;
+   }
+   if (keysPressed & Constants::KeyLeft)
+   {
+      if (getDeltaX() >= 0.0f)
+         sendAgain = true;
+   }
+   if (keysPressed & Constants::KeyRight)
+   {
+      if (getDeltaX() <= 0.0f)
+         sendAgain = true;
+   }
+
+   if (keysPressed != mKeysPressed || sendAgain)
+   {
+      mKeysPressed = keysPressed;
+
+      // cool bots don't get their keyboards flipped
+      PlayerDisease* disease = getBot()->getPlayerInfo()->getDisease();
+      if (disease)
+      {
+         if (disease->getType() == Constants::SkullKeyboardInvert)
+         {
+            disease->applyKeyboardInvert(keysPressed);
+         }
+      }
+
+      // build keypacket
+      KeyPacket kPacket(mPlayerId, keysPressed);
+      send(&kPacket);
+   }
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+void BotClient::bomb()
+{
+   // only place bombs within some field center
+   // because the server might be placing the bomb into
+   // an undesired field otherwise
+   mKeysPressed = 0;
+   int8_t keys = 0;
+   int x = mBot->getXField();
+   int y = mBot->getYField();
+   //   float relX = mBot->getX() - x;
+   //   float relY = mBot->getY() - y;
+   //
+   //   if (
+   //         relX > 0.1f && relX < 0.9f
+   //      && relY > 0.1f && relY < 0.9f
+   //   )
+   //   {
+   keys = Constants::KeyBomb;
+
+   // mark the field hazardous until the bot re-communicated the
+   // field status
+   markHazardousTemporarySignal(x, y, 500, mBot->getPlayerInfo()->getFlameCount());
+   //   }
+   //   else
+   //   {
+   //      // keys = mBot->getBotKeysPressed();
+   //      keys = mBot->computeWalkKeys();
+   //   }
+
+   KeyPacket kPacket(mPlayerId, keys);
+   send(&kPacket);
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+void BotClient::processListGameResponse(Packet* packet)
+{
+   ListGamesResponsePacket* list = (ListGamesResponsePacket*)packet;
+   mGames = list->getGames();
+
+   gameSelectedSignal();
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+void BotClient::setGameJoined(bool joined)
+{
+   mGameJoined = joined;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \return \c true if player joined game
+*/
+bool BotClient::isGameJoined() const
+{
+   return mGameJoined;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param speed player speed
+*/
+void BotClient::setSpeed(float speed)
+{
+   mSpeed = speed;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \return player speed
+*/
+float BotClient::getSpeed() const
+{
+   return mSpeed;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \return player id
+*/
+int BotClient::getPlayerId() const
+{
+   return mPlayerId;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param message message to send
+   \param receiverId id of the message receiver
+*/
+void BotClient::sendMessage(const std::string& message, bool finishedTyping, int receiverId)
+{
+   if (isGameJoined())
+   {
+      MessagePacket packet(-1, message, finishedTyping, receiverId);
+
+      send(&packet);
+   }
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+void BotClient::resetBot()
+{
+   setDeltaX(0.0f);
+   setDeltaY(0.0f);
+
+   // reset keys pressed
+   mKeysPressed = 0;
+
+   // reset killed flag for all players
+   for (const auto& [id, playerInfo] : mPlayerInfo)
+   {
+      playerInfo->setKilled(false);
+      playerInfo->reset();
+   }
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+void BotClient::bugTrack1()
+{
+   if (mBombTime.elapsed() < 500)
+   {
+      qDebug("bug");
+   }
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+int BotClient::getWalkCount() const
+{
+   return mWalkCount;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+void BotClient::increaseWalkCount()
+{
+   mWalkCount++;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+void BotClient::resetWalkCount()
+{
+   mWalkCount = 0;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \return delta y
+*/
+float BotClient::getDeltaY() const
+{
+   return mDeltaY;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param value delta y
+*/
+void BotClient::setDeltaY(float value)
+{
+   mDeltaY = value;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \return delta x
+*/
+float BotClient::getDeltaX() const
+{
+   return mDeltaX;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param value delta x
+*/
+void BotClient::setDeltaX(float value)
+{
+   mDeltaX = value;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param packet packet to process
+*/
+void BotClient::processCountdown(Packet* packet)
+{
+   CountdownPacket* countdownPacket = (CountdownPacket*)packet;
+
+   int timeLeft = countdownPacket->getTimeLeft();
+
+   /*
+   qDebug(
+      "BotClient::processCountdown: left: %d",
+      timeLeft
+   );
+   */
+
+   // sync tick
+   if (timeLeft == SERVER_PREPARATION_TIME + SERVER_PREPARATION_SYNC_TIME - 1)
+   {
+      resetBot();
+   }
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param packet packet to process
+*/
+void BotClient::processExtraShake(Packet* packet)
+{
+   ExtraShakePacket* extraShakePacket = (ExtraShakePacket*)packet;
+
+   int itemId = extraShakePacket->getMapItemUniqueId();
+
+   /*
+   qDebug(
+      "BotClient::processExtraShake: item %d contains an extra",
+      itemId
+   );
+   */
+
+   extraShakeSignal(itemId);
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param item item that is queued to be deleted later
+*/
+void BotClient::queueObsoleteItem(MapItem* item)
+{
+   // remove from the lookup map right away - a duplicate destroy/remove notification for the
+   // same id (e.g. a malformed or resent packet) would otherwise find it again via getMapItem()
+   // and queue the same already-obsolete pointer twice, use-after-freeing it on the second flush.
+   mMapItems.erase(item->getUniqueId());
+   mObsoleteMapItems.push(item);
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+void BotClient::clearObsoleteItems()
+{
+   mObsoleteMapItems = std::queue<MapItem*>();
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param item item that is queued to be deleted later
+*/
+void BotClient::deleteObsoleteMapItems()
+{
+   std::queue<MapItem*> items = mObsoleteMapItems;
+
+   while (!items.empty())
+   {
+      MapItem* item = items.front();
+      items.pop();
+
+      mapItemRemovedSignal(item);
+      removeMapItem(item);
+   }
+
+   clearObsoleteItems();
+}

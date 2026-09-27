@@ -1,0 +1,70 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure client
+        run: cmake -S client -B client/build -A x64
+
+      - name: Build client
+        run: cmake --build client/build --config Release --parallel
+
+      - name: Configure server
+        run: cmake -S server -B server/build -A x64
+
+      - name: Build server
+        run: cmake --build server/build --config Release --parallel
+
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install SDL3 build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential pkg-config \
+            libgl1-mesa-dev libegl1-mesa-dev libgles2-mesa-dev \
+            libx11-dev libxext-dev libxrandr-dev libxi-dev libxss-dev \
+            libxcursor-dev libxfixes-dev libxinerama-dev \
+            libwayland-dev libdecor-0-dev wayland-protocols \
+            libasound2-dev libpulse-dev libudev-dev libdbus-1-dev
+
+      - name: Configure client
+        run: cmake -S client -B client/build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build client
+        run: cmake --build client/build --parallel
+
+      - name: Configure server
+        run: cmake -S server -B server/build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build server
+        run: cmake --build server/build --parallel
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure client
+        run: cmake -S client -B client/build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build client
+        run: cmake --build client/build --parallel
+
+      - name: Configure server
+        run: cmake -S server -B server/build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build server
+        run: cmake --build server/build --parallel

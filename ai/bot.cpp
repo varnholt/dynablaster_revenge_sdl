@@ -1,0 +1,534 @@
+#include "bot.h"
+
+// bot
+#include "botaction.h"
+#include "botconstants.h"
+#include "botmap.h"
+#include "botplayerinfo.h"
+#include "botwalkaction.h"
+
+// Qt
+#include "logging.h"
+
+// cmath
+#include <math.h>
+
+#include <algorithm>
+#include <unordered_set>
+
+// defines
+#define MIN_QUEUE_CHECK_SIZE 30
+
+//-----------------------------------------------------------------------------
+/*!
+   \param parent parent object
+*/
+Bot::Bot()
+    : mBotState(BotStateDead),
+      mBotMap(0),
+      mPlayerInfo(0),
+      mX(0.0f),
+      mY(0.0f),
+      mXField(0.0f),
+      mYField(0.0f),
+      mId(-1),
+      mBotKeysPressed(0),
+      mDecisionRequired(false),
+      mActionRequired(false),
+      mTransiterateTargetX(0),
+      mTransiterateTargetY(0),
+      mPlayerPositionValid(false)
+{
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+Bot::~Bot()
+{
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+void Bot::startTicking()
+{
+   if (!mTickTimer.isActive())
+   {
+      mTickTimer.timeoutSignal.connect([this]() { tick(); });
+      mTickTimer.start(100);
+   }
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+void Bot::tick()
+{
+   // only decide/act once actually in a round - invalidate() is called from the real state
+   // transitions (idle()/die()) below, not from here. Calling it on every single inactive tick
+   // (as this used to) raced the one-time spawn position sync that arrives while still joining/
+   // waiting for the round to start: whichever won the race left the bot permanently stuck once
+   // wakeUp() flipped it active, since the server only pushes a fresh position reactively (after
+   // the bot itself moves) - a deadlock, not just a race.
+   if (!isActive())
+   {
+      return;
+   }
+
+   if (isValid())
+   {
+      think();
+      decide();
+      act();
+   }
+
+   syncSignal();
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \return \c true if active
+*/
+bool Bot::isActive()
+{
+   return (mBotState == BotStateActive);
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param botmap bot map
+*/
+void Bot::setBotMap(BotMap* botmap)
+{
+   mBotMap = botmap;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param info player info ptr
+*/
+void Bot::setPlayerInfo(BotPlayerInfo* info)
+{
+   mPlayerInfo = info;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \return player info ptr
+*/
+BotPlayerInfo* Bot::getPlayerInfo() const
+{
+   return mPlayerInfo;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+void Bot::think()
+{
+   for (BotOption* option : mOptions)
+   {
+      delete option;
+   }
+
+   mOptions.clear();
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+void Bot::decide()
+{
+   mActions.clear();
+   BotOption* bestOption = 0;
+   int maxscore = INT_MIN;
+
+   for (BotOption* option : mOptions)
+   {
+      if (option->getScore() > maxscore)
+      {
+         maxscore = option->getScore();
+         bestOption = option;
+      }
+
+      // at the moment there's no option that is combinable
+      if (option->isCombinable())
+      {
+         mActions.push_back(option->getAction());
+      }
+   }
+
+   if (bestOption)
+   {
+      // do not execute an action twice
+      if (std::find(mActions.begin(), mActions.end(), bestOption->getAction()) == mActions.end())
+      {
+         mActions.push_back(bestOption->getAction());
+      }
+   }
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+void Bot::act()
+{
+   for (BotAction* action : mActions)
+   {
+      switch (action->getActionType())
+      {
+         case BotAction::ActionBomb:
+         {
+            if (DEBUG_EXECUTED_ACTIONS)
+               qDebug("Bot::act(): BotAction::ActionBomb:");
+
+            bombSignal();
+            break;
+         }
+
+         case BotAction::ActionWalk:
+         {
+            if (DEBUG_EXECUTED_ACTIONS)
+               qDebug("Bot::act(): BotAction::ActionWalk:");
+
+            walkSignal(((BotWalkAction*)action)->getWalkKeys());
+            break;
+         }
+
+         case BotAction::ActionIdle:
+         default:
+            if (DEBUG_EXECUTED_ACTIONS)
+               qDebug("Bot::act(): BotAction::ActionIdle:");
+
+            walkSignal(0);
+            break;
+      }
+   }
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param id player id
+*/
+void Bot::updatePlayerId(int id)
+{
+   mId = id;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param id player id
+   \param x x position
+   \param y y position
+*/
+void Bot::updatePlayerPosition(int id, float x, float y, float /*angle*/)
+{
+   if (id == mId)
+   {
+      mX = x;
+      mY = y;
+
+      mXField = floor(x);
+      mYField = floor(y);
+
+      setPlayerPositionValid(true);
+   }
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \return x position
+*/
+float Bot::getX() const
+{
+   return mX;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \return y position
+*/
+float Bot::getY() const
+{
+   return mY;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \return x field
+*/
+int Bot::getXField()
+{
+   return mXField;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \return y field
+*/
+int Bot::getYField()
+{
+   return mYField;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+  \param width map width
+  \param height map height
+  \return map
+*/
+BotMap* Bot::createMap(int width, int height)
+{
+   return new BotMap(width, height);
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+void Bot::wakeUp()
+{
+   // clear bot state for next round
+   reset();
+
+   setState(BotStateActive);
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+void Bot::idle()
+{
+   // stale position data from the round that just ended shouldn't be trusted until a fresh
+   // sync arrives for the next one.
+   invalidate();
+   setState(BotStateIdle);
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+void Bot::die()
+{
+   invalidate();
+   setState(BotStateDead);
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+void Bot::extraShake(int)
+{
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+void Bot::markHazardousTemporary(int /*x*/, int /*y*/, int /*ms*/, int /*fieldCount*/)
+{
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+void Bot::bombKicked(int /*startX*/, int /*startY*/, Constants::Direction, int /*flames*/)
+{
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \return \c true if action is required
+*/
+bool Bot::isActionRequired()
+{
+   return mActionRequired;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+void Bot::reset()
+{
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+void Bot::cleanUpBot()
+{
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param state bot state
+*/
+void Bot::setState(BotState state)
+{
+   mBotState = state;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \return \c true if field has been reached
+*/
+bool Bot::isFieldReached()
+{
+   qFatal("Bot::isFieldReached(): rebel without a cause");
+
+   bool reached = false;
+
+   reached =
+      (fabs(mX - ((float)mTransiterateTargetX + 0.5f)) < FIELD_REACHED_PRECISION &&
+       fabs(mY - ((float)mTransiterateTargetY + 0.5f)) < FIELD_REACHED_PRECISION);
+
+   return reached;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+void Bot::invalidate()
+{
+   setPlayerPositionValid(false);
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \return \c true if player data is valid
+*/
+bool Bot::isValid() const
+{
+   return isPlayerPositionValid();
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param valid player postion valid flag
+*/
+void Bot::setPlayerPositionValid(bool valid)
+{
+   mPlayerPositionValid = valid;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \return \c true if player position is valid
+*/
+bool Bot::isPlayerPositionValid() const
+{
+   return mPlayerPositionValid;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param keysPressed bot's keys pressed
+*/
+void Bot::setBotKeysPressed(int8_t keysPressed)
+{
+   mBotKeysPressed = keysPressed;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \return bot's keys pressed
+*/
+int8_t Bot::getBotKeysPressed() const
+{
+   return mBotKeysPressed;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+void Bot::updatePositionQueue()
+{
+   Point p(getXField(), getYField());
+
+   if (!mPositionQueue.empty())
+   {
+      if (mPositionQueue.back() != p)
+      {
+         mPositionQueue.push_back(p);
+      }
+
+      while (mPositionQueue.size() > MIN_QUEUE_CHECK_SIZE)
+      {
+         mPositionQueue.pop_front();
+      }
+   }
+   else
+   {
+      mPositionQueue.push_back(p);
+   }
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \return \c true if position queue recurs
+*/
+bool Bot::isPositionQueueRecurrent() const
+{
+   bool recurrent = false;
+
+   if (mPositionQueue.size() >= MIN_QUEUE_CHECK_SIZE)
+   {
+      std::unordered_set<Point> points;
+
+      for (const Point& p : mPositionQueue)
+      {
+         points.insert(p);
+      }
+
+      if (points.size() <= 3)
+      {
+         qWarning(
+            "Bot::checkPositionQueueForRecurrence(): "
+            "bot positioning recurs"
+         );
+
+         recurrent = true;
+      }
+   }
+
+   return recurrent;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param config reference to server configuration
+*/
+void Bot::setServerConfiguration(const ServerConfiguration& config)
+{
+   mServerConfiguration = config;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \return reference to server configuration
+*/
+const ServerConfiguration& Bot::getServerConfiguration() const
+{
+   return mServerConfiguration;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \return walk keys
+*/
+int8_t Bot::computeWalkKeys() const
+{
+   int8_t keysPressed = 0;
+   float fieldCenter = 0.5f;
+
+   if (mX - fieldCenter < mTransiterateTargetX)
+      keysPressed |= Constants::KeyRight;
+   else if (mX - fieldCenter > mTransiterateTargetX)
+      keysPressed |= Constants::KeyLeft;
+
+   if (mY - fieldCenter < mTransiterateTargetY)
+      keysPressed |= Constants::KeyDown;
+   else if (mY - fieldCenter > mTransiterateTargetY)
+      keysPressed |= Constants::KeyUp;
+
+   return keysPressed;
+}
