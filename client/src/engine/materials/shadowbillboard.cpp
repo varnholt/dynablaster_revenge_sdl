@@ -173,10 +173,8 @@ void ShadowBillboard::begin()
    glDepthMask(GL_FALSE);
    glEnable(GL_BLEND);
    glBlendFunc(GL_ZERO, GL_SRC_COLOR);
-   glEnable(GL_ALPHA_TEST);
 
    glActiveTexture(GL_TEXTURE0_ARB);
-   glEnable(GL_TEXTURE_2D);
    glBindTexture(GL_TEXTURE_2D, mColorMap);
 
    activeDevice->setShader(mShader);
@@ -195,7 +193,6 @@ void ShadowBillboard::end()
    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
    glDisable(GL_BLEND);
    glDepthMask(GL_TRUE);
-   glDisable(GL_ALPHA_TEST);
 
    activeDevice->setShader(0);
 }

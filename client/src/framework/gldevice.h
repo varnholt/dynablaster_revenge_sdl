@@ -25,6 +25,14 @@
 /// (GL_TEXTURE_1D, which GLES has no equivalent for) are both already dead in practice - every
 /// call site is commented out except one, itself inside code that still needs its immediate-mode
 /// draw calls ported - so they are stubs here rather than real implementations.
+///
+/// Materials also used to call glEnable/glDisable(GL_TEXTURE_2D) and glEnable/glDisable(
+/// GL_ALPHA_TEST) before every glBindTexture - neither is a real capability in GLES3 (texturing
+/// is implicit via shaders, alpha test is gone, `discard` in the fragment shader instead). Native
+/// GLES3 drivers silently ignore the invalid enum; WebGL2 raises INVALID_ENUM on it every frame.
+/// Removed tree-wide (blockmaterial/bombexplosionshader/destructionmaterial/displacementmaterial/
+/// environment*material/invisibilitymaterial/playermaterial/shadowbillboard/skullmaterial) -
+/// glBindTexture is the only call that ever did anything.
 class GLDevice : public RenderDevice
 {
 public:

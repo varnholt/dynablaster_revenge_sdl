@@ -87,7 +87,6 @@ void DisplacementMaterial::begin()
    activeDevice->bindSampler(mParamTexture, 0);
 
    glActiveTexture(GL_TEXTURE1_ARB);
-   glEnable(GL_TEXTURE_2D);
    glBindTexture(GL_TEXTURE_2D, mDiffuseMap);
    activeDevice->bindSampler(mParamDiffuse, 1);
 
@@ -103,9 +102,6 @@ void DisplacementMaterial::end()
 {
    glDisableVertexAttribArray(0);  // vertex data
    glDisableVertexAttribArray(2);
-
-   glActiveTexture(GL_TEXTURE1);
-   glDisable(GL_TEXTURE_2D);
 
    glActiveTexture(GL_TEXTURE0);
 

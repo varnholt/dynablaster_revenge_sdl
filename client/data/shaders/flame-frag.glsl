@@ -1,5 +1,8 @@
 #version 300 es
 precision mediump float;
+// sampler2D/samplerCube get an implicit lowp default in the GLSL ES spec, sampler3D doesn't -
+// WebGL2's shader validator enforces this strictly (native GLES3 drivers are more lenient).
+precision mediump sampler3D;
 
 // GLES3 port of client/data/shaders/flame-frag.glsl. sampler1D/texture1D -> sampler2D/texture
 // (the gradient map is uploaded as a 2D texture with height 1 - GLES3 has no 1D textures, see

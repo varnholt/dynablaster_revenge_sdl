@@ -72,15 +72,12 @@ void PlayerMaterial::begin()
    glBindTexture(GL_TEXTURE_2D, mSpecularMap);
 
    glActiveTexture(GL_TEXTURE1_ARB);
-   glEnable(GL_TEXTURE_2D);
    glBindTexture(GL_TEXTURE_2D, mDiffuseMap);
 
    glActiveTexture(GL_TEXTURE2_ARB);
-   glEnable(GL_TEXTURE_2D);
    glBindTexture(GL_TEXTURE_2D, mColorMap);
 
    glActiveTexture(GL_TEXTURE3_ARB);
-   glEnable(GL_TEXTURE_2D);
    glBindTexture(GL_TEXTURE_2D, mAmbientMap);
 
    activeDevice->setShader(mShader);
@@ -107,15 +104,6 @@ void PlayerMaterial::end()
    glDisableVertexAttribArray(2);
    glDisableVertexAttribArray(3);
    glDisableVertexAttribArray(4);
-
-   glActiveTexture(GL_TEXTURE3);
-   glDisable(GL_TEXTURE_2D);
-
-   glActiveTexture(GL_TEXTURE2);
-   glDisable(GL_TEXTURE_2D);
-
-   glActiveTexture(GL_TEXTURE1);
-   glDisable(GL_TEXTURE_2D);
 
    glActiveTexture(GL_TEXTURE0);
 

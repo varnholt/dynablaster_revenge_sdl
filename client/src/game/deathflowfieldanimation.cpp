@@ -206,7 +206,8 @@ void DeathFlowFieldAnimation::initialize(FrameBuffer* src, const Vector& min, co
    glBindBuffer(GL_ARRAY_BUFFER, mVertexUVBuffer);
    const GLsizeiptr uvBufferSize = (GLsizeiptr)mWidth * mHeight * sizeof(Vector2);
    glBufferData(GL_ARRAY_BUFFER, uvBufferSize, 0, GL_DYNAMIC_DRAW);
-   Vector2* dst2 = (Vector2*)glMapBufferRange(GL_ARRAY_BUFFER, 0, uvBufferSize, GL_MAP_WRITE_BIT);
+   // WebGL2 rejects GL_MAP_WRITE_BIT alone (needs an INVALIDATE flag), valid on native GLES3 too.
+   Vector2* dst2 = (Vector2*)glMapBufferRange(GL_ARRAY_BUFFER, 0, uvBufferSize, GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
    float dx = 1.0f / mWidth;
    for (int y = 0; y < mHeight; y++)
    {

@@ -54,7 +54,11 @@ bool GLDevice::init()
    // to it, double-gamma-brightening our already-sRGB PSD/texture art (confirmed via glReadPixels:
    // an intermediate FBO holds the correct color, the same value comes out wrong only after the
    // final blit to the default framebuffer). GL_EXT_sRGB_write_control lets us turn that off.
+   // WebGL2 doesn't expose this extension at all (INVALID_ENUM) - browser build keeps whatever
+   // gamma the canvas itself applies, a known, accepted visual difference from native.
+#ifndef __EMSCRIPTEN__
    glDisable(GL_FRAMEBUFFER_SRGB_EXT);
+#endif
 
    mActive = true;
 
@@ -210,7 +214,11 @@ void GLDevice::allocateVertexBuffer(unsigned int buf, int size, bool dyn)
 void* GLDevice::lockVertexBuffer(unsigned int buf, int size)
 {
    glBindBuffer(GL_ARRAY_BUFFER, buf);
-   return glMapBufferRange(GL_ARRAY_BUFFER, 0, size != 0 ? size : mLastVertexBufferSize, GL_MAP_WRITE_BIT);
+   // WebGL2 rejects GL_MAP_WRITE_BIT alone (needs an INVALIDATE flag) - INVALIDATE_BUFFER is
+   // valid on native GLES3 too, and matches this call's always-overwrite-the-whole-buffer usage.
+   return glMapBufferRange(
+      GL_ARRAY_BUFFER, 0, size != 0 ? size : mLastVertexBufferSize, GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT
+   );
 }
 
 void GLDevice::unlockVertexBuffer(unsigned int buf)
@@ -236,7 +244,9 @@ void GLDevice::allocateIndexBuffer(unsigned int buf, int size, bool dyn)
 void* GLDevice::lockIndexBuffer(unsigned int buf, int size)
 {
    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buf);
-   return glMapBufferRange(GL_ELEMENT_ARRAY_BUFFER, 0, size != 0 ? size : mLastIndexBufferSize, GL_MAP_WRITE_BIT);
+   return glMapBufferRange(
+      GL_ELEMENT_ARRAY_BUFFER, 0, size != 0 ? size : mLastIndexBufferSize, GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT
+   );
 }
 
 void GLDevice::unlockIndexBuffer(unsigned int buf)

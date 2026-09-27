@@ -90,11 +90,9 @@ void BombExplosionShader::begin()
    glBindTexture(GL_TEXTURE_2D, mSpecularMap);
 
    glActiveTexture(GL_TEXTURE1_ARB);
-   glEnable(GL_TEXTURE_2D);
    glBindTexture(GL_TEXTURE_2D, mDiffuseMap);
 
    glActiveTexture(GL_TEXTURE2_ARB);
-   glEnable(GL_TEXTURE_2D);
    glBindTexture(GL_TEXTURE_2D, mColorMap);
 
    activeDevice->setShader(mShader);
@@ -113,12 +111,6 @@ void BombExplosionShader::end()
    glDisableVertexAttribArray(0);  // vertex data
    glDisableVertexAttribArray(2);
    glDisableVertexAttribArray(1);
-
-   glActiveTexture(GL_TEXTURE2);
-   glDisable(GL_TEXTURE_2D);
-
-   glActiveTexture(GL_TEXTURE1);
-   glDisable(GL_TEXTURE_2D);
 
    glActiveTexture(GL_TEXTURE0);
 
