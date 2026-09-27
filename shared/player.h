@@ -1,15 +1,15 @@
-#ifndef PLAYER_H
-#define PLAYER_H
+#pragma once
 
+#include <cstdint>
 #include <memory>
 #include <string>
 
 // shared
 #include "constants.h"
 #include "playerrotation.h"
+#include "playerstats.h"
 
 class PlayerDisease;
-class PlayerStats;
 
 
 class Player{
@@ -17,7 +17,7 @@ class Player{
 public:
 
    //! constructor
-   Player(int id);
+   Player(int32_t id);
 
    //! destructor
    ~Player();
@@ -29,16 +29,16 @@ public:
    void setLoggedIn(bool);
 
    //! getter for logged-in flag
-   bool isLoggedIn() const;
+   [[nodiscard]] bool isLoggedIn() const;
 
    //! setter for keys pressed
-   void setKeysPressed(int);
+   void setKeysPressed(int32_t);
 
    //! getter for keys pressed
-   int getKeysPressed();
+   [[nodiscard]] int32_t getKeysPressed() const;
 
    //! getter for keys previously pressed
-   int getKeysPressedPreviously();
+   [[nodiscard]] int32_t getKeysPressedPreviously() const;
 
    //! setter for x position
    void setX(float);
@@ -47,106 +47,106 @@ public:
    void setY(float);
 
    //! getter for x position
-   float getX();
+   [[nodiscard]] float getX() const;
 
    //! getter for y position
-   float getY();
+   [[nodiscard]] float getY() const;
 
    //! setter for speed
    void setSpeed(float speed);
 
    //! getter for speed
-   float getSpeed();
+   [[nodiscard]] float getSpeed() const;
 
    //! getter for id
-   int8_t getId();
+   [[nodiscard]] int8_t getId() const;
 
    //! getter for the player's rotation
-   PlayerRotation* getPlayerRotation();
+   [[nodiscard]] PlayerRotation* getPlayerRotation();
 
    //! setter for the player's nick
    void setNick(const std::string& nick);
 
    //! getter for the player's nick
-   const std::string& getNick();
+   [[nodiscard]] const std::string& getNick() const;
 
    //! setter for bombs
    void setBombCount(int8_t count);
 
    //! getter for bombs
-   int8_t getBombCount();
+   [[nodiscard]] int8_t getBombCount() const;
 
    //! setter for flames
    void setFlameCount(int8_t count);
 
    //! getter for flames
-   int8_t getFlameCount();
+   [[nodiscard]] int8_t getFlameCount() const;
 
    //! setter for bombs dropped
    void setBombsDroppedCount(int8_t count);
 
    //! getter for bombs dropped
-   int8_t getBombsDroppedCount();
+   [[nodiscard]] int8_t getBombsDroppedCount() const;
 
    //! setter for killed flag
    void setKilled(bool);
 
    //! getter for killed flag
-   bool isKilled();
+   [[nodiscard]] bool isKilled() const;
 
    //! setter for kick flag
    void setKickEnabled(bool);
 
    //! getter for kick flag
-   bool isKickEnabled();
+   [[nodiscard]] bool isKickEnabled() const;
 
    //! getter for bomb count default
-   static int8_t getBombCountDefault();
+   [[nodiscard]] static int8_t getBombCountDefault();
 
    //! getter for flame count default
-   static int8_t getFlameCountDefault();
+   [[nodiscard]] static int8_t getFlameCountDefault();
 
    //! getter for position skip counter
-   int getPositionSkipCounter() const;
+   [[nodiscard]] int32_t getPositionSkipCounter() const;
 
    //! setter for position skip counter
-   void setPositionSkipCounter(int count);
+   void setPositionSkipCounter(int32_t count);
 
    //! getter for overall stats
-   PlayerStats* getOverallStats();
+   [[nodiscard]] PlayerStats* getOverallStats();
 
    //! getter for round stats
-   PlayerStats* getRoundStats();
+   [[nodiscard]] PlayerStats* getRoundStats();
 
    //! setter for player color
    void setColor(Constants::Color color);
 
    //! getter for player color
-   Constants::Color getColor() const;
+   [[nodiscard]] Constants::Color getColor() const;
 
    //! setter for synchronized loading flag
    void setLoadingSynchronized(bool);
 
    //! getter for synchronized loading flag
-   bool isLoadingSynchronized() const;
+   [[nodiscard]] bool isLoadingSynchronized() const;
 
    //! setter for bot flag
    void setBot(bool bot);
 
    //! getter for bot flag
-   bool isBot() const;
+   [[nodiscard]] bool isBot() const;
 
    //! infect player
    void infect(std::unique_ptr<PlayerDisease> disease);
 
    //! check if player is infected
-   bool isInfected() const;
+   [[nodiscard]] bool isInfected() const;
 
    //! check if player is invincible
-   bool isInvincible() const;
+   [[nodiscard]] bool isInvincible() const;
 
    //! getter for disease
-   PlayerDisease* getDisease() const;
+   [[nodiscard]] PlayerDisease* getDisease() const;
 
    //! increase number of kills
    void increaseKills();
@@ -158,7 +158,7 @@ public:
    void increaseWins();
 
    //! increase survival time
-   void increaseSurvivalTime(unsigned int survivalTime);
+   void increaseSurvivalTime(uint32_t survivalTime);
 
    //! increase extra count
    void increaseExtrasCollected();
@@ -197,22 +197,22 @@ private:
    std::string mNick;
 
    //! number of bombs
-   int mBombCount;
+   int32_t mBombCount;
 
    //! number of flames
-   int mFlameCount;
+   int32_t mFlameCount;
 
    //! speed
    float mSpeed;
 
    //! keys currently pressed
-   int mKeysPressed;
+   int32_t mKeysPressed;
 
    //! keys previously pressed
-   int mKeysPreviouslyPressed;
+   int32_t mKeysPreviouslyPressed;
 
    //! bombs dropped count
-   int mBombsDroppedCount;
+   int32_t mBombsDroppedCount;
 
    //! bomb processed flag
    bool mBombKeyLocked;
@@ -227,13 +227,13 @@ private:
    bool mKickEnabled;
 
    //! Number of frames when last position packet was sent
-   int mPositionSkippedCounter;
+   int32_t mPositionSkippedCounter;
 
    //! player overall stats
-   PlayerStats* mOverallStats;
+   PlayerStats mOverallStats;
 
    //! player round stats
-   PlayerStats* mRoundStats;
+   PlayerStats mRoundStats;
 
    //! player color
    Constants::Color mColor;
@@ -247,5 +247,3 @@ private:
    //! player can be infected
    std::unique_ptr<PlayerDisease> mDisease;
 };
-
-#endif

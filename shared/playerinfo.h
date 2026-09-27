@@ -1,6 +1,6 @@
-#ifndef PLAYERINFO_H
-#define PLAYERINFO_H
+#pragma once
 
+#include <cstdint>
 #include <memory>
 #include <string>
 
@@ -20,27 +20,27 @@ class PlayerInfo
       //! out-of-line since mDisease's unique_ptr needs PlayerDisease's complete type
       ~PlayerInfo();
 
-      void setId(int);
+      void setId(int32_t);
 
       void setColor(Constants::Color);
 
       void setNick(const std::string&);
 
-      int getId() const;
+      [[nodiscard]] int32_t getId() const;
 
-      Constants::Color getColor() const;
+      [[nodiscard]] Constants::Color getColor() const;
 
-      std::string getNick() const;
+      [[nodiscard]] std::string getNick() const;
 
       void setPosition(float x, float y, float angle);
 
       void setPositionDelta(float dx, float dy, float dAngle);
 
-      float getX() const;
+      [[nodiscard]] float getX() const;
 
-      float getY() const;
+      [[nodiscard]] float getY() const;
 
-      float getAngle() const;
+      [[nodiscard]] float getAngle() const;
 
       //! setter for delta x
       void setDeltaX(float val);
@@ -52,43 +52,43 @@ class PlayerInfo
       void setDeltaAngle(float val);
 
       //! getter for player's x delta
-      float getDeltaX() const;
+      [[nodiscard]] float getDeltaX() const;
 
       //! getter for player's y delta
-      float getDeltaY() const;
+      [[nodiscard]] float getDeltaY() const;
 
       //! getter for player's y delta
-      float getAngleDelta() const;
+      [[nodiscard]] float getAngleDelta() const;
 
       //! setter for player stats
       void setOverallStats(const PlayerStats&);
 
       //! getter for player overall stats
-      PlayerStats& getOverallStats();
+      [[nodiscard]] PlayerStats& getOverallStats();
 
       //! setter for player round stats
       void setRoundStats(const PlayerStats&);
 
       //! getter for player stats
-      PlayerStats& getRoundStats();
+      [[nodiscard]] PlayerStats& getRoundStats();
 
       //! setter for killed flag
       void setKilled(bool killed);
 
       //! getter for killed flag
-      bool isKilled() const;
+      [[nodiscard]] bool isKilled() const;
 
       //! infect player
       void infect(std::unique_ptr<PlayerDisease> disease);
 
       //! check if player is infected
-      bool isInfected() const;
+      [[nodiscard]] bool isInfected() const;
 
       //! getter for disease
-      PlayerDisease* getDisease() const;
+      [[nodiscard]] PlayerDisease* getDisease() const;
 
       //! getter for directions
-      int8_t getDirections() const;
+      [[nodiscard]] int8_t getDirections() const;
 
       //! setter for directions
       void setDirections(int8_t directions);
@@ -96,7 +96,7 @@ class PlayerInfo
 
    protected:
 
-      int mId;
+      int32_t mId;
 
       Constants::Color mColor;
 
@@ -132,5 +132,3 @@ class PlayerInfo
       //! player's directions
       int8_t mDirections;
 };
-
-#endif // PLAYERINFO_H

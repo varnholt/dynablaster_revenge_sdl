@@ -1,5 +1,4 @@
-#ifndef PLAYERROTATION_H
-#define PLAYERROTATION_H
+#pragma once
 
 // shared
 #include "vec2.h"
@@ -20,19 +19,19 @@ class PlayerRotation
       void setTargetVector(const Vec2&);
 
       //! getter for the target vector
-      const Vec2& getTargetVector();
+      [[nodiscard]] const Vec2& getTargetVector() const;
 
       //! update angle
       void updateAngle();
 
       //! getter for the current angle
-      float getAngle();
+      [[nodiscard]] float getAngle() const;
 
       //! getter for the previous angle
-      float getPreviousAngle();
+      [[nodiscard]] float getPreviousAngle() const;
 
       //! getter for angle delta
-      float getAngleDelta() const;
+      [[nodiscard]] float getAngleDelta() const;
 
       //! reset angle
       void reset();
@@ -61,5 +60,3 @@ class PlayerRotation
       //! down vector
       static Vec2 mDown;
 };
-
-#endif

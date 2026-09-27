@@ -40,18 +40,18 @@ GameInformation::GameInformation()
    \param spawnExtras spawn extras
 */
 GameInformation::GameInformation(
-   int id,
-   int playerCount,
-   int playerMaximumCount,
+   int32_t id,
+   int32_t playerCount,
+   int32_t playerMaximumCount,
    const std::string& gameName,
    const std::string& levelName,
-   int creatorId,
+   int32_t creatorId,
    Constants::Dimension dimensions,
-   int extras,
-   int duration,
-   int roundsPlayed,
-   int currentRound,
-   int roundCount,
+   int32_t extras,
+   int32_t duration,
+   int32_t roundsPlayed,
+   int32_t currentRound,
+   int32_t roundCount,
    bool spawnExtras
 )
     : mId(id),
@@ -74,7 +74,7 @@ GameInformation::GameInformation(
 /*!
    \return game id
 */
-int GameInformation::getId() const
+int32_t GameInformation::getId() const
 {
    return mId;
 }
@@ -83,7 +83,7 @@ int GameInformation::getId() const
 /*!
    \return player count
 */
-int GameInformation::getPlayerCount() const
+int32_t GameInformation::getPlayerCount() const
 {
    return mPlayerCount;
 }
@@ -92,7 +92,7 @@ int GameInformation::getPlayerCount() const
 /*!
    \return player maximum count
 */
-int GameInformation::getPlayerMaximumCount() const
+int32_t GameInformation::getPlayerMaximumCount() const
 {
    return mMaximumPlayerCount;
 }
@@ -101,7 +101,7 @@ int GameInformation::getPlayerMaximumCount() const
 /*!
    \return game name
 */
-const std::string GameInformation::getGameName() const
+std::string GameInformation::getGameName() const
 {
    return mGameName;
 }
@@ -110,7 +110,7 @@ const std::string GameInformation::getGameName() const
 /*!
    \return level name
 */
-const std::string GameInformation::getLevelName() const
+std::string GameInformation::getLevelName() const
 {
    return mLevelName;
 }
@@ -119,7 +119,7 @@ const std::string GameInformation::getLevelName() const
 /*!
    \return game creator id
 */
-int GameInformation::getCreatorId() const
+int32_t GameInformation::getCreatorId() const
 {
    return mCreatorId;
 }
@@ -137,7 +137,7 @@ Constants::Dimension GameInformation::getMapDimensions() const
 /*!
    \param extras extras for this game
 */
-void GameInformation::setExtras(int extras)
+void GameInformation::setExtras(int32_t extras)
 {
    mExtras = extras;
 }
@@ -146,7 +146,7 @@ void GameInformation::setExtras(int extras)
 /*!
    \return extras for this game
 */
-int GameInformation::getExtras() const
+int32_t GameInformation::getExtras() const
 {
    return mExtras;
 }
@@ -155,7 +155,7 @@ int GameInformation::getExtras() const
 /*!
    \param duration game duration
 */
-void GameInformation::setDuration(int duration)
+void GameInformation::setDuration(int32_t duration)
 {
    mDuration = duration;
 }
@@ -164,7 +164,7 @@ void GameInformation::setDuration(int duration)
 /*!
    \return game duration
 */
-int GameInformation::getDuration() const
+int32_t GameInformation::getDuration() const
 {
    return mDuration;
 }
@@ -173,7 +173,7 @@ int GameInformation::getDuration() const
 /*!
    \param roundsPlayed number of gamesPlayed
 */
-void GameInformation::setGamesPlayed(int roundsPlayed)
+void GameInformation::setGamesPlayed(int32_t roundsPlayed)
 {
    mGamesPlayed = roundsPlayed;
 }
@@ -182,7 +182,7 @@ void GameInformation::setGamesPlayed(int roundsPlayed)
 /*!
    \return games played
 */
-int GameInformation::getGamesPlayed() const
+int32_t GameInformation::getGamesPlayed() const
 {
    return mGamesPlayed;
 }
@@ -249,7 +249,7 @@ float GameInformation::getMapScaleY() const
 /*!
    \return current round
 */
-int GameInformation::getCurrentRound() const
+int32_t GameInformation::getCurrentRound() const
 {
    return mCurrentRound;
 }
@@ -258,7 +258,7 @@ int GameInformation::getCurrentRound() const
 /*!
    \return round count
 */
-int GameInformation::getRoundCount() const
+int32_t GameInformation::getRoundCount() const
 {
    return mRoundCount;
 }
@@ -294,7 +294,7 @@ BinaryWriter& operator<<(BinaryWriter& out, const GameInformation& info)
    out << info.mGameName;
    out << info.mLevelName;
    out << info.mCreatorId;
-   out << (int32_t)info.mDimensions;
+   out << static_cast<int32_t>(info.mDimensions);
    out << info.mExtras;
    out << info.mDuration;
    out << info.mGamesPlayed;
@@ -326,7 +326,7 @@ BinaryReader& operator>>(BinaryReader& in, GameInformation& info)
    in >> info.mCurrentRound;
    in >> info.mRoundCount;
 
-   info.mDimensions = (Constants::Dimension)dimensions;
+   info.mDimensions = static_cast<Constants::Dimension>(dimensions);
 
    return in;
 }

@@ -63,7 +63,7 @@ Constants::SkullType PlayerDisease::getType() const
 /*!
    \param duration disease duration
 */
-void PlayerDisease::setDuration(int duration)
+void PlayerDisease::setDuration(int32_t duration)
 {
    mDuration = duration;
 }
@@ -72,7 +72,7 @@ void PlayerDisease::setDuration(int duration)
 /*!
    \return disease duration
 */
-int PlayerDisease::getDuration() const
+int32_t PlayerDisease::getDuration() const
 {
    return mDuration;
 }
@@ -101,7 +101,7 @@ void PlayerDisease::activate()
  */
 void PlayerDisease::randomizeType()
 {
-   setType((Constants::SkullType)(Random::bounded(static_cast<int>(Constants::SkullReset))));
+   setType(static_cast<Constants::SkullType>(Random::bounded(static_cast<int32_t>(Constants::SkullReset))));
 }
 
 //-----------------------------------------------------------------------------
@@ -142,7 +142,7 @@ void PlayerDisease::applyKeyboardInvert(int8_t& keysPressed)
 /*!
    \return id of infected player
 */
-int PlayerDisease::getPlayerId() const
+int32_t PlayerDisease::getPlayerId() const
 {
    return mPlayerId;
 }
@@ -151,7 +151,7 @@ int PlayerDisease::getPlayerId() const
 /*!
    \param playerId infected player
 */
-void PlayerDisease::setPlayerId(int playerId)
+void PlayerDisease::setPlayerId(int32_t playerId)
 {
    mPlayerId = playerId;
 }
