@@ -39,7 +39,7 @@ cmake -S . -B build
 cmake --build build --config Release
 ```
 
-This produces `dynablaster_sdl` (the game) and `dynablaster_sdl_harness` (a diagnostic/test
+This produces `dynablaster_revenge` (the game) and `dynablaster_revenge_harness` (a diagnostic/test
 binary supporting `--selftest`, `--menu`, `--click`, `--screenshot`, and other tooling flags).
 
 ## Server

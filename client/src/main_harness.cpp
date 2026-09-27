@@ -1,10 +1,10 @@
-// dynablaster_sdl_harness - the test/diagnostic entry point, NOT the shipped game. Builds
+// dynablaster_revenge_harness - the test/diagnostic entry point, NOT the shipped game. Builds
 // exactly the same engine/menu/effects code as the real game (src/main.cpp), but wraps it with
 // CLI flags for headless screenshot verification (--selftest), scripted/synthetic input
 // (--click, --realclick), page inspection (--dumplayer, --page, --dumppsd for a standalone PSD
 // asset not part of the menu system), an isolated-effect view (--logo3d), and a standalone
 // castle-level demo (the default mode with no flags at all) - none of which belong in the real
-// game binary. See CMakeLists.txt for how this and dynablaster_sdl share the same
+// game binary. See CMakeLists.txt for how this and dynablaster_revenge share the same
 // dynablaster_core library.
 #include "gles3.h"
 #include "glescontext.h"

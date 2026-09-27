@@ -28,7 +28,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p artifact/dynablaster
-          cp client/build/Release/dynablaster_sdl.exe artifact/dynablaster/
+          cp client/build/Release/dynablaster_revenge.exe artifact/dynablaster/
           cp server/build/Release/dynablaster_server.exe artifact/dynablaster/
           cp -r data artifact/dynablaster/data
 
@@ -68,7 +68,7 @@ jobs:
       - name: Package artifact
         run: |
           mkdir -p artifact/dynablaster
-          cp client/build/dynablaster_sdl artifact/dynablaster/
+          cp client/build/dynablaster_revenge artifact/dynablaster/
           cp server/build/dynablaster_server artifact/dynablaster/
           cp -r data artifact/dynablaster/data
 
@@ -97,7 +97,7 @@ jobs:
       - name: Package artifact
         run: |
           mkdir -p artifact/dynablaster
-          cp client/build/dynablaster_sdl artifact/dynablaster/
+          cp client/build/dynablaster_revenge artifact/dynablaster/
           cp server/build/dynablaster_server artifact/dynablaster/
           cp -r data artifact/dynablaster/data
 
@@ -121,15 +121,15 @@ jobs:
         run: emcmake cmake -S client -B client/build-wasm -DCMAKE_BUILD_TYPE=Release
 
       - name: Build client
-        run: cmake --build client/build-wasm --target dynablaster_sdl --parallel
+        run: cmake --build client/build-wasm --target dynablaster_revenge --parallel
 
       - name: Package artifact
         run: |
           mkdir -p artifact/dynablaster-wasm
-          cp client/build-wasm/dynablaster_sdl.html artifact/dynablaster-wasm/
-          cp client/build-wasm/dynablaster_sdl.js artifact/dynablaster-wasm/
-          cp client/build-wasm/dynablaster_sdl.wasm artifact/dynablaster-wasm/
-          cp client/build-wasm/dynablaster_sdl.data artifact/dynablaster-wasm/
+          cp client/build-wasm/dynablaster_revenge.html artifact/dynablaster-wasm/
+          cp client/build-wasm/dynablaster_revenge.js artifact/dynablaster-wasm/
+          cp client/build-wasm/dynablaster_revenge.wasm artifact/dynablaster-wasm/
+          cp client/build-wasm/dynablaster_revenge.data artifact/dynablaster-wasm/
 
       - uses: actions/upload-artifact@v4
         with:

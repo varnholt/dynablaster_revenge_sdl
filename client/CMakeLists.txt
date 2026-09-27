@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(dynablaster_sdl LANGUAGES C CXX)
+project(dynablaster_revenge LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -376,20 +376,20 @@ target_include_directories(dynablaster_core PUBLIC
 target_link_libraries(dynablaster_core PUBLIC SDL3::SDL3 SDL3_net::SDL3_net)
 
 # real C++ exception catching (SettingsValue::toFloat()'s try/catch, shared/settings.cpp) needs
-# this at compile time too, not just at dynablaster_sdl's link step - DISABLE_EXCEPTION_CATCHING
+# this at compile time too, not just at dynablaster_revenge's link step - DISABLE_EXCEPTION_CATCHING
 # affects codegen (invoke_* wrappers), not just the final link.
 if (EMSCRIPTEN)
     target_compile_options(dynablaster_core PUBLIC -sDISABLE_EXCEPTION_CATCHING=0)
 endif()
 
-# dynablaster_sdl - the real game, no CLI flags, launches straight into the main menu.
-add_executable(dynablaster_sdl src/main.cpp)
-target_link_libraries(dynablaster_sdl PRIVATE dynablaster_core)
+# dynablaster_revenge - the real game, no CLI flags, launches straight into the main menu.
+add_executable(dynablaster_revenge src/main.cpp)
+target_link_libraries(dynablaster_revenge PRIVATE dynablaster_core)
 
 # wasm32 target (browser build). No raw sockets in a browser, so real client<->server networking
 # doesn't work here (see main.cpp's __EMSCRIPTEN__ NET_Init handling) - this is client-only.
 if (EMSCRIPTEN)
-    target_link_options(dynablaster_sdl PRIVATE
+    target_link_options(dynablaster_revenge PRIVATE
         -sMAX_WEBGL_VERSION=2
         -sMIN_WEBGL_VERSION=2
         -sFULL_ES3=1
@@ -400,14 +400,14 @@ if (EMSCRIPTEN)
         --emrun
         --preload-file ${CMAKE_SOURCE_DIR}/data@data
     )
-    set_target_properties(dynablaster_sdl PROPERTIES SUFFIX ".html")
+    set_target_properties(dynablaster_revenge PROPERTIES SUFFIX ".html")
 endif()
 
-# dynablaster_sdl_harness - test/diagnostic tooling (--selftest, --menu, --click, --realclick,
+# dynablaster_revenge_harness - test/diagnostic tooling (--selftest, --menu, --click, --realclick,
 # --dumplayer, --page, --logo3d, --screenshot, and the standalone castle-level demo) - see
 # src/main_harness.cpp's own header comment. Not the shipped game; shares dynablaster_core so it
 # can never drift out of sync with the real thing it's testing.
-add_executable(dynablaster_sdl_harness
+add_executable(dynablaster_revenge_harness
     src/main_harness.cpp
     src/screenshot.cpp
     src/screenshot.h
@@ -416,9 +416,9 @@ add_executable(dynablaster_sdl_harness
     src/demofactory.cpp
     src/demofactory.h
 )
-target_link_libraries(dynablaster_sdl_harness PRIVATE dynablaster_core)
+target_link_libraries(dynablaster_revenge_harness PRIVATE dynablaster_core)
 
-foreach(dynablaster_target dynablaster_sdl dynablaster_sdl_harness)
+foreach(dynablaster_target dynablaster_revenge dynablaster_revenge_harness)
     # Shaders/textures load through FileStream at runtime (not compiled in), so they need to sit
     # next to the exe - mirrors the DLL copy step above.
     add_custom_command(TARGET ${dynablaster_target} POST_BUILD
@@ -430,5 +430,5 @@ endforeach()
 
 enable_testing()
 add_test(NAME selftest_smoke
-    COMMAND dynablaster_sdl_harness --selftest --screenshot=${CMAKE_BINARY_DIR}/selftest.png
+    COMMAND dynablaster_revenge_harness --selftest --screenshot=${CMAKE_BINARY_DIR}/selftest.png
 )

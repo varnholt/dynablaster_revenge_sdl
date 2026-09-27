@@ -1,6 +1,6 @@
-// dynablaster_sdl - the real game entry point. Launches straight into the actual main menu with
+// dynablaster_revenge - the real game entry point. Launches straight into the actual main menu with
 // real window/mouse input, no CLI flags and no test/diagnostic scaffolding - that all lives in
-// the separate dynablaster_sdl_harness binary (src/main_harness.cpp), which builds against the
+// the separate dynablaster_revenge_harness binary (src/main_harness.cpp), which builds against the
 // same dynablaster_core library. See CMakeLists.txt.
 #include "gles3.h"
 #include "glescontext.h"
