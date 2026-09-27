@@ -335,6 +335,8 @@ add_library(dynablaster_core STATIC
     src/game/deathflowfieldanimation.h
     src/game/playerdeatheffect.cpp
     src/game/playerdeatheffect.h
+    src/game/fuseparticlesystem.cpp
+    src/game/fuseparticlesystem.h
     src/game/gameplayernamedisplay.cpp
     src/game/gameplayernamedisplay.h
     src/game/gamewindrawable.cpp
