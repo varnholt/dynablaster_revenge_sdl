@@ -41,9 +41,13 @@ FuseParticleSystem::FuseParticleSystem()
 FuseParticleSystem::~FuseParticleSystem()
 {
    if (mVertexBuffer)
+   {
       glDeleteBuffers(1, &mVertexBuffer);
+   }
    if (mParticleTextureId)
+   {
       activeDevice->deleteTexture(mParticleTextureId);
+   }
 }
 
 const Vector& FuseParticleSystem::getBombOffset()
@@ -77,7 +81,9 @@ void FuseParticleSystem::addEmitter(MapItem* item, const Vector& origin)
    emitter.particles.resize(PARTICLE_COUNT);
 
    for (auto& particle : emitter.particles)
+   {
       resetParticle(particle, origin);
+   }
 
    mEmitters[item] = std::move(emitter);
 }
@@ -86,7 +92,9 @@ void FuseParticleSystem::setEmitterPosition(MapItem* item, const Vector& origin)
 {
    auto it = mEmitters.find(item);
    if (it == mEmitters.end())
+   {
       return;
+   }
 
    Emitter& emitter = it->second;
    if (emitter.origin != origin)
@@ -100,7 +108,9 @@ void FuseParticleSystem::removeEmitter(MapItem* item)
 {
    auto it = mEmitters.find(item);
    if (it != mEmitters.end())
+   {
       it->second.removing = true;
+   }
 }
 
 void FuseParticleSystem::animate(float dt)
@@ -119,7 +129,9 @@ void FuseParticleSystem::animate(float dt)
          // dragging the trail across the map, matching FuseParticle::animate()'s original check.
          float dist = (particle.origin - emitter.nextOrigin).length();
          if (dist > 1.0f)
+         {
             particle.randomStartTime = 0.0f;
+         }
 
          bool remove = false;
 
@@ -136,22 +148,34 @@ void FuseParticleSystem::animate(float dt)
             if (particle.pointSize < 0.01f)
             {
                if (emitter.removing)
+               {
                   remove = true;
+               }
                else
+               {
                   resetParticle(particle, emitter.nextOrigin);
+               }
             }
          }
 
          if (remove)
+         {
             pit = emitter.particles.erase(pit);
+         }
          else
+         {
             ++pit;
+         }
       }
 
       if (emitter.removing && emitter.particles.empty())
+      {
          it = mEmitters.erase(it);
+      }
       else
+      {
          ++it;
+      }
    }
 }
 
@@ -164,7 +188,9 @@ void FuseParticleSystem::render()
       for (const auto& particle : emitter.particles)
       {
          if (!particle.started)
+         {
             continue;
+         }
 
          mUploadBuffer.push_back(particle.position.x);
          mUploadBuffer.push_back(particle.position.y);
@@ -174,10 +200,14 @@ void FuseParticleSystem::render()
    }
 
    if (mUploadBuffer.empty())
+   {
       return;
+   }
 
    if (mVertexBuffer == 0)
+   {
       glGenBuffers(1, &mVertexBuffer);
+   }
 
    glBindBuffer(GL_ARRAY_BUFFER, mVertexBuffer);
    glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(sizeof(float) * mUploadBuffer.size()), mUploadBuffer.data(), GL_DYNAMIC_DRAW);
