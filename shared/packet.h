@@ -1,13 +1,17 @@
-#ifndef PACKET_H
-#define PACKET_H
+#pragma once
 
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "binaryreader.h"
 #include "binarywriter.h"
 
+// TODO: public inheritance from std::vector<uint8_t> is a design smell (non-polymorphic base,
+// no protection against slicing via the container interface) and TYPE below should really be an
+// enum class - both are deferred: TYPE alone has ~226 unqualified call sites (Packet::BOMB etc.)
+// across client/, server/ and ai/, well outside shared/'s scope. Revisit in the client/server pass.
 class Packet : public std::vector<uint8_t>
 {
 public:
@@ -66,7 +70,7 @@ public:
    void serialize();
 
    //! deserializes a packet
-   static Packet* deserialize(BinaryReader&);
+   static std::unique_ptr<Packet> deserialize(BinaryReader&);
 
    //! debug function
    virtual void debug() = 0;
@@ -78,22 +82,22 @@ public:
    virtual void dequeue(BinaryReader&) = 0;
 
    //! getter for packet size
-   int16_t getSize();
+   [[nodiscard]] int16_t getSize();
 
    //! getter for packet type
-   TYPE getType();
+   [[nodiscard]] TYPE getType();
 
    //! getter for the packet's timestamp (milliseconds since midnight)
-   int32_t getTimestamp() const;
+   [[nodiscard]] int32_t getTimestamp() const;
 
    //! timestamp can be modified (e.g. in playback)
    void setTimeStamp(int32_t time);
 
    //! getter for packet name
-   const std::string& getPacketName() const;
+   [[nodiscard]] const std::string& getPacketName() const;
 
    //! raw byte pointer, kept for existing socket-write call sites
-   const char* constData() const;
+   [[nodiscard]] const char* constData() const;
 
 protected:
    //! packet size
@@ -108,5 +112,3 @@ protected:
    //! packet name
    std::string mPacketName;
 };
-
-#endif

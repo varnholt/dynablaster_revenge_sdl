@@ -377,7 +377,7 @@ void BotClient::readData()
    {
       // block was read completely
       BinaryReader in = mBuffer.reader();
-      Packet* packet = Packet::deserialize(in);
+      auto packet = Packet::deserialize(in);
       mBuffer.consume(in.pos());
 
       if (packet)
@@ -386,49 +386,49 @@ void BotClient::readData()
          {
             case Packet::CREATEGAMERESPONSE:
             {
-               // processCreateGameResponse(packet);
+               // processCreateGameResponse(packet.get());
                break;
             }
 
             case Packet::JOINGAMERESPONSE:
             {
-               processJoinGameResponse(packet);
+               processJoinGameResponse(packet.get());
                break;
             }
 
             case Packet::LEAVEGAMERESPONSE:
             {
-               processLeaveGameResponse(packet);
+               processLeaveGameResponse(packet.get());
                break;
             }
 
             case Packet::LISTGAMESRESPONSE:
             {
-               processListGameResponse(packet);
+               processListGameResponse(packet.get());
                break;
             }
 
             case Packet::LOGINRESPONSE:
             {
-               processLoginResponse(packet);
+               processLoginResponse(packet.get());
                break;
             }
 
             case Packet::PLAYERINFECTEDPACKET:
             {
-               processPlayerInfected(packet);
+               processPlayerInfected(packet.get());
                break;
             }
 
             case Packet::PLAYERKILLED:
             {
-               processPlayerKilled(packet);
+               processPlayerKilled(packet.get());
                break;
             }
 
             case Packet::DETONATION:
             {
-               // processDetonation(packet);
+               // processDetonation(packet.get());
                break;
             }
 
@@ -439,79 +439,79 @@ void BotClient::readData()
 
             case Packet::POSITION:
             {
-               processPosition(packet);
+               processPosition(packet.get());
                break;
             }
 
             case Packet::MAPITEMCREATED:
             {
-               processMapItemCreated(packet);
+               processMapItemCreated(packet.get());
                break;
             }
 
             case Packet::EXTRAMAPITEMCREATED:
             {
-               processExtraMapItemCreated(packet);
+               processExtraMapItemCreated(packet.get());
                break;
             }
 
             case Packet::MAPITEMDESTROYED:
             {
-               processMapItemDestroyed(packet);
+               processMapItemDestroyed(packet.get());
                break;
             }
 
             case Packet::MAPITEMREMOVED:
             {
-               processMapItemRemoved(packet);
+               processMapItemRemoved(packet.get());
                break;
             }
 
             case Packet::MAPITEMMOVE:
             {
-               processMapItemMove(packet);
+               processMapItemMove(packet.get());
                break;
             }
 
             case Packet::STARTGAMERESPONSE:
             {
-               processStartGameResponse(packet);
+               processStartGameResponse(packet.get());
                break;
             }
 
             case Packet::STOPGAMERESPONSE:
             {
-               processStopGameResponse(packet);
+               processStopGameResponse(packet.get());
                break;
             }
 
             case Packet::GAMEEVENT:
             {
-               processGameEvent(packet);
+               processGameEvent(packet.get());
                break;
             }
 
             case Packet::MESSAGE:
             {
-               // processMessage(packet);
+               // processMessage(packet.get());
                break;
             }
 
             case Packet::TIME:
             {
-               // processTime(packet);
+               // processTime(packet.get());
                break;
             }
 
             case Packet::COUNTDOWN:
             {
-               processCountdown(packet);
+               processCountdown(packet.get());
                break;
             }
 
             case Packet::EXTRASHAKE:
             {
-               processExtraShake(packet);
+               processExtraShake(packet.get());
                break;
             }
 
@@ -524,8 +524,6 @@ void BotClient::readData()
             default:
                break;
          }
-
-         delete packet;
       }
 
       mBlockSize = 0;

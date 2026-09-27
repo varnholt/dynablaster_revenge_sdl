@@ -1386,14 +1386,11 @@ void BombermanClient::processPacket(Packet* packet)
             break;
       }
 
-      // if playback is activated, record packets
+      // if playback is activated, record packets - ownership stays with the caller's
+      // unique_ptr<Packet> either way, record() only observes it
       if (GamePlayback::getInstance()->isRecording())
       {
          GamePlayback::getInstance()->record(packet);
-      }
-      else
-      {
-         delete packet;
       }
    }
 }
@@ -1424,10 +1421,10 @@ void BombermanClient::readData()
    {
       // block was read completely
       BinaryReader in = mBuffer.reader();
-      Packet* packet = Packet::deserialize(in);
+      auto packet = Packet::deserialize(in);
       mBuffer.consume(in.pos());
 
-      processPacket(packet);
+      processPacket(packet.get());
 
       mBlockSize = 0;
    }
