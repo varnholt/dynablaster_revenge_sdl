@@ -1,4 +1,5 @@
 #include "menupagebackgrounditem.h"
+#include <cmath>
 #include "framework/gldevice.h"
 #include "math/matrix.h"
 
@@ -56,8 +57,8 @@ void MenuPageBackgroundItem::draw()
          mBackgroundLayers[mBackgroundColorPrevious]->render(0.0f, 0.0f, alphaInverted);
    }
 
-   mX = sin(mElapsed.elapsed() * 0.0001f);
-   mY = cos(mElapsed.elapsed() * 0.0001f);
+   mX = std::sin(mElapsed.elapsed() * 0.0001f);
+   mY = std::cos(mElapsed.elapsed() * 0.0001f);
 
    // one quad for the whole background, scrolling slowly by animating its texcoords - the
    // legacy immediate-mode draw (glBegin(GL_QUADS), per-vertex glTexCoord2f/glVertex3f) becomes

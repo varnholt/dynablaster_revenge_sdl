@@ -1,8 +1,7 @@
 #include "menupagebuttonitem.h"
 
 // math
-#include "math.h"
-
+#include <cmath>
 MenuPageButtonItem::MenuPageButtonItem() : mFadeValue(0.0f), mFadeOut(false)
 {
    mPageItemType = PageItemTypeButton;
@@ -48,7 +47,7 @@ void MenuPageButtonItem::draw()
          mFadeValue = 0.0f;
 
          if (mFocusOutTime.elapsed() < 500)
-            mFadeValue = cos(mFocusOutTime.elapsed() * 0.005);
+            mFadeValue = std::cos(mFocusOutTime.elapsed() * 0.005);
 
          psdLayer->render(0, 0, mFadeValue);
 

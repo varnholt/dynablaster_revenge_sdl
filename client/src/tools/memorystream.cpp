@@ -1,5 +1,4 @@
 #include "memorystream.h"
-#include <malloc.h>
 #include <cstring>
 #include "array.h"
 

@@ -128,7 +128,7 @@ Matrix CameraInterpolation::getCameraMatrix(float time, float scale)
    if (mCenter)
    {
       mCenter->transform( time );
-      fov= 1.0f / ((float)tan( mCenter->getFOV() * 0.5 ) * 0.75f);
+      fov= 1.0f / ((float)std::tan( mCenter->getFOV() * 0.5 ) * 0.75f);
       cam= mCenter->getTransform();
    }
 

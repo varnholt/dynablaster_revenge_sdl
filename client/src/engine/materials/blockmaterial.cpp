@@ -1,5 +1,5 @@
 #include "blockmaterial.h"
-#include <math.h>
+#include <cmath>
 #include "animation/motionmixer.h"
 #include "gldevice.h"
 #include "image/image.h"
@@ -290,7 +290,7 @@ void BlockMaterial::begin()
 
       cam = mShadowCam->getTransform().getView();
       float fov = mShadowCam->getFOV();
-      fov = tan(fov * 0.5) * 0.75;
+      fov = std::tan(fov * 0.5) * 0.75;
       float zNear = mShadowCam->getNear();
       float zFar = mShadowCam->getFar();
 

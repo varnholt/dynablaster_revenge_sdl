@@ -1,5 +1,5 @@
 #include "clipper.h"
-#include <math.h>
+#include <cmath>
 #include "framework/framebuffer.h"
 #include "framework/gldevice.h"
 
@@ -248,10 +248,10 @@ void Clipper::enable()
       }
 
       glScissor(
-         static_cast<int>(floor(mLeft * width / mScreenWidth)),
-         static_cast<int>(floor((mScreenHeight - mBottom - 1) * height / mScreenHeight)),
-         static_cast<int>(ceil((mRight - mLeft) * width / mScreenWidth) + 1),
-         static_cast<int>(ceil((mBottom - mTop) * height / mScreenHeight) + 1)
+         static_cast<int>(std::floor(mLeft * width / mScreenWidth)),
+         static_cast<int>(std::floor((mScreenHeight - mBottom - 1) * height / mScreenHeight)),
+         static_cast<int>(std::ceil((mRight - mLeft) * width / mScreenWidth) + 1),
+         static_cast<int>(std::ceil((mBottom - mTop) * height / mScreenHeight) + 1)
       );
       glEnable(GL_SCISSOR_TEST);
    }

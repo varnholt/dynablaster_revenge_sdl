@@ -28,7 +28,7 @@
 #include "sdlglobaltime.h"
 
 // std
-#include <math.h>
+#include <cmath>
 #include <cstdint>
 #include <numbers>
 
@@ -554,7 +554,7 @@ void GameDrawable::animateSkulls(float time)
       frame -= skull->getStartTime();
       frame *= 3200.0f;
 
-      float f = static_cast<float>(fmod(static_cast<double>(frame), 19200.0));
+      float f = static_cast<float>(std::fmod(static_cast<double>(frame), 19200.0));
 
       Mesh* ref = skull->getReference();
       ref->transform(f);
@@ -823,7 +823,7 @@ void GameDrawable::addDetonation(int x, int y, int up, int down, int left, int r
 {
    if (mDetonations)
    {
-      intense= sqrt(intense)*0.15f;
+      intense= std::sqrt(intense)*0.15f;
       if (intense>0.5f)
          intense= 0.5f;
       if (intense > mBounce)
@@ -999,7 +999,7 @@ void GameDrawable::setPlayerSpeed(int id, float dx, float dy, float /*da*/)
    PlayerItem *player= getPlayer(id);
    if (player)
    {
-      player->setSpeed( sqrt(dx*dx+dy*dy) );
+      player->setSpeed( std::sqrt(dx*dx+dy*dy) );
    }
 }
 
@@ -1173,8 +1173,8 @@ void GameDrawable::animate(float time)
 
             Vector pos= mesh->getTransform().translation();
 
-            float sx= 1.0f + sin(t)*0.2f;
-            float sy= 1.0f - sin(t)*0.3f;
+            float sx= 1.0f + std::sin(t)*0.2f;
+            float sy= 1.0f - std::sin(t)*0.3f;
 
             Matrix mat= Matrix::scale(sx,sx,sy);
             mat.translate(pos);
@@ -1247,9 +1247,9 @@ void GameDrawable::shakeBoxes(float delta)
          const Matrix& cur= mesh->getTransform();
 
          Matrix scale;
-         float x= 0.8f + sin((1.0f-time) * 14.0f) * 0.1f * intense;
-         float y= 0.8f - sin((1.0f-time) * 12.0f) * 0.1f * intense;
-         float z= 0.6f + cos((1.0f-time) * 16.0f) * 0.2f * intense + 0.2f *(1.0f - intense);
+         float x= 0.8f + std::sin((1.0f-time) * 14.0f) * 0.1f * intense;
+         float y= 0.8f - std::sin((1.0f-time) * 12.0f) * 0.1f * intense;
+         float z= 0.6f + std::cos((1.0f-time) * 16.0f) * 0.2f * intense + 0.2f *(1.0f - intense);
 
          scale= Matrix::scale(x, y, z);
          scale.translate( cur.translation() );
@@ -1289,8 +1289,8 @@ void GameDrawable::paintGL()
 
    float bounceX, bounceY;
 
-   bounceX= mCameraShakeIntensity * 0.5f * sin(time * 71.0f) * mBounce;
-   bounceY= mCameraShakeIntensity * 0.5f * sin(time * 113.0f) * mBounce;
+   bounceX= mCameraShakeIntensity * 0.5f * std::sin(time * 71.0f) * mBounce;
+   bounceY= mCameraShakeIntensity * 0.5f * std::sin(time * 113.0f) * mBounce;
 
    if (dimensions == Constants::Dimension19x17)
    {

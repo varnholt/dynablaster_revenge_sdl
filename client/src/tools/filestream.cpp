@@ -1,13 +1,8 @@
 #include "filestream.h"
+#include <cstdlib>
 #include <cstring>
 #include "array.h"
 #include "string.h"
-
-#ifndef __APPLE__
-#include <malloc.h>
-#else
-#include <stdlib.h>
-#endif
 
 #define STREAMCACHESIZE (4096)
 
@@ -17,7 +12,7 @@ static Array<String> pathList;
 FileStream::FileStream() : Stream(), mFile(0), mCacheBuf(0), mCachePos(0), mCacheLeft(0), mGlobalPos(0), mSize(0)
 {
    // allocate buffer for cache
-   mCacheBuf = (unsigned char*)malloc(STREAMCACHESIZE);
+   mCacheBuf = (unsigned char*)std::malloc(STREAMCACHESIZE);
 
    if (pathList.size() == 0)
    {
@@ -31,7 +26,7 @@ FileStream::~FileStream()
    close();
    if (mCacheBuf)
    {
-      free(mCacheBuf);
+      std::free(mCacheBuf);
       mCacheBuf = 0;
    }
 }

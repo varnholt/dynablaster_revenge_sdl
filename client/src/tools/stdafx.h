@@ -5,15 +5,9 @@
 #include <windows.h>
 #endif
 
-#ifndef __APPLE__
-#include <malloc.h>
-#else
-#include <stdlib.h>
-#endif
-
-#include <math.h>
-#include <memory.h>
-#include <stdio.h>
-#include <string.h>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 #endif

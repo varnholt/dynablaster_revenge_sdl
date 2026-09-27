@@ -1,7 +1,6 @@
 #include "menupagefadeanimation.h"
 
-#include <math.h>
-
+#include <cmath>
 namespace
 {
 // MSVC only defines kPi when _USE_MATH_DEFINES is set before every <math.h>/<cmath> include
@@ -58,14 +57,14 @@ void MenuPageFadeAnimation::animate()
       if (mFadeIn)
       {
          if (elapsed <= kPi * 0.5f)
-            val = sin(elapsed);
+            val = std::sin(elapsed);
          else
             val = 1.0f;
       }
       else
       {
          if (elapsed <= kPi * 0.5f)
-            val = cos(elapsed);
+            val = std::cos(elapsed);
          else
             val = 0.0f;
       }

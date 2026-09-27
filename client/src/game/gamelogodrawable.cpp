@@ -10,7 +10,7 @@
 #include "tools/random.h"
 
 // cmath
-#include <math.h>
+#include <cmath>
 #include <string.h>
 
 // the real page-name string MenuDrawable's pageChangedSignal carries for the actual
@@ -65,9 +65,9 @@ void GameLogoDrawable::paintGL()
 
       initOrthoGlParameters();
 
-      mLayerDynablaster->render(20.0f * cos(mTime * 0.03f), 30.0f + 15.0f * sin(mTime * 0.04f), mAlpha);
+      mLayerDynablaster->render(20.0f * std::cos(mTime * 0.03f), 30.0f + 15.0f * std::sin(mTime * 0.04f), mAlpha);
 
-      mLayerRevenge->render(30.0f * cos(mTime * 0.03f), 30.0f + 25.0f * sin(mTime * 0.04f), mAlpha);
+      mLayerRevenge->render(30.0f * std::cos(mTime * 0.03f), 30.0f + 25.0f * std::sin(mTime * 0.04f), mAlpha);
 
       initPointSpriteGlParameters();
       drawSparks();

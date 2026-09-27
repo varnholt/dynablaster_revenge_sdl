@@ -59,7 +59,7 @@
 #include <SDL3_net/SDL_net.h>
 
 // c
-#include <math.h>
+#include <cmath>
 #include <cstdint>
 
 // static variables
@@ -417,15 +417,15 @@ void Game::initializeMap()
    while ((extraBombs + extraFlames + extraKicks + extraSpeedUps + extraSkulls) < extraCount && loop < 5)
    {
       if (loop == 0)
-         extraBombs = static_cast<int32_t>(ceil(valBombs));
+         extraBombs = static_cast<int32_t>(std::ceil(valBombs));
       if (loop == 1)
-         extraFlames = static_cast<int32_t>(ceil(valFlames));
+         extraFlames = static_cast<int32_t>(std::ceil(valFlames));
       if (loop == 2)
-         extraKicks = static_cast<int32_t>(ceil(valKicks));
+         extraKicks = static_cast<int32_t>(std::ceil(valKicks));
       if (loop == 3)
-         extraSpeedUps = static_cast<int32_t>(ceil(valSpeedUps));
+         extraSpeedUps = static_cast<int32_t>(std::ceil(valSpeedUps));
       if (loop == 4)
-         extraSkulls = static_cast<int32_t>(ceil(valSkulls));
+         extraSkulls = static_cast<int32_t>(std::ceil(valSkulls));
 
       loop++;
    }
@@ -778,8 +778,8 @@ bool Game::isKickPossible(int x, int y, Constants::Direction kickDir)
          {
             if (!p->isKilled())
             {
-               px = static_cast<int32_t>(floor(p->getX()));
-               py = static_cast<int32_t>(floor(p->getY()));
+               px = static_cast<int32_t>(std::floor(p->getX()));
+               py = static_cast<int32_t>(std::floor(p->getY()));
 
                // there is an obstructing player
                if (px == checkOffsetX && py == checkOffsetY)
@@ -808,7 +808,7 @@ bool Game::isKickPossible(int x, int y, Constants::Direction kickDir)
                   // horizontal kick movement
                   if (kickDir == Constants::DirectionLeft || kickDir == Constants::DirectionRight)
                   {
-                     float dx = fabs(p->getX() - x);
+                     float dx = std::fabs(p->getX() - x);
 
                      if (dx < 1.0f + SERVER_KICK_PLAYER_DISTANCE)
                      {
@@ -819,7 +819,7 @@ bool Game::isKickPossible(int x, int y, Constants::Direction kickDir)
                   // vertical kick movement
                   if (kickDir == Constants::DirectionUp || kickDir == Constants::DirectionDown)
                   {
-                     float dy = fabs(p->getY() - y);
+                     float dy = std::fabs(p->getY() - y);
 
                      if (dy < 1.0f + SERVER_KICK_PLAYER_DISTANCE)
                      {
@@ -1076,7 +1076,7 @@ void Game::createInfection(
    else
    {
       // find out which side the rotating cube is showing right now
-      int sideStep = (static_cast<int32_t>(floor(extraElapsedTime + 0.5f))) % 6;
+      int sideStep = (static_cast<int32_t>(std::floor(extraElapsedTime + 0.5f))) % 6;
       Constants::SkullType skullType = faces[sideStep];
       diseasePtr->setType(skullType);
    }
@@ -1123,8 +1123,8 @@ void Game::updateExtras()
    for (const auto& [socket, player] : mPlayerSockets)
    {
       // init player position
-      int x = static_cast<int32_t>(floor(player->getX()));
-      int y = static_cast<int32_t>(floor(player->getY()));
+      int x = static_cast<int32_t>(std::floor(player->getX()));
+      int y = static_cast<int32_t>(std::floor(player->getY()));
 
       MapItem* mapItem = mMap->getItem(x, y);
 
@@ -1251,8 +1251,8 @@ void Game::updateBombs()
       // check if player wants to drop a bomb
       if (player->isBombKeyLocked())
       {
-         int x = static_cast<int32_t>(floor(player->getX()));
-         int y = static_cast<int32_t>(floor(player->getY()));
+         int x = static_cast<int32_t>(std::floor(player->getX()));
+         int y = static_cast<int32_t>(std::floor(player->getY()));
          MapItem* item = mMap->getItem(x, y);
 
          if (!item)
@@ -1685,13 +1685,13 @@ void Game::bombExploded(BombMapItem* bomb, bool /*unused*/)
                   //               float playerPosX = currentPlayer->getX();
                   //               float playerPosY = currentPlayer->getY();
                   //
-                  //               int pXminusE = floor(playerPosX - 0.001);
-                  //               int pX       = floor(playerPosX);
-                  //               int pXplusE  = floor(playerPosX + 0.001);
+                  //               int pXminusE = std::floor(playerPosX - 0.001);
+                  //               int pX       = std::floor(playerPosX);
+                  //               int pXplusE  = std::floor(playerPosX + 0.001);
                   //
-                  //               int pYminusE = floor(playerPosY - 0.001);
-                  //               int pY       = floor(playerPosY);
-                  //               int pYplusE  = floor(playerPosY + 0.001);
+                  //               int pYminusE = std::floor(playerPosY - 0.001);
+                  //               int pY       = std::floor(playerPosY);
+                  //               int pYplusE  = std::floor(playerPosY + 0.001);
                   //
                   //               if (
                   //                     xDist == pXminusE && xDist == pX && xDist == pXplusE
@@ -1705,14 +1705,14 @@ void Game::bombExploded(BombMapItem* bomb, bool /*unused*/)
                      // recently used, but finally removed when all doubles have
                      // been replaced by floats
 
-                  if (floor(pX) < floor(pX + 0.001f))
+                  if (std::floor(pX) < std::floor(pX + 0.001f))
                      pX += 0.001f;
-                  if (floor(pY) < floor(pY + 0.001f))
+                  if (std::floor(pY) < std::floor(pY + 0.001f))
                      pY += 0.001f;
                   */
 
-                  int currentPlayerX = static_cast<int32_t>(floor(pX));
-                  int currentPlayerY = static_cast<int32_t>(floor(pY));
+                  int currentPlayerX = static_cast<int32_t>(std::floor(pX));
+                  int currentPlayerY = static_cast<int32_t>(std::floor(pY));
 
                   if (currentPlayerX == xDist && currentPlayerY == yDist)
                   {
@@ -3158,8 +3158,8 @@ void Game::spawn()
             {
                if (!p->isKilled())
                {
-                  px = static_cast<int32_t>(floor(p->getX()));
-                  py = static_cast<int32_t>(floor(p->getY()));
+                  px = static_cast<int32_t>(std::floor(p->getX()));
+                  py = static_cast<int32_t>(std::floor(p->getY()));
 
                   if (px == x && py == y)
                   {

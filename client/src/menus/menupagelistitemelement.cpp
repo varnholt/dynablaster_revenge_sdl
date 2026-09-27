@@ -5,8 +5,7 @@
 #include "framework/gldevice.h"
 
 // math
-#include "math.h"
-
+#include <cmath>
 MenuPageListItemElement::MenuPageListItemElement()
     : MenuPageTextEditItem(), mIndex(0), mWidth(0), mHeight(0), mX(0.0f), mY(0.0f), mFadeOut(false), mFadeValue(0.0f), mOverrideAlpha(false)
 {
@@ -159,7 +158,7 @@ float MenuPageListItemElement::getFadeOutValue()
    float val = 0.0f;
 
    if (getFocusOutTime().elapsed() < 500)
-      val = cos(mFocusOutTime.elapsed() * 0.01);
+      val = std::cos(mFocusOutTime.elapsed() * 0.01);
 
    return val;
 }

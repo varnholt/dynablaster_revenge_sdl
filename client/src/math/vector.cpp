@@ -1,7 +1,7 @@
 // vector class implementation
 
 #include "vector.h"
-#include <math.h>
+#include <cmath>
 #include "tools/stream.h"
 
 // default constructor: uninitialized(!) vector
@@ -140,7 +140,7 @@ void Vector::operator>>(Stream& stream)
 
 void Vector::normalize(float length)
 {
-   float scale_factor = length / sqrt(x * x + y * y + z * z);
+   float scale_factor = length / std::sqrt(x * x + y * y + z * z);
    x *= scale_factor;
    y *= scale_factor;
    z *= scale_factor;
@@ -149,7 +149,7 @@ void Vector::normalize(float length)
 Vector Vector::normalize(const Vector& other)
 {
    Vector result;
-   float scale_factor = 1.0f / sqrt(other.x * other.x + other.y * other.y + other.z * other.z);
+   float scale_factor = 1.0f / std::sqrt(other.x * other.x + other.y * other.y + other.z * other.z);
    result.x = other.x * scale_factor;
    result.y = other.y * scale_factor;
    result.z = other.z * scale_factor;
@@ -158,7 +158,7 @@ Vector Vector::normalize(const Vector& other)
 
 float Vector::length() const
 {
-   return sqrt(x * x + y * y + z * z);
+   return std::sqrt(x * x + y * y + z * z);
 }
 
 void Vector::load(Stream* stream)
@@ -213,17 +213,17 @@ void Vector::minimum(const Vector& other)
 Vector Vector::abs() const
 {
    Vector result;
-   result.x = fabs(x);
-   result.y = fabs(y);
-   result.z = fabs(z);
+   result.x = std::fabs(x);
+   result.y = std::fabs(y);
+   result.z = std::fabs(z);
    return result;
 }
 
 int Vector::absMaxIndex() const
 {
-   float abs_x = fabs(x);
-   float abs_y = fabs(y);
-   float abs_z = fabs(z);
+   float abs_x = std::fabs(x);
+   float abs_y = std::fabs(y);
+   float abs_z = std::fabs(z);
    if (abs_x >= abs_y && abs_x >= abs_z)
       return 0;
    else if (abs_y >= abs_z && abs_y >= abs_x)

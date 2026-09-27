@@ -13,8 +13,6 @@
 #include "player.h"
 
 // math
-#include "math.h"
-
 #include <algorithm>
 #include <cmath>
 
@@ -41,7 +39,7 @@ void CollisionDetection::process(Player* player)
    bool leftPressed = keysPressed & Constants::KeyLeft;
    bool rightPressed = keysPressed & Constants::KeyRight;
 
-   int field[2] = {(int)floor(player->getX()), (int)floor(player->getY())};
+   int field[2] = {(int)std::floor(player->getX()), (int)std::floor(player->getY())};
 
    int left[2] = {field[0] - 1, field[1]};
    int right[2] = {field[0] + 1, field[1]};
@@ -56,8 +54,8 @@ void CollisionDetection::process(Player* player)
    float absoluteX = player->getX();
    float absoluteY = player->getY();
 
-   float relativeX = absoluteX - floor(absoluteX);
-   float relativeY = absoluteY - floor(absoluteY);
+   float relativeX = absoluteX - std::floor(absoluteX);
+   float relativeY = absoluteY - std::floor(absoluteY);
 
    /*
 
@@ -104,10 +102,10 @@ void CollisionDetection::process(Player* player)
    updatePlayerDirections(player, keysPressed, directions, desiredXPos, desiredYPos);
 
    // collision control
-   int fieldX = floor(desiredXPos);
-   int fieldY = floor(desiredYPos);
-   float xInField = desiredXPos - floor(desiredXPos);
-   float yInField = desiredYPos - floor(desiredYPos);
+   int fieldX = std::floor(desiredXPos);
+   int fieldY = std::floor(desiredYPos);
+   float xInField = desiredXPos - std::floor(desiredXPos);
+   float yInField = desiredYPos - std::floor(desiredYPos);
    float assignedXPos = 0.0;
    float assignedYPos = 0.0;
    bool playerMovesVertically = (player->getY() != desiredYPos);
@@ -127,8 +125,8 @@ void CollisionDetection::process(Player* player)
 
    vBlocked = isPositionBlocked(desiredXPos, desiredYPos, keysPressed, false, fieldX, fieldY, &kickedBomb2);
 
-   xInField = desiredXPos - floor(desiredXPos);
-   yInField = desiredYPos - floor(desiredYPos);
+   xInField = desiredXPos - std::floor(desiredXPos);
+   yInField = desiredYPos - std::floor(desiredYPos);
 
    xInEpsilon = xInField <= 0.5 + SERVER_MOVE_EPSILON && xInField >= 0.5 - SERVER_MOVE_EPSILON;
 
@@ -156,11 +154,11 @@ void CollisionDetection::process(Player* player)
 
       updatePlayerDirections(player, keysFixedHorizontal, directions, desiredXPos, desiredYPos);
 
-      fieldX = floor(desiredXPos);
-      fieldY = floor(desiredYPos);
+      fieldX = std::floor(desiredXPos);
+      fieldY = std::floor(desiredYPos);
 
-      xInField = desiredXPos - floor(desiredXPos);
-      yInField = desiredYPos - floor(desiredYPos);
+      xInField = desiredXPos - std::floor(desiredXPos);
+      yInField = desiredYPos - std::floor(desiredYPos);
 
       hBlocked = isPositionBlocked(desiredXPos, desiredYPos, keysFixedHorizontal, false, fieldX, fieldY);
 
@@ -182,15 +180,15 @@ void CollisionDetection::process(Player* player)
 
          updatePlayerDirections(player, keysFixedVertical, directions, desiredXPos, desiredYPos);
 
-         fieldX = floor(desiredXPos);
-         fieldY = floor(desiredYPos);
+         fieldX = std::floor(desiredXPos);
+         fieldY = std::floor(desiredYPos);
 
          // check if vertical movement is now possible
          vBlocked = isPositionBlocked(desiredXPos, desiredYPos, keysFixedVertical, true, fieldX, fieldY);
       }
 
-      xInField = desiredXPos - floor(desiredXPos);
-      yInField = desiredYPos - floor(desiredYPos);
+      xInField = desiredXPos - std::floor(desiredXPos);
+      yInField = desiredYPos - std::floor(desiredYPos);
 
       // x should be in epsilon now
       xInEpsilon = xInField <= 0.5 + SERVER_MOVE_EPSILON && xInField >= 0.5 - SERVER_MOVE_EPSILON;
@@ -334,7 +332,7 @@ float CollisionDetection::adjustXPosition(
    if (xInField > 0.5 && (horizontalMovementForbidden || !playerMovesHorizontally))
    {
       if (xInField - 0.5 < (SERVER_SPEED * speed))
-         assignedXPos = floor(desiredXPos) + 0.5;
+         assignedXPos = std::floor(desiredXPos) + 0.5;
       else
          assignedXPos = desiredXPos - (SERVER_SPEED * speed);
    }
@@ -343,7 +341,7 @@ float CollisionDetection::adjustXPosition(
    else if (xInField < 0.5 && (horizontalMovementForbidden || !playerMovesHorizontally))
    {
       if (0.5 - xInField < (SERVER_SPEED * speed))
-         assignedXPos = floor(desiredXPos) + 0.5;
+         assignedXPos = std::floor(desiredXPos) + 0.5;
       else
          assignedXPos = desiredXPos + (SERVER_SPEED * speed);
    }
@@ -379,7 +377,7 @@ float CollisionDetection::adjustYPosition(
    if (yInField > 0.5 && (verticalMovementForbidden || !playerMovesVertically))
    {
       if (yInField - 0.5 < (SERVER_SPEED * speed))
-         assignedYPos = floor(desiredYPos) + 0.5;
+         assignedYPos = std::floor(desiredYPos) + 0.5;
       else
          assignedYPos = desiredYPos - (SERVER_SPEED * speed);
    }
@@ -388,7 +386,7 @@ float CollisionDetection::adjustYPosition(
    else if (yInField < 0.5 && (verticalMovementForbidden || !playerMovesVertically))
    {
       if (0.5 - yInField < (SERVER_SPEED * speed))
-         assignedYPos = floor(desiredYPos) + 0.5;
+         assignedYPos = std::floor(desiredYPos) + 0.5;
       else
          assignedYPos = desiredYPos + (SERVER_SPEED * speed);
    }
@@ -440,8 +438,8 @@ bool CollisionDetection::isPositionBlocked(
    }
 
    // make field position of x and y
-   int fieldXPos = floor(x);
-   int fieldYPos = floor(y);
+   int fieldXPos = std::floor(x);
+   int fieldYPos = std::floor(y);
 
    // block if map bounds are exceeded
    if (fieldXPos < 0 || fieldYPos < 0 || fieldXPos > getMap()->getWidth() - 1 || fieldYPos > getMap()->getHeight() - 1)

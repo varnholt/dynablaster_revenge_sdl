@@ -1,5 +1,5 @@
 #include "bakedtransformation.h"
-#include <math.h>
+#include <cmath>
 #include "nodes/node.h"
 
 BakedTransformation::BakedTransformation() : Array<Matrix>(), mStepSize(0.0f)
@@ -9,7 +9,7 @@ BakedTransformation::BakedTransformation() : Array<Matrix>(), mStepSize(0.0f)
 BakedTransformation::BakedTransformation(Node* node, float stepSize) : Array<Matrix>(), mStepSize(1.0f / stepSize)
 {
    int maxFrame = node->getAnimationLength();
-   int keys = (int)ceil(maxFrame / stepSize);
+   int keys = (int)std::ceil(maxFrame / stepSize);
    if (keys == 0)
       keys = 1;
 
@@ -28,7 +28,7 @@ Matrix BakedTransformation::interpolate(float frame) const
       return this->get(0);
 
    frame *= mStepSize;
-   int index = (int)floor(frame);
+   int index = (int)std::floor(frame);
 
    // make sure [index] and [index+1] exist for blending
    if (index < this->size() - 1)

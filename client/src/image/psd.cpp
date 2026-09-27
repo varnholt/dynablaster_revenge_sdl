@@ -1,5 +1,5 @@
 #include "psd.h"
-#include <stdlib.h>
+#include <cstdlib>
 #include <cstring>
 #include "image/image.h"
 #include "tools/filestream.h"
@@ -553,7 +553,7 @@ void PSD::loadLayerInformation(Stream* stream)
    /*int size=*/stream->getInt();
 
    // layer allozieren
-   mLayerCount = abs(stream->getShort());
+   mLayerCount = std::abs(stream->getShort());
    mLayers = new Layer[mLayerCount];
 
    // load layer parameters

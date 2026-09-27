@@ -34,7 +34,7 @@
 #include <cstring>
 #include <format>
 #include <map>
-#include <math.h>
+#include <cmath>
 #include <numbers>
 #include <string>
 
@@ -197,7 +197,7 @@ void GameWinDrawable::hideLayers()
 void GameWinDrawable::drawWinnerText()
 {
    float alpha = getContentsAlpha();
-   float yOffset = sin(mRenderTime * 0.05f) * 1080.0f * 0.015f;
+   float yOffset = std::sin(mRenderTime * 0.05f) * 1080.0f * 0.015f;
 
    const float fontSize = 0.7f;
 
@@ -465,8 +465,8 @@ void GameWinDrawable::animate(float time)
    cupTransform.yw = 0.0f;
    cupTransform.zw = 50.0f;
    cupTransform.ww = 1.0f;
-   Matrix rotzc = Matrix::rotateZ(0.005f * sin(0.01f * time));
-   Matrix rotyc = Matrix::rotateY(0.001f * sin(0.01f * time));
+   Matrix rotzc = Matrix::rotateZ(0.005f * std::sin(0.01f * time));
+   Matrix rotyc = Matrix::rotateY(0.001f * std::sin(0.01f * time));
    mScene->getNode("Cup")->setTransform(rotyc * rotzc * cupTransform);
 
    float scale = 365;

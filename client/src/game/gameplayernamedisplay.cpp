@@ -16,8 +16,7 @@
 
 #include "render/texturepool.h"
 
-#include <math.h>
-
+#include <cmath>
 #define FONT_DISPLAY_DURATION 8000
 #define FONT_DISPLAY_FADE_DURATION 3000
 #define FONT_Y_OFFSET 30
@@ -216,7 +215,7 @@ void GamePlayerNameDisplay::drawArrow() const
 {
    if (!BombermanClient::getInstance()->getCurrentPlayerInfo()->isKilled())
    {
-      const float offsetZ = 4.0f + sin(GlobalTime::Instance()->getTime() * 4.5f) * 0.5f;
+      const float offsetZ = 4.0f + std::sin(GlobalTime::Instance()->getTime() * 4.5f) * 0.5f;
 
       activeDevice->setShader(mArrowShader);
 

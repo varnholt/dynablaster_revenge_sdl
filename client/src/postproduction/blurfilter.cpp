@@ -1,5 +1,5 @@
 #include "blurfilter.h"
-#include <math.h>
+#include <cmath>
 #include "gldevice.h"
 #include "math/matrix.h"
 
@@ -136,7 +136,7 @@ unsigned int BlurFilter::gauss(float radius, unsigned int texture, int width, in
    float deltaU = 1.0f / mTemp[0]->width();
    float deltaV = 1.0f / mTemp[0]->height();
 
-   int size = (int)ceil(radius);
+   int size = (int)std::ceil(radius);
    if (size > 31)
       size = 31;
 
@@ -146,7 +146,7 @@ unsigned int BlurFilter::gauss(float radius, unsigned int texture, int width, in
    kernel[0] = 1.0f;
    for (int i = 1; i <= size; i++)
    {
-      float f = (float)pow(2.718281828459045, i * i * scale);
+      float f = (float)std::pow(2.718281828459045, i * i * scale);
       sum += f;
       kernel[i] = f;
    }

@@ -4,7 +4,7 @@
 #include "math/vector.h"
 #include "math/vector4.h"
 #include "image/image.h"
-#include <math.h>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <vector>
@@ -19,12 +19,12 @@ float linear(float a, float b, float t)
 
 float fract( float x )
 {
-   return fmod(x, 1.0f);
+   return std::fmod(x, 1.0f);
 }
 
 float hash( float n )
 {
-   return fract(sin(n)*43758.5453f);
+   return fract(std::sin(n)*43758.5453f);
 }
 
 Vector vfloor( const Vector& x )

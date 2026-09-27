@@ -254,7 +254,7 @@ void MenuPageListItem::limitY(float& y)
 void MenuPageListItem::animate(float /*time*/)
 {
    // simple mouse-triggered scrolling animation
-   float deceleration = 1.0f + sin(mElapsed.elapsed() * 0.01f);
+   float deceleration = 1.0f + std::sin(mElapsed.elapsed() * 0.01f);
    float scrollValueMoving = mScrollValue * SCROLL_SPEED;
    float scrollValueStopping = (deceleration) * 0.5f * scrollValueMoving;
 
@@ -268,7 +268,7 @@ void MenuPageListItem::animate(float /*time*/)
    {
       float elapsed = mBlendTimer.elapsed();
 
-      float a = 0.5f * (1.0f + cos(std::numbers::pi_v<float> * (elapsed / duration)));
+      float a = 0.5f * (1.0f + std::cos(std::numbers::pi_v<float> * (elapsed / duration)));
       float b = 1.0f - a;
 
       mY = a * getYOffsetSource() + b * getYOffsetDest();

@@ -139,10 +139,10 @@ void DeathFlowFieldAnimation::initialize(FrameBuffer* src, const Vector& min, co
    int screenWidth = src->width();
    int screenHeight = src->height();
 
-   int x0 = (int)floor((min.x + 1.0f) * 0.5f * screenWidth);
-   int y0 = (int)floor((min.y + 1.0f) * 0.5f * screenHeight);
-   int x1 = (int)ceil((max.x + 1.0f) * 0.5f * screenWidth);
-   int y1 = (int)ceil((max.y + 1.0f) * 0.5f * screenHeight);
+   int x0 = (int)std::floor((min.x + 1.0f) * 0.5f * screenWidth);
+   int y0 = (int)std::floor((min.y + 1.0f) * 0.5f * screenHeight);
+   int x1 = (int)std::ceil((max.x + 1.0f) * 0.5f * screenWidth);
+   int y1 = (int)std::ceil((max.y + 1.0f) * 0.5f * screenHeight);
 
    int rectWidth = x1 - x0;
    int rectHeight = y1 - y0;
@@ -153,8 +153,8 @@ void DeathFlowFieldAnimation::initialize(FrameBuffer* src, const Vector& min, co
 
    mParticleSize = 50.0f * xSkip;
 
-   mWidth = (int)floor(rectWidth / xSkip);
-   mHeight = (int)floor(rectHeight / ySkip);
+   mWidth = (int)std::floor(rectWidth / xSkip);
+   mHeight = (int)std::floor(rectHeight / ySkip);
 
    if (mWidth < 1)
       mWidth = 1;

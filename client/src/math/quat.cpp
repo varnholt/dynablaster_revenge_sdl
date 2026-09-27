@@ -1,5 +1,5 @@
 #include "quat.h"
-#include <math.h>
+#include <cmath>
 #include "matrix.h"
 #include "tools/stream.h"
 #include "vector.h"
@@ -29,7 +29,7 @@ Quat::Quat(const Matrix& mat)
    if (tr >= 0.0)
    {
       // W
-      s = sqrt(tr + mat.ww);
+      s = std::sqrt(tr + mat.ww);
       w = (float)s * 0.5f;
       s = 0.5f / s;
       x = (mat.zy - mat.yz) * s;
@@ -41,7 +41,7 @@ Quat::Quat(const Matrix& mat)
       if (mat.xx > mat.yy && mat.xx > mat.zz)
       {
          // X
-         s = sqrt(mat.xx - (mat.yy + mat.zz) + mat.ww);
+         s = std::sqrt(mat.xx - (mat.yy + mat.zz) + mat.ww);
          x = s * 0.5f;
          s = 0.5f / s;
          y = (mat.xy + mat.yx) * s;
@@ -51,7 +51,7 @@ Quat::Quat(const Matrix& mat)
       else if (mat.yy > mat.zz)
       {
          // Y
-         s = sqrt(mat.yy - (mat.zz + mat.xx) + mat.ww);
+         s = std::sqrt(mat.yy - (mat.zz + mat.xx) + mat.ww);
          y = s * 0.5f;
          s = 0.5f / s;
          z = (mat.yz + mat.zy) * s;
@@ -61,7 +61,7 @@ Quat::Quat(const Matrix& mat)
       else
       {
          // Z
-         s = sqrt(mat.zz - (mat.xx + mat.yy) + mat.ww);
+         s = std::sqrt(mat.zz - (mat.xx + mat.yy) + mat.ww);
          z = s * 0.5f;
          s = 0.5f / s;
          x = (mat.zx + mat.xz) * s;
@@ -72,7 +72,7 @@ Quat::Quat(const Matrix& mat)
 
    if (mat.ww != 1.0)
    {
-      float t = 1.0f / sqrt(mat.ww);
+      float t = 1.0f / std::sqrt(mat.ww);
       (*this) = (*this) * t;
    }
 }
@@ -190,9 +190,9 @@ Quat Quat::slerp(const Quat& q1, const Quat& q2, float t)
    if (v < 0.9999999f)
    {
       float a = acos(v);
-      float s3 = 1.0f / sin(a);
-      s1 = sin((1.0f - t) * a) * s3;
-      s2 = sin(t * a) * s3;
+      float s3 = 1.0f / std::sin(a);
+      s1 = std::sin((1.0f - t) * a) * s3;
+      s2 = std::sin(t * a) * s3;
    }
    else
    {
@@ -347,7 +347,7 @@ Quat Quat::snuggle(Vector& k)
             cycle(ka, 1) break;
       }
       qp = q * p;
-      t = sqrt(mag[win] + 0.5f);
+      t = std::sqrt(mag[win] + 0.5f);
       p = p * Quat(0.0f, 0.0f, (float)(-qp.z / t), (float)(qp.w / t));
       p = qtoz * p.conjugate();
    }

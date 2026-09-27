@@ -1,5 +1,5 @@
 #include "matrix.h"
-#include <math.h>
+#include <cmath>
 #include <stdio.h>
 #include "scale.h"
 #include "tools/stream.h"
@@ -532,7 +532,7 @@ Matrix Matrix::normalized() const
 
 void Matrix::normalizeZ()
 {
-   float scale_factor = 1.0f / sqrt(zx * zx + zy * zy + zz * zz);
+   float scale_factor = 1.0f / std::sqrt(zx * zx + zy * zy + zz * zz);
    zx *= scale_factor;
    zy *= scale_factor;
    zz *= scale_factor;
@@ -840,9 +840,9 @@ Matrix Matrix::rotateZ(const float angle_radians)
 
 float Matrix::norm() const
 {
-   float norm_x = fabs(xx) + fabs(yx) + fabs(zx);
-   float norm_y = fabs(xy) + fabs(yy) + fabs(zy);
-   float norm_z = fabs(xz) + fabs(yz) + fabs(zz);
+   float norm_x = std::fabs(xx) + std::fabs(yx) + std::fabs(zx);
+   float norm_y = std::fabs(xy) + std::fabs(yy) + std::fabs(zy);
+   float norm_z = std::fabs(xz) + std::fabs(yz) + std::fabs(zz);
    if (norm_y > norm_x)
       norm_x = norm_y;
    if (norm_z > norm_x)
@@ -915,7 +915,7 @@ float Matrix::polarDecompose(Matrix& Q, Matrix& S) const
       }
       float MadjT_one = MadjTk.norm();
       float MadjT_inf = MadjTk.transpose3x3().norm();
-      float gamma = sqrt(sqrt((MadjT_one * MadjT_inf) / (M_one * M_inf)) / fabs(det));
+      float gamma = std::sqrt(std::sqrt((MadjT_one * MadjT_inf) / (M_one * M_inf)) / std::fabs(det));
       float g1 = gamma * 0.5f;
       float g2 = 0.5f / (gamma * det);
       Matrix Ek = Mk;
@@ -986,7 +986,7 @@ Vector Matrix::spectralDecompose(Matrix& U) const
 
    for (int sweep = 20; sweep > 0; sweep--)
    {
-      float sm = static_cast<float>(fabs(OffD[0]) + fabs(OffD[1]) + fabs(OffD[2]));
+      float sm = static_cast<float>(std::fabs(OffD[0]) + std::fabs(OffD[1]) + std::fabs(OffD[2]));
       if (sm == 0.0)
          break;
 
@@ -995,12 +995,12 @@ Vector Matrix::spectralDecompose(Matrix& U) const
          int p = nxt[i];
          int q = nxt[p];
 
-         double fabsOffDi = fabs(OffD[i]);
+         double fabsOffDi = std::fabs(OffD[i]);
          g = 100.0 * fabsOffDi;
          if (fabsOffDi > 0.0)
          {
             h = Diag[q] - Diag[p];
-            fabsh = fabs(h);
+            fabsh = std::fabs(h);
             if (fabsh + g == fabsh)
             {
                t = OffD[i] / h;
@@ -1008,11 +1008,11 @@ Vector Matrix::spectralDecompose(Matrix& U) const
             else
             {
                theta = 0.5 * h / OffD[i];
-               t = 1.0 / (fabs(theta) + sqrt(theta * theta + 1.0));
+               t = 1.0 / (std::fabs(theta) + std::sqrt(theta * theta + 1.0));
                if (theta < 0.0)
                   t = -t;
             }
-            c = 1.0 / sqrt(t * t + 1.0);
+            c = 1.0 / std::sqrt(t * t + 1.0);
             s = t * c;
             tau = s / (c + 1.0);
             ta = t * OffD[i];

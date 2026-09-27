@@ -36,7 +36,7 @@ jobs:
             build-essential pkg-config \
             libgl1-mesa-dev libegl1-mesa-dev libgles2-mesa-dev \
             libx11-dev libxext-dev libxrandr-dev libxi-dev libxss-dev \
-            libxcursor-dev libxfixes-dev libxinerama-dev \
+            libxcursor-dev libxfixes-dev libxinerama-dev libxtst-dev \
             libwayland-dev libdecor-0-dev wayland-protocols \
             libasound2-dev libpulse-dev libudev-dev libdbus-1-dev
 

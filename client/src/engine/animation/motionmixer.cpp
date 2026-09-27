@@ -5,8 +5,7 @@
 #include "nodes/scenegraph.h"
 
 // cmath
-#include "math.h"
-
+#include <cmath>
 SceneGraph* MotionMixer::mRefAnim = 0;
 Array<BoneAnimPrecalc*> MotionMixer::mMatrixPrecalc;
 float MotionMixer::mFrameStep = 50.0f;
@@ -121,7 +120,7 @@ int MotionMixer::addAnimation(const String& name)
       }
    }
 
-   int frames = (int)ceil(mAnimLength / mFrameStep);
+   int frames = (int)std::ceil(mAnimLength / mFrameStep);
 
    if (boneList.size() > mBoneCount)
       mBoneCount = boneList.size();
@@ -197,7 +196,7 @@ void MotionMixer::animate(float frame)
    frame /= 50.0f;
    if (frame < 0.0)
       frame = 0.0f;
-   int index = floor(frame);
+   int index = std::floor(frame);
    if (index > anim1->size() - 2)
       index = anim1->size() - 2;
    float t = (index + 1) - frame;

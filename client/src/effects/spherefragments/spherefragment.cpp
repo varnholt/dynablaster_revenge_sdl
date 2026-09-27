@@ -11,8 +11,7 @@
 #include "vertex3d.h"
 
 // cmath
-#include <math.h>
-
+#include <cmath>
 namespace
 {
 // MSVC only defines M_PI when _USE_MATH_DEFINES is set before every <math.h> include site
@@ -42,7 +41,7 @@ SphereFragment::SphereFragment(const Array<Mesh*>& meshList, Image* orderImage) 
       p.normalize();
       p += Vector(0, 0, 1);
 
-      float m = 0.5f / sqrt(p * p);
+      float m = 0.5f / std::sqrt(p * p);
       float u = 0.5f + p.x * m;
       float v = 0.5f + p.y * m;
 
@@ -157,7 +156,7 @@ void SphereFragment::animate(float time, const Matrix& rotation)
       if (t > kPi * 2.0f)
          t = kPi * 2.0f;
 
-      float timeGrowth = sin(t + 1.5f * kPi);
+      float timeGrowth = std::sin(t + 1.5f * kPi);
       float posScale = 0.1f * (1.0f + timeGrowth);
 
       posScale = 1.0f + mRandom[i] * posScale;
@@ -168,7 +167,7 @@ void SphereFragment::animate(float time, const Matrix& rotation)
       size *= size;
 
       // 0..1
-      float amount = sin(t * 0.5f - kPi * 0.5f) * 0.5f + 0.5f;
+      float amount = std::sin(t * 0.5f - kPi * 0.5f) * 0.5f + 0.5f;
 
       // 0..2pi
       float r = amount * kPi * 2.0f;
@@ -178,7 +177,7 @@ void SphereFragment::animate(float time, const Matrix& rotation)
 
       mModelView[i] = fragmentRotation * rot * rotation;
 
-      mFresnelFactors[i] = 1.0f - sin(t * 0.5f);
+      mFresnelFactors[i] = 1.0f - std::sin(t * 0.5f);
    }
 }
 

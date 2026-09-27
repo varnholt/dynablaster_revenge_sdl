@@ -1,5 +1,5 @@
 #include "image.h"
-#include <math.h>
+#include <cmath>
 #include <algorithm>
 #include <cstring>
 #include "image/imagepool.h"
@@ -140,8 +140,8 @@ const String& Image::filename() const
 
 unsigned int Image::getPixel(float u, float v) const
 {
-   int x = (int)floor(u * (mWidth - 1));
-   int y = (int)floor(v * (mHeight - 1));
+   int x = (int)std::floor(u * (mWidth - 1));
+   int y = (int)std::floor(v * (mHeight - 1));
    return mData[y * mWidth + x];
 }
 
@@ -359,7 +359,7 @@ unsigned int calcNormal(int z, unsigned int x0, unsigned int x1, unsigned int y0
    int y = (y0 - y1);
 
    int mag = x * x + y * y + z * z;
-   float t = 128.0f / sqrt((double)mag);
+   float t = 128.0f / std::sqrt((double)mag);
    x = 128 + x * t;
    if (x < 0)
       x = 0;

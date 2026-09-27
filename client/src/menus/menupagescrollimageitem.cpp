@@ -87,7 +87,7 @@ void MenuPageScrollImageItem::animate(float /*time*/)
 {
    mAnimationTime = GlobalTime::Instance()->getTime();
 
-   float relativeTime = fmod(mAnimationTime - mStartTime, LIM_5);
+   float relativeTime = std::fmod(mAnimationTime - mStartTime, LIM_5);
 
    // flip if fmod limit reached
    if (relativeTime < mRelativeTimePrevious)
@@ -108,7 +108,7 @@ void MenuPageScrollImageItem::animate(float /*time*/)
 
       // normalize to pi/2
       val *= (std::numbers::pi_v<float> / 2.0f);
-      val = 1.0f - cos(val);
+      val = 1.0f - std::cos(val);
 
       val *= LIM_2_POS_LENGTH;
       val += LIM_2_POS_OFFSET;
@@ -132,7 +132,7 @@ void MenuPageScrollImageItem::animate(float /*time*/)
 
       // normalize to pi/2
       val *= (std::numbers::pi_v<float> / 2.0f);
-      val = sin(val);
+      val = std::sin(val);
 
       val *= LIM_4_POS_LENGTH;
       val += LIM_4_POS_OFFSET;

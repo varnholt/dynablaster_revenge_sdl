@@ -19,7 +19,7 @@
 #include "gldevice.h"
 #include "timer.h"
 
-#include <math.h>
+#include <cmath>
 #include <algorithm>
 
 #define LINEEDIT_SAY "lineedit_say"
@@ -491,7 +491,7 @@ void GameMessagingDrawable::drawCursor()
 {
    // see MenuPageTextEditItem::drawCursor()'s own doc comment - same lazily-created 1x1 white
    // texture + dynamic quad replacement for the legacy untextured glColor4ub'd quad.
-   float alpha = 0.25f + fmod(GlobalTime::Instance()->getTime(), 0.5f);
+   float alpha = 0.25f + std::fmod(GlobalTime::Instance()->getTime(), 0.5f);
 
    float left = 0.0f;
    float right = 0.0f;

@@ -14,8 +14,7 @@
 #include "tools/profiling.h"
 #include "tools/stream.h"
 
-#include <math.h>
-
+#include <cmath>
 /*
  expected block neighbouring information (in mesh::mRenderFlags)
 
@@ -218,7 +217,7 @@ void SkullMaterial::begin()
 
       cam = mShadowCam->getTransform().getView();
       float fov = mShadowCam->getFOV();
-      fov = tan(fov * 0.5) * 0.75;
+      fov = std::tan(fov * 0.5) * 0.75;
       float zNear = mShadowCam->getNear();
       float zFar = mShadowCam->getFar();
 
