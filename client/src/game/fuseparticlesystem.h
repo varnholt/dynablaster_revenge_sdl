@@ -43,11 +43,11 @@ private:
       Vector origin;
       Vector direction;
       Vector position;
-      float pointSize = 1.0f;
-      float scalar = 0.0f;
-      float elapsed = 0.0f;
-      float randomStartTime = 0.0f;
-      bool started = false;
+      float pointSize;
+      float scalar;
+      float elapsed;
+      float randomStartTime;
+      bool started;
    };
 
    struct Emitter
@@ -55,7 +55,7 @@ private:
       Vector origin;
       Vector nextOrigin;
       std::vector<Particle> particles;
-      bool removing = false;
+      bool removing;
    };
 
    void resetParticle(Particle& particle, const Vector& origin);
@@ -63,10 +63,10 @@ private:
    std::unordered_map<MapItem*, Emitter> mEmitters;
 
    std::vector<float> mUploadBuffer;
-   unsigned int mVertexBuffer = 0;
-   unsigned int mParticleTextureId = 0;
-   unsigned int mShader = 0;
-   int mTexture = 0;
-   int mPointSize = 0;
-   int mProjection = 0;
+   unsigned int mVertexBuffer;
+   unsigned int mParticleTextureId;
+   unsigned int mShader;
+   int mTexture;
+   int mPointSize;
+   int mProjection;
 };

@@ -5,8 +5,6 @@
 #include "math/matrix.h"
 #include "tools/random.h"
 
-#include <algorithm>
-
 namespace
 {
 constexpr int PARTICLE_COUNT = 100;
@@ -23,6 +21,12 @@ constexpr float PARTICLE_PIXEL_SIZE = 400.0f;
 }  // namespace
 
 FuseParticleSystem::FuseParticleSystem()
+ : mVertexBuffer(0),
+   mParticleTextureId(0),
+   mShader(0),
+   mTexture(0),
+   mPointSize(0),
+   mProjection(0)
 {
    Image image;
    image.load("data/logo/pointsprite");
@@ -69,6 +73,7 @@ void FuseParticleSystem::addEmitter(MapItem* item, const Vector& origin)
    Emitter emitter;
    emitter.origin = origin;
    emitter.nextOrigin = origin;
+   emitter.removing = false;
    emitter.particles.resize(PARTICLE_COUNT);
 
    for (auto& particle : emitter.particles)
@@ -100,26 +105,26 @@ void FuseParticleSystem::removeEmitter(MapItem* item)
 
 void FuseParticleSystem::animate(float dt)
 {
-   // std::erase_if (C++20, <algorithm>/<unordered_map>) - unlike std::ranges::to (see the linux
-   // CI fix in shared/gamestatspacket.cpp), this one's been supported tree-wide (GCC/Clang/MSVC)
-   // for years, safe to rely on here.
-   for (auto& [item, emitter] : mEmitters)
+   for (auto it = mEmitters.begin(); it != mEmitters.end();)
    {
-      std::erase_if(
-         emitter.particles,
-         [this, &emitter, dt](Particle& particle)
+      Emitter& emitter = it->second;
+
+      for (auto pit = emitter.particles.begin(); pit != emitter.particles.end();)
+      {
+         Particle& particle = *pit;
+
+         particle.elapsed += dt;
+
+         // bomb was kicked far from where these sparks expected it - burn down instead of
+         // dragging the trail across the map, matching FuseParticle::animate()'s original check.
+         float dist = (particle.origin - emitter.nextOrigin).length();
+         if (dist > 1.0f)
+            particle.randomStartTime = 0.0f;
+
+         bool remove = false;
+
+         if (particle.elapsed > particle.randomStartTime || emitter.removing)
          {
-            particle.elapsed += dt;
-
-            // bomb was kicked far from where these sparks expected it - burn down instead of
-            // dragging the trail across the map, matching FuseParticle::animate()'s original check.
-            float dist = (particle.origin - emitter.nextOrigin).length();
-            if (dist > 1.0f)
-               particle.randomStartTime = 0.0f;
-
-            if (particle.elapsed <= particle.randomStartTime && !emitter.removing)
-               return false;
-
             particle.started = true;
 
             particle.direction.y -= dt * 0.02f;
@@ -128,19 +133,26 @@ void FuseParticleSystem::animate(float dt)
 
             particle.position = particle.origin + particle.direction * particle.scalar;
 
-            if (particle.pointSize >= 0.01f)
-               return false;
-
-            if (emitter.removing)
-               return true;
-
-            resetParticle(particle, emitter.nextOrigin);
-            return false;
+            if (particle.pointSize < 0.01f)
+            {
+               if (emitter.removing)
+                  remove = true;
+               else
+                  resetParticle(particle, emitter.nextOrigin);
+            }
          }
-      );
-   }
 
-   std::erase_if(mEmitters, [](const auto& entry) { return entry.second.removing && entry.second.particles.empty(); });
+         if (remove)
+            pit = emitter.particles.erase(pit);
+         else
+            ++pit;
+      }
+
+      if (emitter.removing && emitter.particles.empty())
+         it = mEmitters.erase(it);
+      else
+         ++it;
+   }
 }
 
 void FuseParticleSystem::render()
