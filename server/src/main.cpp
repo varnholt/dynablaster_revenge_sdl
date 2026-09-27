@@ -38,6 +38,8 @@ int main(int /*argc*/, char** /*argv*/)
 
       auto next = std::chrono::steady_clock::now() + std::chrono::milliseconds(1);
       while (std::chrono::steady_clock::now() < next)
+      {
          std::this_thread::yield();
+      }
    }
 }
