@@ -54,8 +54,10 @@
 #include "timepacket.h"
 #include "tools/stream.h"
 
+#include <chrono>
 #include <format>
 #include <string>
+#include <thread>
 
 // ai
 #include "botfactory.h"
@@ -132,6 +134,12 @@ BombermanClient::~BombermanClient()
 {
    mInstance = nullptr;
    clearPlayerInfoMap();
+
+   mServerThread.request_stop();
+   if (mServerThread.joinable())
+   {
+      mServerThread.join();
+   }
 
    delete mServer;
 }
@@ -2123,10 +2131,27 @@ void BombermanClient::host()
 
       if (mServer->isListening())
       {
-         // Server and BombermanClient are both poll-based now, so there's no reason left to
-         // run the embedded server on its own thread - it ticks via its own Timer on this
-         // (the main) thread, same as before, just without the moveToThread() hop.
-         mServer->startPolling();
+         // runs on its own thread, decoupled from the client's render/frame rate
+         mServerThread = std::jthread(
+            [this](std::stop_token stopToken)
+            {
+               mServer->startPolling();
+
+               while (!stopToken.stop_requested())
+               {
+                  Timer::update();
+
+                  // std::this_thread::sleep_for() is quantized to the OS scheduler's timer
+                  // resolution (~15.6ms on Windows regardless of what's requested) - spin-waiting
+                  // via yield() isn't, so it replaces the sleep here.
+                  auto next = std::chrono::steady_clock::now() + std::chrono::milliseconds(1);
+                  while (std::chrono::steady_clock::now() < next && !stopToken.stop_requested())
+                  {
+                     std::this_thread::yield();
+                  }
+               }
+            }
+         );
 
          hostingSignal(true);
       }

@@ -9,6 +9,7 @@ struct PendingSingleShot
 {
    std::chrono::steady_clock::time_point due;
    std::function<void()> callback;
+   std::thread::id owner_thread;
 };
 
 std::mutex _single_shot_mutex;
@@ -37,6 +38,7 @@ int32_t Timer::interval() const
 void Timer::start()
 {
    _start_time = std::chrono::steady_clock::now();
+   _owner_thread = std::this_thread::get_id();
    _active = true;
 
    std::lock_guard<std::mutex> lock(_mutex);
@@ -65,19 +67,22 @@ bool Timer::isActive() const
 void Timer::singleShot(int32_t milliseconds, std::function<void()> callback)
 {
    std::lock_guard<std::mutex> lock(_single_shot_mutex);
-   _pending_single_shots.push_back({std::chrono::steady_clock::now() + std::chrono::milliseconds(milliseconds), std::move(callback)});
+   _pending_single_shots.push_back(
+      {std::chrono::steady_clock::now() + std::chrono::milliseconds(milliseconds), std::move(callback), std::this_thread::get_id()}
+   );
 }
 
 void Timer::update()
 {
    const auto now = std::chrono::steady_clock::now();
+   const auto callingThread = std::this_thread::get_id();
 
    std::vector<Timer*> due;
    {
       std::lock_guard<std::mutex> lock(_mutex);
       for (auto* timer : _timers)
       {
-         if (now - timer->_start_time >= timer->_interval)
+         if (timer->_owner_thread == callingThread && now - timer->_start_time >= timer->_interval)
          {
             due.push_back(timer);
          }
@@ -86,7 +91,19 @@ void Timer::update()
 
    for (auto* timer : due)
    {
-      timer->_start_time = now;
+      // advance by whole elapsed intervals rather than snapping to "now", so the long-run rate
+      // stays correct even when update() is polled irregularly.
+      if (timer->_interval.count() > 0)
+      {
+         const auto elapsed = now - timer->_start_time;
+         const auto intervals = elapsed / timer->_interval;
+         timer->_start_time += timer->_interval * intervals;
+      }
+      else
+      {
+         timer->_start_time = now;
+      }
+
       timer->timeoutSignal();
    }
 
@@ -96,9 +113,9 @@ void Timer::update()
       auto it = std::remove_if(
          _pending_single_shots.begin(),
          _pending_single_shots.end(),
-         [now, &callbacks](auto& pending)
+         [now, callingThread, &callbacks](auto& pending)
          {
-            if (now < pending.due)
+            if (pending.owner_thread != callingThread || now < pending.due)
             {
                return false;
             }

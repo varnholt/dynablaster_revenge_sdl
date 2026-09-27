@@ -12,6 +12,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <thread>
 #include <unordered_map>
 #include <vector>
 
@@ -432,6 +433,9 @@ private:
 
    //! server
    Server* mServer;
+
+   //! server's own tick thread
+   std::jthread mServerThread;
 
    //! ingame message to send
    std::string mMessage;
