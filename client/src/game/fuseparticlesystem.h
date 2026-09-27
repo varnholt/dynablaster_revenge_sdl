@@ -1,12 +1,6 @@
 #pragma once
 
-/// \brief GLES3-native rebuild of client/src/game/fuseparticle.{h,cpp} + fuseparticleemitter.{h,cpp}
-/// (bomb fuse sparks, deferred during the Qt->SDL port - see project memory). The original modeled
-/// each spark as its own heap-allocated FuseParticle drawn via glBegin(GL_QUADS); GLES3 has no
-/// immediate mode, so this is one manager owning a single dynamic point-sprite VBO shared by every
-/// active bomb's sparks, drawn in one glDrawArrays(GL_POINTS, ...) call per frame. Per-particle
-/// physics (direction/scalar/pointSize decay, respawn-on-burnout, fast burn-down when a bomb is
-/// kicked far from its expected position) is unchanged from the original.
+/// \brief Bomb fuse sparks: one manager owns a single point-sprite VBO shared by every active bomb.
 
 #include <unordered_map>
 #include <vector>

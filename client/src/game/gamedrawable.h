@@ -38,24 +38,12 @@ class RenderDevice;
 class SceneGraph;
 class Skull;
 
-// Trimmed GLES3 port of client/src/game/gamedrawable.{h,cpp} (see project memory - Phase 5).
-// Real map/players/bombs/extras/HUD rendering. PlayerDeathEffect (the GPU flowfield-particle
-// death burst), GamePlayerNameDisplay (Tab overlay) and FuseParticleSystem (bomb fuse sparks,
-// rebuilt as a single point-sprite VBO - see fuseparticlesystem.{h,cpp}) were ported for real.
-// Still deliberately dropped (see project memory for the full reasoning per item, all deferred -
-// not missing by oversight): ExtraAnimation/ExtraRevealAnimation (immediate-mode-GL particle
-// reveal effects), MushroomAnimation+ShroomFilter, InvisiblePlayerEffect, PlayerInfectedEffect/
-// PlayerInvincibleEffect (the same class of flowfield-particle status-effect visual, just for
-// infection/invincibility instead of death - the actual game state still flows through
-// BombermanClient regardless), RibbonAnimationFactory/StarTalersFactory/LensFlareFactory
-// (round-end/bonus visual flourishes), GamePlaybackDisplay (moot - GamePlayback is a no-op stub),
-// HeadlessIntegration (bot/multi-instance tooling), the MainDrawable-owned offscreen
-// gameFb/BlendQuad blit (MainDrawable doesn't exist in this port - renders straight to the
-// default framebuffer instead, which is safe now that the mushroom/invisibility effects that
-// needed to read it back as a texture are both dropped), drawTestQuad/drawBoundingBox/
-// drawBoundingRect/playerBoundingRect/loadExplosion (all genuinely dead code in the original -
-// declared/defined but never called), the INSPECT_SCENE debug-only mouse/wheel handling, and the
-// scene .obj export feature (mExportScene - unreachable in this port, nothing sets it).
+// Real map/players/bombs/extras/HUD rendering.
+// Not implemented yet (backlog, see project memory): ExtraAnimation/ExtraRevealAnimation,
+// MushroomAnimation+ShroomFilter, InvisiblePlayerEffect, PlayerInfectedEffect/PlayerInvincibleEffect,
+// RibbonAnimationFactory/StarTalersFactory/LensFlareFactory, GamePlaybackDisplay, HeadlessIntegration.
+// Dead code, not ported: drawTestQuad/drawBoundingBox/drawBoundingRect/playerBoundingRect/
+// loadExplosion, INSPECT_SCENE debug input, mExportScene.
 class GameDrawable : public Drawable
 {
 public:

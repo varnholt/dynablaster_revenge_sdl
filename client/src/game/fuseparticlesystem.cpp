@@ -9,17 +9,12 @@ namespace
 {
 constexpr int PARTICLE_COUNT = 100;
 
-// offset from a bomb mesh's origin to where its fuse actually sits, ported verbatim from
-// client/src/game/fuseparticle.cpp's POSITION_OFFSET_X/Y/Z defines.
+// offset from a bomb mesh's origin to where its fuse actually sits
 constexpr float BOMB_OFFSET_X = 0.36f;
 constexpr float BOMB_OFFSET_Y = 0.15f;
 constexpr float BOMB_OFFSET_Z = 0.48f;
 
-// visual size of a spark in screen pixels at unit view-space depth - tune against a real bomb in
-// game, no analytical way to derive this from the original's world-space quad size (0.05 units).
-// first guess (400) was reported way too big in a real playtest; PlayerDeathEffect's calibrated
-// particles land around 50-150px (50.0f * xSkip, see DeathFlowFieldAnimation::initialize()) at
-// native resolution, so this cuts to a comparable ballpark rather than a blind smaller guess.
+// spark size in screen pixels at unit view-space depth
 constexpr float PARTICLE_PIXEL_SIZE = 48.0f;
 }  // namespace
 
@@ -128,8 +123,7 @@ void FuseParticleSystem::animate(float dt)
 
          particle.elapsed += dt;
 
-         // bomb was kicked far from where these sparks expected it - burn down instead of
-         // dragging the trail across the map, matching FuseParticle::animate()'s original check.
+         // bomb kicked far away - burn down instead of dragging the trail across the map
          float dist = (particle.origin - emitter.nextOrigin).length();
          if (dist > 1.0f)
          {
