@@ -25,6 +25,7 @@
 // forward declarations
 class DetonationManager;
 class ExtraMapItem;
+class FuseParticleSystem;
 class GamePlayerNameDisplay;
 class Level;
 class MapItem;
@@ -39,15 +40,15 @@ class Skull;
 
 // Trimmed GLES3 port of client/src/game/gamedrawable.{h,cpp} (see project memory - Phase 5).
 // Real map/players/bombs/extras/HUD rendering. PlayerDeathEffect (the GPU flowfield-particle
-// death burst) and GamePlayerNameDisplay (Tab overlay) were ported for real - see
-// playerdeatheffect.{h,cpp} / gameplayernamedisplay.{h,cpp}. Still deliberately dropped
-// (see project memory for the full reasoning per item, all deferred - not missing by oversight):
-// ExtraAnimation/ExtraRevealAnimation (immediate-mode-GL particle reveal effects), MushroomAnimation+
-// ShroomFilter, InvisiblePlayerEffect, PlayerInfectedEffect/PlayerInvincibleEffect (the same class
-// of flowfield-particle status-effect visual, just for infection/invincibility instead of death -
-// the actual game state still flows through BombermanClient regardless), RibbonAnimationFactory/StarTalersFactory/
-// LensFlareFactory (round-end/bonus visual flourishes), GamePlaybackDisplay (moot - GamePlayback
-// is a no-op stub), FuseParticle/FuseParticleEmitter (bomb fuse sparks),
+// death burst), GamePlayerNameDisplay (Tab overlay) and FuseParticleSystem (bomb fuse sparks,
+// rebuilt as a single point-sprite VBO - see fuseparticlesystem.{h,cpp}) were ported for real.
+// Still deliberately dropped (see project memory for the full reasoning per item, all deferred -
+// not missing by oversight): ExtraAnimation/ExtraRevealAnimation (immediate-mode-GL particle
+// reveal effects), MushroomAnimation+ShroomFilter, InvisiblePlayerEffect, PlayerInfectedEffect/
+// PlayerInvincibleEffect (the same class of flowfield-particle status-effect visual, just for
+// infection/invincibility instead of death - the actual game state still flows through
+// BombermanClient regardless), RibbonAnimationFactory/StarTalersFactory/LensFlareFactory
+// (round-end/bonus visual flourishes), GamePlaybackDisplay (moot - GamePlayback is a no-op stub),
 // HeadlessIntegration (bot/multi-instance tooling), the MainDrawable-owned offscreen
 // gameFb/BlendQuad blit (MainDrawable doesn't exist in this port - renders straight to the
 // default framebuffer instead, which is safe now that the mushroom/invisibility effects that
@@ -192,6 +193,7 @@ private:
    DetonationManager* mDetonations;
    PlayerDeathEffect* mPlayerDeathEffect;
    GamePlayerNameDisplay* mPlayerNameDisplay;
+   FuseParticleSystem* mFuseParticleSystem;
 
    float mTime;
    float mTimePrev;

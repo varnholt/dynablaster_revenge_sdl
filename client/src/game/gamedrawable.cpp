@@ -15,6 +15,7 @@
 #include "animation/motionmixer.h"
 #include "bombermanclient.h"
 #include "detonationmanager.h"
+#include "fuseparticlesystem.h"
 #include "gameplayernamedisplay.h"
 #include "playerdeatheffect.h"
 #include "extra.h"
@@ -50,6 +51,7 @@ GameDrawable::GameDrawable(RenderDevice* device)
    mDetonations(nullptr),
    mPlayerDeathEffect(nullptr),
    mPlayerNameDisplay(nullptr),
+   mFuseParticleSystem(nullptr),
    mTime(0.0f),
    mTimePrev(0.0f),
    mStones(nullptr),
@@ -97,6 +99,7 @@ GameDrawable::~GameDrawable()
    delete mDetonations;
    delete mPlayerDeathEffect;
    delete mPlayerNameDisplay;
+   delete mFuseParticleSystem;
 }
 
 
@@ -367,6 +370,8 @@ void GameDrawable::initializeGL()
 
    mPlayerNameDisplay = new GamePlayerNameDisplay();
    mPlayerNameDisplay->initialize();
+
+   mFuseParticleSystem = new FuseParticleSystem();
 }
 
 
@@ -513,6 +518,8 @@ Mesh* GameDrawable::createBomb(MapItem *item)
       mPlayfield->addNode(mesh);
       mBombs->addMesh(mesh);
       mShadowBillboards->addMesh(mesh);
+
+      mFuseParticleSystem->addEmitter(item, itemPosition + FuseParticleSystem::getBombOffset());
    }
 
    return mesh;
@@ -708,6 +715,7 @@ void GameDrawable::removeMapItem(MapItem *item)
          mExtraKick->removeMesh(mesh);
          mBombs->removeMesh(mesh);
          mShadowBillboards->removeMesh(mesh);
+         mFuseParticleSystem->removeEmitter(item);
          deleteMesh(mesh);
          mMeshes.erase(m);
       }
@@ -1146,6 +1154,8 @@ void GameDrawable::animate(float time)
    if (mPlayerDeathEffect)
       mPlayerDeathEffect->animate(delta);
 
+   mFuseParticleSystem->animate(delta);
+
    mCameraAnim+=delta*60.0f;
 
    if (mBounce > delta*0.01f)
@@ -1172,6 +1182,8 @@ void GameDrawable::animate(float time)
             float t= time * 0.1f + mesh->getAnimationFrame();
 
             Vector pos= mesh->getTransform().translation();
+
+            mFuseParticleSystem->setEmitterPosition(item, pos + FuseParticleSystem::getBombOffset());
 
             float sx= 1.0f + std::sin(t)*0.2f;
             float sy= 1.0f - std::sin(t)*0.3f;
@@ -1347,6 +1359,7 @@ void GameDrawable::paintGL()
    }
 
    mDetonations->render();
+   mFuseParticleSystem->render();
 
    // start flow fields when a player got killed (and the kill anim is over) - matches the
    // original's own "playerMesh->getFrame() > 10000.0f" convention: PlayerItem::animate() only
