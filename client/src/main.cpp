@@ -36,6 +36,12 @@
 #include <SDL3/SDL.h>
 #include <SDL3_net/SDL_net.h>
 
+#include <functional>
+
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
 namespace
 {
 
@@ -135,10 +141,16 @@ int main(int /*argc*/, char** /*argv*/)
 {
    // must run before any NET_* call (BombermanClient's own connection or an embedded Server via
    // host()); nearly everything in SDL3_net is undefined behavior before this succeeds.
+   // SDL3_net builds as a stub-only lib under Emscripten (no raw sockets in a browser), so
+   // NET_Init() always fails there - log it and keep going instead of aborting before the menu.
    if (!NET_Init())
    {
+#ifdef __EMSCRIPTEN__
+      SDL_Log("SDL_net unavailable in the browser build, networking disabled: %s", SDL_GetError());
+#else
       SDL_Log("Failed to initialize SDL_net: %s", SDL_GetError());
       return 1;
+#endif
    }
 
    // BombermanClient (client/src/game/bombermanclient.cpp, copied in as-is - see project memory,
@@ -349,8 +361,19 @@ int main(int /*argc*/, char** /*argv*/)
    bool running = true;
    navigator.quitRequestSignal.connect([&running]() { running = false; });
 
-   while (running)
+   // wrapped in a std::function rather than the plain while(running) loop running its body
+   // inline, because a real blocking loop would freeze the browser tab under Emscripten (single
+   // JS thread, no return-to-browser between frames) - see the __EMSCRIPTEN__ branch below.
+   std::function<void()> frame = [&]()
    {
+#ifdef __EMSCRIPTEN__
+      if (!running)
+      {
+         emscripten_cancel_main_loop();
+         return;
+      }
+#endif
+
       SDL_Event event{};
       while (SDL_PollEvent(&event))
       {
@@ -534,7 +557,20 @@ int main(int /*argc*/, char** /*argv*/)
       }
 
       context.swap();
+   };
+
+#ifdef __EMSCRIPTEN__
+   // simulate_infinite_loop=true unwinds main()'s stack here and drives frame() off
+   // requestAnimationFrame instead - NET_Quit()/return below never actually run in this build.
+   emscripten_set_main_loop_arg(
+      [](void* arg) { (*static_cast<std::function<void()>*>(arg))(); }, &frame, 0, true
+   );
+#else
+   while (running)
+   {
+      frame();
    }
+#endif
 
    NET_Quit();
 

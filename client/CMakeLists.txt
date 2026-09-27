@@ -375,9 +375,33 @@ target_include_directories(dynablaster_core PUBLIC
 )
 target_link_libraries(dynablaster_core PUBLIC SDL3::SDL3 SDL3_net::SDL3_net)
 
+# real C++ exception catching (SettingsValue::toFloat()'s try/catch, shared/settings.cpp) needs
+# this at compile time too, not just at dynablaster_sdl's link step - DISABLE_EXCEPTION_CATCHING
+# affects codegen (invoke_* wrappers), not just the final link.
+if (EMSCRIPTEN)
+    target_compile_options(dynablaster_core PUBLIC -sDISABLE_EXCEPTION_CATCHING=0)
+endif()
+
 # dynablaster_sdl - the real game, no CLI flags, launches straight into the main menu.
 add_executable(dynablaster_sdl src/main.cpp)
 target_link_libraries(dynablaster_sdl PRIVATE dynablaster_core)
+
+# wasm32 target (browser build). No raw sockets in a browser, so real client<->server networking
+# doesn't work here (see main.cpp's __EMSCRIPTEN__ NET_Init handling) - this is client-only.
+if (EMSCRIPTEN)
+    target_link_options(dynablaster_sdl PRIVATE
+        -sMAX_WEBGL_VERSION=2
+        -sMIN_WEBGL_VERSION=2
+        -sFULL_ES3=1
+        -sALLOW_MEMORY_GROWTH=1
+        # emscripten aborts on any thrown C++ exception by default (DISABLE_EXCEPTION_CATCHING=1) -
+        # SettingsValue::toFloat()'s try/catch (shared/settings.cpp) needs real catching to work.
+        -sDISABLE_EXCEPTION_CATCHING=0
+        --emrun
+        --preload-file ${CMAKE_SOURCE_DIR}/data@data
+    )
+    set_target_properties(dynablaster_sdl PROPERTIES SUFFIX ".html")
+endif()
 
 # dynablaster_sdl_harness - test/diagnostic tooling (--selftest, --menu, --click, --realclick,
 # --dumplayer, --page, --logo3d, --screenshot, and the standalone castle-level demo) - see
