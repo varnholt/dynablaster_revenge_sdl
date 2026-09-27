@@ -1,5 +1,7 @@
 # Dynablaster Revenge
 
+[![build](https://github.com/varnholt/dynablaster_revenge_sdl/actions/workflows/build.yml/badge.svg)](https://github.com/varnholt/dynablaster_revenge_sdl/actions/workflows/build.yml)
+
 _Dynablaster Revenge_ is a remake of the game Dynablaster, released by Hudson Soft in 1991. The
 goal of this remake is to keep the original game-play as untouched as possible while adding
 networked multiplayer and real-time 3D rendering. If you're not yet familiar with the original

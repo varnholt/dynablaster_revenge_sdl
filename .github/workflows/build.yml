@@ -24,6 +24,19 @@ jobs:
       - name: Build server
         run: cmake --build server/build --config Release --parallel
 
+      - name: Package artifact
+        shell: bash
+        run: |
+          mkdir -p artifact/dynablaster
+          cp client/build/Release/dynablaster_sdl.exe artifact/dynablaster/
+          cp server/build/Release/dynablaster_server.exe artifact/dynablaster/
+          cp -r data artifact/dynablaster/data
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dynablaster-windows
+          path: artifact/dynablaster
+
   linux:
     runs-on: ubuntu-latest
     steps:
@@ -52,6 +65,18 @@ jobs:
       - name: Build server
         run: cmake --build server/build --parallel
 
+      - name: Package artifact
+        run: |
+          mkdir -p artifact/dynablaster
+          cp client/build/dynablaster_sdl artifact/dynablaster/
+          cp server/build/dynablaster_server artifact/dynablaster/
+          cp -r data artifact/dynablaster/data
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dynablaster-linux
+          path: artifact/dynablaster
+
   macos:
     runs-on: macos-latest
     steps:
@@ -69,6 +94,18 @@ jobs:
       - name: Build server
         run: cmake --build server/build --parallel
 
+      - name: Package artifact
+        run: |
+          mkdir -p artifact/dynablaster
+          cp client/build/dynablaster_sdl artifact/dynablaster/
+          cp server/build/dynablaster_server artifact/dynablaster/
+          cp -r data artifact/dynablaster/data
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dynablaster-macos
+          path: artifact/dynablaster
+
   wasm:
     runs-on: ubuntu-latest
     steps:
@@ -85,3 +122,16 @@ jobs:
 
       - name: Build client
         run: cmake --build client/build-wasm --target dynablaster_sdl --parallel
+
+      - name: Package artifact
+        run: |
+          mkdir -p artifact/dynablaster-wasm
+          cp client/build-wasm/dynablaster_sdl.html artifact/dynablaster-wasm/
+          cp client/build-wasm/dynablaster_sdl.js artifact/dynablaster-wasm/
+          cp client/build-wasm/dynablaster_sdl.wasm artifact/dynablaster-wasm/
+          cp client/build-wasm/dynablaster_sdl.data artifact/dynablaster-wasm/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dynablaster-wasm
+          path: artifact/dynablaster-wasm
