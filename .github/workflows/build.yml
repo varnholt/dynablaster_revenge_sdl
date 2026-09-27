@@ -30,7 +30,7 @@ jobs:
           mkdir -p artifact/dynablaster
           cp client/build/Release/dynablaster_revenge.exe artifact/dynablaster/
           cp server/build/Release/dynablaster_server.exe artifact/dynablaster/
-          cp -r data artifact/dynablaster/data
+          cp -r client/data artifact/dynablaster/data
 
       - uses: actions/upload-artifact@v4
         with:
@@ -70,7 +70,7 @@ jobs:
           mkdir -p artifact/dynablaster
           cp client/build/dynablaster_revenge artifact/dynablaster/
           cp server/build/dynablaster_server artifact/dynablaster/
-          cp -r data artifact/dynablaster/data
+          cp -r client/data artifact/dynablaster/data
 
       - uses: actions/upload-artifact@v4
         with:
@@ -99,7 +99,7 @@ jobs:
           mkdir -p artifact/dynablaster
           cp client/build/dynablaster_revenge artifact/dynablaster/
           cp server/build/dynablaster_server artifact/dynablaster/
-          cp -r data artifact/dynablaster/data
+          cp -r client/data artifact/dynablaster/data
 
       - uses: actions/upload-artifact@v4
         with:
