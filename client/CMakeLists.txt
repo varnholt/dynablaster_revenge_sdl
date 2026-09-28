@@ -345,6 +345,12 @@ add_library(dynablaster_core STATIC
     src/levels/castle/levelcastle.h
     src/levels/castle/snowanimation.cpp
     src/levels/castle/snowanimation.h
+    src/levels/mansion/levelmansion.cpp
+    src/levels/mansion/levelmansion.h
+    src/levels/space/levelspace.cpp
+    src/levels/space/levelspace.h
+    src/levels/space/spacebackground.cpp
+    src/levels/space/spacebackground.h
     src/game/detonationmanager.cpp
     src/game/detonationmanager.h
     src/game/detonation.cpp
@@ -432,6 +438,9 @@ if (EMSCRIPTEN)
         # SettingsValue::toFloat()'s try/catch (shared/settings.cpp) needs real catching to work.
         -sDISABLE_EXCEPTION_CATCHING=0
         --emrun
+        # only the castle level ships in the browser, LevelFactory falls back to it
+        --exclude-file "*/data/level-mansion*"
+        --exclude-file "*/data/level-space*"
         --preload-file ${CMAKE_SOURCE_DIR}/data@data
     )
     set_target_properties(dynablaster_revenge PROPERTIES SUFFIX ".html")

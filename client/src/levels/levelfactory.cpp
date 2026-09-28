@@ -3,12 +3,14 @@
 
 // levels
 #include "castle/levelcastle.h"
+#include "mansion/levelmansion.h"
+#include "space/levelspace.h"
 
 // game
 #include "constants.h"
 
-// LevelMansion/LevelSpace not ported (see project memory - Phase 5 deferred scope) - only
-// LevelCastle is reachable in practice (CreateGameSettings defaults LevelIndex to 0/castle).
+#include <array>
+#include <filesystem>
 
 LevelFactory* LevelFactory::sInstance = 0;
 
@@ -35,6 +37,14 @@ Level *LevelFactory::getLevelInstance(Level::LevelType levelType)
          level = new LevelCastle();
          break;
 
+      case Level::LevelMansion:
+         level = new LevelMansion();
+         break;
+
+      case Level::LevelSpace:
+         level = new LevelSpace();
+         break;
+
       default:
          break;
    }
@@ -45,10 +55,19 @@ Level *LevelFactory::getLevelInstance(Level::LevelType levelType)
 
 Level *LevelFactory::getLevelInstance(const std::string &levelName)
 {
-   Level::LevelType levelType = Level::LevelCastle;
+   Level::LevelType level_type = Level::LevelCastle;
 
-   if (levelName.ends_with(Level::getLevelDirectoryName(Level::LevelCastle)))
-      levelType = Level::LevelCastle;
+   for (const auto type : std::array{Level::LevelCastle, Level::LevelMansion, Level::LevelSpace})
+   {
+      const auto directory = Level::getLevelDirectoryName(type);
 
-   return getLevelInstance(levelType);
+      // a build can leave level data out (the web build only ships the castle)
+      if (levelName.ends_with(directory) && std::filesystem::exists("data/" + directory + "/level.hjb"))
+      {
+         level_type = type;
+         break;
+      }
+   }
+
+   return getLevelInstance(level_type);
 }

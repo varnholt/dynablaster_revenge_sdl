@@ -92,7 +92,16 @@ std::vector<std::string> SettingsValue::toStringList() const
       return {};
    }
 
-   return splitKeepEmpty(_text, ',');
+   // like QSettings, list elements are trimmed ("a, b" -> "a", "b")
+   auto parts = splitKeepEmpty(_text, ',');
+   for (auto& part : parts)
+   {
+      const auto first = part.find_first_not_of(" \t");
+      const auto last = part.find_last_not_of(" \t");
+      part = (first == std::string::npos) ? std::string{} : part.substr(first, last - first + 1);
+   }
+
+   return parts;
 }
 
 SettingsValue::SettingsMap SettingsValue::toMap() const

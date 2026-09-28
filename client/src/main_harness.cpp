@@ -115,7 +115,8 @@ int main(int argc, char** argv)
    if (!effect.empty())
    {
       const std::string out_dir = argValue(args, "--out=");
-      return runEffectLab(effect, out_dir.empty() ? "effect-lab" : out_dir);
+      const std::string level = argValue(args, "--level=");
+      return runEffectLab(effect, out_dir.empty() ? "effect-lab" : out_dir, level.empty() ? "level-castle" : level);
    }
 
    if (!dump_psd.empty())

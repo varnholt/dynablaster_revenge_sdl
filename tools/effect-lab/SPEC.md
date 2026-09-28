@@ -54,5 +54,9 @@ extrareveal/extradestroy additionally capture at frames 60 + {3, 9, 15, 21} (+50
 Process exits after the last capture.
 
 ## Invocation
+Level: castle by default; `--level=level-mansion` (new) / `DYNA_EFFECT_LAB_LEVEL=level-mansion` (old)
+replaces the level directory name in both the GameInformation and loadLevel(). Write each
+level's captures to its own dir, e.g. `D:\git\effect-lab\old-mansion\` / `new-mansion\`.
+
 Environment variable `DYNA_EFFECT_LAB=<effect>` (old client) / harness flag
 `--effect=<effect>` (new client). Output dir via `DYNA_EFFECT_LAB_OUT` / `--out=`.
