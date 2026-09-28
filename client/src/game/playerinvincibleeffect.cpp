@@ -17,6 +17,13 @@
 
 namespace
 {
+// the blur passes key off alpha, so the offscreen targets must clear to alpha 0 like the
+// old device's global clear color; this port's default clear color is opaque.
+void clearTransparent()
+{
+   static_cast<GLDevice*>(activeDevice)->clear(0.0f, 0.0f, 0.0f, 0.0f);
+}
+
 // draws a quad (as 2 triangles) with an explicit position component count (2 for NDC-space
 // blur-pass quads, 3 for the world-space displace-pass quad) plus an optional uv pair.
 void drawQuad(const float* verts, int pos_components, int uv_components)
@@ -187,22 +194,22 @@ PlayerInvincibleEffect::PlayerInvincibleEffect()
 
    _blur_h_shader = activeDevice->loadShader("playerinvincibleblurh-vert.glsl", "playerinvincibleblurh-frag.glsl");
    _blur_h_texture = activeDevice->getParameterIndex("texturemap");
-   _blur_h_texel_offset = activeDevice->getParameterIndex("texel_offset");
+   _blur_h_texel_offset = activeDevice->getParameterIndex("texelOffset");
    _blur_h_radius = activeDevice->getParameterIndex("radius");
    _blur_h_kernel = activeDevice->getParameterIndex("kernel");
 
    _blur_v_shader = activeDevice->loadShader("playerinvincibleblurv-vert.glsl", "playerinvincibleblurv-frag.glsl");
    _blur_v_texture = activeDevice->getParameterIndex("texturemap");
-   _blur_v_texel_offset = activeDevice->getParameterIndex("texel_offset");
+   _blur_v_texel_offset = activeDevice->getParameterIndex("texelOffset");
    _blur_v_radius = activeDevice->getParameterIndex("radius");
    _blur_v_kernel = activeDevice->getParameterIndex("kernel");
 
    _displace_shader = activeDevice->loadShader("playerinvincibledisplace-vert.glsl", "playerinvincibledisplace-frag.glsl");
    _displace_texture1 = activeDevice->getParameterIndex("texturemap");
    _displace_texture2 = activeDevice->getParameterIndex("displace");
-   _displace_texel_offset = activeDevice->getParameterIndex("texel_offset");
-   _displace_offset = activeDevice->getParameterIndex("displace_offset");
-   _displace_source_rect = activeDevice->getParameterIndex("source_rect");
+   _displace_texel_offset = activeDevice->getParameterIndex("texelOffset");
+   _displace_offset = activeDevice->getParameterIndex("displaceOffset");
+   _displace_source_rect = activeDevice->getParameterIndex("sourceRect");
    _displace_fade = activeDevice->getParameterIndex("fade");
    _display_center = activeDevice->getParameterIndex("center");
 }
@@ -348,14 +355,14 @@ void PlayerInvincibleEffect::blurPlayers(FrameBuffer* temp, const Matrix& proj)
       max2d.y = (max2d.y + 1.0f) * 0.5f;
 
       temp->bind();
-      activeDevice->clear();
+      clearTransparent();
       setMaterialFade(player.get(), player->getFade());
       mat->renderDiffuse();
       temp->unbind();
 
       // horizontal blur - temp framebuffer into the player's own ping-pong texture 0
       player->bind(0);
-      activeDevice->clear();
+      clearTransparent();
       activeDevice->setShader(_blur_h_shader);
       glBindTexture(GL_TEXTURE_2D, temp->texture());
       activeDevice->bindSampler(_blur_h_texture, 0);
@@ -376,7 +383,7 @@ void PlayerInvincibleEffect::blurPlayers(FrameBuffer* temp, const Matrix& proj)
 
       // vertical blur - texture 0 into texture 1
       player->bind(1);
-      activeDevice->clear();
+      clearTransparent();
       activeDevice->setShader(_blur_v_shader);
       glBindTexture(GL_TEXTURE_2D, player->texture(0));
       activeDevice->setParameter(_blur_v_texel_offset, Vector2(0.0f, 1.0f / player->height()));
@@ -427,6 +434,9 @@ void PlayerInvincibleEffect::render()
    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
    activeDevice->setShader(_displace_shader);
+
+   // identity world transform (old glLoadIdentity), uploads u_modelViewProjection = projection
+   activeDevice->push(Matrix());
 
    glActiveTexture(GL_TEXTURE1);
    glBindTexture(GL_TEXTURE_2D, _displacement_texture);
@@ -494,5 +504,6 @@ void PlayerInvincibleEffect::render()
    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
    glDepthMask(GL_TRUE);
 
+   activeDevice->pop();
    activeDevice->setShader(0);
 }
