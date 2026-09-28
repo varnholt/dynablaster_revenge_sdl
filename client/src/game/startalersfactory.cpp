@@ -31,10 +31,10 @@ Vector computeDirection(float width, float depth, float height)
    float alpha = 2.0f * std::numbers::pi_v<float> * frand(1.0f);
    float x = std::cos(alpha);
    float y = std::sin(alpha);
-   float randX = frand(1.0f) * x;
-   float randY = frand(1.0f) * y;
+   float rand_x = frand(1.0f) * x;
+   float rand_y = frand(1.0f) * y;
 
-   Vector dir(randX, randY, 0.75f);
+   Vector dir(rand_x, rand_y, 0.75f);
    dir.normalize();
 
    return Vector(width * dir.x, depth * dir.y, height * dir.z);
@@ -67,26 +67,26 @@ void computeTextureOffset(float& u, float& v)
 }
 }  // namespace
 
-StarTalersFactory::Burst::Burst(const Vector& fieldPosition, const Vector& color)
- : mVertexBuffer(0),
-   mIndexBuffer(0),
-   mIndexCount(0),
-   mTime(0.0f),
-   mFieldPosition(fieldPosition),
-   mColor(color)
+StarTalersFactory::Burst::Burst(const Vector& field_position, const Vector& color)
+ : _vertex_buffer(0),
+   _index_buffer(0),
+   _index_count(0),
+   _time(0.0f),
+   _field_position(field_position),
+   _color(color)
 {
-   int vertexCount = STAR_COUNT * 12;
-   mIndexCount = STAR_COUNT * 18;
+   int vertex_count = STAR_COUNT * 12;
+   _index_count = STAR_COUNT * 18;
 
-   mVertexBuffer = activeDevice->createVertexBuffer(vertexCount * static_cast<int>(sizeof(StarTalersVertex)));
-   mIndexBuffer = activeDevice->createIndexBuffer(mIndexCount * static_cast<int>(sizeof(unsigned short)));
+   _vertex_buffer = activeDevice->createVertexBuffer(vertex_count * static_cast<int>(sizeof(StarTalersVertex)));
+   _index_buffer = activeDevice->createIndexBuffer(_index_count * static_cast<int>(sizeof(unsigned short)));
 
-   auto* vtx = static_cast<StarTalersVertex*>(activeDevice->lockVertexBuffer(mVertexBuffer));
+   auto* vtx = static_cast<StarTalersVertex*>(activeDevice->lockVertexBuffer(_vertex_buffer));
 
    const float scale = 0.5f;
    int index = 0;
 
-   for (int i = 0; i < vertexCount; i += 12)
+   for (int i = 0; i < vertex_count; i += 12)
    {
       Vector direction = computeDirection(1.3f, 1.3f, 2.75f);
       float speed = computeSpeed(0.9f, 0.2f);
@@ -143,12 +143,12 @@ StarTalersFactory::Burst::Burst(const Vector& fieldPosition, const Vector& color
       index++;
    }
 
-   activeDevice->unlockVertexBuffer(mVertexBuffer);
+   activeDevice->unlockVertexBuffer(_vertex_buffer);
 
-   auto* idx = static_cast<unsigned short*>(activeDevice->lockIndexBuffer(mIndexBuffer));
+   auto* idx = static_cast<unsigned short*>(activeDevice->lockIndexBuffer(_index_buffer));
 
    index = 0;
-   for (int i = 0; i < mIndexCount; i += 18)
+   for (int i = 0; i < _index_count; i += 18)
    {
       idx[i] = static_cast<unsigned short>(0 + index);
       idx[i + 1] = static_cast<unsigned short>(1 + index);
@@ -177,32 +177,32 @@ StarTalersFactory::Burst::Burst(const Vector& fieldPosition, const Vector& color
       index += 12;
    }
 
-   activeDevice->unlockIndexBuffer(mIndexBuffer);
+   activeDevice->unlockIndexBuffer(_index_buffer);
 }
 
 StarTalersFactory::Burst::~Burst()
 {
-   activeDevice->deleteBuffer(mVertexBuffer);
-   activeDevice->deleteBuffer(mIndexBuffer);
+   activeDevice->deleteBuffer(_vertex_buffer);
+   activeDevice->deleteBuffer(_index_buffer);
 }
 
 bool StarTalersFactory::Burst::isElapsed() const
 {
-   return mTime > DURATION;
+   return _time > DURATION;
 }
 
 void StarTalersFactory::Burst::update(float dt)
 {
-   mTime += dt;
+   _time += dt;
 }
 
-void StarTalersFactory::Burst::render(int fieldParam, int colorParam, int timeParam)
+void StarTalersFactory::Burst::render(int field_param, int color_param, int time_param)
 {
-   activeDevice->setParameter(timeParam, mTime);
-   activeDevice->setParameter(fieldParam, mFieldPosition);
-   activeDevice->setParameter(colorParam, mColor);
+   activeDevice->setParameter(time_param, _time);
+   activeDevice->setParameter(field_param, _field_position);
+   activeDevice->setParameter(color_param, _color);
 
-   glBindBuffer(GL_ARRAY_BUFFER, mVertexBuffer);
+   glBindBuffer(GL_ARRAY_BUFFER, _vertex_buffer);
 
    glEnableVertexAttribArray(0);
    glEnableVertexAttribArray(1);
@@ -216,8 +216,8 @@ void StarTalersFactory::Burst::render(int fieldParam, int colorParam, int timePa
    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(StarTalersVertex), (GLvoid*)offsetof(StarTalersVertex, direction));
    glVertexAttribPointer(4, 2, GL_FLOAT, GL_FALSE, sizeof(StarTalersVertex), (GLvoid*)offsetof(StarTalersVertex, speed));
 
-   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mIndexBuffer);
-   glDrawElements(GL_TRIANGLES, mIndexCount, GL_UNSIGNED_SHORT, 0);
+   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _index_buffer);
+   glDrawElements(GL_TRIANGLES, _index_count, GL_UNSIGNED_SHORT, 0);
 
    glDisableVertexAttribArray(0);
    glDisableVertexAttribArray(1);
@@ -227,26 +227,26 @@ void StarTalersFactory::Burst::render(int fieldParam, int colorParam, int timePa
 }
 
 StarTalersFactory::StarTalersFactory()
- : mShader(0),
-   mTextureId(0),
-   mFieldParam(-1),
-   mColorParam(-1),
-   mTimeParam(-1),
-   mCameraParam(-1),
-   mTextureParam(-1)
+ : _shader(0),
+   _texture_id(0),
+   _field_param(-1),
+   _color_param(-1),
+   _time_param(-1),
+   _camera_param(-1),
+   _texture_param(-1)
 {
-   mColorBomb.set(0.047f, 0.49f, 0.012f);
-   mColorFlame.set(1.0f, 0.518f, 0.0f);
-   mColorSpeedup.set(0.0f, 0.588f, 1.0f);
-   mColorKick.set(0.635f, 0.0f, 1.0f);
-   mColorDefault.set(1.0f, 1.0f, 1.0f);
+   _color_bomb.set(0.047f, 0.49f, 0.012f);
+   _color_flame.set(1.0f, 0.518f, 0.0f);
+   _color_speedup.set(0.0f, 0.588f, 1.0f);
+   _color_kick.set(0.635f, 0.0f, 1.0f);
+   _color_default.set(1.0f, 1.0f, 1.0f);
 }
 
 StarTalersFactory::~StarTalersFactory()
 {
-   if (mTextureId)
+   if (_texture_id)
    {
-      activeDevice->deleteTexture(mTextureId);
+      activeDevice->deleteTexture(_texture_id);
    }
 }
 
@@ -254,14 +254,14 @@ void StarTalersFactory::initialize()
 {
    Image image;
    image.load("data/effects/startalers/startalers_particles");
-   mTextureId = activeDevice->createTexture(image.getData(), image.getWidth(), image.getHeight());
+   _texture_id = activeDevice->createTexture(image.getData(), image.getWidth(), image.getHeight());
 
-   mShader = activeDevice->loadShader("startalers-vert.glsl", "startalers-frag.glsl");
-   mFieldParam = activeDevice->getParameterIndex("field");
-   mColorParam = activeDevice->getParameterIndex("color");
-   mTimeParam = activeDevice->getParameterIndex("time");
-   mCameraParam = activeDevice->getParameterIndex("camera");
-   mTextureParam = activeDevice->getParameterIndex("texturemap");
+   _shader = activeDevice->loadShader("startalers-vert.glsl", "startalers-frag.glsl");
+   _field_param = activeDevice->getParameterIndex("field");
+   _color_param = activeDevice->getParameterIndex("color");
+   _time_param = activeDevice->getParameterIndex("time");
+   _camera_param = activeDevice->getParameterIndex("camera");
+   _texture_param = activeDevice->getParameterIndex("texturemap");
 }
 
 const Vector& StarTalersFactory::getColor(Constants::ExtraType extra) const
@@ -269,22 +269,22 @@ const Vector& StarTalersFactory::getColor(Constants::ExtraType extra) const
    switch (extra)
    {
       case Constants::ExtraBomb:
-         return mColorBomb;
+         return _color_bomb;
       case Constants::ExtraFlame:
-         return mColorFlame;
+         return _color_flame;
       case Constants::ExtraSpeedup:
-         return mColorSpeedup;
+         return _color_speedup;
       case Constants::ExtraKick:
-         return mColorKick;
+         return _color_kick;
       default:
-         return mColorDefault;
+         return _color_default;
    }
 }
 
 void StarTalersFactory::add(float x, float y, Constants::ExtraType extra)
 {
-   Vector fieldPosition(x + 0.5f, -(y + 0.5f), 0.0f);
-   mBursts.push_back(std::make_unique<Burst>(fieldPosition, getColor(extra)));
+   Vector field_position(x + 0.5f, -(y + 0.5f), 0.0f);
+   _bursts.push_back(std::make_unique<Burst>(field_position, getColor(extra)));
 }
 
 void StarTalersFactory::update(float dt)
@@ -294,17 +294,17 @@ void StarTalersFactory::update(float dt)
       return;
    }
 
-   for (auto& burst : mBursts)
+   for (auto& burst : _bursts)
    {
       burst->update(dt);
    }
 
-   std::erase_if(mBursts, [](const std::unique_ptr<Burst>& burst) { return burst->isElapsed(); });
+   std::erase_if(_bursts, [](const std::unique_ptr<Burst>& burst) { return burst->isElapsed(); });
 }
 
 void StarTalersFactory::render()
 {
-   if (mBursts.empty())
+   if (_bursts.empty())
    {
       return;
    }
@@ -314,20 +314,20 @@ void StarTalersFactory::render()
    glEnable(GL_BLEND);
    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-   activeDevice->setShader(mShader);
+   activeDevice->setShader(_shader);
 
    Vector camera = static_cast<GLDevice*>(activeDevice)->getProjectionMatrix().z();
-   activeDevice->setParameter(mCameraParam, camera);
+   activeDevice->setParameter(_camera_param, camera);
 
    glActiveTexture(GL_TEXTURE0);
-   glBindTexture(GL_TEXTURE_2D, mTextureId);
-   activeDevice->bindSampler(mTextureParam, 0);
+   glBindTexture(GL_TEXTURE_2D, _texture_id);
+   activeDevice->bindSampler(_texture_param, 0);
 
    activeDevice->push(Matrix());
 
-   for (auto& burst : mBursts)
+   for (auto& burst : _bursts)
    {
-      burst->render(mFieldParam, mColorParam, mTimeParam);
+      burst->render(_field_param, _color_param, _time_param);
    }
 
    activeDevice->pop();

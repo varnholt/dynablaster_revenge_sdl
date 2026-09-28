@@ -19,32 +19,32 @@ constexpr float PARTICLE_PIXEL_SIZE = 48.0f;
 }  // namespace
 
 FuseParticleSystem::FuseParticleSystem()
- : mVertexBuffer(0),
-   mParticleTextureId(0),
-   mShader(0),
-   mTexture(0),
-   mPointSize(0),
-   mProjection(0)
+ : _vertex_buffer(0),
+   _particle_texture_id(0),
+   _shader(0),
+   _texture(0),
+   _point_size(0),
+   _projection(0)
 {
    Image image;
    image.load("data/logo/pointsprite");
-   mParticleTextureId = activeDevice->createTexture(image.getData(), image.getWidth(), image.getHeight());
+   _particle_texture_id = activeDevice->createTexture(image.getData(), image.getWidth(), image.getHeight());
 
-   mShader = activeDevice->loadShader("fuseparticles-vert.glsl", "fuseparticles-frag.glsl");
-   mTexture = activeDevice->getParameterIndex("texturemap");
-   mPointSize = activeDevice->getParameterIndex("particleSize");
-   mProjection = activeDevice->getParameterIndex("u_projection");
+   _shader = activeDevice->loadShader("fuseparticles-vert.glsl", "fuseparticles-frag.glsl");
+   _texture = activeDevice->getParameterIndex("texturemap");
+   _point_size = activeDevice->getParameterIndex("particleSize");
+   _projection = activeDevice->getParameterIndex("u_projection");
 }
 
 FuseParticleSystem::~FuseParticleSystem()
 {
-   if (mVertexBuffer)
+   if (_vertex_buffer)
    {
-      glDeleteBuffers(1, &mVertexBuffer);
+      glDeleteBuffers(1, &_vertex_buffer);
    }
-   if (mParticleTextureId)
+   if (_particle_texture_id)
    {
-      activeDevice->deleteTexture(mParticleTextureId);
+      activeDevice->deleteTexture(_particle_texture_id);
    }
 }
 
@@ -62,11 +62,11 @@ void FuseParticleSystem::resetParticle(Particle& particle, const Vector& origin)
    particle.origin.z += frand(0.099f);
 
    particle.position = particle.origin;
-   particle.pointSize = 1.0f;
+   particle.point_size = 1.0f;
    particle.scalar = 0.0f;
    particle.direction = Vector(frands(-0.225f, 0.375f), frands(-0.225f, 0.375f), frands(-0.225f, 0.225f));
    particle.elapsed = 0.0f;
-   particle.randomStartTime = frand(100.0f);
+   particle.random_start_time = frand(100.0f);
    particle.started = false;
 }
 
@@ -74,7 +74,7 @@ void FuseParticleSystem::addEmitter(MapItem* item, const Vector& origin)
 {
    Emitter emitter;
    emitter.origin = origin;
-   emitter.nextOrigin = origin;
+   emitter.next_origin = origin;
    emitter.removing = false;
    emitter.particles.resize(PARTICLE_COUNT);
 
@@ -83,13 +83,13 @@ void FuseParticleSystem::addEmitter(MapItem* item, const Vector& origin)
       resetParticle(particle, origin);
    }
 
-   mEmitters[item] = std::move(emitter);
+   _emitters[item] = std::move(emitter);
 }
 
 void FuseParticleSystem::setEmitterPosition(MapItem* item, const Vector& origin)
 {
-   auto it = mEmitters.find(item);
-   if (it == mEmitters.end())
+   auto it = _emitters.find(item);
+   if (it == _emitters.end())
    {
       return;
    }
@@ -98,14 +98,14 @@ void FuseParticleSystem::setEmitterPosition(MapItem* item, const Vector& origin)
    if (emitter.origin != origin)
    {
       emitter.origin = origin;
-      emitter.nextOrigin = origin;
+      emitter.next_origin = origin;
    }
 }
 
 void FuseParticleSystem::removeEmitter(MapItem* item)
 {
-   auto it = mEmitters.find(item);
-   if (it != mEmitters.end())
+   auto it = _emitters.find(item);
+   if (it != _emitters.end())
    {
       it->second.removing = true;
    }
@@ -113,7 +113,7 @@ void FuseParticleSystem::removeEmitter(MapItem* item)
 
 void FuseParticleSystem::animate(float dt)
 {
-   for (auto it = mEmitters.begin(); it != mEmitters.end();)
+   for (auto it = _emitters.begin(); it != _emitters.end();)
    {
       Emitter& emitter = it->second;
 
@@ -124,25 +124,25 @@ void FuseParticleSystem::animate(float dt)
          particle.elapsed += dt;
 
          // bomb kicked far away - burn down instead of dragging the trail across the map
-         float dist = (particle.origin - emitter.nextOrigin).length();
+         float dist = (particle.origin - emitter.next_origin).length();
          if (dist > 1.0f)
          {
-            particle.randomStartTime = 0.0f;
+            particle.random_start_time = 0.0f;
          }
 
          bool remove = false;
 
-         if (particle.elapsed > particle.randomStartTime || emitter.removing)
+         if (particle.elapsed > particle.random_start_time || emitter.removing)
          {
             particle.started = true;
 
             particle.direction.y -= dt * 0.02f;
             particle.scalar += dt * 0.02f;
-            particle.pointSize -= dt * 0.025f;
+            particle.point_size -= dt * 0.025f;
 
             particle.position = particle.origin + particle.direction * particle.scalar;
 
-            if (particle.pointSize < 0.01f)
+            if (particle.point_size < 0.01f)
             {
                if (emitter.removing)
                {
@@ -150,7 +150,7 @@ void FuseParticleSystem::animate(float dt)
                }
                else
                {
-                  resetParticle(particle, emitter.nextOrigin);
+                  resetParticle(particle, emitter.next_origin);
                }
             }
          }
@@ -167,7 +167,7 @@ void FuseParticleSystem::animate(float dt)
 
       if (emitter.removing && emitter.particles.empty())
       {
-         it = mEmitters.erase(it);
+         it = _emitters.erase(it);
       }
       else
       {
@@ -178,9 +178,9 @@ void FuseParticleSystem::animate(float dt)
 
 void FuseParticleSystem::render()
 {
-   mUploadBuffer.clear();
+   _upload_buffer.clear();
 
-   for (const auto& [item, emitter] : mEmitters)
+   for (const auto& [item, emitter] : _emitters)
    {
       for (const auto& particle : emitter.particles)
       {
@@ -189,29 +189,29 @@ void FuseParticleSystem::render()
             continue;
          }
 
-         mUploadBuffer.push_back(particle.position.x);
-         mUploadBuffer.push_back(particle.position.y);
-         mUploadBuffer.push_back(particle.position.z);
-         mUploadBuffer.push_back(particle.pointSize);
+         _upload_buffer.push_back(particle.position.x);
+         _upload_buffer.push_back(particle.position.y);
+         _upload_buffer.push_back(particle.position.z);
+         _upload_buffer.push_back(particle.point_size);
       }
    }
 
-   if (mUploadBuffer.empty())
+   if (_upload_buffer.empty())
    {
       return;
    }
 
-   if (mVertexBuffer == 0)
+   if (_vertex_buffer == 0)
    {
-      glGenBuffers(1, &mVertexBuffer);
+      glGenBuffers(1, &_vertex_buffer);
    }
 
-   glBindBuffer(GL_ARRAY_BUFFER, mVertexBuffer);
-   glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(sizeof(float) * mUploadBuffer.size()), mUploadBuffer.data(), GL_DYNAMIC_DRAW);
+   glBindBuffer(GL_ARRAY_BUFFER, _vertex_buffer);
+   glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(sizeof(float) * _upload_buffer.size()), _upload_buffer.data(), GL_DYNAMIC_DRAW);
 
-   activeDevice->setShader(mShader);
-   activeDevice->setParameter(mProjection, static_cast<GLDevice*>(activeDevice)->getProjectionMatrix());
-   activeDevice->setParameter(mPointSize, PARTICLE_PIXEL_SIZE);
+   activeDevice->setShader(_shader);
+   activeDevice->setParameter(_projection, static_cast<GLDevice*>(activeDevice)->getProjectionMatrix());
+   activeDevice->setParameter(_point_size, PARTICLE_PIXEL_SIZE);
    activeDevice->push(Matrix());
 
    glEnable(GL_BLEND);
@@ -219,13 +219,13 @@ void FuseParticleSystem::render()
    glDepthMask(GL_FALSE);
 
    glActiveTexture(GL_TEXTURE0);
-   glBindTexture(GL_TEXTURE_2D, mParticleTextureId);
-   activeDevice->bindSampler(mTexture, 0);
+   glBindTexture(GL_TEXTURE_2D, _particle_texture_id);
+   activeDevice->bindSampler(_texture, 0);
 
    glEnableVertexAttribArray(0);
    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, static_cast<GLsizei>(sizeof(float) * 4), (GLvoid*)0);
 
-   glDrawArrays(GL_POINTS, 0, static_cast<int>(mUploadBuffer.size() / 4));
+   glDrawArrays(GL_POINTS, 0, static_cast<int>(_upload_buffer.size() / 4));
 
    glDisableVertexAttribArray(0);
    glBindBuffer(GL_ARRAY_BUFFER, 0);
