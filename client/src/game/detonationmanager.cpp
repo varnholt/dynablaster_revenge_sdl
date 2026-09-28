@@ -102,21 +102,21 @@ Vector4 gradient(float x)
 }  // namespace
 
 DetonationManager::DetonationManager()
-: mTime(0.0f),
-  mShader(0),
-  mNoiseMap(0),
-  mGradientMap(0),
-  mParamTime(0),
-  mParamCamPos(0),
-  mParamTop(0),
-  mParamBottom(0),
-  mParamLeft(0),
-  mParamRight(0),
-  mParamBoundMin(0),
-  mParamBoundMax(0),
-  mParamNoiseMap(0),
-  mParamGradientMap(0),
-  mBoxVertexBuffer(0)
+: _time(0.0f),
+  _shader(0),
+  _noise_map(0),
+  _gradient_map(0),
+  _param_time(0),
+  _param_cam_pos(0),
+  _param_top(0),
+  _param_bottom(0),
+  _param_left(0),
+  _param_right(0),
+  _param_bound_min(0),
+  _param_bound_max(0),
+  _param_noise_map(0),
+  _param_gradient_map(0),
+  _box_vertex_buffer(0)
 {
 }
 
@@ -127,7 +127,7 @@ DetonationManager::~DetonationManager()
 
 void DetonationManager::clear()
 {
-   mDetonations.clear();
+   _detonations.clear();
 }
 
 void DetonationManager::init()
@@ -138,8 +138,8 @@ void DetonationManager::init()
    // instead (sampled at v=0.5 in flame-frag.glsl).
    Image palette("detonationpalette");
 
-   glGenTextures(1, &mGradientMap);
-   glBindTexture(GL_TEXTURE_2D, mGradientMap);
+   glGenTextures(1, &_gradient_map);
+   glBindTexture(GL_TEXTURE_2D, _gradient_map);
    glTexImage2D(
       GL_TEXTURE_2D,
       0,
@@ -160,7 +160,7 @@ void DetonationManager::init()
    // internal format: GL_ALPHA isn't part of GLES3's texImage3D format table, R8 is the modern
    // single-channel equivalent (read back via .r instead of .a in the shader).
    const int size = 32;
-   std::vector<unsigned char> noiseMap(static_cast<size_t>(size) * size * size);
+   std::vector<unsigned char> noise_map(static_cast<size_t>(size) * size * size);
    for (int z = 0; z < size; z++)
    {
       const float scale = 1.0f / size;
@@ -170,13 +170,13 @@ void DetonationManager::init()
          {
             Vector p(x*scale, y*scale, z*scale);
             float n1 = noise(p);
-            noiseMap[static_cast<size_t>((z*size+y)*size+x)] = static_cast<unsigned char>(n1*127.0f+128.0f);
+            noise_map[static_cast<size_t>((z*size+y)*size+x)] = static_cast<unsigned char>(n1*127.0f+128.0f);
          }
       }
    }
 
-   glGenTextures(1, &mNoiseMap);
-   glBindTexture(GL_TEXTURE_3D, mNoiseMap);
+   glGenTextures(1, &_noise_map);
+   glBindTexture(GL_TEXTURE_3D, _noise_map);
    glTexImage3D(
       GL_TEXTURE_3D,
       0,
@@ -187,7 +187,7 @@ void DetonationManager::init()
       0,
       GL_RED,
       GL_UNSIGNED_BYTE,
-      noiseMap.data()
+      noise_map.data()
    );
    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -197,37 +197,37 @@ void DetonationManager::init()
    glBindTexture(GL_TEXTURE_3D, 0);
 
    // load shader
-   mShader = dev->loadShader("flame-vert.glsl", "flame-frag.glsl");
+   _shader = dev->loadShader("flame-vert.glsl", "flame-frag.glsl");
 
-   mParamTime = dev->getParameterIndex("time");
-   mParamCamPos = dev->getParameterIndex("campos");
-   mParamNoiseMap = dev->getParameterIndex("noisemap");
-   mParamGradientMap = dev->getParameterIndex("gradientmap");
-   mParamTop = dev->getParameterIndex("top");
-   mParamBottom = dev->getParameterIndex("bottom");
-   mParamLeft = dev->getParameterIndex("left");
-   mParamRight = dev->getParameterIndex("right");
-   mParamBoundMin = dev->getParameterIndex("boundmin");
-   mParamBoundMax = dev->getParameterIndex("boundmax");
+   _param_time = dev->getParameterIndex("time");
+   _param_cam_pos = dev->getParameterIndex("campos");
+   _param_noise_map = dev->getParameterIndex("noisemap");
+   _param_gradient_map = dev->getParameterIndex("gradientmap");
+   _param_top = dev->getParameterIndex("top");
+   _param_bottom = dev->getParameterIndex("bottom");
+   _param_left = dev->getParameterIndex("left");
+   _param_right = dev->getParameterIndex("right");
+   _param_bound_min = dev->getParameterIndex("boundmin");
+   _param_bound_max = dev->getParameterIndex("boundmax");
 }
 
 void DetonationManager::addDetonation(int x, int y, int top, int bottom, int left, int right)
 {
    auto det = std::make_unique<Detonation>(x, y + 1, left, right, top, bottom);
-   det->setStartTime(mTime);
-   mDetonations.push_back(std::move(det));
+   det->setStartTime(_time);
+   _detonations.push_back(std::move(det));
 }
 
 void DetonationManager::update(float time)
 {
-   mTime= time;
+   _time= time;
    std::vector<std::unique_ptr<Detonation>>::iterator it;
-   for (it=mDetonations.begin(); it!=mDetonations.end(); )
+   for (it=_detonations.begin(); it!=_detonations.end(); )
    {
       Detonation *det= it->get();
       if (det->elapsed(time) > 2.0f)
       {
-         it= mDetonations.erase(it);
+         it= _detonations.erase(it);
       }
       else
          it++;
@@ -253,18 +253,18 @@ void DetonationManager::drawBox(float x, float y, float z, float left, float rig
    if ((sides&4)==0) boxmin.x--;
    if ((sides&8)==0) boxmax.x++;
 
-   activeDevice->setParameter(mParamBoundMin, boxmin);
-   activeDevice->setParameter(mParamBoundMax, boxmax);
+   activeDevice->setParameter(_param_bound_min, boxmin);
+   activeDevice->setParameter(_param_bound_max, boxmax);
 
    // position (3) + normal (3) per vertex, built on the CPU and uploaded as a dynamic attribute-
    // array buffer instead of glBegin(GL_TRIANGLES)/glVertex3f/glNormal3f immediate mode.
    std::vector<float> vertices;
    vertices.reserve(30 * 6);
 
-   int sideBits = sides;
+   int side_bits = sides;
    for (int i=0; i<5; i++)
    {
-      if (sideBits&1)
+      if (side_bits&1)
       {
          for (int tri=0;tri<6;tri++)
          {
@@ -280,24 +280,24 @@ void DetonationManager::drawBox(float x, float y, float z, float left, float rig
             vertices.push_back(v.z-0.5f);
          }
       }
-      sideBits>>=1;
+      side_bits>>=1;
    }
 
    if (vertices.empty())
       return;
 
-   const int byteSize = static_cast<int>(vertices.size() * sizeof(float));
+   const int byte_size = static_cast<int>(vertices.size() * sizeof(float));
 
-   if (mBoxVertexBuffer == 0)
-      mBoxVertexBuffer = activeDevice->createVertexBuffer(byteSize, true);
+   if (_box_vertex_buffer == 0)
+      _box_vertex_buffer = activeDevice->createVertexBuffer(byte_size, true);
    else
-      activeDevice->allocateVertexBuffer(mBoxVertexBuffer, byteSize, true);
+      activeDevice->allocateVertexBuffer(_box_vertex_buffer, byte_size, true);
 
-   void* dst = activeDevice->lockVertexBuffer(mBoxVertexBuffer, byteSize);
-   std::memcpy(dst, vertices.data(), static_cast<size_t>(byteSize));
-   activeDevice->unlockVertexBuffer(mBoxVertexBuffer);
+   void* dst = activeDevice->lockVertexBuffer(_box_vertex_buffer, byte_size);
+   std::memcpy(dst, vertices.data(), static_cast<size_t>(byte_size));
+   activeDevice->unlockVertexBuffer(_box_vertex_buffer);
 
-   glBindBuffer(GL_ARRAY_BUFFER, mBoxVertexBuffer);
+   glBindBuffer(GL_ARRAY_BUFFER, _box_vertex_buffer);
    glEnableVertexAttribArray(0);
    glEnableVertexAttribArray(1);
    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float)*6, (GLvoid*)0);
@@ -314,7 +314,7 @@ void DetonationManager::drawExplosion(Detonation *det, float time)
    GLDevice* dev= static_cast<GLDevice*>(activeDevice);
 
    time= det->elapsed(time);
-   dev->setParameter(mParamTime, time);
+   dev->setParameter(_param_time, time);
 
    float x= static_cast<float>(det->getX());
    float y= static_cast<float>(det->getY());
@@ -324,10 +324,10 @@ void DetonationManager::drawExplosion(Detonation *det, float time)
    float left= static_cast<float>(det->getLeft());
    float right= static_cast<float>(det->getRight());
 
-   dev->setParameter(mParamTop, top);
-   dev->setParameter(mParamBottom, bottom);
-   dev->setParameter(mParamLeft, left);
-   dev->setParameter(mParamRight, right);
+   dev->setParameter(_param_top, top);
+   dev->setParameter(_param_bottom, bottom);
+   dev->setParameter(_param_left, left);
+   dev->setParameter(_param_right, right);
 
    // top
    activeDevice->push(Matrix::position(x,-y+1,0.0f));
@@ -357,7 +357,7 @@ void DetonationManager::drawExplosion(Detonation *det, float time)
 
 void DetonationManager::render()
 {
-   if (mDetonations.empty())
+   if (_detonations.empty())
       return;
 
    GLDevice* dev= static_cast<GLDevice*>(activeDevice);
@@ -365,26 +365,26 @@ void DetonationManager::render()
    // replaces the legacy glGetFloatv(GL_PROJECTION_MATRIX, ...) readback - see
    // GLDevice::getProjectionMatrix()'s own doc comment for why this is the right replacement
    // (this engine's "projection" matrix already carries view*projection combined).
-   Matrix projMat = dev->getProjectionMatrix();
-   projMat = projMat.invert();
-   Vector camPos = projMat.translation();
+   Matrix proj_mat = dev->getProjectionMatrix();
+   proj_mat = proj_mat.invert();
+   Vector cam_pos = proj_mat.translation();
 
    glEnable(GL_BLEND);
 
-   dev->setShader(mShader);
-   dev->setParameter(mParamCamPos, camPos);
+   dev->setShader(_shader);
+   dev->setParameter(_param_cam_pos, cam_pos);
 
    glActiveTexture(GL_TEXTURE0);
-   glBindTexture(GL_TEXTURE_3D, mNoiseMap);
-   dev->bindSampler(mParamNoiseMap, 0);
+   glBindTexture(GL_TEXTURE_3D, _noise_map);
+   dev->bindSampler(_param_noise_map, 0);
 
    glActiveTexture(GL_TEXTURE1);
-   glBindTexture(GL_TEXTURE_2D, mGradientMap);
-   dev->bindSampler(mParamGradientMap, 1);
+   glBindTexture(GL_TEXTURE_2D, _gradient_map);
+   dev->bindSampler(_param_gradient_map, 1);
 
-   for (const auto& det : mDetonations)
+   for (const auto& det : _detonations)
    {
-      drawExplosion(det.get(), mTime);
+      drawExplosion(det.get(), _time);
    }
 
    dev->setShader(0);

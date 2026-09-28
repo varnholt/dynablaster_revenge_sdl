@@ -20,6 +20,6 @@ public:
    virtual void initialize();
 
 protected:
-   float mAlpha;
-   Array<Vertex> mVertices;
+   float _alpha;
+   Array<Vertex> _vertices;
 };

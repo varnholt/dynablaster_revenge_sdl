@@ -6,18 +6,18 @@
 
 Skull::Skull(Mesh *reference, float x, float y)
  : Mesh(*reference),
-   mReference(reference)
+   _reference(reference)
 {
    setUserTransformable(true);
 
-   mTranslation.identity();
-   mTranslation.translate( Vector(x + 0.5f, -y - 0.5f, 0.5f) );
+   _translation.identity();
+   _translation.translate( Vector(x + 0.5f, -y - 0.5f, 0.5f) );
 
    // animation starts at 0
    setAnimationFrame(0.0f);
 
    // animation start time
-   mStartTime = GlobalTime::Instance()->getTime();
+   _start_time = GlobalTime::Instance()->getTime();
 }
 
 
@@ -28,17 +28,17 @@ Skull::~Skull()
 
 Mesh *Skull::getReference() const
 {
-   return mReference;
+   return _reference;
 }
 
 
 Matrix Skull::getTranslation()  const
 {
-   return mTranslation;
+   return _translation;
 }
 
 
 float Skull::getStartTime() const
 {
-   return mStartTime;
+   return _start_time;
 }

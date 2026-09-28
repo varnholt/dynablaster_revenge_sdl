@@ -1,32 +1,32 @@
 #include "gamestatemachine.h"
 
 
-GameStateMachine* GameStateMachine::sInstance = 0;
+GameStateMachine* GameStateMachine::s_instance = 0;
 
 
 GameStateMachine::GameStateMachine()
- : mState(Constants::GameStopped)
+ : _state(Constants::GameStopped)
 {
-   sInstance = this;
+   s_instance = this;
 }
 
 
 GameStateMachine *GameStateMachine::getInstance()
 {
-   if (!sInstance)
+   if (!s_instance)
    {
-      sInstance = new GameStateMachine();
+      s_instance = new GameStateMachine();
    }
 
-   return sInstance;
+   return s_instance;
 }
 
 
-void GameStateMachine::setState(Constants::GameState nextState)
+void GameStateMachine::setState(Constants::GameState next_state)
 {
-   if (mState != nextState)
+   if (_state != next_state)
    {
-      mState = nextState;
+      _state = next_state;
       stateChangedSignal();
    }
 }
@@ -34,5 +34,5 @@ void GameStateMachine::setState(Constants::GameState nextState)
 
 Constants::GameState GameStateMachine::getState() const
 {
-   return mState;
+   return _state;
 }

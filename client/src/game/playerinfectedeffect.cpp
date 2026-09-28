@@ -13,89 +13,89 @@
 #include "image/image.h"
 
 PlayerInfectedEffect::PlayerInfectedEffect()
-   : mDelta(0.0f),
-     mParticleTextureId(0),
-     mFlowFieldTextureId(0),
-     mPointsShader(0),
-     mPointsTexture(0),
-     mPointsSize(0),
-     mPointsProjection(0),
-     mFlowUpdatePosShader(0),
-     mFlowDepthTexture(0),
-     mFlowVertexPosTexture(0),
-     mFlowVertexParamTexture(0),
-     mFlowFieldTexture(0),
-     mFlowCenter(0),
-     mFlowFieldScale(0),
-     mFlowTimeDelta(0),
-     mFlowSrcRect(0),
-     mFlowInvProj(0),
-     mFlowStop(0),
-     mFlowInitPosShader(0),
-     mFlowInitPosDepth(0),
-     mFlowInitPosInvProj(0),
-     mFlowInitSrcRect(0),
-     mFlowInitParamShader(0),
-     mFlowInitParamDepth(0),
-     mFlowInitParamInvProj(0),
-     mFlowInitParamCenter(0),
-     mFlowUpdateColShader(0),
-     mFlowUpdateColColorMap(0),
-     mFlowUpdateColPositionMap(0),
-     mFlowUpdateColProj(0),
-     mFlowUpdateColStop(0),
-     mDeferredBuffer(nullptr)
+   : _delta(0.0f),
+     _particle_texture_id(0),
+     _flow_field_texture_id(0),
+     _points_shader(0),
+     _points_texture(0),
+     _points_size(0),
+     _points_projection(0),
+     _flow_update_pos_shader(0),
+     _flow_depth_texture(0),
+     _flow_vertex_pos_texture(0),
+     _flow_vertex_param_texture(0),
+     _flow_field_texture(0),
+     _flow_center(0),
+     _flow_field_scale(0),
+     _flow_time_delta(0),
+     _flow_src_rect(0),
+     _flow_inv_proj(0),
+     _flow_stop(0),
+     _flow_init_pos_shader(0),
+     _flow_init_pos_depth(0),
+     _flow_init_pos_inv_proj(0),
+     _flow_init_src_rect(0),
+     _flow_init_param_shader(0),
+     _flow_init_param_depth(0),
+     _flow_init_param_inv_proj(0),
+     _flow_init_param_center(0),
+     _flow_update_col_shader(0),
+     _flow_update_col_color_map(0),
+     _flow_update_col_position_map(0),
+     _flow_update_col_proj(0),
+     _flow_update_col_stop(0),
+     _deferred_buffer(nullptr)
 {
    Image image;
    image.load("data/game/flowfield_pointsprite");
-   mParticleTextureId = activeDevice->createTexture(image.getData(), image.getWidth(), image.getHeight());
+   _particle_texture_id = activeDevice->createTexture(image.getData(), image.getWidth(), image.getHeight());
 
    image.load("data/game/flowfield");
-   mFlowFieldTextureId = activeDevice->createTexture(image.getData(), image.getWidth(), image.getHeight(), 1);
+   _flow_field_texture_id = activeDevice->createTexture(image.getData(), image.getWidth(), image.getHeight(), 1);
 
-   mPointsShader = activeDevice->loadShader("infectedparticles-vert.glsl", "infectedparticles-frag.glsl");
-   mPointsTexture = activeDevice->getParameterIndex("texturemap");
-   mPointsSize = activeDevice->getParameterIndex("particleSize");
-   mPointsProjection = activeDevice->getParameterIndex("u_projection");
+   _points_shader = activeDevice->loadShader("infectedparticles-vert.glsl", "infectedparticles-frag.glsl");
+   _points_texture = activeDevice->getParameterIndex("texturemap");
+   _points_size = activeDevice->getParameterIndex("particleSize");
+   _points_projection = activeDevice->getParameterIndex("u_projection");
 
-   mFlowUpdatePosShader = activeDevice->loadShader("infectedflowfield-vert.glsl", "infectedflowfield-frag.glsl");
-   mFlowDepthTexture = activeDevice->getParameterIndex("depthTexture");
-   mFlowVertexPosTexture = activeDevice->getParameterIndex("vertexPosTexture");
-   mFlowVertexParamTexture = activeDevice->getParameterIndex("vertexParamTexture");
-   mFlowFieldTexture = activeDevice->getParameterIndex("flowfieldTexture");
-   mFlowCenter = activeDevice->getParameterIndex("center");
-   mFlowFieldScale = activeDevice->getParameterIndex("fieldScale");
-   mFlowTimeDelta = activeDevice->getParameterIndex("timeDelta");
-   mFlowSrcRect = activeDevice->getParameterIndex("srcRect");
-   mFlowInvProj = activeDevice->getParameterIndex("invProj");
-   mFlowStop = activeDevice->getParameterIndex("stop");
+   _flow_update_pos_shader = activeDevice->loadShader("infectedflowfield-vert.glsl", "infectedflowfield-frag.glsl");
+   _flow_depth_texture = activeDevice->getParameterIndex("depthTexture");
+   _flow_vertex_pos_texture = activeDevice->getParameterIndex("vertexPosTexture");
+   _flow_vertex_param_texture = activeDevice->getParameterIndex("vertexParamTexture");
+   _flow_field_texture = activeDevice->getParameterIndex("flowfieldTexture");
+   _flow_center = activeDevice->getParameterIndex("center");
+   _flow_field_scale = activeDevice->getParameterIndex("fieldScale");
+   _flow_time_delta = activeDevice->getParameterIndex("timeDelta");
+   _flow_src_rect = activeDevice->getParameterIndex("srcRect");
+   _flow_inv_proj = activeDevice->getParameterIndex("invProj");
+   _flow_stop = activeDevice->getParameterIndex("stop");
 
-   mFlowInitPosShader = activeDevice->loadShader("infectedinitpositions-vert.glsl", "infectedinitpositions-frag.glsl");
-   mFlowInitPosDepth = activeDevice->getParameterIndex("depthmap");
-   mFlowInitPosInvProj = activeDevice->getParameterIndex("invProj");
-   mFlowInitSrcRect = activeDevice->getParameterIndex("srcRect");
+   _flow_init_pos_shader = activeDevice->loadShader("infectedinitpositions-vert.glsl", "infectedinitpositions-frag.glsl");
+   _flow_init_pos_depth = activeDevice->getParameterIndex("depthmap");
+   _flow_init_pos_inv_proj = activeDevice->getParameterIndex("invProj");
+   _flow_init_src_rect = activeDevice->getParameterIndex("srcRect");
 
-   mFlowInitParamShader = activeDevice->loadShader("infectedinitparams-vert.glsl", "infectedinitparams-frag.glsl");
-   mFlowInitParamDepth = activeDevice->getParameterIndex("depthmap");
-   mFlowInitParamInvProj = activeDevice->getParameterIndex("invProj");
-   mFlowInitParamCenter = activeDevice->getParameterIndex("center");
+   _flow_init_param_shader = activeDevice->loadShader("infectedinitparams-vert.glsl", "infectedinitparams-frag.glsl");
+   _flow_init_param_depth = activeDevice->getParameterIndex("depthmap");
+   _flow_init_param_inv_proj = activeDevice->getParameterIndex("invProj");
+   _flow_init_param_center = activeDevice->getParameterIndex("center");
 
-   mFlowUpdateColShader = activeDevice->loadShader("infectedupdatecolors-vert.glsl", "infectedupdatecolors-frag.glsl");
-   mFlowUpdateColColorMap = activeDevice->getParameterIndex("colormap");
-   mFlowUpdateColPositionMap = activeDevice->getParameterIndex("positionmap");
-   mFlowUpdateColProj = activeDevice->getParameterIndex("proj");
-   mFlowUpdateColStop = activeDevice->getParameterIndex("stop");
+   _flow_update_col_shader = activeDevice->loadShader("infectedupdatecolors-vert.glsl", "infectedupdatecolors-frag.glsl");
+   _flow_update_col_color_map = activeDevice->getParameterIndex("colormap");
+   _flow_update_col_position_map = activeDevice->getParameterIndex("positionmap");
+   _flow_update_col_proj = activeDevice->getParameterIndex("proj");
+   _flow_update_col_stop = activeDevice->getParameterIndex("stop");
 }
 
 PlayerInfectedEffect::~PlayerInfectedEffect()
 {
    clear();
-   delete mDeferredBuffer;
+   delete _deferred_buffer;
 }
 
 void PlayerInfectedEffect::clear()
 {
-   mFlowAnimations.clear();
+   _flow_animations.clear();
 }
 
 void PlayerInfectedEffect::add(Material* material)
@@ -108,12 +108,12 @@ void PlayerInfectedEffect::add(Material* material)
    Flow flow;
    flow.animation = std::make_unique<InfectedFlowFieldAnimation>();
    flow.material = material;
-   mFlowAnimations.push_back(std::move(flow));
+   _flow_animations.push_back(std::move(flow));
 }
 
 void PlayerInfectedEffect::remove(Material* material)
 {
-   for (auto& flow : mFlowAnimations)
+   for (auto& flow : _flow_animations)
    {
       if (flow.material == material)
       {
@@ -124,13 +124,13 @@ void PlayerInfectedEffect::remove(Material* material)
 
 void PlayerInfectedEffect::animate(float delta)
 {
-   mDelta = delta;
+   _delta = delta;
 
-   for (auto it = mFlowAnimations.begin(); it != mFlowAnimations.end();)
+   for (auto it = _flow_animations.begin(); it != _flow_animations.end();)
    {
       if (it->animation->isElapsed())
       {
-         it = mFlowAnimations.erase(it);
+         it = _flow_animations.erase(it);
       }
       else
       {
@@ -142,18 +142,18 @@ void PlayerInfectedEffect::animate(float delta)
 void PlayerInfectedEffect::render()
 {
    Matrix proj = static_cast<GLDevice*>(activeDevice)->getProjectionMatrix();
-   Matrix invProj = proj.invert4x4();
+   Matrix inv_proj = proj.invert4x4();
 
    const int width = activeDevice->getWidth();
    const int height = activeDevice->getHeight();
 
-   if (!mDeferredBuffer)
+   if (!_deferred_buffer)
    {
-      mDeferredBuffer = new FrameBuffer(width, height, 0, FrameBuffer::DepthTexture);
+      _deferred_buffer = new FrameBuffer(width, height, 0, FrameBuffer::DepthTexture);
    }
-   else if (mDeferredBuffer->resolutionChanged(width, height))
+   else if (_deferred_buffer->resolutionChanged(width, height))
    {
-      mDeferredBuffer->setResolution(width, height);
+      _deferred_buffer->setResolution(width, height);
    }
 
    FrameBuffer::push();
@@ -161,7 +161,7 @@ void PlayerInfectedEffect::render()
    glDepthMask(GL_FALSE);
    glDisable(GL_DEPTH_TEST);
 
-   for (auto& flow : mFlowAnimations)
+   for (auto& flow : _flow_animations)
    {
       if (!flow.material)
       {
@@ -170,7 +170,7 @@ void PlayerInfectedEffect::render()
 
       // re-capture the infected player's current silhouette every frame - unlike PlayerDeathEffect
       // (a frozen one-shot capture), an infected player is still alive and moving.
-      FrameBuffer::push(mDeferredBuffer);
+      FrameBuffer::push(_deferred_buffer);
       activeDevice->clear();
 
       Vector min;
@@ -188,51 +188,51 @@ void PlayerInfectedEffect::render()
          flow.animation->initialize();
          flow.animation->setInitialized(true);
 
-         activeDevice->setShader(mFlowInitPosShader);
-         activeDevice->bindSampler(mFlowInitPosDepth, 0);
-         activeDevice->setParameter(mFlowInitPosInvProj, invProj);
-         activeDevice->setParameter(mFlowInitSrcRect, Vector4(min.x, min.y, max.x, max.y));
-         flow.animation->initializePositions(mDeferredBuffer->depthTexture(), min, max);
+         activeDevice->setShader(_flow_init_pos_shader);
+         activeDevice->bindSampler(_flow_init_pos_depth, 0);
+         activeDevice->setParameter(_flow_init_pos_inv_proj, inv_proj);
+         activeDevice->setParameter(_flow_init_src_rect, Vector4(min.x, min.y, max.x, max.y));
+         flow.animation->initializePositions(_deferred_buffer->depthTexture(), min, max);
 
-         activeDevice->setShader(mFlowInitParamShader);
-         activeDevice->bindSampler(mFlowInitParamDepth, 0);
-         activeDevice->setParameter(mFlowInitParamInvProj, invProj);
-         activeDevice->setParameter(mFlowInitParamCenter, Vector2(center.x, center.y));
-         flow.animation->initializeParams(mDeferredBuffer->depthTexture(), min, max);
+         activeDevice->setShader(_flow_init_param_shader);
+         activeDevice->bindSampler(_flow_init_param_depth, 0);
+         activeDevice->setParameter(_flow_init_param_inv_proj, inv_proj);
+         activeDevice->setParameter(_flow_init_param_center, Vector2(center.x, center.y));
+         flow.animation->initializeParams(_deferred_buffer->depthTexture(), min, max);
 
          activeDevice->setShader(0);
       }
 
-      activeDevice->setShader(mFlowUpdatePosShader);
-      activeDevice->bindSampler(mFlowDepthTexture, 0);
-      activeDevice->bindSampler(mFlowVertexPosTexture, 1);
-      activeDevice->bindSampler(mFlowVertexParamTexture, 2);
-      activeDevice->bindSampler(mFlowFieldTexture, 3);
+      activeDevice->setShader(_flow_update_pos_shader);
+      activeDevice->bindSampler(_flow_depth_texture, 0);
+      activeDevice->bindSampler(_flow_vertex_pos_texture, 1);
+      activeDevice->bindSampler(_flow_vertex_param_texture, 2);
+      activeDevice->bindSampler(_flow_field_texture, 3);
 
       glActiveTexture(GL_TEXTURE0);
-      glBindTexture(GL_TEXTURE_2D, mDeferredBuffer->depthTexture());
+      glBindTexture(GL_TEXTURE_2D, _deferred_buffer->depthTexture());
 
       glActiveTexture(GL_TEXTURE3);
-      glBindTexture(GL_TEXTURE_2D, mFlowFieldTextureId);
+      glBindTexture(GL_TEXTURE_2D, _flow_field_texture_id);
 
-      activeDevice->setParameter(mFlowCenter, flow.animation->getCenter());
-      activeDevice->setParameter(mFlowFieldScale, flow.animation->getScale());
-      activeDevice->setParameter(mFlowTimeDelta, mDelta);
-      activeDevice->setParameter(mFlowSrcRect, Vector4(min.x, min.y, max.x, max.y));
-      activeDevice->setParameter(mFlowInvProj, invProj);
-      activeDevice->setParameter(mFlowStop, flow.animation->stopped() ? 1.0f : 0.0f);
+      activeDevice->setParameter(_flow_center, flow.animation->getCenter());
+      activeDevice->setParameter(_flow_field_scale, flow.animation->getScale());
+      activeDevice->setParameter(_flow_time_delta, _delta);
+      activeDevice->setParameter(_flow_src_rect, Vector4(min.x, min.y, max.x, max.y));
+      activeDevice->setParameter(_flow_inv_proj, inv_proj);
+      activeDevice->setParameter(_flow_stop, flow.animation->stopped() ? 1.0f : 0.0f);
 
-      flow.animation->updatePositions(mDelta);
+      flow.animation->updatePositions(_delta);
 
-      activeDevice->setShader(mFlowUpdateColShader);
-      activeDevice->bindSampler(mFlowUpdateColColorMap, 0);
-      activeDevice->bindSampler(mFlowUpdateColPositionMap, 1);
+      activeDevice->setShader(_flow_update_col_shader);
+      activeDevice->bindSampler(_flow_update_col_color_map, 0);
+      activeDevice->bindSampler(_flow_update_col_position_map, 1);
 
       glActiveTexture(GL_TEXTURE0);
-      glBindTexture(GL_TEXTURE_2D, mDeferredBuffer->texture());
+      glBindTexture(GL_TEXTURE_2D, _deferred_buffer->texture());
 
-      activeDevice->setParameter(mFlowUpdateColProj, proj);
-      activeDevice->setParameter(mFlowUpdateColStop, flow.animation->stopped() ? 1.0f : 0.0f);
+      activeDevice->setParameter(_flow_update_col_proj, proj);
+      activeDevice->setParameter(_flow_update_col_stop, flow.animation->stopped() ? 1.0f : 0.0f);
 
       flow.animation->updateColors();
 
@@ -247,8 +247,8 @@ void PlayerInfectedEffect::render()
 
    // particle positions are already baked into world space - identity world transform, matching
    // PlayerDeathEffect::render()'s own convention for the same situation.
-   activeDevice->setShader(mPointsShader);
-   activeDevice->setParameter(mPointsProjection, proj);
+   activeDevice->setShader(_points_shader);
+   activeDevice->setParameter(_points_projection, proj);
    activeDevice->push(Matrix());
 
    glEnable(GL_BLEND);
@@ -256,19 +256,19 @@ void PlayerInfectedEffect::render()
    glDepthMask(GL_FALSE);
 
    glActiveTexture(GL_TEXTURE0);
-   glBindTexture(GL_TEXTURE_2D, mParticleTextureId);
-   activeDevice->bindSampler(mPointsTexture, 0);
+   glBindTexture(GL_TEXTURE_2D, _particle_texture_id);
+   activeDevice->bindSampler(_points_texture, 0);
 
-   float sizeFactor = 1.0f;
+   float size_factor = 1.0f;
    FrameBuffer* fb = FrameBuffer::Instance();
    if (fb)
    {
-      sizeFactor = fb->getSizeFactor(1920.0f);
+      size_factor = fb->getSizeFactor(1920.0f);
    }
 
-   for (const auto& flow : mFlowAnimations)
+   for (const auto& flow : _flow_animations)
    {
-      activeDevice->setParameter(mPointsSize, flow.animation->getPointSize() * sizeFactor);
+      activeDevice->setParameter(_points_size, flow.animation->getPointSize() * size_factor);
       flow.animation->draw();
    }
 

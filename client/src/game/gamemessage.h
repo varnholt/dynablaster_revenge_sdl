@@ -25,12 +25,12 @@ public:
    Signal<> expiredSignal;
 
 protected:
-   std::string mMessage;
-   FrameTimer mTime;
-   int mSenderId;
-   int mReceiverId;
-   std::string mSenderName;
-   std::string mReceiverName;
+   std::string _message;
+   FrameTimer _time;
+   int _sender_id;
+   int _receiver_id;
+   std::string _sender_name;
+   std::string _receiver_name;
 
    static int sDisplayTime;
 };

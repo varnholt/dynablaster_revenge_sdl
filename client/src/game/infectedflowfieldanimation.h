@@ -10,8 +10,8 @@ public:
    ~InfectedFlowFieldAnimation();
 
    void initialize();
-   void initializePositions(unsigned int depthMap, const Vector& min, const Vector& max);
-   void initializeParams(unsigned int depthMap, const Vector& min, const Vector& max);
+   void initializePositions(unsigned int depth_map, const Vector& min, const Vector& max);
+   void initializeParams(unsigned int depth_map, const Vector& min, const Vector& max);
 
    bool initialized() const;
    void setInitialized(bool init);
@@ -37,23 +37,23 @@ public:
    bool stopped() const;
 
 private:
-   bool mInitialized;
-   int mWidth;
-   int mHeight;
-   unsigned int mVertexPosBuffer;
-   unsigned int mVertexColorBuffer;
-   unsigned int mVertexParamTexture;
-   unsigned int mParamTarget;
-   unsigned int mVertexColorTexture;
-   unsigned int mColorTarget;
-   unsigned int mPositions[2];
-   unsigned int mPosTarget[2];
-   int mPage;
+   bool _initialized;
+   int _width;
+   int _height;
+   unsigned int _vertex_pos_buffer;
+   unsigned int _vertex_color_buffer;
+   unsigned int _vertex_param_texture;
+   unsigned int _param_target;
+   unsigned int _vertex_color_texture;
+   unsigned int _color_target;
+   unsigned int _positions[2];
+   unsigned int _pos_target[2];
+   int _page;
 
-   Vector mCenter;
-   float mFlowScale;
-   float mParticleSize;
+   Vector _center;
+   float _flow_scale;
+   float _particle_size;
 
-   float mElapsed;
-   bool mStop;
+   float _elapsed;
+   bool _stop;
 };

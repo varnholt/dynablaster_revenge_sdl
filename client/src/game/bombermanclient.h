@@ -62,7 +62,7 @@ public:
    void connectToServer();
 
    //! immediate login after connecting to server
-   void setLoginAfterConnect(bool loginAfterConnect);
+   void setLoginAfterConnect(bool login_after_connect);
 
    //! getter for list of games
    std::vector<GameInformation>* getGames() const;
@@ -92,7 +92,7 @@ public:
    bool isPlayerOwner() const;
 
    //! getter for player color by player id
-   Constants::Color getColor(int playerId) const;
+   Constants::Color getColor(int player_id) const;
 
    //! get list of players
    std::vector<PlayerInfo*> getPlayerInfoList() const;
@@ -384,87 +384,87 @@ private:
    // members
 
    //! keys currently pressed
-   int mKeysPressed;
+   int _keys_pressed;
 
    //! flag indicating bomb key was released
-   bool mBombReleased;
+   bool _bomb_released;
 
    //! stream socket to server, null unless connected or connecting
-   NET_StreamSocket* mSocket;
+   NET_StreamSocket* _socket;
 
    //! host address pending resolution, null once resolved (or if not resolving)
-   NET_Address* mAddress;
+   NET_Address* _address;
 
    //! drives poll() once per tick
-   Timer mPollTimer;
+   Timer _poll_timer;
 
    //! incoming byte buffer
-   PacketStreamBuffer mBuffer;
+   PacketStreamBuffer _buffer;
 
    //! blocksize of packet which is received from server
-   uint16_t mBlockSize;
+   uint16_t _block_size;
 
    //! player id
-   int mId;
+   int _id;
 
    //! game id
-   int mGameId;
+   int _game_id;
 
    //! player alive
-   bool mDead;
+   bool _dead;
 
    //! map items
-   std::unordered_map<int, MapItem*> mMapItems;
+   std::unordered_map<int, MapItem*> _map_items;
 
    //! host name
-   std::string mHost;
+   std::string _host;
 
    //! nick name
-   std::string mNick;
+   std::string _nick;
 
    //! list of games available
-   mutable std::vector<GameInformation> mGames;
+   mutable std::vector<GameInformation> _games;
 
    //! connected flag
-   bool mConnected;
+   bool _connected;
 
    //! login is requested after connect to host
-   bool mLoginAfterConnect;
+   bool _login_after_connect;
 
    //! server
-   Server* mServer;
+   Server* _server;
 
    //! server's own tick thread
-   std::jthread mServerThread;
+   std::jthread _server_thread;
 
    //! ingame message to send
-   std::string mMessage;
+   std::string _message;
 
    //! map id <-> player info object
-   mutable std::map<int, PlayerInfo*> mPlayerInfo;
+   mutable std::map<int, PlayerInfo*> _player_info;
 
-   //! current player info - raw, non-owning: mPlayerInfo owns it. clearPlayerInfoMap()/
+   //! current player info - raw, non-owning: _player_info owns it. clearPlayerInfoMap()/
    //! removePlayerInfo() explicitly null this out if they're about to delete the object it
-   //! points at, same explicit-invalidation pattern as Game::mSpectators.
-   PlayerInfo* mCurrentPlayerInfo;
+   //! points at, same explicit-invalidation pattern as Game::_spectators.
+   PlayerInfo* _current_player_info;
 
    //! getter for client singleton
-   static BombermanClient* mInstance;
+   static BombermanClient* _instance;
 
    //! position interpolation
-   std::unique_ptr<PositionInterpolation> mPositionInterpolation;
+   std::unique_ptr<PositionInterpolation> _position_interpolation;
 
    //! typing activated
-   bool mIngameMessagingActive;
+   bool _ingame_messaging_active;
 
    //! main menu active
-   bool mMainMenuActive;
+   bool _main_menu_active;
 
    //! bot factory
-   std::unique_ptr<BotFactory> mBotFactory;
+   std::unique_ptr<BotFactory> _bot_factory;
 
    //! game mode
-   Constants::GameMode mGameMode;
+   Constants::GameMode _game_mode;
 };
 
 #endif

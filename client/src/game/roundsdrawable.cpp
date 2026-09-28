@@ -23,39 +23,39 @@ constexpr float BLUR_FACTOR = 0.15f;
 
 RoundsDrawable::RoundsDrawable(RenderDevice* dev)
    : Drawable(dev),
-     mLayerRound(nullptr),
-     mLayerRoundFinal(nullptr),
-     mLayerRound1(nullptr),
-     mLayerRound2(nullptr),
-     mLayerRound3(nullptr),
-     mLayerRound4(nullptr),
-     mLayerRound5(nullptr),
-     mTime(0.0f),
-     mStartTime(0.0f),
-     mInitializeTime(false),
-     mMotionBlurFilter(nullptr),
-     mMaxLayerWidth(0.0f)
+     _layer_round(nullptr),
+     _layer_round_final(nullptr),
+     _layer_round1(nullptr),
+     _layer_round2(nullptr),
+     _layer_round3(nullptr),
+     _layer_round4(nullptr),
+     _layer_round5(nullptr),
+     _time(0.0f),
+     _start_time(0.0f),
+     _initialize_time(false),
+     _motion_blur_filter(nullptr),
+     _max_layer_width(0.0f)
 {
-   mFilename = "data/game/rounds.psd";
-   mMotionBlurFilter = new MotionBlurFilter();
+   _filename = "data/game/rounds.psd";
+   _motion_blur_filter = new MotionBlurFilter();
 }
 
 RoundsDrawable::~RoundsDrawable()
 {
-   delete mMotionBlurFilter;
+   delete _motion_blur_filter;
 }
 
 void RoundsDrawable::initializeGL()
 {
    initializeLayers();
-   mMotionBlurFilter->init();
+   _motion_blur_filter->init();
 }
 
 void RoundsDrawable::paintGL()
 {
    initGlParameters();
 
-   mMotionBlurFilter->setIntensity(1.0f);
+   _motion_blur_filter->setIntensity(1.0f);
 
    float x = 0.0f;
    float y = 0.0f;
@@ -86,7 +86,7 @@ void RoundsDrawable::paintGL()
    }
 
    speed *= std::fabs(speed);
-   x = 0.75f * -speed * mPsd.getWidth();
+   x = 0.75f * -speed * _psd.getWidth();
 
    GameInformation* info = BombermanClient::getInstance()->getCurrentGameInformation();
 
@@ -94,52 +94,52 @@ void RoundsDrawable::paintGL()
    {
       if (info->getCurrentRound() == info->getRoundCount() - 1)
       {
-         float scale = 1.0f / (mLayerRoundFinal->getWidth() / mMaxLayerWidth);
-         mMotionBlurFilter->setMotionDir(Vector2(speed * scale * BLUR_FACTOR, 0.0f));
-         mMotionBlurFilter->process(0, 0, 0);
-         mLayerRoundFinal->render(x, y, alpha);
+         float scale = 1.0f / (_layer_round_final->getWidth() / _max_layer_width);
+         _motion_blur_filter->setMotionDir(Vector2(speed * scale * BLUR_FACTOR, 0.0f));
+         _motion_blur_filter->process(0, 0, 0);
+         _layer_round_final->render(x, y, alpha);
       }
       else
       {
-         PSDLayer* currentLayer = nullptr;
+         PSDLayer* current_layer = nullptr;
 
          switch (info->getCurrentRound())
          {
             case 0:
-               currentLayer = mLayerRound1;
+               current_layer = _layer_round1;
                break;
             case 1:
-               currentLayer = mLayerRound2;
+               current_layer = _layer_round2;
                break;
             case 2:
-               currentLayer = mLayerRound3;
+               current_layer = _layer_round3;
                break;
             case 3:
-               currentLayer = mLayerRound4;
+               current_layer = _layer_round4;
                break;
             case 4:
-               currentLayer = mLayerRound5;
+               current_layer = _layer_round5;
                break;
             default:
                break;
          }
 
-         if (!currentLayer)
+         if (!current_layer)
          {
-            currentLayer = mLayerRound1;
+            current_layer = _layer_round1;
          }
 
-         float scale = 1.0f / (mLayerRound->getWidth() / mMaxLayerWidth);
-         mMotionBlurFilter->setMotionDir(Vector2(speed * scale * BLUR_FACTOR, 0.0f));
-         mMotionBlurFilter->process(0, 0, 0);
-         mLayerRound->render(x, y, alpha);
+         float scale = 1.0f / (_layer_round->getWidth() / _max_layer_width);
+         _motion_blur_filter->setMotionDir(Vector2(speed * scale * BLUR_FACTOR, 0.0f));
+         _motion_blur_filter->process(0, 0, 0);
+         _layer_round->render(x, y, alpha);
 
-         if (currentLayer)
+         if (current_layer)
          {
-            scale = 1.0f / (currentLayer->getWidth() / mMaxLayerWidth);
-            mMotionBlurFilter->setMotionDir(Vector2(speed * scale * BLUR_FACTOR, 0.0f));
-            mMotionBlurFilter->process(0, 0, 0);
-            currentLayer->render(x, y, alpha);
+            scale = 1.0f / (current_layer->getWidth() / _max_layer_width);
+            _motion_blur_filter->setMotionDir(Vector2(speed * scale * BLUR_FACTOR, 0.0f));
+            _motion_blur_filter->process(0, 0, 0);
+            current_layer->render(x, y, alpha);
          }
       }
    }
@@ -151,12 +151,12 @@ void RoundsDrawable::paintGL()
 
 void RoundsDrawable::animate(float time)
 {
-   mTime = time;
+   _time = time;
 
-   if (mInitializeTime)
+   if (_initialize_time)
    {
-      mStartTime = time;
-      mInitializeTime = false;
+      _start_time = time;
+      _initialize_time = false;
    }
 
    if (getRelativeTime() > ANIMATION_DURATION + FADE_OUT_DURATION)
@@ -168,12 +168,12 @@ void RoundsDrawable::animate(float time)
 void RoundsDrawable::showGame()
 {
    setVisible(true);
-   mInitializeTime = true;
+   _initialize_time = true;
 }
 
 void RoundsDrawable::initGlParameters()
 {
-   Matrix ortho = Matrix::ortho(0.0f, mPsd.getWidth(), mPsd.getHeight(), 0.0f, -1.0f, 1.0f);
+   Matrix ortho = Matrix::ortho(0.0f, _psd.getWidth(), _psd.getHeight(), 0.0f, -1.0f, 1.0f);
    static_cast<GLDevice*>(activeDevice)->setProjectionMatrix(ortho);
 
    glEnable(GL_BLEND);
@@ -192,49 +192,49 @@ void RoundsDrawable::cleanupGlParameters()
 
 float RoundsDrawable::getRelativeTime() const
 {
-   return mTime - mStartTime;
+   return _time - _start_time;
 }
 
 void RoundsDrawable::initializeLayers()
 {
-   mPsd.load(mFilename.c_str());
+   _psd.load(_filename.c_str());
 
-   for (int l = 0; l < mPsd.getLayerCount(); l++)
+   for (int l = 0; l < _psd.getLayerCount(); l++)
    {
-      PSD::Layer* psdLayer = mPsd.getLayer(l);
-      auto layer = std::make_unique<PSDLayer>(psdLayer);
+      PSD::Layer* psd_layer = _psd.getLayer(l);
+      auto layer = std::make_unique<PSDLayer>(psd_layer);
 
-      mMaxLayerWidth = std::max(mMaxLayerWidth, static_cast<float>(layer->getWidth()));
+      _max_layer_width = std::max(_max_layer_width, static_cast<float>(layer->getWidth()));
 
-      if (std::strcmp(psdLayer->getName(), "round_label") == 0)
+      if (std::strcmp(psd_layer->getName(), "round_label") == 0)
       {
-         mLayerRound = layer.get();
+         _layer_round = layer.get();
       }
-      else if (std::strcmp(psdLayer->getName(), "finalround_label") == 0)
+      else if (std::strcmp(psd_layer->getName(), "finalround_label") == 0)
       {
-         mLayerRoundFinal = layer.get();
+         _layer_round_final = layer.get();
       }
-      else if (std::strcmp(psdLayer->getName(), "r1") == 0)
+      else if (std::strcmp(psd_layer->getName(), "r1") == 0)
       {
-         mLayerRound1 = layer.get();
+         _layer_round1 = layer.get();
       }
-      else if (std::strcmp(psdLayer->getName(), "r2") == 0)
+      else if (std::strcmp(psd_layer->getName(), "r2") == 0)
       {
-         mLayerRound2 = layer.get();
+         _layer_round2 = layer.get();
       }
-      else if (std::strcmp(psdLayer->getName(), "r3") == 0)
+      else if (std::strcmp(psd_layer->getName(), "r3") == 0)
       {
-         mLayerRound3 = layer.get();
+         _layer_round3 = layer.get();
       }
-      else if (std::strcmp(psdLayer->getName(), "r4") == 0)
+      else if (std::strcmp(psd_layer->getName(), "r4") == 0)
       {
-         mLayerRound4 = layer.get();
+         _layer_round4 = layer.get();
       }
-      else if (std::strcmp(psdLayer->getName(), "r5") == 0)
+      else if (std::strcmp(psd_layer->getName(), "r5") == 0)
       {
-         mLayerRound5 = layer.get();
+         _layer_round5 = layer.get();
       }
 
-      mPsdLayers.push_back(std::move(layer));
+      _psd_layers.push_back(std::move(layer));
    }
 }

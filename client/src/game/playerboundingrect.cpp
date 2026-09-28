@@ -1,18 +1,18 @@
 #include "playerboundingrect.h"
 
 PlayerBoundingRect::PlayerBoundingRect()
- : mPlayerItem(0)
+ : _player_item(0)
 {
 }
 
 
 void PlayerBoundingRect::setPlayerItem(PlayerItem *item)
 {
-   mPlayerItem = item;
+   _player_item = item;
 }
 
 
 PlayerItem *PlayerBoundingRect::getPlayerItem() const
 {
-   return mPlayerItem;
+   return _player_item;
 }

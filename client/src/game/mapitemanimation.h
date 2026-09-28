@@ -18,19 +18,19 @@ class MapItemAnimation
       void animate(float dt);
       void reset();
 
-      Constants::Direction mDirection;
-      float mSpeed;
-      float mX;
-      float mY;
-      float mZ;
-      float mZPrev;
-      int mNominalX;
-      int mNominalY;
-      float mTime;
-      bool mTick;
-      float mFactor;
+      Constants::Direction _direction;
+      float _speed;
+      float _x;
+      float _y;
+      float _z;
+      float _z_prev;
+      int _nominal_x;
+      int _nominal_y;
+      float _time;
+      bool _tick;
+      float _factor;
 
-      Signal<> bounceSignal;
+      Signal<> bounce_signal;
 };
 
 #endif // MAPITEMANIMATION_H
