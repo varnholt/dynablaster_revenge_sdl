@@ -49,7 +49,8 @@ void MushroomAnimation::update()
       _intensity = 1.0f;
    }
 
-   if (_intensity <= 0.0f)
+   // only a finished fade-out ends it - the first update after start() can have dt == 0
+   if (_aborted && _intensity <= 0.0f)
    {
       _active = false;
    }

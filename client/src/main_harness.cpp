@@ -16,6 +16,7 @@
 #include "tools/filestream.h"
 
 #include "demofactory.h"
+#include "effectlab.h"
 #include "sdlglobaltime.h"
 
 #include "engine/nodes/scenegraph.h"
@@ -28,6 +29,7 @@
 #include "menus/bitmapfont.h"
 #include "menus/fontmap.h"
 #include "menus/fontpool.h"
+#include "menus/gamefonts.h"
 #include "menus/menu.h"
 #include "menus/menudrawable.h"
 #include "menus/menumousecursor.h"
@@ -92,22 +94,6 @@ bool hasFlag(const std::vector<std::string>& args, const std::string& flag)
    return false;
 }
 
-/// \brief registers the BitmapFonts the ported menu pages actually need (see project memory -
-/// "outlined"/"time"/"large"/"large-outlined" are for in-game HUD text, not menus, and are
-/// deferred until something that needs them is ported). "lounge" is needed now: page_4's
-/// table_lounge_font_name = lounge in menu.ini.
-void registerMenuFont()
-{
-   BitmapFont* fontDefault =
-      new BitmapFont("data/fonts/font", MenuFont::sMenuChars, 2.1f, 3.0f, 32.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.1f, 0.05f, -0.025f);
-
-   BitmapFont* fontLounge =
-      new BitmapFont("data/fonts/font", MenuFont::sMenuChars, 2.2f, 4.0f, 32.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.1f, 0.05f, -0.025f);
-
-   FontPool::Instance()->add("default", fontDefault);
-   FontPool::Instance()->add("lounge", fontLounge);
-}
-
 }  // namespace
 
 int main(int argc, char** argv)
@@ -124,6 +110,13 @@ int main(int argc, char** argv)
    const std::string dump_layer = argValue(args, "--dumplayer=");
    const std::string page_name = argValue(args, "--page=");
    const std::string dump_psd = argValue(args, "--dumppsd=");
+
+   const std::string effect = argValue(args, "--effect=");
+   if (!effect.empty())
+   {
+      const std::string out_dir = argValue(args, "--out=");
+      return runEffectLab(effect, out_dir.empty() ? "effect-lab" : out_dir);
+   }
 
    if (!dump_psd.empty())
    {
@@ -213,7 +206,7 @@ int main(int argc, char** argv)
    }
    else if (menuMode)
    {
-      registerMenuFont();
+      registerGameFonts();
 
       menuDrawable = new MenuDrawable(&device);
       menuDrawable->initializeGL();

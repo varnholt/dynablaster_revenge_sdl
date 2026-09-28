@@ -168,7 +168,8 @@ void InfectedFlowFieldAnimation::initialize()
    glGenFramebuffers(1, &_color_target);
    glBindFramebuffer(GL_FRAMEBUFFER, _color_target);
    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, _vertex_color_texture, 0);
-   glClear(GL_COLOR_BUFFER_BIT);
+   // transparent until a particle respawns and picks up a color (original's clear color)
+   static_cast<GLDevice*>(activeDevice)->clear(0.0f, 0.0f, 0.0f, 0.0f);
    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
    for (int i = 0; i < 2; i++)
@@ -265,15 +266,10 @@ void InfectedFlowFieldAnimation::updateColors()
    glBindTexture(GL_TEXTURE_2D, _positions[1 - _page]);
    glActiveTexture(GL_TEXTURE0);
 
-   // a particle only gets a fresh color the frame it respawns (see infectedupdatecolors-frag.glsl)
-   // - blending preserves every other particle's existing color instead of blanking it each frame.
-   glEnable(GL_BLEND);
-   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
+   // a particle only gets a fresh color the frame it respawns; the shader discards every other
+   // texel (the original's alpha test) so existing colors are kept.
    const float quad[4 * 2] = {-1.0f, -1.0f, 1.0f, -1.0f, 1.0f, 1.0f, -1.0f, 1.0f};
    drawQuad(quad, 2);
-
-   glDisable(GL_BLEND);
 
    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }

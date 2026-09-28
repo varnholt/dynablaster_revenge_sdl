@@ -158,9 +158,6 @@ void PlayerInfectedEffect::render()
 
    FrameBuffer::push();
 
-   glDepthMask(GL_FALSE);
-   glDisable(GL_DEPTH_TEST);
-
    for (auto& flow : _flow_animations)
    {
       if (!flow.material)
@@ -169,9 +166,12 @@ void PlayerInfectedEffect::render()
       }
 
       // re-capture the infected player's current silhouette every frame - unlike PlayerDeathEffect
-      // (a frozen one-shot capture), an infected player is still alive and moving.
+      // (a frozen one-shot capture), an infected player is still alive and moving. Depth writes
+      // must still be on here: the particle passes below unproject from this depth texture.
+      // Clear to transparent black (the original's global clear color): respawning particles
+      // that sample the background must get alpha 0 so the color pass leaves them alone.
       FrameBuffer::push(_deferred_buffer);
-      activeDevice->clear();
+      static_cast<GLDevice*>(activeDevice)->clear(0.0f, 0.0f, 0.0f, 0.0f);
 
       Vector min;
       Vector max;
@@ -182,6 +182,9 @@ void PlayerInfectedEffect::render()
       flow.material->renderDiffuse();
 
       FrameBuffer::pop();
+
+      glDepthMask(GL_FALSE);
+      glDisable(GL_DEPTH_TEST);
 
       if (!flow.animation->initialized())
       {
@@ -197,7 +200,9 @@ void PlayerInfectedEffect::render()
          activeDevice->setShader(_flow_init_param_shader);
          activeDevice->bindSampler(_flow_init_param_depth, 0);
          activeDevice->setParameter(_flow_init_param_inv_proj, inv_proj);
-         activeDevice->setParameter(_flow_init_param_center, Vector2(center.x, center.y));
+         // the original set this vec2 with a 3-component Vector (GL_INVALID_OPERATION), so it
+         // always stayed (0, 0) - keep that, it selects the flow field offsets.
+         activeDevice->setParameter(_flow_init_param_center, Vector2(0.0f, 0.0f));
          flow.animation->initializeParams(_deferred_buffer->depthTexture(), min, max);
 
          activeDevice->setShader(0);
@@ -237,10 +242,11 @@ void PlayerInfectedEffect::render()
       flow.animation->updateColors();
 
       activeDevice->setShader(0);
+
+      glDepthMask(GL_TRUE);
+      glEnable(GL_DEPTH_TEST);
    }
 
-   glDepthMask(GL_TRUE);
-   glEnable(GL_DEPTH_TEST);
    glActiveTexture(GL_TEXTURE0);
 
    FrameBuffer::pop();
@@ -259,7 +265,9 @@ void PlayerInfectedEffect::render()
    glBindTexture(GL_TEXTURE_2D, _particle_texture_id);
    activeDevice->bindSampler(_points_texture, 0);
 
-   float size_factor = 1.0f;
+   // the original always rendered into a screen-sized FrameBuffer; without one, scale by the
+   // screen width so particle size keeps its 1920 px reference.
+   float size_factor = static_cast<float>(activeDevice->getWidth()) / 1920.0f;
    FrameBuffer* fb = FrameBuffer::Instance();
    if (fb)
    {

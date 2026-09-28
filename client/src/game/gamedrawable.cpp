@@ -231,6 +231,16 @@ void GameDrawable::setPlayerId(int id)
 
 //-----------------------------------------------------------------------------
 /*!
+   \param enabled \c false never draws the player name tags (used by the effect lab)
+*/
+void GameDrawable::setPlayerNamesEnabled(bool enabled)
+{
+   _player_names_enabled = enabled;
+}
+
+
+//-----------------------------------------------------------------------------
+/*!
 */
 void GameDrawable::clear()
 {
@@ -1471,7 +1481,7 @@ void GameDrawable::paintGL()
    _player_infected_effect->render();
 
    // draw player names
-   if (_player_name_display->isActive())
+   if (_player_names_enabled && _player_name_display->isActive())
    {
       _player_name_display->setPlayerData(_player_list);
       _player_name_display->draw();
