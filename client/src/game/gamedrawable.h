@@ -31,6 +31,7 @@ class GamePlayerNameDisplay;
 class Level;
 class MapItem;
 class Material;
+class InvisiblePlayerEffect;
 class Mesh;
 class MushroomAnimation;
 class Node;
@@ -46,7 +47,6 @@ class StarTalersFactory;
 
 // Real map/players/bombs/extras/HUD rendering.
 // Not implemented yet (backlog, see project memory): ExtraAnimation/ExtraRevealAnimation,
-// InvisiblePlayerEffect,
 // RibbonAnimationFactory/LensFlareFactory, GamePlaybackDisplay, HeadlessIntegration.
 // Dead code, not ported: drawTestQuad/drawBoundingBox/drawBoundingRect/playerBoundingRect/
 // loadExplosion, INSPECT_SCENE debug input, mExportScene.
@@ -193,6 +193,7 @@ private:
    StarTalersFactory* _star_talers_factory;
    std::unique_ptr<MushroomAnimation> _mushroom_animation;
    std::unique_ptr<ShroomFilter> _shroom_filter;
+   std::unique_ptr<InvisiblePlayerEffect> _invisible_player_effect;
 
    float _time;
    float _time_prev;
