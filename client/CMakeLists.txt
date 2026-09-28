@@ -257,6 +257,8 @@ add_library(dynablaster_core STATIC
     src/postproduction/motionblurfilter.h
     src/postproduction/shroomfilter.cpp
     src/postproduction/shroomfilter.h
+    src/effects/ribbons/ribbonanimationfactory.cpp
+    src/effects/ribbons/ribbonanimationfactory.h
     src/effects/spherefragments/vertex3d.h
     src/effects/spherefragments/geometryvbo.cpp
     src/effects/spherefragments/geometryvbo.h
