@@ -343,6 +343,8 @@ add_library(dynablaster_core STATIC
     src/game/playerdeatheffect.h
     src/game/infectedflowfieldanimation.cpp
     src/game/infectedflowfieldanimation.h
+    src/game/invisibleplayereffect.cpp
+    src/game/invisibleplayereffect.h
     src/game/playerinfectedeffect.cpp
     src/game/playerinfectedeffect.h
     src/game/fuseparticlesystem.cpp

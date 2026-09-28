@@ -18,6 +18,7 @@
 #include "fuseparticlesystem.h"
 #include "mushroomanimation.h"
 #include "gameplayernamedisplay.h"
+#include "invisibleplayereffect.h"
 #include "startalersfactory.h"
 #include "playerdeatheffect.h"
 #include "playerinfectedeffect.h"
@@ -131,6 +132,12 @@ void GameDrawable::deleteLevelData()
    _playfield= nullptr;
    _level_scene_graph= nullptr;
    _players= nullptr;
+
+   // the destructor gets here too, possibly without initializeGL() having run
+   if (_invisible_player_effect)
+   {
+      _invisible_player_effect->setPlayerScene(nullptr);
+   }
 
    for (int i=0;i<_destruct_anim.size(); i++)
       delete _destruct_anim[i];
@@ -323,6 +330,7 @@ void GameDrawable::loadLevel(const std::string& level_path)
    _level_scene_graph= _level->getLevel();
    _playfield= _level->getScene();
    _players= _level->getPlayers();
+   _invisible_player_effect->setPlayerScene(_players);
 
    _playfield->setGlobalTransform(
       Matrix::scale(
@@ -392,6 +400,8 @@ void GameDrawable::initializeGL()
    _mushroom_animation = std::make_unique<MushroomAnimation>();
    _shroom_filter = std::make_unique<ShroomFilter>();
    _shroom_filter->init();
+
+   _invisible_player_effect = std::make_unique<InvisiblePlayerEffect>();
 }
 
 
@@ -609,7 +619,6 @@ void GameDrawable::shakeBlock(MapItem* item)
 
 //-----------------------------------------------------------------------------
 /*!
-   Invisibility is still deferred (see header comment).
 */
 void GameDrawable::playerInfected(
    int id,
@@ -629,6 +638,7 @@ void GameDrawable::playerInfected(
    {
       _player_infected_effect->remove(player_item->getMaterial());
       _player_invincible_effect->remove(player_item->getMaterial());
+      _invisible_player_effect->removePlayer(player_item);
 
       if (id == _player_id)
       {
@@ -648,7 +658,11 @@ void GameDrawable::playerInfected(
    {
       _player_invincible_effect->add(player_item->getMaterial());
    }
-   else if (skull_type != Constants::SkullInvisible)
+   else if (skull_type == Constants::SkullInvisible)
+   {
+      _invisible_player_effect->addPlayer(player_item);
+   }
+   else
    {
       _player_infected_effect->add(player_item->getMaterial());
    }
@@ -1128,6 +1142,7 @@ void GameDrawable::removePlayer(int id)
    {
       player->kill();
       _player_infected_effect->remove(player->getMaterial());
+      _invisible_player_effect->removePlayer(player);
    }
 
    if (id == _player_id && _mushroom_animation->isActive())
@@ -1353,6 +1368,8 @@ void GameDrawable::paintGL()
 {
    float time= GlobalTime::Instance()->getTime();
 
+   _invisible_player_effect->update(time);
+
    float dt = _time - _time_prev;
 
    shakeBoxes(dt*0.015f);
@@ -1417,6 +1434,7 @@ void GameDrawable::paintGL()
 
    if (_players)
    {
+      _invisible_player_effect->captureBackground();
       _players->render(0.0, shake);
    }
 
@@ -1482,6 +1500,11 @@ void GameDrawable::resetPlayers()
 {
    if (_level)
       _level->resetPlayerPositions();
+
+   if (_invisible_player_effect)
+   {
+      _invisible_player_effect->removeAllPlayers();
+   }
 
    auto it= _player_list.begin();
    while (it != _player_list.end())
