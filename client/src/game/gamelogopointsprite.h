@@ -1,11 +1,6 @@
 #pragma once
 
-// GLES3 port of client/src/game/gamelogopointsprite.h. The class name suggests GL_POINT_SPRITE /
-// gl_PointSize-driven rendering, but the real draw() (see the .cpp) never used that at all - each
-// "sprite" was always a screen-facing quad built from 4 explicit vertices in world space, sized by
-// offsetting x/y directly (no billboarding math, no point-sprite GL state). That makes this a
-// perfectly ordinary attribute-array quad batch in GLES3, not the point-sprite API port the name
-// implies - verified against the real .cpp before assuming otherwise.
+// Draws a screen-facing quad batch (not real GL point sprites, despite the class name).
 
 #include "math/vector.h"
 #include "render/texture.h"
@@ -21,7 +16,7 @@ public:
    static void initialize();
 
    //! setter for point sprite vectors
-   static void setPointSprites(const Array<Vector>& v, const Array<float>& glowValues);
+   static void setPointSprites(const Array<Vector>& v, const Array<float>& glow_values);
 
    //! draw the vectors in one go
    static void draw();
@@ -39,8 +34,8 @@ protected:
    static unsigned int sVertexBuffer;
 
    //! vector singleton
-   static Array<Vector> mPositions;
+   static Array<Vector> _positions;
 
    //! glow values
-   static Array<float> mGlowValues;
+   static Array<float> _glow_values;
 };

@@ -13,15 +13,15 @@
 
 CountdownDrawable::CountdownDrawable(RenderDevice* dev)
    : Drawable(dev),
-     mTimeLeft(0),
-     mAnimationStartTime(-1.0f),
-     mAnimationActive(false),
-     mDeltaTime(0.0f),
-     mTime(0.0f),
-     mDeltaTimeInitialized(false),
-     mShader(0)
+     _time_left(0),
+     _animation_start_time(-1.0f),
+     _animation_active(false),
+     _delta_time(0.0f),
+     _time(0.0f),
+     _delta_time_initialized(false),
+     _shader(0)
 {
-   mFilename = "data/menus/countdown.psd";
+   _filename = "data/menus/countdown.psd";
 }
 
 CountdownDrawable::~CountdownDrawable() = default;
@@ -30,7 +30,7 @@ void CountdownDrawable::initializeGL()
 {
    initializeLayers();
 
-   mShader = getDefaultMenuShader();
+   _shader = getDefaultMenuShader();
 }
 
 void CountdownDrawable::paintGL()
@@ -42,25 +42,25 @@ void CountdownDrawable::paintGL()
 
 void CountdownDrawable::animate(float time)
 {
-   mDeltaTime = time - mTime;
-   mTime = time;
+   _delta_time = time - _time;
+   _time = time;
 
-   if (!mDeltaTimeInitialized)
+   if (!_delta_time_initialized)
    {
-      mDeltaTime = 0.0f;
-      mDeltaTimeInitialized = true;
+      _delta_time = 0.0f;
+      _delta_time_initialized = true;
    }
 
    // decrease alpha
    bool done = true;
    float val = 0.0f;
-   for (int i = 0; i < mLayerAlphas.size(); i++)
+   for (int i = 0; i < _layer_alphas.size(); i++)
    {
-      val = mLayerAlphas[i];
+      val = _layer_alphas[i];
 
       if (val > 0.0f)
       {
-         mLayerAlphas[i] = val - (FADE_FACTOR * mDeltaTime);
+         _layer_alphas[i] = val - (FADE_FACTOR * _delta_time);
          done = false;
       }
    }
@@ -69,17 +69,17 @@ void CountdownDrawable::animate(float time)
    if (done)
    {
       setVisible(false);
-      mDeltaTimeInitialized = false;
+      _delta_time_initialized = false;
    }
 }
 
 void CountdownDrawable::drawCountdown()
 {
-   for (int layerIndex = 0; layerIndex < mPsdLayers.size(); layerIndex++)
+   for (int layer_index = 0; layer_index < _psd_layers.size(); layer_index++)
    {
-      if (mLayerAlphas[layerIndex] > 0.0f)
+      if (_layer_alphas[layer_index] > 0.0f)
       {
-         mPsdLayers[layerIndex]->render(0, 0, mLayerAlphas[layerIndex]);
+         _psd_layers[layer_index]->render(0, 0, _layer_alphas[layer_index]);
       }
    }
 }
@@ -87,13 +87,13 @@ void CountdownDrawable::drawCountdown()
 void CountdownDrawable::countdown(int left)
 {
    setVisible(true);
-   mTimeLeft = left;
-   mLayerAlphas[mLayerAlphas.size() - 1 - left] = 1.0f;
+   _time_left = left;
+   _layer_alphas[_layer_alphas.size() - 1 - left] = 1.0f;
 }
 
 void CountdownDrawable::initGlParameters()
 {
-   Matrix ortho = Matrix::ortho(0.0f, mPsd.getWidth(), mPsd.getHeight(), 0.0f, -1.0f, 1.0f);
+   Matrix ortho = Matrix::ortho(0.0f, _psd.getWidth(), _psd.getHeight(), 0.0f, -1.0f, 1.0f);
    static_cast<GLDevice*>(activeDevice)->setProjectionMatrix(ortho);
 
    glEnable(GL_BLEND);
@@ -102,7 +102,7 @@ void CountdownDrawable::initGlParameters()
    glDisable(GL_DEPTH_TEST);
    glDepthMask(GL_FALSE);
 
-   activeDevice->setShader(mShader);
+   activeDevice->setShader(_shader);
 }
 
 void CountdownDrawable::cleanupGlParameters()
@@ -114,12 +114,12 @@ void CountdownDrawable::cleanupGlParameters()
 
 void CountdownDrawable::initializeLayers()
 {
-   mPsd.load(mFilename.c_str());
+   _psd.load(_filename.c_str());
 
    // assign layers to menu page items
-   for (int l = 0; l < mPsd.getLayerCount(); l++)
+   for (int l = 0; l < _psd.getLayerCount(); l++)
    {
-      mPsdLayers.push_back(std::make_unique<PSDLayer>(mPsd.getLayer(l)));
-      mLayerAlphas.push_back(0.0f);
+      _psd_layers.push_back(std::make_unique<PSDLayer>(_psd.getLayer(l)));
+      _layer_alphas.push_back(0.0f);
    }
 }

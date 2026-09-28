@@ -36,7 +36,7 @@ public:
 
    void animate(float time, float delta);
    void kill();
-   void setKilled(bool isKilled);
+   void setKilled(bool is_killed);
    bool isKilled() const;
    void win();
    bool isWinner() const;
@@ -48,20 +48,20 @@ private:
 
    void update();
 
-   int mID;
-   Constants::Color mColor;
-   std::string mNick;
-   Mesh *mMesh;
-   Material *mMaterial;
-   Vector mPos;
-   float mRot;
-   float mSpeed;
-   float mAnimBlend;
-   float mStandBlend;
-   bool  mKilled;
-   bool  mWin;
-   bool  mLeftFoot;
-   float mFlash;
+   int _id;
+   Constants::Color _color;
+   std::string _nick;
+   Mesh *_mesh;
+   Material *_material;
+   Vector _pos;
+   float _rot;
+   float _speed;
+   float _anim_blend;
+   float _stand_blend;
+   bool  _killed;
+   bool  _win;
+   bool  _left_foot;
+   float _flash;
 };
 
 #endif

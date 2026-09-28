@@ -43,15 +43,15 @@
 
 GameMessagingDrawable::GameMessagingDrawable(RenderDevice* dev)
     : Drawable(dev),
-      mLineEditSayLayer(nullptr),
-      mPlayerNameLayer(nullptr),
-      mFont(nullptr),
-      mActive(false),
-      mCursorPosition(0),
-      mCursorTexture(0),
-      mCursorVertexBuffer(0)
+      _line_edit_say_layer(nullptr),
+      _player_name_layer(nullptr),
+      _font(nullptr),
+      _active(false),
+      _cursor_position(0),
+      _cursor_texture(0),
+      _cursor_vertex_buffer(0)
 {
-   mFilename = "data/game/messaging_bar.psd";
+   _filename = "data/game/messaging_bar.psd";
 
    BombermanClient::getInstance()->gameStartedSignal.connect([this]() { disableIngameMessaging(); });
    GameStateMachine::getInstance()->stateChangedSignal.connect([this]() { gameStateChanged(); });
@@ -59,57 +59,57 @@ GameMessagingDrawable::GameMessagingDrawable(RenderDevice* dev)
 
 GameMessagingDrawable::~GameMessagingDrawable()
 {
-   for (auto* layer : mPsdLayers)
+   for (auto* layer : _psd_layers)
    {
       delete layer;
    }
-   mPsdLayers.clear();
+   _psd_layers.clear();
 }
 
-void GameMessagingDrawable::messageReceived(int /*senderId*/, const std::string& text, bool typingFinished)
+void GameMessagingDrawable::messageReceived(int /*sender_id*/, const std::string& text, bool typing_finished)
 {
    if (mVisible)
    {
       if (StringUtils::trim(text).empty())
          return;
 
-      if (typingFinished)
+      if (typing_finished)
       {
          const std::vector<std::string> lines = WordWrap::wrap(text, CLIENT_MESSAGE_TEXT_MAXIMUM);
 
          // prepend nick to other lines if available
-         std::vector<std::string> processedLines;
+         std::vector<std::string> processed_lines;
          std::string message = lines.at(0);
-         processedLines.push_back(message);
+         processed_lines.push_back(message);
 
          if (lines.size() > 1)
          {
-            size_t startIndex = message.find(":");
-            if (startIndex != std::string::npos)
+            size_t start_index = message.find(":");
+            if (start_index != std::string::npos)
             {
-               std::string nick = message.substr(0, startIndex);
+               std::string nick = message.substr(0, start_index);
 
                if (StringUtils::trim(message) == nick + ":")
-                  processedLines.clear();
+                  processed_lines.clear();
 
                for (size_t i = 1; i < lines.size(); i++)
                {
-                  processedLines.push_back(nick + ": " + lines.at(i));
+                  processed_lines.push_back(nick + ": " + lines.at(i));
                }
             }
          }
 
-         for (const std::string& line : processedLines)
+         for (const std::string& line : processed_lines)
          {
-            mFont->setColor(1.0f, 1.0f, 1.0f, 1.0f);
-            mFont->buildVertices(FONT_SCALE_MESSAGE, line.c_str(), MESSAGE_OFFSET_X, MESSAGE_OFFSET_Y - MESSAGE_STACK_OFFSET);
+            _font->setColor(1.0f, 1.0f, 1.0f, 1.0f);
+            _font->buildVertices(FONT_SCALE_MESSAGE, line.c_str(), MESSAGE_OFFSET_X, MESSAGE_OFFSET_Y - MESSAGE_STACK_OFFSET);
 
             AnimatedGameMessage* message = new AnimatedGameMessage();
             message->setMessage(line);
-            message->setVertices(mFont->getVertices());
+            message->setVertices(_font->getVertices());
             message->initialize();
 
-            mMessages.insert(mMessages.begin(), message);
+            _messages.insert(_messages.begin(), message);
 
             message->expiredSignal.connect([this, message]() { popMessage(message); });
          }
@@ -119,7 +119,7 @@ void GameMessagingDrawable::messageReceived(int /*senderId*/, const std::string&
 
 void GameMessagingDrawable::clearMessage()
 {
-   mMessage.clear();
+   _message.clear();
 }
 
 void GameMessagingDrawable::keyPressEvent(const KeyEvent& event)
@@ -128,20 +128,20 @@ void GameMessagingDrawable::keyPressEvent(const KeyEvent& event)
    {
       if (event.key() == SDLK_RETURN || event.key() == SDLK_KP_ENTER)
       {
-         bool wasActive = isActive();
+         bool was_active = isActive();
          toggleActive();
 
-         if (wasActive)
+         if (was_active)
          {
-            if (!mMessage.empty())
+            if (!_message.empty())
             {
-               BombermanClient::getInstance()->sendMessage(mMessage, true);
+               BombermanClient::getInstance()->sendMessage(_message, true);
                clearMessage();
             }
          }
          else
          {
-            setCursorPosition(static_cast<int>(mMessage.length()));
+            setCursorPosition(static_cast<int>(_message.length()));
          }
       }
       else
@@ -157,15 +157,15 @@ void GameMessagingDrawable::keyPressEvent(const KeyEvent& event)
             {
                if (isCursorAtEnd())
                {
-                  if (!mMessage.empty())
-                     mMessage.pop_back();
+                  if (!_message.empty())
+                     _message.pop_back();
                   moveCursorLeft();
                }
                else
                {
                   if (getCursorPosition() > 0)
                   {
-                     mMessage.erase(getCursorPosition() - 1, 1);
+                     _message.erase(getCursorPosition() - 1, 1);
                      moveCursorLeft();
                   }
                }
@@ -174,7 +174,7 @@ void GameMessagingDrawable::keyPressEvent(const KeyEvent& event)
             {
                if (!isCursorAtEnd())
                {
-                  mMessage.erase(getCursorPosition(), 1);
+                  _message.erase(getCursorPosition(), 1);
                }
             }
             else if (event.key() == SDLK_LEFT)
@@ -199,12 +199,12 @@ void GameMessagingDrawable::keyPressEvent(const KeyEvent& event)
 
                if (isCursorAtEnd())
                {
-                  if (static_cast<int>(mMessage.length()) < MESSAGE_LENGTH_MAX)
-                     mMessage.append(text);
+                  if (static_cast<int>(_message.length()) < MESSAGE_LENGTH_MAX)
+                     _message.append(text);
                }
                else
                {
-                  mMessage.replace(getCursorPosition(), 1, text);
+                  _message.replace(getCursorPosition(), 1, text);
                }
 
                moveCursorRight();
@@ -229,36 +229,36 @@ void GameMessagingDrawable::setVisible(bool visible)
 
 void GameMessagingDrawable::updateMessageVertices()
 {
-   int i0 = std::max(mCursorPosition - MESSAGE_FIELD_WIDTH, 0);
-   const std::string visibleText = mMessage.substr(std::min(static_cast<size_t>(i0), mMessage.size()), MESSAGE_FIELD_WIDTH);
+   int i0 = std::max(_cursor_position - MESSAGE_FIELD_WIDTH, 0);
+   const std::string visible_text = _message.substr(std::min(static_cast<size_t>(i0), _message.size()), MESSAGE_FIELD_WIDTH);
 
-   mFont->setColor(1.0f, 1.0f, 1.0f, 1.0f);
-   mFont->buildVertices(FONT_SCALE_MESSAGE, visibleText.c_str(), mLineEditSayLayer->getLeft(), LINEEDIT_SAY_Y);
+   _font->setColor(1.0f, 1.0f, 1.0f, 1.0f);
+   _font->buildVertices(FONT_SCALE_MESSAGE, visible_text.c_str(), _line_edit_say_layer->getLeft(), LINEEDIT_SAY_Y);
 
-   mMessageVertices.copy(mFont->getVertices());
+   _message_vertices.copy(_font->getVertices());
 }
 
 void GameMessagingDrawable::buildNickVertices()
 {
-   PlayerInfo* playerInfo = BombermanClient::getInstance()->getCurrentPlayerInfo();
-   if (playerInfo)
+   PlayerInfo* player_info = BombermanClient::getInstance()->getCurrentPlayerInfo();
+   if (player_info)
    {
-      mFont->setColor(1.0f, 1.0f, 1.0f, 1.0f);
-      mFont->buildVertices(FONT_SCALE_NICK, playerInfo->getNick().c_str(), 0, 0);
-      mNickVertices.copy(mFont->getVertices());
+      _font->setColor(1.0f, 1.0f, 1.0f, 1.0f);
+      _font->buildVertices(FONT_SCALE_NICK, player_info->getNick().c_str(), 0, 0);
+      _nick_vertices.copy(_font->getVertices());
    }
    else
    {
-      mNickVertices.clear();
+      _nick_vertices.clear();
    }
 }
 
 void GameMessagingDrawable::popMessage(AnimatedGameMessage* message)
 {
-   auto it = std::find(mMessages.begin(), mMessages.end(), message);
-   if (it != mMessages.end())
+   auto it = std::find(_messages.begin(), _messages.end(), message);
+   if (it != _messages.end())
    {
-      mMessages.erase(it);
+      _messages.erase(it);
    }
 
    Timer::singleShot(0, [message]() { delete message; });
@@ -278,14 +278,14 @@ void GameMessagingDrawable::gameStateChanged()
    else if (GameStateMachine::getInstance()->getState() == Constants::GameActive)
    {
       // copy buffer from client to textedit
-      mMessage = BombermanClient::getInstance()->getMessage();
+      _message = BombermanClient::getInstance()->getMessage();
       updateMessageVertices();
    }
 }
 
 void GameMessagingDrawable::initializeGL()
 {
-   mFont = FontPool::Instance()->get("default");
+   _font = FontPool::Instance()->get("default");
 
    initializeLayers();
 }
@@ -313,12 +313,12 @@ void GameMessagingDrawable::cleanupGlParameters()
 
 void GameMessagingDrawable::setActive(bool active)
 {
-   mActive = active;
+   _active = active;
 }
 
 bool GameMessagingDrawable::isActive() const
 {
-   return mActive;
+   return _active;
 }
 
 void GameMessagingDrawable::toggleActive()
@@ -327,7 +327,7 @@ void GameMessagingDrawable::toggleActive()
    restartActivationTime();
 }
 
-void GameMessagingDrawable::drawText(bool drawUserInput)
+void GameMessagingDrawable::drawText(bool draw_user_input)
 {
    // the legacy 5-pass glTranslatef offset trick (4 black outline passes at +-1px, then a real
    // pass) becomes 5 real push()/pop() brackets with a translated world matrix - GLES3 has no
@@ -342,23 +342,23 @@ void GameMessagingDrawable::drawText(bool drawUserInput)
 
       float ty = 0.0f;
 
-      if (isActive() && drawUserInput)
+      if (isActive() && draw_user_input)
       {
-         mFont->setColor(col, col, col, 1.0f);
+         _font->setColor(col, col, col, 1.0f);
          activeDevice->push(Matrix::position(x, y + ty, 0.0f));
-         mFont->draw(mMessageVertices);
+         _font->draw(_message_vertices);
          activeDevice->pop();
       }
 
-      for (int i = 0; i < mMessages.size(); i++)
+      for (int i = 0; i < _messages.size(); i++)
       {
-         AnimatedGameMessage* message = mMessages.at(i);
+         AnimatedGameMessage* message = _messages.at(i);
 
          ty -= MESSAGE_OFFSET_DIFF;
 
-         mFont->setColor(col, col, col, 1.0f - (i * 0.08f));
+         _font->setColor(col, col, col, 1.0f - (i * 0.08f));
          activeDevice->push(Matrix::position(x, y + ty, 0.0f));
-         mFont->draw(message->getVertices());
+         _font->draw(message->getVertices());
          activeDevice->pop();
       }
    }
@@ -368,11 +368,11 @@ void GameMessagingDrawable::paintGL()
 {
    initGlParameters();
 
-   bool drawUserInput = drawMessageOverlay();
+   bool draw_user_input = drawMessageOverlay();
 
-   drawText(drawUserInput);
+   drawText(draw_user_input);
 
-   if (drawUserInput)
+   if (draw_user_input)
       drawCursor();
 
    cleanupGlParameters();
@@ -380,7 +380,7 @@ void GameMessagingDrawable::paintGL()
 
 bool GameMessagingDrawable::drawMessageOverlay()
 {
-   bool fullyVisible = false;
+   bool fully_visible = false;
 
    int time = getActivationTime().isValid() ? static_cast<int>(getActivationTime().elapsed()) : ACTIVATION_TIME;
    float factor = (std::max(ACTIVATION_TIME - time, 0)) * ACTIVATION_FACTOR;
@@ -390,77 +390,77 @@ bool GameMessagingDrawable::drawMessageOverlay()
 
    int offset = MESSAGE_LAYER_POSITION + static_cast<int>(ACTIVATION_OFFSET * factor);
 
-   fullyVisible = (offset == MESSAGE_LAYER_POSITION);
+   fully_visible = (offset == MESSAGE_LAYER_POSITION);
 
-   for (int layerIndex = 0; layerIndex < mPsdLayers.size(); layerIndex++)
+   for (int layer_index = 0; layer_index < _psd_layers.size(); layer_index++)
    {
-      PSDLayer* layer = mPsdLayers[layerIndex];
+      PSDLayer* layer = _psd_layers[layer_index];
       layer->render(0, static_cast<float>(offset), 1.0f - factor);
    }
 
    if (!getMessage().empty())
    {
-      mFont->setColor(1.0f, 1.0f, 1.0f, 1.0f);
-      activeDevice->push(Matrix::position(static_cast<float>(mPlayerNameLayer->getLeft()), offset + LABEL_PLAYER_OFFSET_Y, 0.0f));
-      mFont->draw(mMessageVertices);
+      _font->setColor(1.0f, 1.0f, 1.0f, 1.0f);
+      activeDevice->push(Matrix::position(static_cast<float>(_player_name_layer->getLeft()), offset + LABEL_PLAYER_OFFSET_Y, 0.0f));
+      _font->draw(_message_vertices);
       activeDevice->pop();
    }
 
-   return fullyVisible;
+   return fully_visible;
 }
 
 void GameMessagingDrawable::restartActivationTime()
 {
-   mActivationTime.restart();
+   _activation_time.restart();
 }
 
 const FrameTimer& GameMessagingDrawable::getActivationTime() const
 {
-   return mActivationTime;
+   return _activation_time;
 }
 
 const std::string& GameMessagingDrawable::getMessage() const
 {
-   return mMessage;
+   return _message;
 }
 
 void GameMessagingDrawable::setMessage(const std::string& value)
 {
-   mMessage = value;
+   _message = value;
 }
 
 void GameMessagingDrawable::initializeLayers()
 {
-   mPsd.load(mFilename.c_str());
+   _psd.load(_filename.c_str());
 
-   for (int l = 0; l < mPsd.getLayerCount(); l++)
+   for (int l = 0; l < _psd.getLayerCount(); l++)
    {
-      PSD::Layer* layer = mPsd.getLayer(l);
-      PSDLayer* renderLayer = new PSDLayer(layer);
+      PSD::Layer* layer = _psd.getLayer(l);
+      PSDLayer* render_layer = new PSDLayer(layer);
 
-      mPsdLayers.push_back(renderLayer);
+      _psd_layers.push_back(render_layer);
 
       if (layer->getName() == std::string(LINEEDIT_SAY))
       {
-         mLineEditSayLayer = renderLayer;
+         _line_edit_say_layer = render_layer;
       }
       else if (layer->getName() == std::string(LABEL_PLAYER_NAME))
       {
-         mPlayerNameLayer = renderLayer;
+         _player_name_layer = render_layer;
       }
    }
 }
 
 void GameMessagingDrawable::setCursorPosition(int index)
 {
-   mCursorPosition = index;
+   _cursor_position = index;
 
    updateMessageVertices();
 }
 
 int GameMessagingDrawable::getCursorPosition() const
 {
-   return mCursorPosition;
+   return _cursor_position;
 }
 
 void GameMessagingDrawable::moveCursorRight()
@@ -499,15 +499,15 @@ void GameMessagingDrawable::drawCursor()
    float top = 0.0f;
    float bottom = 0.0f;
 
-   mFont->getCursor(FONT_SCALE_MESSAGE, getCursorPosition(), left, right, top, bottom);
+   _font->getCursor(FONT_SCALE_MESSAGE, getCursorPosition(), left, right, top, bottom);
 
-   if (mCursorTexture == 0)
+   if (_cursor_texture == 0)
    {
       unsigned int white = 0xFFFFFFFF;
-      mCursorTexture = activeDevice->createTexture(&white, 1, 1, 0);
+      _cursor_texture = activeDevice->createTexture(&white, 1, 1, 0);
    }
 
-   glBindTexture(GL_TEXTURE_2D, mCursorTexture);
+   glBindTexture(GL_TEXTURE_2D, _cursor_texture);
 
    glBlendFunc(GL_SRC_ALPHA, GL_SRC_COLOR);
 
@@ -516,19 +516,19 @@ void GameMessagingDrawable::drawCursor()
       left, top, -1.0f, 0.0f, 0.0f, right, bottom, -1.0f, 1.0f, 1.0f, left,  bottom, -1.0f, 0.0f, 1.0f,
    };
 
-   if (mCursorVertexBuffer == 0)
-      mCursorVertexBuffer = activeDevice->createVertexBuffer(sizeof(quad), true);
+   if (_cursor_vertex_buffer == 0)
+      _cursor_vertex_buffer = activeDevice->createVertexBuffer(sizeof(quad), true);
    else
-      activeDevice->allocateVertexBuffer(mCursorVertexBuffer, sizeof(quad), true);
+      activeDevice->allocateVertexBuffer(_cursor_vertex_buffer, sizeof(quad), true);
 
-   void* dst = activeDevice->lockVertexBuffer(mCursorVertexBuffer, sizeof(quad));
+   void* dst = activeDevice->lockVertexBuffer(_cursor_vertex_buffer, sizeof(quad));
    std::memcpy(dst, quad, sizeof(quad));
-   activeDevice->unlockVertexBuffer(mCursorVertexBuffer);
+   activeDevice->unlockVertexBuffer(_cursor_vertex_buffer);
 
    activeDevice->push(Matrix());
    activeDevice->setParameter(activeDevice->getParameterIndex("alpha"), (128.0f / 255.0f) * alpha);
 
-   glBindBuffer(GL_ARRAY_BUFFER, mCursorVertexBuffer);
+   glBindBuffer(GL_ARRAY_BUFFER, _cursor_vertex_buffer);
    glEnableVertexAttribArray(0);
    glEnableVertexAttribArray(1);
    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 5, (GLvoid*)0);

@@ -3,16 +3,16 @@
 #include "framework/gldevice.h"
 
 PlayerInvincibleInstance::PlayerInvincibleInstance()
-   : mMaterial(nullptr),
-     mWidth(256),
-     mHeight(256),
-     mFade(0.0f),
-     mRemove(false)
+   : _material(nullptr),
+     _width(256),
+     _height(256),
+     _fade(0.0f),
+     _remove(false)
 {
    for (int i = 0; i < 2; i++)
    {
-      glGenTextures(1, &mTexture[i]);
-      glBindTexture(GL_TEXTURE_2D, mTexture[i]);
+      glGenTextures(1, &_texture[i]);
+      glBindTexture(GL_TEXTURE_2D, _texture[i]);
       if (i == 0)
       {
          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -25,15 +25,15 @@ PlayerInvincibleInstance::PlayerInvincibleInstance()
       }
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, mWidth, mHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, _width, _height, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
       glBindTexture(GL_TEXTURE_2D, 0);
    }
 
    for (int i = 0; i < 2; i++)
    {
-      glGenFramebuffers(1, &mTarget[i]);
-      glBindFramebuffer(GL_FRAMEBUFFER, mTarget[i]);
-      glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, mTexture[i], 0);
+      glGenFramebuffers(1, &_target[i]);
+      glBindFramebuffer(GL_FRAMEBUFFER, _target[i]);
+      glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, _texture[i], 0);
       glClear(GL_COLOR_BUFFER_BIT);
       glBindFramebuffer(GL_FRAMEBUFFER, 0);
    }
@@ -41,33 +41,33 @@ PlayerInvincibleInstance::PlayerInvincibleInstance()
 
 PlayerInvincibleInstance::~PlayerInvincibleInstance()
 {
-   glDeleteFramebuffers(1, &mTarget[0]);
-   glDeleteFramebuffers(1, &mTarget[1]);
-   glDeleteTextures(1, &mTexture[0]);
-   glDeleteTextures(1, &mTexture[1]);
+   glDeleteFramebuffers(1, &_target[0]);
+   glDeleteFramebuffers(1, &_target[1]);
+   glDeleteTextures(1, &_texture[0]);
+   glDeleteTextures(1, &_texture[1]);
 }
 
 void PlayerInvincibleInstance::remove()
 {
-   mRemove = true;
+   _remove = true;
 }
 
 void PlayerInvincibleInstance::setRemove(bool remove)
 {
-   mRemove = remove;
+   _remove = remove;
 }
 
 bool PlayerInvincibleInstance::update(float dt)
 {
    dt *= 0.025f;
-   if (mRemove)
+   if (_remove)
    {
-      if (mFade > 0.0f)
+      if (_fade > 0.0f)
       {
-         mFade -= dt;
-         if (mFade <= 0.0f)
+         _fade -= dt;
+         if (_fade <= 0.0f)
          {
-            mFade = 0.0f;
+            _fade = 0.0f;
             return false;
          }
       }
@@ -78,12 +78,12 @@ bool PlayerInvincibleInstance::update(float dt)
    }
    else
    {
-      if (mFade < 1.0f)
+      if (_fade < 1.0f)
       {
-         mFade += dt;
-         if (mFade > 1.0f)
+         _fade += dt;
+         if (_fade > 1.0f)
          {
-            mFade = 1.0f;
+            _fade = 1.0f;
          }
       }
    }
@@ -92,33 +92,33 @@ bool PlayerInvincibleInstance::update(float dt)
 
 void PlayerInvincibleInstance::setMaterial(Material* mat)
 {
-   mMaterial = mat;
+   _material = mat;
 }
 
 Material* PlayerInvincibleInstance::getMaterial() const
 {
-   return mMaterial;
+   return _material;
 }
 
 int PlayerInvincibleInstance::width() const
 {
-   return mWidth;
+   return _width;
 }
 
 int PlayerInvincibleInstance::height() const
 {
-   return mHeight;
+   return _height;
 }
 
 unsigned int PlayerInvincibleInstance::texture(int id) const
 {
-   return mTexture[id];
+   return _texture[id];
 }
 
 void PlayerInvincibleInstance::bind(int id)
 {
-   glBindFramebuffer(GL_FRAMEBUFFER, mTarget[id]);
-   glViewport(0, 0, mWidth, mHeight);
+   glBindFramebuffer(GL_FRAMEBUFFER, _target[id]);
+   glViewport(0, 0, _width, _height);
 }
 
 void PlayerInvincibleInstance::unbind()
@@ -128,36 +128,36 @@ void PlayerInvincibleInstance::unbind()
 
 void PlayerInvincibleInstance::setCenter(const Vector& center)
 {
-   mCenter = center;
+   _center = center;
 }
 
 const Vector& PlayerInvincibleInstance::getCenter() const
 {
-   return mCenter;
+   return _center;
 }
 
 void PlayerInvincibleInstance::setRect(const Vector& min, const Vector& max)
 {
-   mMin = min;
-   mMax = max;
+   _min = min;
+   _max = max;
 }
 
 const Vector& PlayerInvincibleInstance::min2d() const
 {
-   return mMin;
+   return _min;
 }
 
 const Vector& PlayerInvincibleInstance::max2d() const
 {
-   return mMax;
+   return _max;
 }
 
 float PlayerInvincibleInstance::getFade() const
 {
-   return mFade;
+   return _fade;
 }
 
 void PlayerInvincibleInstance::setFade(float fade)
 {
-   mFade = fade;
+   _fade = fade;
 }

@@ -80,11 +80,11 @@ public:
    void keyReleaseEvent(const KeyEvent& event);
 
    //! key press/release notification
-   Signal<const KeyEvent&> keyPressedSignal;
-   Signal<const KeyEvent&> keyReleasedSignal;
+   Signal<const KeyEvent&> key_pressed_signal;
+   Signal<const KeyEvent&> key_released_signal;
 
    //! level finished loading
-   Signal<const std::string&> levelLoadedSignal;
+   Signal<const std::string&> level_loaded_signal;
 
    //! show player-name overlay + own-position arrow (Tab key)
    void displayPlayerNames();
@@ -100,12 +100,12 @@ public:
 
    void clear();
 
-   void setPlayfieldScale(float xScale = 1.0, float yScale = 1.0f);
+   void setPlayfieldScale(float x_scale = 1.0, float y_scale = 1.0f);
    void setPlayfieldSize(int width,int height);
 
    void createMapItem(MapItem *item);
    void removeMapItem(MapItem *item);
-   void destroyMapItem(MapItem *item, float flameCount);
+   void destroyMapItem(MapItem *item, float flame_count);
    void addDetonation(int x, int y, int up, int down, int left, int right, float intense);
    void loadLevel(const std::string& level);
 
@@ -122,7 +122,7 @@ public:
       int y,
       bool destroyed,
       Constants::ExtraType extra,
-      int playerId
+      int player_id
    );
 
    //! shake a block
@@ -132,9 +132,9 @@ public:
    void playerInfected(
       int id,
       Constants::SkullType,
-      int infectorId,
-      int extraX,
-      int extraY
+      int infector_id,
+      int extra_x,
+      int extra_y
    );
 
    //! set zoom factor of camera. default is 1.0f
@@ -158,80 +158,80 @@ private:
 
    Mesh* getMesh(MapItem *item) const;
    Mesh* getSkullMesh(MapItem* item) const;
-   void updateNeighbouringBlocks(int itemX, int itemY);
+   void updateNeighbouringBlocks(int item_x, int item_y);
    void addBlock(MapItem *item);
    Mesh* createBlock(SceneGraph* scene, Material* mat, float x, float y, float scale);
    Mesh* createBomb(MapItem *item);
    Mesh* createSkull(MapItem* item);
    Mesh* createExtra(ExtraMapItem *extra);
    void removeBlock(MapItem *item);
-   Node* createDestruction(SceneGraph *scene, float x, float y, Constants::Direction direction, float flameCount);
+   Node* createDestruction(SceneGraph *scene, float x, float y, Constants::Direction direction, float flame_count);
    void shakeBoxes(float delta);
    void animateSkulls(float frame);
 
-   void updateBlock(int itemX, int itemY);
+   void updateBlock(int item_x, int item_y);
 
    void resetPlayers();
    void deleteLevelData();
    void deleteMesh(Mesh *mesh);
 
-   Level* mLevel;
-   SceneGraph* mPlayfield;
-   SceneGraph* mLevelSceneGraph;
-   SceneGraph* mPlayers;
-   Array<Node*> mDestructAnim;
-   DetonationManager* mDetonations;
-   PlayerDeathEffect* mPlayerDeathEffect;
-   GamePlayerNameDisplay* mPlayerNameDisplay;
-   FuseParticleSystem* mFuseParticleSystem;
-   PlayerInvincibleEffect* mPlayerInvincibleEffect;
-   StarTalersFactory* mStarTalersFactory;
+   Level* _level;
+   SceneGraph* _playfield;
+   SceneGraph* _level_scene_graph;
+   SceneGraph* _players;
+   Array<Node*> _destruct_anim;
+   DetonationManager* _detonations;
+   PlayerDeathEffect* _player_death_effect;
+   GamePlayerNameDisplay* _player_name_display;
+   FuseParticleSystem* _fuse_particle_system;
+   PlayerInvincibleEffect* _player_invincible_effect;
+   StarTalersFactory* _star_talers_factory;
 
-   float mTime;
-   float mTimePrev;
+   float _time;
+   float _time_prev;
 
-   std::unordered_set<MapItem*> mMapItems;
-   std::vector<MapItem*> mStoneList;
-   std::map<int,PlayerItem*> mPlayerList;
-   std::unordered_map<MapItem*,Mesh*> mMeshes;
-   std::unordered_map<MapItem*,Skull*> mSkullMap;
-   std::unordered_map<int,Material*> mExtraMaterials;
-   std::unordered_map<MapItem*,float> mShakingBoxes;
+   std::unordered_set<MapItem*> _map_items;
+   std::vector<MapItem*> _stone_list;
+   std::map<int,PlayerItem*> _player_list;
+   std::unordered_map<MapItem*,Mesh*> _meshes;
+   std::unordered_map<MapItem*,Skull*> _skull_map;
+   std::unordered_map<int,Material*> _extra_materials;
+   std::unordered_map<MapItem*,float> _shaking_boxes;
 
-   Material *mStones;
-   Material *mBlocks;
-   Material *mSkulls;
-   Material *mDestruction;
-   Material *mExtraFlame;
-   Material *mExtraBomb;
-   Material *mExtraSpeedup;
-   Material *mExtraKick;
-   Material *mExtraSkull;
-   Material *mBombs;
-   Material *mShadowBillboards;
-   Material *mShadowBlocks;
+   Material *_stones;
+   Material *_blocks;
+   Material *_skulls;
+   Material *_destruction;
+   Material *_extra_flame;
+   Material *_extra_bomb;
+   Material *_extra_speedup;
+   Material *_extra_kick;
+   Material *_extra_skull;
+   Material *_bombs;
+   Material *_shadow_billboards;
+   Material *_shadow_blocks;
 
-   std::vector<Node*> mDestructions;
-   int     mPlayerId;
-   float   mBounce;
-   std::string mLevelPath;
-   float   mPlayfieldScaleX;
-   float   mPlayfieldScaleY;
-   Map2d<MapItem> mMap;
+   std::vector<Node*> _destructions;
+   int     _player_id;
+   float   _bounce;
+   std::string _level_path;
+   float   _playfield_scale_x;
+   float   _playfield_scale_y;
+   Map2d<MapItem> _map;
 
-   float mCameraAnim;
-   float mCameraZoom;
+   float _camera_anim;
+   float _camera_zoom;
 
-   bool mTimeReset;
+   bool _time_reset;
 
    //! win animation has been started flag
-   bool mWinAnimationStarted;
+   bool _win_animation_started;
 
    //! camera follows player
-   bool mCameraFollowsPlayer;
+   bool _camera_follows_player;
 
    //! camera shakes on detonation event;
-   float mCameraShakeIntensity;
+   float _camera_shake_intensity;
 };
 
 #endif // GAMEDRAWABLE_H

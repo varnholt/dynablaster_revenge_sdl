@@ -25,37 +25,37 @@ private:
    class Burst
    {
    public:
-      Burst(const Vector& fieldPosition, const Vector& color);
+      Burst(const Vector& field_position, const Vector& color);
       ~Burst();
 
       void update(float dt);
-      void render(int fieldParam, int colorParam, int timeParam);
+      void render(int field_param, int color_param, int time_param);
       bool isElapsed() const;
 
    private:
-      unsigned int mVertexBuffer;
-      unsigned int mIndexBuffer;
-      int mIndexCount;
-      float mTime;
-      Vector mFieldPosition;
-      Vector mColor;
+      unsigned int _vertex_buffer;
+      unsigned int _index_buffer;
+      int _index_count;
+      float _time;
+      Vector _field_position;
+      Vector _color;
    };
 
    const Vector& getColor(Constants::ExtraType extra) const;
 
-   std::vector<std::unique_ptr<Burst>> mBursts;
+   std::vector<std::unique_ptr<Burst>> _bursts;
 
-   unsigned int mShader;
-   unsigned int mTextureId;
-   int mFieldParam;
-   int mColorParam;
-   int mTimeParam;
-   int mCameraParam;
-   int mTextureParam;
+   unsigned int _shader;
+   unsigned int _texture_id;
+   int _field_param;
+   int _color_param;
+   int _time_param;
+   int _camera_param;
+   int _texture_param;
 
-   Vector mColorBomb;
-   Vector mColorFlame;
-   Vector mColorSpeedup;
-   Vector mColorKick;
-   Vector mColorDefault;
+   Vector _color_bomb;
+   Vector _color_flame;
+   Vector _color_speedup;
+   Vector _color_kick;
+   Vector _color_default;
 };

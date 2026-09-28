@@ -19,11 +19,11 @@ public:
    const Vector2& getMotionDir() const;
 
 private:
-   unsigned int mShader;
+   unsigned int _shader;
 
-   int mIntensityParam;
-   float mIntensity;
+   int _intensity_param;
+   float _intensity;
 
-   int mMotionDirParam;
-   Vector2 mMotionDir;
+   int _motion_dir_param;
+   Vector2 _motion_dir;
 };

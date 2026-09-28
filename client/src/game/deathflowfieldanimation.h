@@ -16,8 +16,8 @@ public:
 
    // initialize flowfield from 2d rendering
    void initialize(FrameBuffer* src, const Vector& min, const Vector& max);
-   void initializePositions(unsigned int depthMap, const Vector& min, const Vector& max);
-   void initializeParams(unsigned int depthMap, const Vector& min, const Vector& max);
+   void initializePositions(unsigned int depth_map, const Vector& min, const Vector& max);
+   void initializeParams(unsigned int depth_map, const Vector& min, const Vector& max);
 
    // center reference position (world space 3d)
    const Vector& getCenter() const;
@@ -31,7 +31,7 @@ public:
    float getPointSize() const;
 
    // update vertex position from flowfield directions
-   void update(float deltaTime);
+   void update(float delta_time);
 
    // draw particles
    void draw();
@@ -41,19 +41,19 @@ public:
    bool isElapsed() const;
 
 private:
-   int mWidth;
-   int mHeight;
-   unsigned int mVertexPosBuffer;
-   unsigned int mVertexUVBuffer;
-   unsigned int mVertexParams;
-   unsigned int mPositions[2];
-   unsigned int mTarget[2];
-   unsigned int mTexture;
-   int mPage;
+   int _width;
+   int _height;
+   unsigned int _vertex_pos_buffer;
+   unsigned int _vertex_uv_buffer;
+   unsigned int _vertex_params;
+   unsigned int _positions[2];
+   unsigned int _target[2];
+   unsigned int _texture;
+   int _page;
 
-   Vector mCenter;
-   float mFlowScale;
-   float mParticleSize;
+   Vector _center;
+   float _flow_scale;
+   float _particle_size;
 
-   float mElapsed;
+   float _elapsed;
 };

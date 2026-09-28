@@ -62,9 +62,9 @@ void PositionInterpolation::moveMapItem(
       if (iter != mMapItemAnimations.end())
       {
          MapItemAnimation* anim = iter->second.get();
-         anim->mNominalX = nominalX;
-         anim->mNominalY = nominalY;
-         anim->mDirection = dir;
+         anim->_nominal_x = nominalX;
+         anim->_nominal_y = nominalY;
+         anim->_direction = dir;
       }
    }
    else
@@ -75,8 +75,8 @@ void PositionInterpolation::moveMapItem(
       {
          animation = mMapItemAnimations[item].get();
          animation->reset();
-         animation->mDirection = dir;
-         animation->mSpeed = speed;
+         animation->_direction = dir;
+         animation->_speed = speed;
       }
       else
       {
@@ -84,7 +84,7 @@ void PositionInterpolation::moveMapItem(
          animation = owned_animation.get();
 
          // pass bounce signals
-         animation->bounceSignal.connect([this]() { bounceSignal(); });
+         animation->bounce_signal.connect([this]() { bounceSignal(); });
 
          // store item data
          mMapItems.push_back(item);
@@ -168,50 +168,50 @@ void PositionInterpolation::interpolateMapItemPositions(float dt)
 
       animation->animate(dt);
 
-      switch (animation->mDirection)
+      switch (animation->_direction)
       {
          case Constants::DirectionUp:
-            animation->mY -= animation->mSpeed*dt;
+            animation->_y -= animation->_speed*dt;
             break;
          case Constants::DirectionDown:
-            animation->mY += animation->mSpeed*dt;
+            animation->_y += animation->_speed*dt;
             break;
          case Constants::DirectionLeft:
-            animation->mX -= animation->mSpeed*dt;
+            animation->_x -= animation->_speed*dt;
             break;
          case Constants::DirectionRight:
-            animation->mX += animation->mSpeed*dt;
+            animation->_x += animation->_speed*dt;
             break;
          default:
             break;
       }
 
-      float x = item->getX() + animation->mX;
-      float y = item->getY() + animation->mY;
-      float z = animation->mZ;
+      float x = item->getX() + animation->_x;
+      float y = item->getY() + animation->_y;
+      float z = animation->_z;
 
-      if (animation->mDirection == Constants::DirectionUnknown)
+      if (animation->_direction == Constants::DirectionUnknown)
       {
-         float diffX = x - animation->mNominalX;
-         float diffY = y - animation->mNominalY;
+         float diffX = x - animation->_nominal_x;
+         float diffY = y - animation->_nominal_y;
 
          if (
                (std::fabs(diffX) > MAP_ITEM_MOVE_EPSILON)
             || (std::fabs(diffY) > MAP_ITEM_MOVE_EPSILON)
          )
          {
-            animation->mX -= 0.1 * diffX;
-            animation->mY -= 0.1 * diffY;
+            animation->_x -= 0.1 * diffX;
+            animation->_y -= 0.1 * diffY;
 
             // stop bouncing
-            float factor = animation->mFactor;
+            float factor = animation->_factor;
             factor -= 0.1f;
-            animation->mFactor = std::max(factor, 0.0f);
+            animation->_factor = std::max(factor, 0.0f);
 
 //            qDebug(
 //               "anim: %f, %f, diff: %f, %f, pos: %f, %f",
-//               animation->mX,
-//               animation->mY,
+//               animation->_x,
+//               animation->_y,
 //               diffX,
 //               diffY,
 //               x,

@@ -29,13 +29,13 @@ public:
 private:
 
    //! animation time
-   float mStartTime;
+   float _start_time;
 
    //! reference
-   Mesh* mReference;
+   Mesh* _reference;
 
    //! translation matrix
-   Matrix mTranslation;
+   Matrix _translation;
 };
 
 
