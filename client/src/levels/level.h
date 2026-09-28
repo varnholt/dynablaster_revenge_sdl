@@ -1,5 +1,7 @@
 #pragma once
 
+class Camera;
+
 #include "tools/array.h"
 #include "math/matrix.h"
 #include "camerainterpolation.h"
@@ -45,6 +47,12 @@ public:
 
    //! key of this level's lens flare in flares.ini, empty for none
    virtual std::string getLensFlareKey() const;
+
+protected:
+   //! creates mDestruction and fills mDestructAnim
+   void loadDestructions(Camera* shadow_camera);
+
+public:
 
    std::string path() const;
    SceneGraph* getScene() const;

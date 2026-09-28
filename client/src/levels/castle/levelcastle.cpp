@@ -3,7 +3,6 @@
 #include "snowanimation.h"
 
 #include <format>
-#include <numbers>
 
 // engine/nodes
 #include "nodes/scenegraph.h"
@@ -147,76 +146,7 @@ void LevelCastle::loadData()
 
    if (!isAborted())
    {
-      mDestruction= new DestructionMaterial(
-         mScene,
-         "stone-unwrap",
-         "diffuse_level",
-         "specular_level",
-         "shadow-cookie",
-         shadowCam
-      );
-
-      const char* destructions[4]= {
-         "block-destruct0.hjb",
-         "block-destruct1.hjb",
-         "block-destruct2.hjb",
-         "block-destruct.hjb"
-      };
-
-      for (int i = 0; i < 4; i++)
-      {
-         SceneGraph *scene= new SceneGraph();
-         if (scene->load( destructions[i] ))
-         {
-            // precalc tracks
-            for (int i=0; i<scene->getChildCount(); i++)
-            {
-               Node *node= scene->getChild(i);
-               node->bakeAnimationTrack(160.0f);
-            }
-         }
-         else
-         {
-            delete scene;
-            scene= 0;
-         }
-
-         if (scene)
-         {
-            // create for copies, each 90 degrees rotated
-            Dummy *node= new Dummy(0);
-            for (int rot=0; rot<4; rot++)
-            {
-               float angle= (rot-1) * std::numbers::pi_v<float> * 0.5f;
-               Matrix tm= Matrix::rotateZ( angle );
-
-               Dummy* dummy= new Dummy(node);
-
-               for (int i=0; i<scene->getChildCount(); i++)
-               {
-                  Node* child= scene->getChild(i);
-
-                  if (child->id() == Node::idMesh)
-                  {
-                     Mesh *ref= (Mesh*)child;
-                     Mesh *mesh= new Mesh(dummy);
-                     mesh->copy(*ref);
-                     mesh->transform(0.0f);
-                     mesh->createBoxMapping(
-                        true,
-                        Vector(-0.5f,-0.5f,0.0f),
-                        Vector(0.5f,0.5f,1.0f),
-                        tm
-                     );
-                     mesh->setFrame(0.0f);
-                     mDestruction->addMesh(mesh);
-                  }
-               }
-
-            }
-            mDestructAnim.add( node );
-         }
-      }
+      loadDestructions(shadowCam);
    }
 
    if (!isAborted())
