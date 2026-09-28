@@ -26,5 +26,11 @@ void main()
       result = texture(colormap, uv);
    }
 
+   // replaces the original's fixed-function alpha test (GL_GREATER, 0.001)
+   if (result.a <= 0.001)
+   {
+      discard;
+   }
+
    o_color = result;
 }

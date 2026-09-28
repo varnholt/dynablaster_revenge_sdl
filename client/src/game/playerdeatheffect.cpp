@@ -13,10 +13,9 @@
 //   original relied on the fixed-function matrix stack) - _points_projection, set once per render()
 //   call via activeDevice->getProjectionMatrix() (same value the particles' world-space positions
 //   were captured against).
-// - deathinitparams-frag.glsl's "center" uniform is a vec2 (only x/y are ever read) - passed as a
-//   Vector2 rather than the full 3-component Vector center used everywhere else, to match the
-//   shader's actual declared type exactly rather than relying on a GL driver tolerating a size
-//   mismatch.
+// - deathinitparams-frag.glsl's "center" uniform is a vec2, but the original set it with a
+//   3-component Vector (glUniform3fv -> GL_INVALID_OPERATION), so it always stayed (0, 0). It is
+//   set to (0, 0) explicitly here to keep the original's flow field offsets.
 // - glPushMatrix/glLoadIdentity/glPopMatrix -> activeDevice->push(Matrix())/pop() (identity world
 //   transform - particle positions are already baked into world space at capture time, matching
 //   this port's established BitmapFont::draw() convention for the same situation).
@@ -64,11 +63,11 @@ PlayerDeathEffect::PlayerDeathEffect()
 
    _flow_init_pos_shader = activeDevice->loadShader("deathinitpositions-vert.glsl", "deathinitpositions-frag.glsl");
    _flow_init_pos_depth = activeDevice->getParameterIndex("depthmap");
-   _flow_init_pos_inv_proj = activeDevice->getParameterIndex("inv_proj");
+   _flow_init_pos_inv_proj = activeDevice->getParameterIndex("invProj");
 
    _flow_init_param_shader = activeDevice->loadShader("deathinitparams-vert.glsl", "deathinitparams-frag.glsl");
    _flow_init_param_depth = activeDevice->getParameterIndex("depthmap");
-   _flow_init_param_inv_proj = activeDevice->getParameterIndex("inv_proj");
+   _flow_init_param_inv_proj = activeDevice->getParameterIndex("invProj");
    _flow_init_param_center = activeDevice->getParameterIndex("center");
 }
 
@@ -102,7 +101,9 @@ void PlayerDeathEffect::add(Material* material)
    FrameBuffer::push(_deferred_buffer);
 
    // TODO: clear relevant area only!
-   activeDevice->clear();
+   // transparent black (the original's global clear color): this is the particles' color map,
+   // so background texels must stay invisible.
+   static_cast<GLDevice*>(activeDevice)->clear(0.0f, 0.0f, 0.0f, 0.0f);
 
    Matrix proj = static_cast<GLDevice*>(activeDevice)->getProjectionMatrix();
    Matrix inv_proj = proj.invert4x4();
@@ -128,7 +129,8 @@ void PlayerDeathEffect::add(Material* material)
    activeDevice->setShader(_flow_init_param_shader);
    activeDevice->bindSampler(_flow_init_param_depth, 0);
    activeDevice->setParameter(_flow_init_param_inv_proj, inv_proj);
-   activeDevice->setParameter(_flow_init_param_center, Vector2(center.x, center.y));
+   // (0, 0) as in the original, see the header comment
+   activeDevice->setParameter(_flow_init_param_center, Vector2(0.0f, 0.0f));
    animation->initializeParams(_deferred_buffer->depthTexture(), min, max);
    activeDevice->setShader(0);
 
@@ -204,7 +206,9 @@ void PlayerDeathEffect::render()
    glActiveTexture(GL_TEXTURE1);
    activeDevice->bindSampler(_points_color_map, 1);
 
-   float size_factor = 1.0f;
+   // the original always rendered into a screen-sized FrameBuffer; without one, scale by the
+   // screen width so particle size keeps its 1920 px reference.
+   float size_factor = static_cast<float>(activeDevice->getWidth()) / 1920.0f;
    FrameBuffer* fb = FrameBuffer::Instance();
    if (fb)
       size_factor = fb->getSizeFactor(1920.0f);
