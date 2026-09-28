@@ -38,11 +38,12 @@ class PlayerItem;
 class RenderDevice;
 class SceneGraph;
 class Skull;
+class StarTalersFactory;
 
 // Real map/players/bombs/extras/HUD rendering.
 // Not implemented yet (backlog, see project memory): ExtraAnimation/ExtraRevealAnimation,
-// MushroomAnimation+ShroomFilter, InvisiblePlayerEffect, PlayerInvincibleEffect,
-// RibbonAnimationFactory/StarTalersFactory/LensFlareFactory, GamePlaybackDisplay, HeadlessIntegration.
+// MushroomAnimation+ShroomFilter, InvisiblePlayerEffect,
+// RibbonAnimationFactory/LensFlareFactory, GamePlaybackDisplay, HeadlessIntegration.
 // Dead code, not ported: drawTestQuad/drawBoundingBox/drawBoundingRect/playerBoundingRect/
 // loadExplosion, INSPECT_SCENE debug input, mExportScene.
 class GameDrawable : public Drawable
@@ -184,6 +185,7 @@ private:
    PlayerInfectedEffect* mPlayerInfectedEffect;
    GamePlayerNameDisplay* mPlayerNameDisplay;
    FuseParticleSystem* mFuseParticleSystem;
+   StarTalersFactory* mStarTalersFactory;
 
    float mTime;
    float mTimePrev;

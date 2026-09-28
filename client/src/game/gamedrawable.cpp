@@ -17,6 +17,7 @@
 #include "detonationmanager.h"
 #include "fuseparticlesystem.h"
 #include "gameplayernamedisplay.h"
+#include "startalersfactory.h"
 #include "playerdeatheffect.h"
 #include "playerinfectedeffect.h"
 #include "extra.h"
@@ -54,6 +55,7 @@ GameDrawable::GameDrawable(RenderDevice* device)
    mPlayerInfectedEffect(nullptr),
    mPlayerNameDisplay(nullptr),
    mFuseParticleSystem(nullptr),
+   mStarTalersFactory(nullptr),
    mTime(0.0f),
    mTimePrev(0.0f),
    mStones(nullptr),
@@ -103,6 +105,7 @@ GameDrawable::~GameDrawable()
    delete mPlayerInfectedEffect;
    delete mPlayerNameDisplay;
    delete mFuseParticleSystem;
+   delete mStarTalersFactory;
 }
 
 
@@ -376,6 +379,9 @@ void GameDrawable::initializeGL()
    mPlayerNameDisplay->initialize();
 
    mFuseParticleSystem = new FuseParticleSystem();
+
+   mStarTalersFactory = new StarTalersFactory();
+   mStarTalersFactory->initialize();
 }
 
 
@@ -917,17 +923,21 @@ void GameDrawable::setMapItemPosition(
    \param destroyed \c true if extra was destroyed
    \param playerId if of player who picked the extra up
 
-   Real "extra destroyed" burst / "extra not collected in time" star-taler animations
-   (ExtraAnimation / StarTalersFactory) are deferred - see header comment.
+   Real "extra destroyed" burst (ExtraAnimation) is still deferred - see header comment.
 */
 void GameDrawable::extraRemoved(
-   int /*x*/,
-   int /*y*/,
-   bool /*destroyed*/,
-   Constants::ExtraType /*extra*/,
+   int x,
+   int y,
+   bool destroyed,
+   Constants::ExtraType extra,
    int playerId
 )
 {
+   if (!destroyed)
+   {
+      mStarTalersFactory->add(static_cast<float>(x), static_cast<float>(y), extra);
+   }
+
    if (playerId != -1)
    {
       PlayerItem* player = getPlayer(playerId);
@@ -1177,6 +1187,7 @@ void GameDrawable::animate(float time)
    mPlayerInfectedEffect->animate(delta);
 
    mFuseParticleSystem->animate(delta);
+   mStarTalersFactory->update(delta * 0.05f);
 
    mCameraAnim+=delta*60.0f;
 
@@ -1382,6 +1393,7 @@ void GameDrawable::paintGL()
 
    mDetonations->render();
    mFuseParticleSystem->render();
+   mStarTalersFactory->render();
 
    // start flow fields when a player got killed (and the kill anim is over) - matches the
    // original's own "playerMesh->getFrame() > 10000.0f" convention: PlayerItem::animate() only
