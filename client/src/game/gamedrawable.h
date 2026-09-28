@@ -33,6 +33,7 @@ class Material;
 class Mesh;
 class Node;
 class PlayerDeathEffect;
+class PlayerInvincibleEffect;
 class PlayerItem;
 class RenderDevice;
 class SceneGraph;
@@ -40,7 +41,7 @@ class Skull;
 
 // Real map/players/bombs/extras/HUD rendering.
 // Not implemented yet (backlog, see project memory): ExtraAnimation/ExtraRevealAnimation,
-// MushroomAnimation+ShroomFilter, InvisiblePlayerEffect, PlayerInfectedEffect/PlayerInvincibleEffect,
+// MushroomAnimation+ShroomFilter, InvisiblePlayerEffect, PlayerInfectedEffect,
 // RibbonAnimationFactory/StarTalersFactory/LensFlareFactory, GamePlaybackDisplay, HeadlessIntegration.
 // Dead code, not ported: drawTestQuad/drawBoundingBox/drawBoundingRect/playerBoundingRect/
 // loadExplosion, INSPECT_SCENE debug input, mExportScene.
@@ -182,6 +183,7 @@ private:
    PlayerDeathEffect* mPlayerDeathEffect;
    GamePlayerNameDisplay* mPlayerNameDisplay;
    FuseParticleSystem* mFuseParticleSystem;
+   PlayerInvincibleEffect* mPlayerInvincibleEffect;
 
    float mTime;
    float mTimePrev;

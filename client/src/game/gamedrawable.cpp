@@ -18,6 +18,7 @@
 #include "fuseparticlesystem.h"
 #include "gameplayernamedisplay.h"
 #include "playerdeatheffect.h"
+#include "playerinvincibleeffect.h"
 #include "extra.h"
 #include "extramapitem.h"
 #include "gamesettings.h"
@@ -52,6 +53,7 @@ GameDrawable::GameDrawable(RenderDevice* device)
    mPlayerDeathEffect(nullptr),
    mPlayerNameDisplay(nullptr),
    mFuseParticleSystem(nullptr),
+   mPlayerInvincibleEffect(nullptr),
    mTime(0.0f),
    mTimePrev(0.0f),
    mStones(nullptr),
@@ -100,6 +102,7 @@ GameDrawable::~GameDrawable()
    delete mPlayerDeathEffect;
    delete mPlayerNameDisplay;
    delete mFuseParticleSystem;
+   delete mPlayerInvincibleEffect;
 }
 
 
@@ -372,6 +375,7 @@ void GameDrawable::initializeGL()
    mPlayerNameDisplay->initialize();
 
    mFuseParticleSystem = new FuseParticleSystem();
+   mPlayerInvincibleEffect = new PlayerInvincibleEffect();
 }
 
 
@@ -589,18 +593,35 @@ void GameDrawable::shakeBlock(MapItem* item)
 
 //-----------------------------------------------------------------------------
 /*!
-   Real per-skull-type visual flourishes (mushroom screen filter, invincible-ribbon spawn,
-   invisibility) are deferred (see header comment) - the actual infection *state* still comes
-   through fully via BombermanClient's packet handling regardless of what renders here.
+   Only the invincibility shimmer is wired here so far - the other per-skull-type visuals
+   (mushroom filter, invisibility, the generic infected aura) are still deferred (see header
+   comment). The actual infection *state* flows fully through BombermanClient's packet handling
+   regardless of what renders here.
 */
 void GameDrawable::playerInfected(
-   int /*id*/,
-   Constants::SkullType /*skullType*/,
+   int id,
+   Constants::SkullType skullType,
    int /*infectorId*/,
    int /*extraX*/,
    int /*extraY*/
 )
 {
+   PlayerItem* playerItem = getPlayer(id);
+   if (!playerItem)
+   {
+      return;
+   }
+
+   if (skullType == Constants::SkullReset)
+   {
+      mPlayerInvincibleEffect->remove(playerItem->getMaterial());
+      return;
+   }
+
+   if (skullType == Constants::SkullInvincible)
+   {
+      mPlayerInvincibleEffect->add(playerItem->getMaterial());
+   }
 }
 
 
@@ -1155,6 +1176,7 @@ void GameDrawable::animate(float time)
       mPlayerDeathEffect->animate(delta);
 
    mFuseParticleSystem->animate(delta);
+   mPlayerInvincibleEffect->animate(delta);
 
    mCameraAnim+=delta*60.0f;
 
@@ -1360,6 +1382,7 @@ void GameDrawable::paintGL()
 
    mDetonations->render();
    mFuseParticleSystem->render();
+   mPlayerInvincibleEffect->render();
 
    // start flow fields when a player got killed (and the kill anim is over) - matches the
    // original's own "playerMesh->getFrame() > 10000.0f" convention: PlayerItem::animate() only
