@@ -1,0 +1,50 @@
+# Effect lab scenario (shared by old Qt client and new SDL client)
+
+Goal: render the same effect in both clients under identical, deterministic conditions and
+capture PNGs at identical times, so they can be composited side by side.
+
+## Window / clock
+- Client area 1024x576.
+- Fixed clock: frame n (starting at 0) has GlobalTime = n / 60 seconds, no wall clock anywhere.
+- GameDrawable::animate(t) is called each frame with t = (n / 60 * 1000) * 0.0625
+  (the "real ms * 0.0625" convention of the original BombermanView / new main.cpp).
+- Every frame: update clock -> timers -> gameDrawable.animate(t) -> gameDrawable.paintGL() -> swap.
+
+## Scene setup (frame 0, before the first paint)
+1. setPlayfieldSize(13, 11)
+2. setPlayfieldScale(1.0, 1.0)
+3. loadLevel(<castle level name as the server sends it>)
+4. setPlayerId(0)
+5. addPlayer(0, "lab", ColorWhite)      // local player
+6. addPlayer(1, "bot", ColorRed)        // second player, for effects that are not local-only
+7. setPlayerPosition(0, 6.5, 5.5, 0.0)
+8. setPlayerPosition(1, 4.5, 5.5, 0.0)
+Camera: GameDrawable's default (follows the local player). For that to behave like a real game,
+BombermanClient must also hold the game/player state it normally gets from the server:
+- a GameInformation with id 0, Dimension13x11, level name = castle, pushed into
+  BombermanClient's game list, and setGameId(0) - otherwise getDimensions() returns 0x0.
+- PlayerInfo for id 0 (ColorWhite, pos 6.5,5.5, angle 0) and id 1 (ColorRed, 4.5,5.5) in
+  BombermanClient's player-info map; setCurrentPlayerInfo(<id 0 info>); setPlayerId(0).
+Do NOT call BombermanClient::initialize() or connect anywhere.
+
+## Trigger
+At frame 60 (t = 1.0 s) fire the effect's trigger call once.
+
+## Effects (name -> trigger)
+- baseline   : nothing
+- mushroom   : playerInfected(0, SkullMushroom, -1, 6, 5)
+- invisible  : playerInfected(0, SkullInvisible, -1, 6, 5)
+- invincible : playerInfected(0, SkullInvincible, -1, 6, 5)
+- infected   : playerInfected(0, SkullSlow, -1, 6, 5)
+- startalers : extraRemoved(6, 5, false, ExtraBomb, 0)
+- death      : removePlayer(0)
+
+## Captures
+Frames 60 + {6, 30, 60, 120, 180, 300} (= +100, +500, +1000, +2000, +3000, +5000 ms after the
+trigger). Read the back buffer right before swap. File name: `<effect>_<ms>.png`, e.g.
+`mushroom_500.png`, written to `D:\git\effect-lab\old\` or `D:\git\effect-lab\new\`.
+Process exits after the last capture.
+
+## Invocation
+Environment variable `DYNA_EFFECT_LAB=<effect>` (old client) / harness flag
+`--effect=<effect>` (new client). Output dir via `DYNA_EFFECT_LAB_OUT` / `--out=`.

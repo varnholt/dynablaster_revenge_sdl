@@ -26,6 +26,7 @@
 #include "menus/bitmapfont.h"
 #include "menus/fontmap.h"
 #include "menus/fontpool.h"
+#include "menus/gamefonts.h"
 #include "menus/menu.h"
 #include "menus/menudrawable.h"
 #include "menus/menumousecursor.h"
@@ -106,36 +107,6 @@ SDL_Keycode mapGameKey(SDL_Keycode key)
    }
 }
 
-/// \brief registers the BitmapFonts the ported menu pages + in-game HUD actually need (see
-/// project memory - "time" is for HUD text nothing here uses yet, and stays deferred until
-/// something needs it).
-void registerMenuFont()
-{
-   BitmapFont* fontDefault =
-      new BitmapFont("data/fonts/font", MenuFont::sMenuChars, 2.1f, 3.0f, 32.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.1f, 0.05f, -0.025f);
-
-   BitmapFont* fontLounge =
-      new BitmapFont("data/fonts/font", MenuFont::sMenuChars, 2.2f, 4.0f, 32.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.1f, 0.05f, -0.025f);
-
-   // Tab overlay (GamePlayerNameDisplay) - matches the original's own outline params exactly
-   // (client/src/game/bombermanview.cpp).
-   BitmapFont* fontOutlined =
-      new BitmapFont("data/fonts/font", MenuFont::sMenuChars, 2.0f, 4.0f, 32.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.35f, 0.03f, -0.025f);
-
-   // win/trophy screen (GameWinDrawable) - "wins!"/"draw game" headline and the scoreboard rows.
-   BitmapFont* fontLarge =
-      new BitmapFont("data/fonts/font", MenuFont::sMenuChars, 2.0f, 4.0f, 32.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.04f, 0.0025f, -0.01f);
-
-   BitmapFont* fontLargeOutlined =
-      new BitmapFont("data/fonts/font", MenuFont::sMenuChars, 2.0f, 4.0f, 32.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.15f, 0.03f, -0.025f);
-
-   FontPool::Instance()->add("default", fontDefault);
-   FontPool::Instance()->add("lounge", fontLounge);
-   FontPool::Instance()->add("outlined", fontOutlined);
-   FontPool::Instance()->add("large", fontLarge);
-   FontPool::Instance()->add("large-outlined", fontLargeOutlined);
-}
-
 }  // namespace
 
 int main(int /*argc*/, char** /*argv*/)
@@ -199,7 +170,7 @@ int main(int /*argc*/, char** /*argv*/)
    // this is that clock's replacement here.
    SdlGlobalTime globalTime;
 
-   registerMenuFont();
+   registerGameFonts();
 
    MenuDrawable menuDrawable(&device);
    menuDrawable.initializeGL();

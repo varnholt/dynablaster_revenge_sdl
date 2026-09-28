@@ -199,6 +199,8 @@ add_library(dynablaster_core STATIC
     src/menus/fontmap.cpp
     src/menus/fontmap.h
     src/menus/fontpool.h
+    src/menus/gamefonts.cpp
+    src/menus/gamefonts.h
     src/menus/menupageanimation.cpp
     src/menus/menupageanimation.h
     src/menus/menupagefadeanimation.cpp
@@ -431,6 +433,8 @@ endif()
 # can never drift out of sync with the real thing it's testing.
 add_executable(dynablaster_revenge_harness
     src/main_harness.cpp
+    src/effectlab.cpp
+    src/effectlab.h
     src/screenshot.cpp
     src/screenshot.h
     src/inputinjector.cpp
