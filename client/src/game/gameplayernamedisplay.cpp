@@ -33,36 +33,36 @@ struct ArrowVertex
 }  // namespace
 
 GamePlayerNameDisplay::GamePlayerNameDisplay()
-    : mFont(nullptr),
-      mShowArrow(false),
-      mArrowShader(0),
-      mArrowVertexBuffer(0),
-      mArrowIndexBuffer(0),
-      mArrowParamTexture(-1),
-      mArrowParamAlpha(-1)
+    : _font(nullptr),
+      _show_arrow(false),
+      _arrow_shader(0),
+      _arrow_vertex_buffer(0),
+      _arrow_index_buffer(0),
+      _arrow_param_texture(-1),
+      _arrow_param_alpha(-1)
 {
 }
 
 bool GamePlayerNameDisplay::isActive() const
 {
-   return (mActiveTime.elapsed() < (FONT_DISPLAY_DURATION + FONT_DISPLAY_FADE_DURATION));
+   return (_active_time.elapsed() < (FONT_DISPLAY_DURATION + FONT_DISPLAY_FADE_DURATION));
 }
 
 void GamePlayerNameDisplay::setPlayerData(std::map<int, PlayerItem*>& players)
 {
-   Matrix projMat = static_cast<GLDevice*>(activeDevice)->getProjectionMatrix();
+   Matrix proj_mat = static_cast<GLDevice*>(activeDevice)->getProjectionMatrix();
 
    const int width = 1920;
    const int height = 1080;
 
-   mPositions.clear();
-   mNames.clear();
+   _positions.clear();
+   _names.clear();
 
    for (const auto& [playerId, player] : players)
    {
       if (!player->isKilled())
       {
-         Matrix mat = player->getMesh()->getTransform() * projMat;
+         Matrix mat = player->getMesh()->getTransform() * proj_mat;
          mat = mat.xyw();
 
          Vector v = mat * Vector(0.0f, 0.0f, 0.0f);
@@ -74,12 +74,12 @@ void GamePlayerNameDisplay::setPlayerData(std::map<int, PlayerItem*>& players)
          v.y = (-v.y * t + 1.0f) * 0.5f * height;
          v.z = 0.0f;
 
-         mPositions.push_back(v);
-         mNames.push_back(player->getNick());
+         _positions.push_back(v);
+         _names.push_back(player->getNick());
 
          if (player->getID() == BombermanClient::getInstance()->getPlayerId())
          {
-            mArrowPosition = player->getPosition();
+            _arrow_position = player->getPosition();
          }
       }
    }
@@ -87,17 +87,17 @@ void GamePlayerNameDisplay::setPlayerData(std::map<int, PlayerItem*>& players)
 
 void GamePlayerNameDisplay::start()
 {
-   mActiveTime.restart();
+   _active_time.restart();
 
    // show arrow only in large maps
-   mShowArrow = false;
+   _show_arrow = false;
    GameInformation* info = BombermanClient::getInstance()->getCurrentGameInformation();
 
    switch (info->getMapDimensions())
    {
       case Constants::Dimension19x17:
       case Constants::Dimension25x21:
-         mShowArrow = true;
+         _show_arrow = true;
          break;
 
       default:
@@ -107,37 +107,37 @@ void GamePlayerNameDisplay::start()
 
 void GamePlayerNameDisplay::initialize()
 {
-   mFont = FontPool::Instance()->get("outlined");
+   _font = FontPool::Instance()->get("outlined");
 
    TexturePool* pool = TexturePool::Instance();
-   mArrowTexture = pool->getTexture("data/game/arrow");
+   _arrow_texture = pool->getTexture("data/game/arrow");
 
-   mArrowShader = activeDevice->loadShader("texalpha-vert.glsl", "texalpha-frag.glsl");
-   mArrowParamTexture = activeDevice->getParameterIndex("tex");
-   mArrowParamAlpha = activeDevice->getParameterIndex("alpha");
+   _arrow_shader = activeDevice->loadShader("texalpha-vert.glsl", "texalpha-frag.glsl");
+   _arrow_param_texture = activeDevice->getParameterIndex("tex");
+   _arrow_param_alpha = activeDevice->getParameterIndex("alpha");
 
    // local quad in the arrow's own X/Z plane (Y fixed at 0) - positioned and animated per frame
    // via activeDevice->push(Matrix::position(...)) instead of rewriting vertex data every draw.
    const float width = 0.75f;
    const float height = 0.75f;
 
-   mArrowVertexBuffer = activeDevice->createVertexBuffer(4 * sizeof(ArrowVertex));
-   ArrowVertex* vtx = (ArrowVertex*)activeDevice->lockVertexBuffer(mArrowVertexBuffer);
+   _arrow_vertex_buffer = activeDevice->createVertexBuffer(4 * sizeof(ArrowVertex));
+   ArrowVertex* vtx = (ArrowVertex*)activeDevice->lockVertexBuffer(_arrow_vertex_buffer);
    vtx[0] = {width, 0.0f, -height, 1.0f, 1.0f};
    vtx[1] = {width, 0.0f, height, 1.0f, 0.0f};
    vtx[2] = {-width, 0.0f, height, 0.0f, 0.0f};
    vtx[3] = {-width, 0.0f, -height, 0.0f, 1.0f};
-   activeDevice->unlockVertexBuffer(mArrowVertexBuffer);
+   activeDevice->unlockVertexBuffer(_arrow_vertex_buffer);
 
-   mArrowIndexBuffer = activeDevice->createIndexBuffer(6 * sizeof(unsigned short));
-   unsigned short* idx = (unsigned short*)activeDevice->lockIndexBuffer(mArrowIndexBuffer);
+   _arrow_index_buffer = activeDevice->createIndexBuffer(6 * sizeof(unsigned short));
+   unsigned short* idx = (unsigned short*)activeDevice->lockIndexBuffer(_arrow_index_buffer);
    idx[0] = 0;
    idx[1] = 1;
    idx[2] = 2;
    idx[3] = 0;
    idx[4] = 2;
    idx[5] = 3;
-   activeDevice->unlockIndexBuffer(mArrowIndexBuffer);
+   activeDevice->unlockIndexBuffer(_arrow_index_buffer);
 }
 
 void GamePlayerNameDisplay::draw() const
@@ -145,7 +145,7 @@ void GamePlayerNameDisplay::draw() const
    initGlParameters();
    drawPlayTexts();
 
-   if (mShowArrow)
+   if (_show_arrow)
       drawArrow();
 
    cleanupGlParameters();
@@ -170,9 +170,9 @@ float GamePlayerNameDisplay::computeFontAlpha() const
 {
    float alpha = 1.0f;
 
-   if (mActiveTime.elapsed() > FONT_DISPLAY_DURATION)
+   if (_active_time.elapsed() > FONT_DISPLAY_DURATION)
    {
-      alpha = 1.0f - ((mActiveTime.elapsed() - FONT_DISPLAY_DURATION) / (float)FONT_DISPLAY_FADE_DURATION);
+      alpha = 1.0f - ((_active_time.elapsed() - FONT_DISPLAY_DURATION) / (float)FONT_DISPLAY_FADE_DURATION);
    }
 
    return alpha;
@@ -182,9 +182,9 @@ float GamePlayerNameDisplay::computeArrowAlpha() const
 {
    float alpha = 1.0f;
 
-   if (mActiveTime.elapsed() > ARROW_DISPLAY_DURATION)
+   if (_active_time.elapsed() > ARROW_DISPLAY_DURATION)
    {
-      alpha = 1.0f - ((mActiveTime.elapsed() - ARROW_DISPLAY_DURATION) / (float)ARROW_DISPLAY_FADE_DURATION);
+      alpha = 1.0f - ((_active_time.elapsed() - ARROW_DISPLAY_DURATION) / (float)ARROW_DISPLAY_FADE_DURATION);
    }
 
    return alpha;
@@ -198,14 +198,14 @@ void GamePlayerNameDisplay::drawPlayTexts() const
    device->pushProjection();
    device->setProjectionMatrix(Matrix::ortho(0, 1920, 1080, 0, -1.0f, 1.0f));
 
-   for (int i = 0; i < mPositions.size(); i++)
+   for (int i = 0; i < _positions.size(); i++)
    {
-      const Vector& pos = mPositions[i];
-      const std::string& name = mNames[i];
+      const Vector& pos = _positions[i];
+      const std::string& name = _names[i];
 
-      mFont->setColor(1.0f, 1.0f, 1.0f, computeFontAlpha());
-      mFont->buildVertices(0.1f, name.c_str(), pos.x, pos.y + FONT_Y_OFFSET, 0.0f);
-      mFont->draw();
+      _font->setColor(1.0f, 1.0f, 1.0f, computeFontAlpha());
+      _font->buildVertices(0.1f, name.c_str(), pos.x, pos.y + FONT_Y_OFFSET, 0.0f);
+      _font->draw();
    }
 
    device->popProjection();
@@ -215,23 +215,23 @@ void GamePlayerNameDisplay::drawArrow() const
 {
    if (!BombermanClient::getInstance()->getCurrentPlayerInfo()->isKilled())
    {
-      const float offsetZ = 4.0f + std::sin(GlobalTime::Instance()->getTime() * 4.5f) * 0.5f;
+      const float offset_z = 4.0f + std::sin(GlobalTime::Instance()->getTime() * 4.5f) * 0.5f;
 
-      activeDevice->setShader(mArrowShader);
+      activeDevice->setShader(_arrow_shader);
 
-      glBindTexture(GL_TEXTURE_2D, mArrowTexture.getTexture());
-      activeDevice->bindSampler(mArrowParamTexture, 0);
-      activeDevice->setParameter(mArrowParamAlpha, computeArrowAlpha() * 0.5f);
+      glBindTexture(GL_TEXTURE_2D, _arrow_texture.getTexture());
+      activeDevice->bindSampler(_arrow_param_texture, 0);
+      activeDevice->setParameter(_arrow_param_alpha, computeArrowAlpha() * 0.5f);
 
-      activeDevice->push(Matrix::position(mArrowPosition.x, mArrowPosition.y, offsetZ));
+      activeDevice->push(Matrix::position(_arrow_position.x, _arrow_position.y, offset_z));
 
-      glBindBuffer(GL_ARRAY_BUFFER, mArrowVertexBuffer);
+      glBindBuffer(GL_ARRAY_BUFFER, _arrow_vertex_buffer);
       glEnableVertexAttribArray(0);
       glEnableVertexAttribArray(1);
       glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(ArrowVertex), (GLvoid*)0);
       glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(ArrowVertex), (GLvoid*)(3 * sizeof(float)));
 
-      glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mArrowIndexBuffer);
+      glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _arrow_index_buffer);
       glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0);
 
       glDisableVertexAttribArray(0);

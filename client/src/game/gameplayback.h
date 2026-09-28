@@ -29,10 +29,10 @@ public:
 
 protected:
 
-   static GamePlayback* sInstance;
+   static GamePlayback* s_instance;
 
-   bool mRecording;
-   bool mReplaying;
+   bool _recording;
+   bool _replaying;
 };
 
 #endif // GAMEPLAYBACK_H
