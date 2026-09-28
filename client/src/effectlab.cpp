@@ -15,6 +15,7 @@
 #include "game/gamedrawable.h"
 #include "gameinformation.h"
 #include "bombmapitem.h"
+#include "extramapitem.h"
 #include "playerinfo.h"
 
 #include <SDL3/SDL.h>
@@ -26,6 +27,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <vector>
 
 namespace
 {
@@ -34,6 +36,8 @@ constexpr int32_t HEIGHT = 576;
 constexpr float FPS = 60.0f;
 constexpr int32_t TRIGGER_FRAME = 60;
 constexpr std::array<int32_t, 6> CAPTURE_OFFSETS = {6, 30, 60, 120, 180, 300};
+// the extra animations are short, sample them more densely too
+constexpr std::array<int32_t, 4> SHORT_CAPTURE_OFFSETS = {3, 9, 15, 21};
 
 constexpr int32_t LOCAL_PLAYER_ID = 0;
 constexpr int32_t OTHER_PLAYER_ID = 1;
@@ -74,6 +78,13 @@ const std::map<std::string, Trigger>& triggers()
           static BombMapItem bomb(LOCAL_PLAYER_ID, 2, 100, 8, 5);
           game.createMapItem(&bomb);
        }},
+      {"extrareveal",
+       [](GameDrawable& game)
+       {
+          static ExtraMapItem extra(101, Constants::ExtraFlame, 8, 5);
+          game.createMapItem(&extra);
+       }},
+      {"extradestroy", [](GameDrawable& game) { game.extraRemoved(8, 5, true, Constants::ExtraFlame, -1); }},
    };
 
    return effects;
@@ -175,7 +186,13 @@ int runEffectLab(const std::string& effect, const std::string& out_dir)
       game.animate(time_ms * 0.0625f);
       game.paintGL();
 
-      for (const auto offset : CAPTURE_OFFSETS)
+      std::vector<int32_t> offsets(CAPTURE_OFFSETS.begin(), CAPTURE_OFFSETS.end());
+      if (effect.starts_with("extra"))
+      {
+         offsets.insert(offsets.end(), SHORT_CAPTURE_OFFSETS.begin(), SHORT_CAPTURE_OFFSETS.end());
+      }
+
+      for (const auto offset : offsets)
       {
          if (frame == TRIGGER_FRAME + offset)
          {
