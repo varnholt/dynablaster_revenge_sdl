@@ -25,6 +25,7 @@
 #include "playerinvincibleeffect.h"
 #include "extra.h"
 #include "extraanimations.h"
+#include "effects/ribbons/ribbonanimationfactory.h"
 #include "extramapitem.h"
 #include "gamesettings.h"
 #include "gamestatemachine.h"
@@ -414,6 +415,7 @@ void GameDrawable::initializeGL()
 
    _invisible_player_effect = std::make_unique<InvisiblePlayerEffect>();
    _extra_animations = std::make_unique<ExtraAnimations>();
+   _ribbon_animation_factory = std::make_unique<RibbonAnimationFactory>();
 }
 
 
@@ -636,9 +638,9 @@ void GameDrawable::shakeBlock(MapItem* item)
 void GameDrawable::playerInfected(
    int id,
    Constants::SkullType skull_type,
-   int /*infector_id*/,
-   int /*extra_x*/,
-   int /*extra_y*/
+   int infector_id,
+   int extra_x,
+   int extra_y
 )
 {
    PlayerItem* player_item = getPlayer(id);
@@ -669,6 +671,12 @@ void GameDrawable::playerInfected(
 
    if (skull_type == Constants::SkullInvincible)
    {
+      // only a picked up skull celebrates, not one passed on by an infected player
+      if (infector_id == -1)
+      {
+         _ribbon_animation_factory->add(static_cast<float>(extra_x), static_cast<float>(extra_y));
+      }
+
       _player_invincible_effect->add(player_item->getMaterial());
    }
    else if (skull_type == Constants::SkullInvisible)
@@ -1485,6 +1493,7 @@ void GameDrawable::paintGL()
    _player_death_effect->render();
    _player_infected_effect->render();
    _extra_animations->render(dt);
+   _ribbon_animation_factory->update(dt);
 
    // draw player names
    if (_player_names_enabled && _player_name_display->isActive())
