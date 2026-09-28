@@ -343,6 +343,10 @@ add_library(dynablaster_core STATIC
     src/game/playerinfectedeffect.h
     src/game/fuseparticlesystem.cpp
     src/game/fuseparticlesystem.h
+    src/game/playerinvincibleinstance.cpp
+    src/game/playerinvincibleinstance.h
+    src/game/playerinvincibleeffect.cpp
+    src/game/playerinvincibleeffect.h
     src/game/gameplayernamedisplay.cpp
     src/game/gameplayernamedisplay.h
     src/game/gamewindrawable.cpp

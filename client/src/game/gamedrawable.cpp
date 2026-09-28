@@ -20,6 +20,7 @@
 #include "startalersfactory.h"
 #include "playerdeatheffect.h"
 #include "playerinfectedeffect.h"
+#include "playerinvincibleeffect.h"
 #include "extra.h"
 #include "extramapitem.h"
 #include "gamesettings.h"
@@ -55,6 +56,7 @@ GameDrawable::GameDrawable(RenderDevice* device)
    mPlayerInfectedEffect(nullptr),
    mPlayerNameDisplay(nullptr),
    mFuseParticleSystem(nullptr),
+   mPlayerInvincibleEffect(nullptr),
    mStarTalersFactory(nullptr),
    mTime(0.0f),
    mTimePrev(0.0f),
@@ -105,6 +107,7 @@ GameDrawable::~GameDrawable()
    delete mPlayerInfectedEffect;
    delete mPlayerNameDisplay;
    delete mFuseParticleSystem;
+   delete mPlayerInvincibleEffect;
    delete mStarTalersFactory;
 }
 
@@ -379,6 +382,7 @@ void GameDrawable::initializeGL()
    mPlayerNameDisplay->initialize();
 
    mFuseParticleSystem = new FuseParticleSystem();
+   mPlayerInvincibleEffect = new PlayerInvincibleEffect();
 
    mStarTalersFactory = new StarTalersFactory();
    mStarTalersFactory->initialize();
@@ -599,8 +603,8 @@ void GameDrawable::shakeBlock(MapItem* item)
 
 //-----------------------------------------------------------------------------
 /*!
-   Mushroom screen filter, invincible-ribbon spawn and invisibility are still deferred (see header
-   comment) - the actual status *state* flows through fully via BombermanClient regardless.
+   Mushroom screen filter and invisibility are still deferred (see header comment) - the actual
+   status *state* flows through fully via BombermanClient regardless.
 */
 void GameDrawable::playerInfected(
    int id,
@@ -611,7 +615,6 @@ void GameDrawable::playerInfected(
 )
 {
    PlayerItem* playerItem = getPlayer(id);
-
    if (!playerItem)
    {
       return;
@@ -620,8 +623,15 @@ void GameDrawable::playerInfected(
    if (skullType == Constants::SkullReset)
    {
       mPlayerInfectedEffect->remove(playerItem->getMaterial());
+      mPlayerInvincibleEffect->remove(playerItem->getMaterial());
+      return;
    }
-   else if (skullType != Constants::SkullInvincible && skullType != Constants::SkullInvisible)
+
+   if (skullType == Constants::SkullInvincible)
+   {
+      mPlayerInvincibleEffect->add(playerItem->getMaterial());
+   }
+   else if (skullType != Constants::SkullInvisible)
    {
       mPlayerInfectedEffect->add(playerItem->getMaterial());
    }
@@ -1187,6 +1197,7 @@ void GameDrawable::animate(float time)
    mPlayerInfectedEffect->animate(delta);
 
    mFuseParticleSystem->animate(delta);
+   mPlayerInvincibleEffect->animate(delta);
    mStarTalersFactory->update(delta * 0.05f);
 
    mCameraAnim+=delta*60.0f;
@@ -1393,6 +1404,7 @@ void GameDrawable::paintGL()
 
    mDetonations->render();
    mFuseParticleSystem->render();
+   mPlayerInvincibleEffect->render();
    mStarTalersFactory->render();
 
    // start flow fields when a player got killed (and the kill anim is over) - matches the

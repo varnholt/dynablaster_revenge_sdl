@@ -34,6 +34,7 @@ class Mesh;
 class Node;
 class PlayerDeathEffect;
 class PlayerInfectedEffect;
+class PlayerInvincibleEffect;
 class PlayerItem;
 class RenderDevice;
 class SceneGraph;
@@ -185,6 +186,7 @@ private:
    PlayerInfectedEffect* mPlayerInfectedEffect;
    GamePlayerNameDisplay* mPlayerNameDisplay;
    FuseParticleSystem* mFuseParticleSystem;
+   PlayerInvincibleEffect* mPlayerInvincibleEffect;
    StarTalersFactory* mStarTalersFactory;
 
    float mTime;
