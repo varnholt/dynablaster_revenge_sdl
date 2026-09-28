@@ -24,6 +24,7 @@
 #include "playerinfectedeffect.h"
 #include "playerinvincibleeffect.h"
 #include "extra.h"
+#include "extraanimations.h"
 #include "extramapitem.h"
 #include "gamesettings.h"
 #include "gamestatemachine.h"
@@ -412,6 +413,7 @@ void GameDrawable::initializeGL()
    _shroom_filter->init();
 
    _invisible_player_effect = std::make_unique<InvisiblePlayerEffect>();
+   _extra_animations = std::make_unique<ExtraAnimations>();
 }
 
 
@@ -529,6 +531,7 @@ Mesh* GameDrawable::createExtra(ExtraMapItem *extra)
    Mesh *extra_mesh= dynamic_cast<Mesh*>(_playfield->getNode("Extra"));
    mesh= new Extra(extra->getExtraType(), extra_mesh->getPart(0), extra->getX(), extra->getY());
    _extra_materials[extra->getExtraType()]->addMesh(mesh);
+   _extra_animations->addReveal(extra->getX(), extra->getY());
    return mesh;
 }
 
@@ -973,8 +976,6 @@ void GameDrawable::setMapItemPosition(
    \param y y position where extra has been removed
    \param destroyed \c true if extra was destroyed
    \param player_id if of player who picked the extra up
-
-   Real "extra destroyed" burst (ExtraAnimation) is still deferred - see header comment.
 */
 void GameDrawable::extraRemoved(
    int x,
@@ -984,7 +985,11 @@ void GameDrawable::extraRemoved(
    int player_id
 )
 {
-   if (!destroyed)
+   if (destroyed)
+   {
+      _extra_animations->addDestroyed(x, y);
+   }
+   else
    {
       _star_talers_factory->add(static_cast<float>(x), static_cast<float>(y), extra);
    }
@@ -1479,6 +1484,7 @@ void GameDrawable::paintGL()
 
    _player_death_effect->render();
    _player_infected_effect->render();
+   _extra_animations->render(dt);
 
    // draw player names
    if (_player_names_enabled && _player_name_display->isActive())

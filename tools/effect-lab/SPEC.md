@@ -40,11 +40,15 @@ At frame 60 (t = 1.0 s) fire the effect's trigger call once.
 - death      : removePlayer(0)
 - fuse       : createMapItem(new BombMapItem(0, 2, 100, 8, 5)) - a bomb two tiles right of the local
                player; the lab keeps it alive (never removed) for all captures
+- extrareveal : createMapItem(new ExtraMapItem(101, ExtraFlame, 8, 5)) - an extra appearing (reveal
+               frustum); the lab keeps it alive for all captures
+- extradestroy : extraRemoved(8, 5, true, ExtraFlame, -1) - an extra destroyed by a flame
 
 ## Captures
 Frames 60 + {6, 30, 60, 120, 180, 300} (= +100, +500, +1000, +2000, +3000, +5000 ms after the
 trigger). Read the back buffer right before swap. File name: `<effect>_<ms>.png`, e.g.
 `mushroom_500.png`, written to `D:\git\effect-lab\old\` or `D:\git\effect-lab\new\`.
+extrareveal/extradestroy additionally capture at frames 60 + {3, 9, 15, 21} (+50/150/250/350 ms).
 Process exits after the last capture.
 
 ## Invocation

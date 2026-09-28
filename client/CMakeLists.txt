@@ -331,6 +331,8 @@ add_library(dynablaster_core STATIC
     src/game/playeritem.h
     src/game/extra.cpp
     src/game/extra.h
+    src/game/extraanimations.cpp
+    src/game/extraanimations.h
     src/levels/levelfactory.cpp
     src/levels/levelfactory.h
     src/levels/castle/levelcastle.cpp
