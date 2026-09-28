@@ -251,6 +251,8 @@ add_library(dynablaster_core STATIC
     src/postproduction/fullscreenquad.h
     src/postproduction/blurfilter.cpp
     src/postproduction/blurfilter.h
+    src/postproduction/motionblurfilter.cpp
+    src/postproduction/motionblurfilter.h
     src/effects/spherefragments/vertex3d.h
     src/effects/spherefragments/geometryvbo.cpp
     src/effects/spherefragments/geometryvbo.h
@@ -351,6 +353,8 @@ add_library(dynablaster_core STATIC
     src/game/gamedrawable.h
     src/game/countdowndrawable.cpp
     src/game/countdowndrawable.h
+    src/game/roundsdrawable.cpp
+    src/game/roundsdrawable.h
     src/game/musicplayerdrawable.cpp
     src/game/musicplayerdrawable.h
     src/game/gameversion.h

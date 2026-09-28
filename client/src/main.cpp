@@ -20,6 +20,7 @@
 #include "game/gamemessagingdrawable.h"
 #include "game/gamewindrawable.h"
 #include "game/musicplayerdrawable.h"
+#include "game/roundsdrawable.h"
 #include "game/soundmanager.h"
 
 #include "menus/bitmapfont.h"
@@ -264,6 +265,10 @@ int main(int /*argc*/, char** /*argv*/)
    CountdownDrawable countdownDrawable(&device);
    countdownDrawable.initializeGL();
 
+   // "ROUND X" slide-in text (client/src/game/roundsdrawable.cpp), shown at the start of each round
+   RoundsDrawable roundsDrawable(&device);
+   roundsDrawable.initializeGL();
+
    // win/trophy screen (client/src/game/gamewindrawable.cpp) - self-governs its own visibility
    // via GameStateMachine's stateChanged signal (connected in its own constructor), so it needs
    // no explicit wiring here beyond construction + the animate/paintGL calls below.
@@ -333,6 +338,7 @@ int main(int /*argc*/, char** /*argv*/)
          gameDrawable.setVisible(true);
          gameMessagingDrawable.setVisible(true);
          musicPlayerDrawable.setInGame(true);
+         roundsDrawable.showGame();
       }
    );
    auto showMenuAgain = [&]()
@@ -340,6 +346,7 @@ int main(int /*argc*/, char** /*argv*/)
       gameDrawable.setVisible(false);
       gameMessagingDrawable.setVisible(false);
       countdownDrawable.setVisible(false);
+      roundsDrawable.setVisible(false);
       menuDrawable.setVisible(true);
       logoDrawable.setVisible(true);
       menuCursor.setVisible(true);
@@ -540,6 +547,12 @@ int main(int /*argc*/, char** /*argv*/)
          // real seconds * 62.5, matching client/src/game/bombermanview.cpp's Drawable::animate() convention.
          countdownDrawable.animate(timeMs * 0.0625f);
          countdownDrawable.paintGL();
+      }
+
+      if (roundsDrawable.isVisible())
+      {
+         roundsDrawable.animate(timeMs * 0.0625f);
+         roundsDrawable.paintGL();
       }
 
       if (gameWinDrawable.isVisible())
