@@ -360,6 +360,9 @@ void GameWinDrawable::drawBackBuffer(float alpha)
 
    // composite the blurred backdrop onto the real screen - whole-rect fade, not per-pixel alpha
    // (matches getFramebufferBlitShader()'s documented "replace alpha" use case).
+   glEnable(GL_BLEND);
+   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
    activeDevice->setShader(getFramebufferBlitShader());
    static_cast<GLDevice*>(activeDevice)->setProjectionMatrix(Matrix());
    activeDevice->push(Matrix());
@@ -367,6 +370,8 @@ void GameWinDrawable::drawBackBuffer(float alpha)
    mBackdropFb->draw(alpha);
    activeDevice->pop();
    activeDevice->setShader(0);
+
+   glDisable(GL_BLEND);
 }
 
 void GameWinDrawable::drawScene()
@@ -404,6 +409,9 @@ void GameWinDrawable::drawSceneToFramebuffer(float alpha)
 
    // composite on top of the already-drawn blurred backdrop - real per-pixel alpha this time
    // (transparent gaps around the cup/player let the backdrop underneath show through).
+   glEnable(GL_BLEND);
+   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
    activeDevice->setShader(getDefaultMenuShader());
    static_cast<GLDevice*>(activeDevice)->setProjectionMatrix(Matrix());
    activeDevice->push(Matrix());
@@ -411,6 +419,8 @@ void GameWinDrawable::drawSceneToFramebuffer(float alpha)
    mSceneFb->draw(alpha);
    activeDevice->pop();
    activeDevice->setShader(0);
+
+   glDisable(GL_BLEND);
 }
 
 void GameWinDrawable::drawPsdContents(float alpha)
