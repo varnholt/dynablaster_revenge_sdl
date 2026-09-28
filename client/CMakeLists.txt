@@ -359,6 +359,8 @@ add_library(dynablaster_core STATIC
     src/game/countdowndrawable.h
     src/game/roundsdrawable.cpp
     src/game/roundsdrawable.h
+    src/game/startalersfactory.cpp
+    src/game/startalersfactory.h
     src/game/musicplayerdrawable.cpp
     src/game/musicplayerdrawable.h
     src/game/gameversion.h
