@@ -16,6 +16,7 @@
 #include "bombermanclient.h"
 #include "detonationmanager.h"
 #include "fuseparticlesystem.h"
+#include "mushroomanimation.h"
 #include "gameplayernamedisplay.h"
 #include "startalersfactory.h"
 #include "playerdeatheffect.h"
@@ -29,6 +30,7 @@
 #include "mapitem.h"
 #include "playeritem.h"
 #include "skull.h"
+#include "postproduction/shroomfilter.h"
 #include "sdlglobaltime.h"
 
 // std
@@ -386,6 +388,10 @@ void GameDrawable::initializeGL()
 
    _star_talers_factory = new StarTalersFactory();
    _star_talers_factory->initialize();
+
+   _mushroom_animation = std::make_unique<MushroomAnimation>();
+   _shroom_filter = std::make_unique<ShroomFilter>();
+   _shroom_filter->init();
 }
 
 
@@ -603,8 +609,7 @@ void GameDrawable::shakeBlock(MapItem* item)
 
 //-----------------------------------------------------------------------------
 /*!
-   Mushroom screen filter and invisibility are still deferred (see header comment) - the actual
-   status *state* flows through fully via BombermanClient regardless.
+   Invisibility is still deferred (see header comment).
 */
 void GameDrawable::playerInfected(
    int id,
@@ -624,7 +629,19 @@ void GameDrawable::playerInfected(
    {
       _player_infected_effect->remove(player_item->getMaterial());
       _player_invincible_effect->remove(player_item->getMaterial());
+
+      if (id == _player_id)
+      {
+         _mushroom_animation->abort();
+      }
+
       return;
+   }
+
+   // the mushroom screen filter only applies to the local player
+   if (skull_type == Constants::SkullMushroom && id == _player_id)
+   {
+      _mushroom_animation->start();
    }
 
    if (skull_type == Constants::SkullInvincible)
@@ -1113,6 +1130,11 @@ void GameDrawable::removePlayer(int id)
       _player_infected_effect->remove(player->getMaterial());
    }
 
+   if (id == _player_id && _mushroom_animation->isActive())
+   {
+      _mushroom_animation->abort();
+   }
+
    // check for survivors
    if (_player_list.size() > 1)
    {
@@ -1325,11 +1347,7 @@ void GameDrawable::shakeBoxes(float delta)
 
 //-----------------------------------------------------------------------------
 /*!
-   Renders straight to the default framebuffer - the real GameDrawable renders to its own
-   offscreen FrameBuffer via MainDrawable::getInstance()->getRenderBuffer() and blits it back with
-   BlendQuad, but that indirection only existed to let the mushroom-effect screen filter and the
-   invisibility material read the frame back as a texture, both deferred (see header comment). No
-   remaining reason to render offscreen first.
+   Renders straight to the bound framebuffer; the shroom filter snapshots it via glCopyTexImage2D.
 */
 void GameDrawable::paintGL()
 {
@@ -1444,6 +1462,14 @@ void GameDrawable::paintGL()
    // draw level specific stuff
    if (_level)
       _level->draw();
+
+   if (_mushroom_animation->isActive())
+   {
+      _mushroom_animation->update();
+      _shroom_filter->setIntensity(_mushroom_animation->getIntensity());
+      _shroom_filter->setTime(GlobalTime::Instance()->getTime());
+      _shroom_filter->apply();
+   }
 
    _time_prev = _time;
 }

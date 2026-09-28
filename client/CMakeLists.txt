@@ -253,6 +253,8 @@ add_library(dynablaster_core STATIC
     src/postproduction/blurfilter.h
     src/postproduction/motionblurfilter.cpp
     src/postproduction/motionblurfilter.h
+    src/postproduction/shroomfilter.cpp
+    src/postproduction/shroomfilter.h
     src/effects/spherefragments/vertex3d.h
     src/effects/spherefragments/geometryvbo.cpp
     src/effects/spherefragments/geometryvbo.h
@@ -292,6 +294,8 @@ add_library(dynablaster_core STATIC
     src/game/helpmanager.h
     src/game/mapitemanimation.cpp
     src/game/mapitemanimation.h
+    src/game/mushroomanimation.cpp
+    src/game/mushroomanimation.h
     src/levels/camerainterpolation.cpp
     src/levels/camerainterpolation.h
     src/levels/level.cpp

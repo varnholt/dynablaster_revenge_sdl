@@ -2,6 +2,7 @@
 #define GAMEDRAWABLE_H
 
 #include <map>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -31,6 +32,7 @@ class Level;
 class MapItem;
 class Material;
 class Mesh;
+class MushroomAnimation;
 class Node;
 class PlayerDeathEffect;
 class PlayerInfectedEffect;
@@ -38,12 +40,13 @@ class PlayerInvincibleEffect;
 class PlayerItem;
 class RenderDevice;
 class SceneGraph;
+class ShroomFilter;
 class Skull;
 class StarTalersFactory;
 
 // Real map/players/bombs/extras/HUD rendering.
 // Not implemented yet (backlog, see project memory): ExtraAnimation/ExtraRevealAnimation,
-// MushroomAnimation+ShroomFilter, InvisiblePlayerEffect,
+// InvisiblePlayerEffect,
 // RibbonAnimationFactory/LensFlareFactory, GamePlaybackDisplay, HeadlessIntegration.
 // Dead code, not ported: drawTestQuad/drawBoundingBox/drawBoundingRect/playerBoundingRect/
 // loadExplosion, INSPECT_SCENE debug input, mExportScene.
@@ -188,6 +191,8 @@ private:
    FuseParticleSystem* _fuse_particle_system;
    PlayerInvincibleEffect* _player_invincible_effect;
    StarTalersFactory* _star_talers_factory;
+   std::unique_ptr<MushroomAnimation> _mushroom_animation;
+   std::unique_ptr<ShroomFilter> _shroom_filter;
 
    float _time;
    float _time_prev;
