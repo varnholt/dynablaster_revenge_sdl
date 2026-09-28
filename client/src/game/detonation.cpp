@@ -1,52 +1,52 @@
 #include "detonation.h"
 
 Detonation::Detonation(int cx, int cy, int left, int right, int top, int bottom)
-: mCenterX(cx)
-, mCenterY(cy)
-, mLeft(left)
-, mRight(right)
-, mTop(top)
-, mBottom(bottom)
-, mStartTime(0.0f)
+: _center_x(cx)
+, _center_y(cy)
+, _left(left)
+, _right(right)
+, _top(top)
+, _bottom(bottom)
+, _start_time(0.0f)
 {
 }
 
 int Detonation::getX() const
 {
-   return mCenterX;
+   return _center_x;
 }
 
 int Detonation::getY() const
 {
-   return mCenterY;
+   return _center_y;
 }
 
 int Detonation::getUp() const
 {
-   return mTop;
+   return _top;
 }
 
 int Detonation::getDown() const
 {
-   return mBottom;
+   return _bottom;
 }
 
 int Detonation::getLeft() const
 {
-   return mLeft;
+   return _left;
 }
 
 int Detonation::getRight() const
 {
-   return mRight;
+   return _right;
 }
 
 void Detonation::setStartTime(float time)
 {
-   mStartTime= time;
+   _start_time= time;
 }
 
 float Detonation::elapsed(float time) const
 {
-   return time - mStartTime;
+   return time - _start_time;
 }

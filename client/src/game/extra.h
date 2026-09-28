@@ -16,9 +16,9 @@ public:
    void animate(float time);
 
 private:
-   Constants::ExtraType    mType;
-   Matrix                  mPosition;
-   float                   mTimeOffset;
+   Constants::ExtraType    _type;
+   Matrix                  _position;
+   float                   _time_offset;
 };
 
 #endif

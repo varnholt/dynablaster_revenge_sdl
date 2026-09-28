@@ -13,52 +13,52 @@ MapItemAnimation::MapItemAnimation(
    Constants::Direction dir,
    float speed
 )
- : mDirection(dir),
-   mSpeed(speed),
-   mX(0.0f),
-   mY(0.0f),
-   mZ(0.0f),
-   mZPrev(0.0f),
-   mNominalX(-1),
-   mNominalY(-1),
-   mTime(0.0f),
-   mTick(false),
-   mFactor(1.0f)
+ : _direction(dir),
+   _speed(speed),
+   _x(0.0f),
+   _y(0.0f),
+   _z(0.0f),
+   _z_prev(0.0f),
+   _nominal_x(-1),
+   _nominal_y(-1),
+   _time(0.0f),
+   _tick(false),
+   _factor(1.0f)
 {
 }
 
 
 void MapItemAnimation::animate(float dt)
 {
-   mZPrev = mZ;
+   _z_prev = _z;
 
    // let the bomb bounce
-   mTime += dt * 0.1f;
-   mZ = std::fabs(std::sin(0.7f * std::pow(mTime, 1.5f)) / (1.0f + mTime)) * 1.5f;
-   mZ *= mFactor;
+   _time += dt * 0.1f;
+   _z = std::fabs(std::sin(0.7f * std::pow(_time, 1.5f)) / (1.0f + _time)) * 1.5f;
+   _z *= _factor;
 
    // check for floor tick sound
    if (
-         mZ     < TICK_UPPER_LIMIT
-      && mZPrev > mZ
+         _z     < TICK_UPPER_LIMIT
+      && _z_prev > _z
    )
    {
-      if (!mTick)
+      if (!_tick)
       {
-         bounceSignal();
-         mTick = true;
+         bounce_signal();
+         _tick = true;
       }
    }
    else
    {
-      if (mZ > TICK_LOWER_LIMIT)
-         mTick = false;
+      if (_z > TICK_LOWER_LIMIT)
+         _tick = false;
    }
 }
 
 
 void MapItemAnimation::reset()
 {
-   mTime = 0.0f;
-   mFactor = 1.0f;
+   _time = 0.0f;
+   _factor = 1.0f;
 }

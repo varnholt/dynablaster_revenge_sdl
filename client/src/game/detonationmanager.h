@@ -7,15 +7,7 @@
 
 class Detonation;
 
-// GLES3 port of client/src/game/detonationmanager.cpp's real volumetric flame effect (see
-// project memory for the "verify scope before deferring" correction that led to this - it turned
-// out to need a shader port + geometry port, not to be blocked by anything GLES3 architecturally
-// lacks). GL_TEXTURE_1D (gradient palette) becomes a 2D texture with height 1; GL_TEXTURE_3D
-// (procedural noise volume) is native in GLES3, ported as-is with an R8 instead of ALPHA internal
-// format (ALPHA isn't part of GLES3's texImage3D format table). Immediate-mode box geometry
-// becomes a dynamic attribute-array buffer, rebuilt per box per frame. glGetFloatv(GL_PROJECTION_
-// MATRIX, ...) becomes GLDevice::getProjectionMatrix() (an accessor added for exactly this legacy
-// pattern - see its own doc comment).
+// Real volumetric flame effect: 3D procedural noise volume + a gradient palette texture.
 class DetonationManager
 {
 public:
@@ -33,24 +25,24 @@ private:
    void drawExplosion(Detonation* det, float time);
    void drawBox(float x, float y, float z, float left, float right, float bottom, float top, int sides);
 
-   float mTime;
-   unsigned int mShader;
+   float _time;
+   unsigned int _shader;
 
-   unsigned int mNoiseMap;
-   unsigned int mGradientMap;
+   unsigned int _noise_map;
+   unsigned int _gradient_map;
 
-   int mParamTime;
-   int mParamCamPos;
-   int mParamTop;
-   int mParamBottom;
-   int mParamLeft;
-   int mParamRight;
-   int mParamBoundMin;
-   int mParamBoundMax;
-   int mParamNoiseMap;
-   int mParamGradientMap;
+   int _param_time;
+   int _param_cam_pos;
+   int _param_top;
+   int _param_bottom;
+   int _param_left;
+   int _param_right;
+   int _param_bound_min;
+   int _param_bound_max;
+   int _param_noise_map;
+   int _param_gradient_map;
 
-   unsigned int mBoxVertexBuffer;
+   unsigned int _box_vertex_buffer;
 
-   std::vector<std::unique_ptr<Detonation>> mDetonations;
+   std::vector<std::unique_ptr<Detonation>> _detonations;
 };
