@@ -1,17 +1,7 @@
 #pragma once
 
-// GLES3 port of client/src/game/gamelogodrawable.h.
-//
-// Real scope note: the shipped game's GameLogoDrawable::paintGL() has its rotating-cube pass
-// (initFrustumGlParameters()/drawCubes(), both calls) and its ortho earth-layer/highlight pass
-// (initOrthoGlParameters()/mLayerEarth->render()/drawHighlight()) entirely commented out in the
-// real source - confirmed by reading the original .cpp directly, not assumed. Only three things
-// actually run every frame: SphereFragmentsDrawable::paintGL() (the earth/bomb/fragments effect,
-// already ported), the "dynablaster"/"revenge" PSD text overlays, and the spark point sprites.
-// Per [[feedback_destructive_fork_approach]] ("don't preserve dead abstractions... gut them with a
-// comment explaining why, don't port them"), the cube system (Cube/Vertex3D inner classes,
-// initializeCubes()/drawCubes(), the cube.hjb mesh, the 6 cube_N textures) and the dead earth/
-// highlight ortho pass (mLayerEarth/mTextureHighlight/drawHighlight()) are not ported here.
+// Renders the earth/bomb/fragments effect, the "dynablaster"/"revenge" PSD text overlays, and the
+// spark point sprites. Dead cube/earth-highlight subsystems are not ported (unused in the original).
 
 #include "effects/spherefragments/spherefragmentsdrawable.h"
 
@@ -30,19 +20,19 @@ public:
    class Spark
    {
    public:
-      Spark() : mPointSize(1.0f), mIntensity(1.0f), mLength(0.0f), mScalar(0.0f), mStartTime(0.0f)
+      Spark() : _point_size(1.0f), _intensity(1.0f), _length(0.0f), _scalar(0.0f), _start_time(0.0f)
       {
       }
 
-      Vector mOrigin;
-      Vector mDirection;
-      Vector mPosition;
+      Vector _origin;
+      Vector _direction;
+      Vector _position;
 
-      float mPointSize;
-      float mIntensity;
-      float mLength;
-      float mScalar;
-      float mStartTime;
+      float _point_size;
+      float _intensity;
+      float _length;
+      float _scalar;
+      float _start_time;
    };
 
    //! constructor
@@ -94,38 +84,38 @@ protected:
    void initSpark(Spark& spark);
 
    //
-   bool mMainMenuVisible;
+   bool _main_menu_visible;
 
    // animation
 
    //! time
-   float mDeltaTime;
-   float mTime;
+   float _delta_time;
+   float _time;
 
    // overlay members
 
    //! psd instance
-   PSD mPsd;
+   PSD _psd;
 
    //! filename to load from
-   std::string mFilename;
+   std::string _filename;
 
    //! font texture
-   PSDLayer* mLayerDynablaster;
+   PSDLayer* _layer_dynablaster;
 
    //! font texture
-   PSDLayer* mLayerRevenge;
+   PSDLayer* _layer_revenge;
 
    //! all layers (owns them - see destructor)
-   Array<PSDLayer*> mLayers;
+   Array<PSDLayer*> _layers;
 
    //
-   float mFadeInEnd;
-   float mFadeOutEnd;
+   float _fade_in_end;
+   float _fade_out_end;
 
    // spark point sprites
 
-   Array<Spark> mSparks;
-   Vector mSparkOrigin;
-   bool mSparkTimesInitialized;
+   Array<Spark> _sparks;
+   Vector _spark_origin;
+   bool _spark_times_initialized;
 };

@@ -33,7 +33,7 @@ public:
    void setMessage(const std::string& value);
 
 public:
-   void messageReceived(int senderId, const std::string& message, bool typingFinished);
+   void messageReceived(int sender_id, const std::string& message, bool typing_finished);
 
 protected:
    void popMessage(AnimatedGameMessage* message);
@@ -49,7 +49,7 @@ protected:
    void toggleActive();
 
    void buildNickVertices();
-   void drawText(bool drawUserInput);
+   void drawText(bool draw_user_input);
    void clearMessage();
 
    bool isCursorAtEnd() const;
@@ -68,27 +68,27 @@ protected:
    void restartActivationTime();
    const FrameTimer& getActivationTime() const;
 
-   PSD mPsd;
-   std::string mFilename;
-   std::vector<PSDLayer*> mPsdLayers;
-   PSDLayer* mLineEditSayLayer;
-   PSDLayer* mPlayerNameLayer;
+   PSD _psd;
+   std::string _filename;
+   std::vector<PSDLayer*> _psd_layers;
+   PSDLayer* _line_edit_say_layer;
+   PSDLayer* _player_name_layer;
 
-   std::vector<AnimatedGameMessage*> mMessages;
-   BitmapFont* mFont;
+   std::vector<AnimatedGameMessage*> _messages;
+   BitmapFont* _font;
 
-   std::string mMessage;
-   Array<Vertex> mMessageVertices;
-   Array<Vertex> mNickVertices;
+   std::string _message;
+   Array<Vertex> _message_vertices;
+   Array<Vertex> _nick_vertices;
 
-   bool mActive;
-   FrameTimer mActivationTime;
+   bool _active;
+   FrameTimer _activation_time;
 
-   int mCursorPosition;
+   int _cursor_position;
 
    // lazily-created 1x1 white texture + dynamic quad for drawCursor() - see
    // MenuPageTextEditItem::drawCursor()'s own doc comment for why this replaces the legacy
    // untextured glColor4ub'd quad (no fixed-function fallback in GLES3).
-   unsigned int mCursorTexture;
-   unsigned int mCursorVertexBuffer;
+   unsigned int _cursor_texture;
+   unsigned int _cursor_vertex_buffer;
 };

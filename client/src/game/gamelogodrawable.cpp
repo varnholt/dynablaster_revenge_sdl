@@ -28,22 +28,22 @@
 
 GameLogoDrawable::GameLogoDrawable(RenderDevice* dev, bool visible)
     : SphereFragmentsDrawable(dev, visible),
-      mMainMenuVisible(true),
-      mDeltaTime(0.0f),
-      mTime(0.0f),
-      mLayerDynablaster(0),
-      mLayerRevenge(0),
-      mFadeInEnd(0.0f),
-      mFadeOutEnd(0.0f),
-      mSparkTimesInitialized(false)
+      _main_menu_visible(true),
+      _delta_time(0.0f),
+      _time(0.0f),
+      _layer_dynablaster(0),
+      _layer_revenge(0),
+      _fade_in_end(0.0f),
+      _fade_out_end(0.0f),
+      _spark_times_initialized(false)
 {
-   mFilename = "data/logo/logo.psd";
+   _filename = "data/logo/logo.psd";
 }
 
 GameLogoDrawable::~GameLogoDrawable()
 {
-   for (int i = 0; i < mLayers.size(); i++)
-      delete mLayers[i];
+   for (int i = 0; i < _layers.size(); i++)
+      delete _layers[i];
 }
 
 void GameLogoDrawable::initializeGL()
@@ -64,9 +64,9 @@ void GameLogoDrawable::paintGL()
 
       initOrthoGlParameters();
 
-      mLayerDynablaster->render(20.0f * std::cos(mTime * 0.03f), 30.0f + 15.0f * std::sin(mTime * 0.04f), mAlpha);
+      _layer_dynablaster->render(20.0f * std::cos(_time * 0.03f), 30.0f + 15.0f * std::sin(_time * 0.04f), mAlpha);
 
-      mLayerRevenge->render(30.0f * std::cos(mTime * 0.03f), 30.0f + 25.0f * std::sin(mTime * 0.04f), mAlpha);
+      _layer_revenge->render(30.0f * std::cos(_time * 0.03f), 30.0f + 25.0f * std::sin(_time * 0.04f), mAlpha);
 
       initPointSpriteGlParameters();
       drawSparks();
@@ -77,26 +77,26 @@ void GameLogoDrawable::paintGL()
 
 void GameLogoDrawable::pageChanged(const std::string& page)
 {
-   bool wasVisible = mMainMenuVisible;
-   mMainMenuVisible = (page == MAINMENU);
+   bool was_visible = _main_menu_visible;
+   _main_menu_visible = (page == MAINMENU);
 
    // fade out
-   if (wasVisible && !mMainMenuVisible)
+   if (was_visible && !_main_menu_visible)
    {
-      mFadeOutEnd = mTime + FADE_OUT_LENGTH;
+      _fade_out_end = _time + FADE_OUT_LENGTH;
    }
 
    // fade in
-   else if (!wasVisible && mMainMenuVisible)
+   else if (!was_visible && _main_menu_visible)
    {
-      mFadeInEnd = mTime + FADE_IN_LENGTH;
+      _fade_in_end = _time + FADE_IN_LENGTH;
    }
 }
 
 void GameLogoDrawable::animate(float time)
 {
-   mDeltaTime = time - mTime;
-   mTime = time;
+   _delta_time = time - _time;
+   _time = time;
 }
 
 void GameLogoDrawable::setVisible(bool visible)
@@ -104,7 +104,7 @@ void GameLogoDrawable::setVisible(bool visible)
    Drawable::setVisible(visible);
 
    if (!visible)
-      mSparkTimesInitialized = false;
+      _spark_times_initialized = false;
 }
 
 void GameLogoDrawable::drawSparks()
@@ -114,45 +114,45 @@ void GameLogoDrawable::drawSparks()
    Array<Vector> positions;
    Array<float> glow;
 
-   if (!mSparkTimesInitialized)
+   if (!_spark_times_initialized)
    {
-      for (int i = 0; i < mSparks.size(); i++)
-         mSparks[i].mStartTime = mTime + frand(100.0f);
+      for (int i = 0; i < _sparks.size(); i++)
+         _sparks[i]._start_time = _time + frand(100.0f);
 
-      mSparkTimesInitialized = true;
+      _spark_times_initialized = true;
    }
 
-   for (int i = 0; i < mSparks.size(); i++)
+   for (int i = 0; i < _sparks.size(); i++)
    {
-      if (mSparks[i].mStartTime <= mTime)
+      if (_sparks[i]._start_time <= _time)
       {
          // reset spark if intensity threshold exceeded
-         if (mSparks[i].mIntensity < 0.01f)
+         if (_sparks[i]._intensity < 0.01f)
          {
-            initSpark(mSparks[i]);
-            mSparks[i].mStartTime = mTime + frand(100.0f);
+            initSpark(_sparks[i]);
+            _sparks[i]._start_time = _time + frand(100.0f);
          }
 
-         mSparks[i].mDirection.y -= mDeltaTime * 0.02f;
-         mSparks[i].mScalar += mDeltaTime * 0.02f;
-         mSparks[i].mIntensity -= mDeltaTime * 0.0015f;
+         _sparks[i]._direction.y -= _delta_time * 0.02f;
+         _sparks[i]._scalar += _delta_time * 0.02f;
+         _sparks[i]._intensity -= _delta_time * 0.0015f;
 
-         Vector pos = mSparks[i].mOrigin + (mSparks[i].mDirection * mSparks[i].mLength * mSparks[i].mScalar);
+         Vector pos = _sparks[i]._origin + (_sparks[i]._direction * _sparks[i]._length * _sparks[i]._scalar);
 
          // TODO: fix this (kept verbatim from the original - see gamelogodrawable.cpp)
          pos.z = -12.0f;
 
          // spark fading
          float intensity = 1.0f;
-         if (mFadeInEnd > mTime)
+         if (_fade_in_end > _time)
          {
-            intensity = 1.0f - (mFadeInEnd - mTime) / FADE_IN_LENGTH;
+            intensity = 1.0f - (_fade_in_end - _time) / FADE_IN_LENGTH;
          }
-         else if (mFadeOutEnd > mTime)
+         else if (_fade_out_end > _time)
          {
-            intensity = (mFadeOutEnd - mTime) / FADE_OUT_LENGTH;
+            intensity = (_fade_out_end - _time) / FADE_OUT_LENGTH;
          }
-         else if (!mMainMenuVisible)
+         else if (!_main_menu_visible)
          {
             visible = false;
          }
@@ -160,7 +160,7 @@ void GameLogoDrawable::drawSparks()
          if (visible)
          {
             positions.add(pos);
-            glow.add(mSparks[i].mIntensity * intensity);
+            glow.add(_sparks[i]._intensity * intensity);
          }
       }
    }
@@ -175,15 +175,15 @@ void GameLogoDrawable::drawSparks()
 
 void GameLogoDrawable::updateFadeAlpha()
 {
-   float alpha = mMainMenuVisible ? 1.0f : 0.0f;
+   float alpha = _main_menu_visible ? 1.0f : 0.0f;
 
-   if (mFadeInEnd > mTime)
+   if (_fade_in_end > _time)
    {
-      alpha = 1.0f - (mFadeInEnd - mTime) / FADE_IN_LENGTH;
+      alpha = 1.0f - (_fade_in_end - _time) / FADE_IN_LENGTH;
    }
-   else if (mFadeOutEnd > mTime)
+   else if (_fade_out_end > _time)
    {
-      alpha = (mFadeOutEnd - mTime) / FADE_OUT_LENGTH;
+      alpha = (_fade_out_end - _time) / FADE_OUT_LENGTH;
    }
 
    mAlpha = alpha;
@@ -192,7 +192,7 @@ void GameLogoDrawable::updateFadeAlpha()
 void GameLogoDrawable::initOrthoGlParameters()
 {
    static_cast<GLDevice*>(mDevice)->setProjectionMatrix(
-      Matrix::ortho(0.0f, (float)mPsd.getWidth(), (float)mPsd.getHeight(), 0.0f, 300.0f, -300.0f)
+      Matrix::ortho(0.0f, (float)_psd.getWidth(), (float)_psd.getHeight(), 0.0f, 300.0f, -300.0f)
    );
 
    // PSDLayer::render() (see menus/psdlayer.cpp) draws through whichever shader the caller has
@@ -245,64 +245,64 @@ void GameLogoDrawable::cleanupGlParameters()
 
 void GameLogoDrawable::initializeLayers()
 {
-   mPsd.load(mFilename.c_str());
+   _psd.load(_filename.c_str());
 
    // assign layers to the two named pointers this class actually renders (see the header
    // comment - "earth"/"highlight" layers are still constructed here, matching the original 1:1,
    // even though nothing renders them: harmless data loading, not GL-drawing code, so left as-is
    // per this port's own scope rule).
-   for (int l = 0; l < mPsd.getLayerCount(); l++)
+   for (int l = 0; l < _psd.getLayerCount(); l++)
    {
-      PSD::Layer* psdlayer = mPsd.getLayer(l);
+      PSD::Layer* psdlayer = _psd.getLayer(l);
 
       PSDLayer* layer = new PSDLayer(psdlayer);
 
       if (std::strcmp(psdlayer->getName(), LAYER_DYNABLASTER) == 0)
       {
-         mLayerDynablaster = layer;
+         _layer_dynablaster = layer;
       }
       else if (std::strcmp(psdlayer->getName(), LAYER_REVENGE) == 0)
       {
-         mLayerRevenge = layer;
+         _layer_revenge = layer;
       }
 
-      mLayers.add(layer);
+      _layers.add(layer);
    }
 }
 
 void GameLogoDrawable::initSpark(Spark& spark)
 {
-   spark.mOrigin = mSparkOrigin;  // maybe vary a little
-   spark.mPosition = mSparkOrigin;
-   spark.mIntensity = SPARK_START_INTENSITY;
-   spark.mScalar = 0.0f;
+   spark._origin = _spark_origin;  // maybe vary a little
+   spark._position = _spark_origin;
+   spark._intensity = SPARK_START_INTENSITY;
+   spark._scalar = 0.0f;
 
-   float originRandX = frand(0.2f);
-   float originRandY = frand(0.2f);
-   float originRandZ = -0.2f + frand(0.2f);
+   float origin_rand_x = frand(0.2f);
+   float origin_rand_y = frand(0.2f);
+   float origin_rand_z = -0.2f + frand(0.2f);
 
-   spark.mOrigin.x += originRandX;
-   spark.mOrigin.y += originRandY;
-   spark.mOrigin.z += originRandZ;
+   spark._origin.x += origin_rand_x;
+   spark._origin.y += origin_rand_y;
+   spark._origin.z += origin_rand_z;
 
-   float dirRandX = -0.75f + frand(0.5f);
-   float dirRandY = -0.75f + frand(0.5f);
+   float dir_rand_x = -0.75f + frand(0.5f);
+   float dir_rand_y = -0.75f + frand(0.5f);
 
-   spark.mDirection = Vector(-1.0f - dirRandX, -1.0f - dirRandY, -12.0f);
+   spark._direction = Vector(-1.0f - dir_rand_x, -1.0f - dir_rand_y, -12.0f);
 
-   spark.mLength = 1.0f;
+   spark._length = 1.0f;
 }
 
 void GameLogoDrawable::initializeSparks()
 {
    GameLogoPointSprite::initialize();
 
-   mSparkOrigin = Vector(-3.7f, -3.3f, -12.0f);
+   _spark_origin = Vector(-3.7f, -3.3f, -12.0f);
 
    for (int i = 0; i < SPARK_COUNT; i++)
    {
       Spark spark;
       initSpark(spark);
-      mSparks.add(spark);
+      _sparks.add(spark);
    }
 }
