@@ -3,6 +3,7 @@
 #include "math/vector.h"
 #include "render/texture.h"
 
+#include <memory>
 #include <unordered_map>
 
 class Material;
@@ -28,7 +29,7 @@ private:
    void blurPlayers(FrameBuffer* dst, const Matrix& proj);
    void setMaterialFade(PlayerInvincibleInstance* player, float fade);
 
-   std::unordered_map<Material*, PlayerInvincibleInstance*> mPlayers;
+   std::unordered_map<Material*, std::unique_ptr<PlayerInvincibleInstance>> mPlayers;
    Texture mDisplacementTexture;
    float mRadius;
    float mKernel[32];

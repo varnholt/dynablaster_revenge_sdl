@@ -244,10 +244,6 @@ void PlayerInvincibleEffect::setRadius(float radius)
 
 void PlayerInvincibleEffect::clear()
 {
-   for (auto& [material, player] : mPlayers)
-   {
-      delete player;
-   }
    mPlayers.clear();
 }
 
@@ -261,9 +257,9 @@ void PlayerInvincibleEffect::add(Material* material)
    auto it = mPlayers.find(material);
    if (it == mPlayers.end())
    {
-      PlayerInvincibleInstance* player = new PlayerInvincibleInstance();
+      auto player = std::make_unique<PlayerInvincibleInstance>();
       player->setMaterial(material);
-      mPlayers[material] = player;
+      mPlayers[material] = std::move(player);
    }
    else
    {
@@ -305,12 +301,11 @@ void PlayerInvincibleEffect::animate(float dt)
 {
    for (auto it = mPlayers.begin(); it != mPlayers.end();)
    {
-      PlayerInvincibleInstance* player = it->second;
+      PlayerInvincibleInstance* player = it->second.get();
 
       if (!player->update(dt))
       {
          setMaterialFade(player, 0.0f);
-         delete player;
          it = mPlayers.erase(it);
       }
       else
