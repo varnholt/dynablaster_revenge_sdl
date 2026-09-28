@@ -14,7 +14,4 @@ public:
    std::string getLensFlareKey() const override;
 
    Material* createMaterial(SceneGraph* scene, int id) const override;
-
-private:
-   void loadDestructions(Camera* shadow_camera);
 };

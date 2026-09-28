@@ -1,8 +1,14 @@
 // header
 #include "level.h"
 #include "framework/gldevice.h"
-#include "tools/filestream.h"
+#include "materials/destructionmaterial.h"
+#include "nodes/dummy.h"
+#include "nodes/mesh.h"
 #include "nodes/scenegraph.h"
+#include "tools/filestream.h"
+
+#include <array>
+#include <numbers>
 
 // defines
 #define LEVEL_CASTLE  "level-castle"
@@ -422,3 +428,62 @@ Material* Level::getDestructionMaterial() const
 }
 
 
+//-----------------------------------------------------------------------------
+/*!
+   loads the four block destruction animations, each as four copies rotated by 90 degrees
+*/
+void Level::loadDestructions(Camera* shadow_camera)
+{
+   mDestruction = new DestructionMaterial(mScene, "stone-unwrap", "diffuse_level", "specular_level", "shadow-cookie", shadow_camera);
+
+   constexpr std::array<const char*, 4> destructions = {
+      "block-destruct0.hjb",
+      "block-destruct1.hjb",
+      "block-destruct2.hjb",
+      "block-destruct.hjb",
+   };
+
+   for (const auto* destruction : destructions)
+   {
+      auto* scene = new SceneGraph();
+      if (!scene->load(destruction))
+      {
+         delete scene;
+         continue;
+      }
+
+      // precalc tracks
+      for (int32_t i = 0; i < scene->getChildCount(); i++)
+      {
+         scene->getChild(i)->bakeAnimationTrack(160.0f);
+      }
+
+      // four copies, each rotated by 90 degrees
+      auto* node = new Dummy(nullptr);
+      for (int32_t rotation = 0; rotation < 4; rotation++)
+      {
+         const float angle = (rotation - 1) * std::numbers::pi_v<float> * 0.5f;
+         const Matrix transform = Matrix::rotateZ(angle);
+
+         auto* dummy = new Dummy(node);
+
+         for (int32_t i = 0; i < scene->getChildCount(); i++)
+         {
+            Node* child = scene->getChild(i);
+            if (child->id() != Node::idMesh)
+            {
+               continue;
+            }
+
+            auto* mesh = new Mesh(dummy);
+            mesh->copy(*static_cast<Mesh*>(child));
+            mesh->transform(0.0f);
+            mesh->createBoxMapping(true, Vector(-0.5f, -0.5f, 0.0f), Vector(0.5f, 0.5f, 1.0f), transform);
+            mesh->setFrame(0.0f);
+            mDestruction->addMesh(mesh);
+         }
+      }
+
+      mDestructAnim.add(node);
+   }
+}

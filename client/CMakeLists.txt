@@ -347,6 +347,10 @@ add_library(dynablaster_core STATIC
     src/levels/castle/snowanimation.h
     src/levels/mansion/levelmansion.cpp
     src/levels/mansion/levelmansion.h
+    src/levels/space/levelspace.cpp
+    src/levels/space/levelspace.h
+    src/levels/space/spacebackground.cpp
+    src/levels/space/spacebackground.h
     src/game/detonationmanager.cpp
     src/game/detonationmanager.h
     src/game/detonation.cpp

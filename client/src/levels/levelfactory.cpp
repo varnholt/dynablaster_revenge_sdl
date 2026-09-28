@@ -4,6 +4,7 @@
 // levels
 #include "castle/levelcastle.h"
 #include "mansion/levelmansion.h"
+#include "space/levelspace.h"
 
 // game
 #include "constants.h"
@@ -40,6 +41,10 @@ Level *LevelFactory::getLevelInstance(Level::LevelType levelType)
          level = new LevelMansion();
          break;
 
+      case Level::LevelSpace:
+         level = new LevelSpace();
+         break;
+
       default:
          break;
    }
@@ -52,7 +57,7 @@ Level *LevelFactory::getLevelInstance(const std::string &levelName)
 {
    Level::LevelType level_type = Level::LevelCastle;
 
-   for (const auto type : std::array{Level::LevelCastle, Level::LevelMansion})
+   for (const auto type : std::array{Level::LevelCastle, Level::LevelMansion, Level::LevelSpace})
    {
       const auto directory = Level::getLevelDirectoryName(type);
 

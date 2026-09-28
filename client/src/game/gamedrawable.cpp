@@ -1452,6 +1452,12 @@ void GameDrawable::paintGL()
 
    Matrix shake= Matrix::position(bounce_x, bounce_y, 0.0f) * view;
 
+   // clears the frame, space draws its starfield and earth here
+   if (_level)
+   {
+      _level->drawBackground();
+   }
+
    // render scene
    if (_level_scene_graph)
    {
