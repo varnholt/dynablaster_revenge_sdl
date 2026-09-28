@@ -36,84 +36,84 @@
 #define DEFAULT_GAMEPLAY_CAMERA_FOLLOWS_PLAYER  true
 
 
-GameSettings* GameSettings::sSettings = nullptr;
+GameSettings* GameSettings::s_settings = nullptr;
 
 
 GameSettings::GameSettings()
- : mDevelopmentSettings(nullptr),
-   mAudioSettings(nullptr),
-   mGameplaySettings(nullptr),
-   mLoginSettings(nullptr),
-   mVideoSettings(nullptr),
-   mVideoSettingsBackup(nullptr),
-   mControllerSettings(nullptr),
-   mCreateGameSettingsSingle(nullptr),
-   mCreateGameSettingsMulti(nullptr),
-   mStyleSettings(nullptr)
+ : _development_settings(nullptr),
+   _audio_settings(nullptr),
+   _gameplay_settings(nullptr),
+   _login_settings(nullptr),
+   _video_settings(nullptr),
+   _video_settings_backup(nullptr),
+   _controller_settings(nullptr),
+   _create_game_settings_single(nullptr),
+   _create_game_settings_multi(nullptr),
+   _style_settings(nullptr)
 {
-   sSettings = this;
+   s_settings = this;
 
    // create settings instances
-   mDevelopmentSettings = new DevelopmentSettings();
-   mAudioSettings = new AudioSettings();
-   mGameplaySettings = new GameplaySettings();
-   mLoginSettings = new LoginSettings();
-   mVideoSettings = new VideoSettings();
-   mVideoSettingsBackup = new VideoSettings();
-   mControllerSettings = new ControllerSettings;
-   mCreateGameSettingsSingle = new CreateGameSettings();
-   mCreateGameSettingsMulti = new CreateGameSettings();
-   mStyleSettings = new StyleSettings();
+   _development_settings = new DevelopmentSettings();
+   _audio_settings = new AudioSettings();
+   _gameplay_settings = new GameplaySettings();
+   _login_settings = new LoginSettings();
+   _video_settings = new VideoSettings();
+   _video_settings_backup = new VideoSettings();
+   _controller_settings = new ControllerSettings;
+   _create_game_settings_single = new CreateGameSettings();
+   _create_game_settings_multi = new CreateGameSettings();
+   _style_settings = new StyleSettings();
 
-   mCreateGameSettingsSingle->setSinglePlayer(true);
-   mCreateGameSettingsMulti->setSinglePlayer(false);
+   _create_game_settings_single->setSinglePlayer(true);
+   _create_game_settings_multi->setSinglePlayer(false);
 
-   mSettings.push_back(mDevelopmentSettings);
-   mSettings.push_back(mAudioSettings);
-   mSettings.push_back(mGameplaySettings);
-   mSettings.push_back(mLoginSettings);
-   mSettings.push_back(mVideoSettings);
-   mSettings.push_back(mControllerSettings);
-   mSettings.push_back(mCreateGameSettingsSingle);
-   mSettings.push_back(mCreateGameSettingsMulti);
-   mSettings.push_back(mStyleSettings);
+   _settings.push_back(_development_settings);
+   _settings.push_back(_audio_settings);
+   _settings.push_back(_gameplay_settings);
+   _settings.push_back(_login_settings);
+   _settings.push_back(_video_settings);
+   _settings.push_back(_controller_settings);
+   _settings.push_back(_create_game_settings_single);
+   _settings.push_back(_create_game_settings_multi);
+   _settings.push_back(_style_settings);
 
    // deserialize settings data
-   for (SettingsPrivate* settings : mSettings)
+   for (SettingsPrivate* settings : _settings)
       settings->deserialize();
 }
 
 
 GameSettings::~GameSettings()
 {
-   delete mDevelopmentSettings;
-   delete mAudioSettings;
-   delete mGameplaySettings;
-   delete mLoginSettings;
-   delete mVideoSettings;
-   delete mControllerSettings;
-   delete mCreateGameSettingsSingle;
-   delete mCreateGameSettingsMulti;
-   delete mStyleSettings;
+   delete _development_settings;
+   delete _audio_settings;
+   delete _gameplay_settings;
+   delete _login_settings;
+   delete _video_settings;
+   delete _controller_settings;
+   delete _create_game_settings_single;
+   delete _create_game_settings_multi;
+   delete _style_settings;
 
-   mDevelopmentSettings = nullptr;
-   mAudioSettings = nullptr;
-   mGameplaySettings = nullptr;
-   mLoginSettings = nullptr;
-   mVideoSettings = nullptr;
-   mControllerSettings = nullptr;
-   mCreateGameSettingsSingle = nullptr;
-   mCreateGameSettingsMulti = nullptr;
-   mStyleSettings = nullptr;
+   _development_settings = nullptr;
+   _audio_settings = nullptr;
+   _gameplay_settings = nullptr;
+   _login_settings = nullptr;
+   _video_settings = nullptr;
+   _controller_settings = nullptr;
+   _create_game_settings_single = nullptr;
+   _create_game_settings_multi = nullptr;
+   _style_settings = nullptr;
 }
 
 
 GameSettings* GameSettings::getInstance()
 {
-   if (!sSettings)
+   if (!s_settings)
       new GameSettings();
 
-   return sSettings;
+   return s_settings;
 }
 
 
@@ -148,61 +148,61 @@ void GameSettings::SettingsPrivate::restoreDefaults()
 
 GameSettings::DevelopmentSettings *GameSettings::getDevelopmentSettings()
 {
-   return mDevelopmentSettings;
+   return _development_settings;
 }
 
 
 GameSettings::StyleSettings *GameSettings::getStyleSettings()
 {
-   return mStyleSettings;
+   return _style_settings;
 }
 
 
 GameSettings::GameplaySettings *GameSettings::getGameplaySettings()
 {
-   return mGameplaySettings;
+   return _gameplay_settings;
 }
 
 
 GameSettings::AudioSettings *GameSettings::getAudioSettings()
 {
-   return mAudioSettings;
+   return _audio_settings;
 }
 
 
 GameSettings::LoginSettings *GameSettings::getLoginSettings()
 {
-   return mLoginSettings;
+   return _login_settings;
 }
 
 
 GameSettings::VideoSettings *GameSettings::getVideoSettings()
 {
-   return mVideoSettings;
+   return _video_settings;
 }
 
 
 GameSettings::VideoSettings *GameSettings::getVideoSettingsBackup()
 {
-   return mVideoSettingsBackup;
+   return _video_settings_backup;
 }
 
 
 GameSettings::CreateGameSettings *GameSettings::getCreateGameSettingsSingle()
 {
-   return mCreateGameSettingsSingle;
+   return _create_game_settings_single;
 }
 
 
 GameSettings::CreateGameSettings *GameSettings::getCreateGameSettingsMulti()
 {
-   return mCreateGameSettingsMulti;
+   return _create_game_settings_multi;
 }
 
 
 GameSettings::ControllerSettings *GameSettings::getControllerSettings()
 {
-   return mControllerSettings;
+   return _controller_settings;
 }
 
 
@@ -216,13 +216,13 @@ void GameSettings::serialize()
 
 
 GameSettings::AudioSettings::AudioSettings()
- : mVolumeSfx(0.0f),
-   mVolumeMusic(0.0f),
-   mVolumeSfxDefault(0.0f),
-   mVolumeMusicDefault(0.0f),
-   mShuffleMusic(true),
-   mShuffle1stTrackOnly(false),
-   mMusicPlayerVisible(true)
+ : _volume_sfx(0.0f),
+   _volume_music(0.0f),
+   _volume_sfx_default(0.0f),
+   _volume_music_default(0.0f),
+   _shuffle_music(true),
+   _shuffle1st_track_only(false),
+   _music_player_visible(true)
 {
 }
 
@@ -272,14 +272,14 @@ void GameSettings::AudioSettings::deserialize()
          : DEFAULT_VOLUME_SFX
    );
 
-   bool shuffleMusic = value("audio/shuffle_music", true).toBool();
-   bool shuffle1stTrackOnly = value("audio/shuffle_1st_track_only", false).toBool();
+   bool shuffle_music = value("audio/shuffle_music", true).toBool();
+   bool shuffle1st_track_only = value("audio/shuffle_1st_track_only", false).toBool();
 
-   setShuffleMusicEnabled(shuffleMusic);
-   setShuffle1stTrackOnlyEnabled(shuffle1stTrackOnly);
+   setShuffleMusicEnabled(shuffle_music);
+   setShuffle1stTrackOnlyEnabled(shuffle1st_track_only);
 
-   bool musicPlayerVisible = value("audio/musicplayer_visible", true).toBool();
-   setMusicPlayerVisibile(musicPlayerVisible);
+   bool music_player_visible = value("audio/musicplayer_visible", true).toBool();
+   setMusicPlayerVisibile(music_player_visible);
 }
 
 
@@ -294,95 +294,95 @@ void GameSettings::AudioSettings::restoreDefaults()
 
 float GameSettings::AudioSettings::getVolumeMusic() const
 {
-   return mVolumeMusic;
+   return _volume_music;
 }
 
 
 float GameSettings::AudioSettings::getVolumeSfx() const
 {
-   return mVolumeSfx;
+   return _volume_sfx;
 }
 
 
 void GameSettings::AudioSettings::setVolumeMusic(float volume)
 {
-   mVolumeMusic = volume;
+   _volume_music = volume;
 }
 
 
 void GameSettings::AudioSettings::setVolumeSfx(float volume)
 {
-   mVolumeSfx = volume;
+   _volume_sfx = volume;
 }
 
 
 float GameSettings::AudioSettings::getVolumeMusicDefault() const
 {
-   return mVolumeMusicDefault;
+   return _volume_music_default;
 }
 
 
 float GameSettings::AudioSettings::getVolumeSfxDefault() const
 {
-   return mVolumeSfxDefault;
+   return _volume_sfx_default;
 }
 
 
 void GameSettings::AudioSettings::setVolumeMusicDefault(float volume)
 {
-   mVolumeMusicDefault = volume;
+   _volume_music_default = volume;
 }
 
 
 void GameSettings::AudioSettings::setVolumeSfxDefault(float volume)
 {
-   mVolumeSfxDefault = volume;
+   _volume_sfx_default = volume;
 }
 
 
 bool GameSettings::AudioSettings::isShuffleMusicEnabled() const
 {
-   return mShuffleMusic;
+   return _shuffle_music;
 }
 
 
 void GameSettings::AudioSettings::setShuffleMusicEnabled(bool value)
 {
-   mShuffleMusic = value;
+   _shuffle_music = value;
 }
 
 
 bool GameSettings::AudioSettings::isShuffle1stTrackOnlyEnabled() const
 {
-   return mShuffle1stTrackOnly;
+   return _shuffle1st_track_only;
 }
 
 
 void GameSettings::AudioSettings::setShuffle1stTrackOnlyEnabled(bool value)
 {
-   mShuffle1stTrackOnly = value;
+   _shuffle1st_track_only = value;
 }
 
 
 bool GameSettings::AudioSettings::isMusicPlayerVisibile() const
 {
-   return mMusicPlayerVisible;
+   return _music_player_visible;
 }
 
 
 void GameSettings::AudioSettings::setMusicPlayerVisibile(bool value)
 {
-   mMusicPlayerVisible = value;
+   _music_player_visible = value;
 }
 
 
 GameSettings::DevelopmentSettings::DevelopmentSettings()
- : mSkipMenu(false),
-   mShowSplash(false),
-   mMusicEnabled(false),
-   mDryRunEnabled(false),
-   mGameRecordingEnabled(false),
-   mJoysticksEnabled(true)
+ : _skip_menu(false),
+   _show_splash(false),
+   _music_enabled(false),
+   _dry_run_enabled(false),
+   _game_recording_enabled(false),
+   _joysticks_enabled(true)
 {
 }
 
@@ -390,13 +390,13 @@ GameSettings::DevelopmentSettings::DevelopmentSettings()
 void GameSettings::DevelopmentSettings::deserialize()
 {
    // init config
-   mSkipMenu = value("development/skipmenu", false).toBool();
-   mShowSplash = value("development/showsplash", true).toBool();
-   mMusicEnabled = value("development/music", true).toBool();
-   mLevel = value("development/level", "castle").toString();
-   mDryRunEnabled = value("development/dryrun", false).toBool();
-   mGameRecordingEnabled = value("development/gamerecording", false).toBool();
-   mJoysticksEnabled = value("development/joysticksenabled", true).toBool();
+   _skip_menu = value("development/skipmenu", false).toBool();
+   _show_splash = value("development/showsplash", true).toBool();
+   _music_enabled = value("development/music", true).toBool();
+   _level = value("development/level", "castle").toString();
+   _dry_run_enabled = value("development/dryrun", false).toBool();
+   _game_recording_enabled = value("development/gamerecording", false).toBool();
+   _joysticks_enabled = value("development/joysticksenabled", true).toBool();
 
    setPageFacebook(
       value(
@@ -423,97 +423,97 @@ void GameSettings::DevelopmentSettings::deserialize()
 
 bool GameSettings::DevelopmentSettings::isSkipMenuEnabled()
 {
-   return mSkipMenu;
+   return _skip_menu;
 }
 
 
 bool GameSettings::DevelopmentSettings::isSplashScreenEnabled()
 {
-   return mShowSplash;
+   return _show_splash;
 }
 
 
 bool GameSettings::DevelopmentSettings::isMusicEnabled()
 {
-   return mMusicEnabled;
+   return _music_enabled;
 }
 
 
 const std::string &GameSettings::DevelopmentSettings::getLevel() const
 {
-   return mLevel;
+   return _level;
 }
 
 
 bool GameSettings::DevelopmentSettings::isDryRunEnabled() const
 {
-   return mDryRunEnabled;
+   return _dry_run_enabled;
 }
 
 
 void GameSettings::DevelopmentSettings::setDryRunEnabled(bool enabled)
 {
-   mDryRunEnabled = enabled;
+   _dry_run_enabled = enabled;
 }
 
 
 bool GameSettings::DevelopmentSettings::isGameRecordingEnabled() const
 {
-   return mGameRecordingEnabled;
+   return _game_recording_enabled;
 }
 
 
 void GameSettings::DevelopmentSettings::setGameRecordingEnabled(bool value)
 {
-   mGameRecordingEnabled = value;
+   _game_recording_enabled = value;
 }
 
 
 bool GameSettings::DevelopmentSettings::isJoysticksEnabled() const
 {
-   return mJoysticksEnabled;
+   return _joysticks_enabled;
 }
 
 
 void GameSettings::DevelopmentSettings::setJoysticksEnabled(bool value)
 {
-   mJoysticksEnabled = value;
+   _joysticks_enabled = value;
 }
 
 
 std::string GameSettings::DevelopmentSettings::getPageHome() const
 {
-    return mPageHome;
+    return _page_home;
 }
 
 
 void GameSettings::DevelopmentSettings::setPageHome(const std::string &value)
 {
-    mPageHome = value;
+    _page_home = value;
 }
 
 
 std::string GameSettings::DevelopmentSettings::getPageFacebook() const
 {
-    return mPageFacebook;
+    return _page_facebook;
 }
 
 
 void GameSettings::DevelopmentSettings::setPageFacebook(const std::string &value)
 {
-    mPageFacebook = value;
+    _page_facebook = value;
 }
 
 
 std::string GameSettings::DevelopmentSettings::getPagePouet() const
 {
-    return mPagePouet;
+    return _page_pouet;
 }
 
 
 void GameSettings::DevelopmentSettings::setPagePouet(const std::string &value)
 {
-    mPagePouet = value;
+    _page_pouet = value;
 }
 
 
@@ -544,149 +544,149 @@ void GameSettings::LoginSettings::deserialize()
 
 void GameSettings::LoginSettings::setNick(const std::string &nick)
 {
-   mNick = nick;
+   _nick = nick;
 }
 
 
 const std::string &GameSettings::LoginSettings::getNick() const
 {
-   return mNick;
+   return _nick;
 }
 
 
 void GameSettings::LoginSettings::setHost(const std::string &host)
 {
-   mHost = host;
+   _host = host;
 }
 
 
 const std::string &GameSettings::LoginSettings::getHost() const
 {
-   return mHost;
+   return _host;
 }
 
 
 std::string GameSettings::LoginSettings::getPlayer10Nick() const
 {
-   return mPlayer10Nick;
+   return _player10_nick;
 }
 
 
 void GameSettings::LoginSettings::setPlayer10Nick(const std::string &value)
 {
-   mPlayer10Nick = value;
+   _player10_nick = value;
 }
 
 
 std::string GameSettings::LoginSettings::getPlayer9Nick() const
 {
-   return mPlayer9Nick;
+   return _player9_nick;
 }
 
 
 void GameSettings::LoginSettings::setPlayer9Nick(const std::string &value)
 {
-   mPlayer9Nick = value;
+   _player9_nick = value;
 }
 
 
 std::string GameSettings::LoginSettings::getPlayer8Nick() const
 {
-   return mPlayer8Nick;
+   return _player8_nick;
 }
 
 
 void GameSettings::LoginSettings::setPlayer8Nick(const std::string &value)
 {
-   mPlayer8Nick = value;
+   _player8_nick = value;
 }
 
 
 std::string GameSettings::LoginSettings::getPlayer7Nick() const
 {
-   return mPlayer7Nick;
+   return _player7_nick;
 }
 
 
 void GameSettings::LoginSettings::setPlayer7Nick(const std::string &value)
 {
-   mPlayer7Nick = value;
+   _player7_nick = value;
 }
 
 
 std::string GameSettings::LoginSettings::getPlayer6Nick() const
 {
-   return mPlayer6Nick;
+   return _player6_nick;
 }
 
 
 void GameSettings::LoginSettings::setPlayer6Nick(const std::string &value)
 {
-   mPlayer6Nick = value;
+   _player6_nick = value;
 }
 
 
 std::string GameSettings::LoginSettings::getPlayer5Nick() const
 {
-   return mPlayer5Nick;
+   return _player5_nick;
 }
 
 
 void GameSettings::LoginSettings::setPlayer5Nick(const std::string &value)
 {
-   mPlayer5Nick = value;
+   _player5_nick = value;
 }
 
 
 std::string GameSettings::LoginSettings::getPlayer4Nick() const
 {
-   return mPlayer4Nick;
+   return _player4_nick;
 }
 
 
 void GameSettings::LoginSettings::setPlayer4Nick(const std::string &value)
 {
-   mPlayer4Nick = value;
+   _player4_nick = value;
 }
 
 
 std::string GameSettings::LoginSettings::getPlayer3Nick() const
 {
-   return mPlayer3Nick;
+   return _player3_nick;
 }
 
 
 void GameSettings::LoginSettings::setPlayer3Nick(const std::string &value)
 {
-   mPlayer3Nick = value;
+   _player3_nick = value;
 }
 
 
 std::string GameSettings::LoginSettings::getPlayer2Nick() const
 {
-   return mPlayer2Nick;
+   return _player2_nick;
 }
 
 
 void GameSettings::LoginSettings::setPlayer2Nick(const std::string &value)
 {
-   mPlayer2Nick = value;
+   _player2_nick = value;
 }
 
 
 
 GameSettings::CreateGameSettings::CreateGameSettings()
- : mSinglePlayer(false),
-   mRounds(0),
-   mDuration(0),
-   mMaxPlayers(0),
-   mBotCount(0),
-   mExtraBombs(false),
-   mExtraFlames(false),
-   mExtraSpeedUps(false),
-   mExtraKicks(false),
-   mExtraSkulls(false),
-   mDimensions(Constants::DimensionInvalid)
+ : _single_player(false),
+   _rounds(0),
+   _duration(0),
+   _max_players(0),
+   _bot_count(0),
+   _extra_bombs(false),
+   _extra_flames(false),
+   _extra_speed_ups(false),
+   _extra_kicks(false),
+   _extra_skulls(false),
+   _dimensions(Constants::DimensionInvalid)
 {
 
 }
@@ -776,180 +776,180 @@ void GameSettings::CreateGameSettings::deserialize()
 
 void GameSettings::CreateGameSettings::setGameName(const std::string & val)
 {
-   mGameName = val;
+   _game_name = val;
 }
 
 
 const std::string &GameSettings::CreateGameSettings::getGameName() const
 {
-   return mGameName;
+   return _game_name;
 }
 
 
 void GameSettings::CreateGameSettings::setLevelIndex(int index)
 {
-   mLevelIndex = index;
+   _level_index = index;
 }
 
 
 int GameSettings::CreateGameSettings::getLevelIndex() const
 {
-   return mLevelIndex;
+   return _level_index;
 }
 
 
 void GameSettings::CreateGameSettings::setRounds(int rounds)
 {
-   mRounds = rounds;
+   _rounds = rounds;
 }
 
 
 int GameSettings::CreateGameSettings::getRounds() const
 {
-   return mRounds;
+   return _rounds;
 }
 
 
 void GameSettings::CreateGameSettings::setDuration(int duration)
 {
-   mDuration = duration;
+   _duration = duration;
 }
 
 
 int GameSettings::CreateGameSettings::getDuration() const
 {
-   return mDuration;
+   return _duration;
 }
 
 
 void GameSettings::CreateGameSettings::setBotCount(int val)
 {
-   mBotCount = val;
+   _bot_count = val;
 }
 
 
 int GameSettings::CreateGameSettings::getBotCount() const
 {
-   return mBotCount;
+   return _bot_count;
 }
 
 
 void GameSettings::CreateGameSettings::setMaxPlayers(int val)
 {
-   mMaxPlayers = val;
+   _max_players = val;
 }
 
 
 int GameSettings::CreateGameSettings::getMaxPlayers() const
 {
-   return mMaxPlayers;
+   return _max_players;
 }
 
 
 void GameSettings::CreateGameSettings::setExtraBombsEnabled(bool enabled)
 {
-   mExtraBombs = enabled;
+   _extra_bombs = enabled;
 }
 
 
 bool GameSettings::CreateGameSettings::isExtraBombsEnabled() const
 {
-   return mExtraBombs;
+   return _extra_bombs;
 }
 
 
 void GameSettings::CreateGameSettings::setExtraFlamesEnabled(bool enabled)
 {
-   mExtraFlames = enabled;
+   _extra_flames = enabled;
 }
 
 
 bool GameSettings::CreateGameSettings::isExtraFlamesEnabled() const
 {
-   return mExtraFlames;
+   return _extra_flames;
 }
 
 
 void GameSettings::CreateGameSettings::setExtraSpeedUpsEnabled(bool enabled)
 {
-   mExtraSpeedUps = enabled;
+   _extra_speed_ups = enabled;
 }
 
 
 bool GameSettings::CreateGameSettings::isExtraSpeedUpsEnabled() const
 {
-   return mExtraSpeedUps;
+   return _extra_speed_ups;
 }
 
 
 void GameSettings::CreateGameSettings::setExtraKicksEnabled(bool enabled)
 {
-   mExtraKicks = enabled;
+   _extra_kicks = enabled;
 }
 
 
 bool GameSettings::CreateGameSettings::isExtraKicksEnabled() const
 {
-   return mExtraKicks;
+   return _extra_kicks;
 }
 
 
 void GameSettings::CreateGameSettings::setExtraSkullsEnabled(bool enabled)
 {
-   mExtraSkulls = enabled;
+   _extra_skulls = enabled;
 }
 
 
 bool GameSettings::CreateGameSettings::isExtraSkullsEnabled() const
 {
-   return mExtraSkulls;
+   return _extra_skulls;
 }
 
 
 void GameSettings::CreateGameSettings::setDimensions(Constants::Dimension dimensions)
 {
-   mDimensions = dimensions;
+   _dimensions = dimensions;
 }
 
 
 Constants::Dimension GameSettings::CreateGameSettings::getDimensions() const
 {
-   return mDimensions;
+   return _dimensions;
 }
 
 
 bool GameSettings::CreateGameSettings::isSinglePlayer() const
 {
-   return mSinglePlayer;
+   return _single_player;
 }
 
 
 void GameSettings::CreateGameSettings::setSinglePlayer(bool value)
 {
-   mSinglePlayer = value;
+   _single_player = value;
 }
 
 
 GameSettings::ControllerSettings::ControllerSettings()
-   : mAnalogueAxis1(DEFAULT_ANALOGUE_AXIS_1),
-     mAnalogueAxis2(DEFAULT_ANALOGUE_AXIS_2),
-     mAnalogueTreshold(DEFAULT_ANALOGUE_THRESHOLD)
+   : _analogue_axis1(DEFAULT_ANALOGUE_AXIS_1),
+     _analogue_axis2(DEFAULT_ANALOGUE_AXIS_2),
+     _analogue_treshold(DEFAULT_ANALOGUE_THRESHOLD)
 {
 }
 
 
 void GameSettings::ControllerSettings::serialize()
 {
-   if (mKeyMap.size() == KEYMAP_NOMINAL_SIZE)
+   if (_key_map.size() == KEYMAP_NOMINAL_SIZE)
    {
-      SettingsMap serializeMap;
+      SettingsMap serialize_map;
 
-      for (const auto& [key, value] : mKeyMap)
+      for (const auto& [key, value] : _key_map)
       {
-         serializeMap[std::to_string(static_cast<int>(key))] = std::to_string(value);
+         serialize_map[std::to_string(static_cast<int>(key))] = std::to_string(value);
       }
 
-      setValue("controller/keymap", serializeMap);
+      setValue("controller/keymap", serialize_map);
    }
 
    setValue("controller/analogueaxis1", getAnalogueAxis1());
@@ -960,22 +960,22 @@ void GameSettings::ControllerSettings::serialize()
 
 void GameSettings::ControllerSettings::deserialize()
 {
-   mKeyMap.clear();
+   _key_map.clear();
    initializeDefaultMap();
 
-   SettingsMap deserializeMap = value("controller/keymap").toMap();
+   SettingsMap deserialize_map = value("controller/keymap").toMap();
 
-   bool keyOk = false;
-   bool keyValOk = false;
+   bool key_ok = false;
+   bool key_val_ok = false;
 
-   for (const auto& entry : deserializeMap)
+   for (const auto& entry : deserialize_map)
    {
-      Constants::Key key = static_cast<Constants::Key>(SettingsValue(entry.first).toInt(&keyOk));
-      int keyVal = SettingsValue(entry.second).toInt(&keyValOk);
+      Constants::Key key = static_cast<Constants::Key>(SettingsValue(entry.first).toInt(&key_ok));
+      int key_val = SettingsValue(entry.second).toInt(&key_val_ok);
 
-      if (keyOk && keyValOk)
+      if (key_ok && key_val_ok)
       {
-         mKeyMap[key] = keyVal;
+         _key_map[key] = key_val;
       }
    }
 
@@ -1006,7 +1006,7 @@ void GameSettings::ControllerSettings::restoreDefaults()
 {
    SettingsPrivate::restoreDefaults();
 
-   mKeyMap.clear();
+   _key_map.clear();
    initializeDefaultMap();
 
    setAnalogueAxis1(DEFAULT_ANALOGUE_AXIS_1);
@@ -1015,35 +1015,35 @@ void GameSettings::ControllerSettings::restoreDefaults()
 }
 
 
-void GameSettings::ControllerSettings::setKeyMap(const std::unordered_map<Constants::Key, int>& keyMap)
+void GameSettings::ControllerSettings::setKeyMap(const std::unordered_map<Constants::Key, int>& key_map)
 {
-   mKeyMap = keyMap;
+   _key_map = key_map;
 }
 
 
 std::unordered_map<Constants::Key, int> GameSettings::ControllerSettings::getKeyMap() const
 {
-   return mKeyMap;
+   return _key_map;
 }
 
 
 void GameSettings::ControllerSettings::initializeDefaultMap()
 {
-   mKeyMap[Constants::KeyUp] = SDLK_UP;
-   mKeyMap[Constants::KeyDown] = SDLK_DOWN;
-   mKeyMap[Constants::KeyLeft] = SDLK_LEFT;
-   mKeyMap[Constants::KeyRight] = SDLK_RIGHT;
-   mKeyMap[Constants::KeyBomb] = SDLK_SPACE;
-   mKeyMap[Constants::KeyZoomIn] = SDLK_RIGHTBRACKET;
-   mKeyMap[Constants::KeyZoomOut] = SDLK_LEFTBRACKET;
-   mKeyMap[Constants::KeyStart] = SDLK_F10;
+   _key_map[Constants::KeyUp] = SDLK_UP;
+   _key_map[Constants::KeyDown] = SDLK_DOWN;
+   _key_map[Constants::KeyLeft] = SDLK_LEFT;
+   _key_map[Constants::KeyRight] = SDLK_RIGHT;
+   _key_map[Constants::KeyBomb] = SDLK_SPACE;
+   _key_map[Constants::KeyZoomIn] = SDLK_RIGHTBRACKET;
+   _key_map[Constants::KeyZoomOut] = SDLK_LEFTBRACKET;
+   _key_map[Constants::KeyStart] = SDLK_F10;
 }
 
 
 SDL_Keycode GameSettings::ControllerSettings::getKey(Constants::Key key) const
 {
-   auto it = mKeyMap.find(key);
-   return it != mKeyMap.end() ? static_cast<SDL_Keycode>(it->second) : 0;
+   auto it = _key_map.find(key);
+   return it != _key_map.end() ? static_cast<SDL_Keycode>(it->second) : 0;
 }
 
 
@@ -1097,37 +1097,37 @@ SDL_Keycode GameSettings::ControllerSettings::getStartKey() const
 
 void GameSettings::ControllerSettings::setAnalogueAxis1(int axis1)
 {
-   mAnalogueAxis1 = axis1;
+   _analogue_axis1 = axis1;
 }
 
 
 int GameSettings::ControllerSettings::getAnalogueAxis1() const
 {
-   return mAnalogueAxis1;
+   return _analogue_axis1;
 }
 
 
 void GameSettings::ControllerSettings::setAnalogueAxis2(int axis2)
 {
-   mAnalogueAxis2 = axis2;
+   _analogue_axis2 = axis2;
 }
 
 
 int GameSettings::ControllerSettings::getAnalogueAxis2() const
 {
-   return mAnalogueAxis2;
+   return _analogue_axis2;
 }
 
 
 void GameSettings::ControllerSettings::setAnalogueThreshold(int threshold)
 {
-   mAnalogueTreshold = threshold;
+   _analogue_treshold = threshold;
 }
 
 
 int GameSettings::ControllerSettings::getAnalogueThreshold() const
 {
-   return mAnalogueTreshold;
+   return _analogue_treshold;
 }
 
 
@@ -1139,25 +1139,25 @@ GameSettings::StyleSettings::StyleSettings()
 
 void GameSettings::StyleSettings::deserialize()
 {
-   mPlayerColors.clear();
+   _player_colors.clear();
 
-   SettingsMap deserializeMap = value("style/colormap").toMap();
+   SettingsMap deserialize_map = value("style/colormap").toMap();
 
    // if nothing was found, init with default data
-   if (deserializeMap.empty())
+   if (deserialize_map.empty())
    {
       initDefaultMap();
       serialize();
    }
    else
    {
-      for (const auto& entry : deserializeMap)
+      for (const auto& entry : deserialize_map)
       {
          try
          {
             Constants::Color key = static_cast<Constants::Color>(std::stoi(entry.first));
             Color value(entry.second);
-            mPlayerColors.insert({key, value});
+            _player_colors.insert({key, value});
          }
          catch (const std::exception&)
          {
@@ -1171,41 +1171,41 @@ void GameSettings::StyleSettings::deserialize()
 
 void GameSettings::StyleSettings::initializeIndividualColor()
 {
-   for (const auto& entry : mPlayerColors)
+   for (const auto& entry : _player_colors)
    {
       uint32_t rgb = entry.second.rgb();
 
       switch (entry.first)
       {
          case Constants::ColorWhite:
-            mColorWhite = rgb;
+            _color_white = rgb;
             break;
          case Constants::ColorBlack:
-            mColorBlack = rgb;
+            _color_black = rgb;
             break;
          case Constants::ColorRed:
-            mColorRed = rgb;
+            _color_red = rgb;
             break;
          case Constants::ColorGreen:
-            mColorGreen = rgb;
+            _color_green = rgb;
             break;
          case Constants::ColorBlue:
-            mColorBlue = rgb;
+            _color_blue = rgb;
             break;
          case Constants::ColorGrey:
-            mColorGrey = rgb;
+            _color_grey = rgb;
             break;
          case Constants::ColorYellow:
-            mColorYellow = rgb;
+            _color_yellow = rgb;
             break;
          case Constants::ColorPurple:
-            mColorPurple = rgb;
+            _color_purple = rgb;
             break;
          case Constants::ColorCyan:
-            mColorCyan = rgb;
+            _color_cyan = rgb;
             break;
          case Constants::ColorOrange:
-            mColorOrange = rgb;
+            _color_orange = rgb;
             break;
       }
    }
@@ -1214,52 +1214,52 @@ void GameSettings::StyleSettings::initializeIndividualColor()
 
 void GameSettings::StyleSettings::serialize()
 {
-   SettingsMap serializeMap;
+   SettingsMap serialize_map;
 
-   for (const auto& entry : mPlayerColors)
+   for (const auto& entry : _player_colors)
    {
-      serializeMap[std::to_string(static_cast<int>(entry.first))] = entry.second.name();
+      serialize_map[std::to_string(static_cast<int>(entry.first))] = entry.second.name();
    }
 
-   setValue("style/colormap", serializeMap);
+   setValue("style/colormap", serialize_map);
 }
 
 
-Color GameSettings::StyleSettings::getColor(Constants::Color playerColor) const
+Color GameSettings::StyleSettings::getColor(Constants::Color player_color) const
 {
    Color color;
 
-   switch (playerColor)
+   switch (player_color)
    {
       case Constants::ColorWhite:
-         color = Color(mColorWhite);
+         color = Color(_color_white);
          break;
       case Constants::ColorBlack:
-         color = Color(mColorBlack);
+         color = Color(_color_black);
          break;
       case Constants::ColorRed:
-         color = Color(mColorRed);
+         color = Color(_color_red);
          break;
       case Constants::ColorGreen:
-         color = Color(mColorGreen);
+         color = Color(_color_green);
          break;
       case Constants::ColorBlue:
-         color = Color(mColorBlue);
+         color = Color(_color_blue);
          break;
       case Constants::ColorGrey:
-         color = Color(mColorGrey);
+         color = Color(_color_grey);
          break;
       case Constants::ColorYellow:
-         color = Color(mColorYellow);
+         color = Color(_color_yellow);
          break;
       case Constants::ColorPurple:
-         color = Color(mColorPurple);
+         color = Color(_color_purple);
          break;
       case Constants::ColorCyan:
-         color = Color(mColorCyan);
+         color = Color(_color_cyan);
          break;
       case Constants::ColorOrange:
-         color = Color(mColorOrange);
+         color = Color(_color_orange);
          break;
    }
 
@@ -1267,41 +1267,41 @@ Color GameSettings::StyleSettings::getColor(Constants::Color playerColor) const
 }
 
 
-uint32_t GameSettings::StyleSettings::getRgb(Constants::Color playerColor) const
+uint32_t GameSettings::StyleSettings::getRgb(Constants::Color player_color) const
 {
    uint32_t rgb = Constants::ColorBlack;
 
-   switch (playerColor)
+   switch (player_color)
    {
       case Constants::ColorWhite:
-         rgb = mColorWhite;
+         rgb = _color_white;
          break;
       case Constants::ColorBlack:
-         rgb = mColorBlack;
+         rgb = _color_black;
          break;
       case Constants::ColorRed:
-         rgb = mColorRed;
+         rgb = _color_red;
          break;
       case Constants::ColorGreen:
-         rgb = mColorGreen;
+         rgb = _color_green;
          break;
       case Constants::ColorBlue:
-         rgb = mColorBlue;
+         rgb = _color_blue;
          break;
       case Constants::ColorGrey:
-         rgb = mColorGrey;
+         rgb = _color_grey;
          break;
       case Constants::ColorYellow:
-         rgb = mColorYellow;
+         rgb = _color_yellow;
          break;
       case Constants::ColorPurple:
-         rgb = mColorPurple;
+         rgb = _color_purple;
          break;
       case Constants::ColorCyan:
-         rgb = mColorCyan;
+         rgb = _color_cyan;
          break;
       case Constants::ColorOrange:
-         rgb = mColorOrange;
+         rgb = _color_orange;
          break;
    }
 
@@ -1311,16 +1311,16 @@ uint32_t GameSettings::StyleSettings::getRgb(Constants::Color playerColor) const
 
 void GameSettings::StyleSettings::initDefaultMap()
 {
-   mPlayerColors.insert({Constants::ColorWhite,  Color("#ffffff")});
-   mPlayerColors.insert({Constants::ColorBlack,  Color("#0e0e0e")});
-   mPlayerColors.insert({Constants::ColorRed,    Color("#ff1b1b")});
-   mPlayerColors.insert({Constants::ColorGreen,  Color("#51fb07")});
-   mPlayerColors.insert({Constants::ColorBlue,   Color("#0072ff")});
-   mPlayerColors.insert({Constants::ColorGrey,   Color("#51fb07")});
-   mPlayerColors.insert({Constants::ColorYellow, Color("#8c8c8c")});
-   mPlayerColors.insert({Constants::ColorPurple, Color("#fdba02")});
-   mPlayerColors.insert({Constants::ColorCyan,   Color("#00e5ff")});
-   mPlayerColors.insert({Constants::ColorOrange, Color("#ff6000")});
+   _player_colors.insert({Constants::ColorWhite,  Color("#ffffff")});
+   _player_colors.insert({Constants::ColorBlack,  Color("#0e0e0e")});
+   _player_colors.insert({Constants::ColorRed,    Color("#ff1b1b")});
+   _player_colors.insert({Constants::ColorGreen,  Color("#51fb07")});
+   _player_colors.insert({Constants::ColorBlue,   Color("#0072ff")});
+   _player_colors.insert({Constants::ColorGrey,   Color("#51fb07")});
+   _player_colors.insert({Constants::ColorYellow, Color("#8c8c8c")});
+   _player_colors.insert({Constants::ColorPurple, Color("#fdba02")});
+   _player_colors.insert({Constants::ColorCyan,   Color("#00e5ff")});
+   _player_colors.insert({Constants::ColorOrange, Color("#ff6000")});
 }
 
 
@@ -1343,19 +1343,19 @@ void GameSettings::StyleSettings::initDefaultMap()
 
 
 GameSettings::VideoSettings::VideoSettings()
- : mWidth(-1),
-   mHeight(-1),
-   mResolution(1),
-   mAntialias(1),
-   mFullscreen(false),
-   mBrightness(2.2f),
-   mVSync(1),
-   mShowFps(true),
-   mZoom(1.0f),
-   mBorderLeft(0),
-   mBorderTop(0),
-   mBorderRight(0),
-   mBorderBottom(0)
+ : _width(-1),
+   _height(-1),
+   _resolution(1),
+   _antialias(1),
+   _fullscreen(false),
+   _brightness(2.2f),
+   _v_sync(1),
+   _show_fps(true),
+   _zoom(1.0f),
+   _border_left(0),
+   _border_top(0),
+   _border_right(0),
+   _border_bottom(0)
 {
 }
 
@@ -1439,60 +1439,60 @@ void GameSettings::VideoSettings::restoreDefaults()
 
 void GameSettings::VideoSettings::setWidth(int width)
 {
-   mWidth = width;
+   _width = width;
 }
 
 
 int GameSettings::VideoSettings::getWidth() const
 {
-   return mWidth;
+   return _width;
 }
 
 
 void GameSettings::VideoSettings::setHeight(int height)
 {
-   mHeight = height;
+   _height = height;
 }
 
 
 int GameSettings::VideoSettings::getHeight() const
 {
-   return mHeight;
+   return _height;
 }
 
 
 void GameSettings::VideoSettings::setResolution(int resolution)
 {
-   mResolution = resolution;
+   _resolution = resolution;
 }
 
 int GameSettings::VideoSettings::getResolution() const
 {
-   return mResolution;
+   return _resolution;
 }
 
 
 void GameSettings::VideoSettings::setAntialias(int samples)
 {
-   mAntialias = samples;
+   _antialias = samples;
 }
 
 
 int GameSettings::VideoSettings::getAntialias() const
 {
-   return mAntialias;
+   return _antialias;
 }
 
 
 void GameSettings::VideoSettings::setFullscreen(bool fullscreen)
 {
-   mFullscreen = fullscreen;
+   _fullscreen = fullscreen;
 }
 
 
 bool GameSettings::VideoSettings::isFullscreen() const
 {
-   return mFullscreen;
+   return _fullscreen;
 }
 
 
@@ -1504,93 +1504,93 @@ void GameSettings::VideoSettings::toggleFullscreen()
 
 void GameSettings::VideoSettings::setBrightness(float brightness)
 {
-   mBrightness = brightness;
+   _brightness = brightness;
 }
 
 
 float GameSettings::VideoSettings::getBrightness() const
 {
-   return mBrightness;
+   return _brightness;
 }
 
 
 void GameSettings::VideoSettings::setVSync(int vsync)
 {
-   mVSync = vsync;
+   _v_sync = vsync;
 }
 
 
 int GameSettings::VideoSettings::getVSync() const
 {
-   return mVSync;
+   return _v_sync;
 }
 
 
 bool GameSettings::VideoSettings::isFpsShown() const
 {
-   return mShowFps;
+   return _show_fps;
 }
 
 
 void GameSettings::VideoSettings::setShowFps(bool value)
 {
-   mShowFps = value;
+   _show_fps = value;
 }
 
 float GameSettings::VideoSettings::getZoom() const
 {
-   return mZoom;
+   return _zoom;
 }
 
 void GameSettings::VideoSettings::setZoom(float zoom)
 {
-   mZoom= zoom;
+   _zoom= zoom;
 }
 
 int GameSettings::VideoSettings::getBorderLeft() const
 {
-   return mBorderLeft;
+   return _border_left;
 }
 
 void GameSettings::VideoSettings::setBorderLeft(int left)
 {
-   mBorderLeft= left;
+   _border_left= left;
 }
 
 int GameSettings::VideoSettings::getBorderTop() const
 {
-   return mBorderTop;
+   return _border_top;
 }
 
 void GameSettings::VideoSettings::setBorderTop(int top)
 {
-   mBorderTop= top;
+   _border_top= top;
 }
 
 int GameSettings::VideoSettings::getBorderRight() const
 {
-   return mBorderRight;
+   return _border_right;
 }
 
 void GameSettings::VideoSettings::setBorderRight(int right)
 {
-   mBorderRight= right;
+   _border_right= right;
 }
 
 int GameSettings::VideoSettings::getBorderBottom() const
 {
-   return mBorderBottom;
+   return _border_bottom;
 }
 
 void GameSettings::VideoSettings::setBorderBottom(int bottom)
 {
-   mBorderBottom= bottom;
+   _border_bottom= bottom;
 }
 
 
 GameSettings::GameplaySettings::GameplaySettings()
- : mCameraShakeIntensity(1.0f),
-   mCameraFollowsPlayer(true)
+ : _camera_shake_intensity(1.0f),
+   _camera_follows_player(true)
 {
 }
 
@@ -1631,25 +1631,25 @@ void GameSettings::GameplaySettings::restoreDefaults()
 
 bool GameSettings::GameplaySettings::isCameraFollowingPlayer() const
 {
-   return mCameraFollowsPlayer;
+   return _camera_follows_player;
 }
 
 
 void GameSettings::GameplaySettings::setCameraFollowsPlayer(bool value)
 {
-   mCameraFollowsPlayer = value;
+   _camera_follows_player = value;
 }
 
 
 float GameSettings::GameplaySettings::getCameraShakeIntensity() const
 {
-   return mCameraShakeIntensity;
+   return _camera_shake_intensity;
 }
 
 
 void GameSettings::GameplaySettings::setCameraShakeIntensity(float value)
 {
-   mCameraShakeIntensity = value;
+   _camera_shake_intensity = value;
 }
 
 

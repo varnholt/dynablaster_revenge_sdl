@@ -1,40 +1,40 @@
 #include "gameplayback.h"
 
-GamePlayback* GamePlayback::sInstance = nullptr;
+GamePlayback* GamePlayback::s_instance = nullptr;
 
 GamePlayback::GamePlayback()
-   : mRecording(false)
-   , mReplaying(false)
+   : _recording(false)
+   , _replaying(false)
 {
-   sInstance = this;
+   s_instance = this;
 }
 
 GamePlayback* GamePlayback::getInstance()
 {
-   if (!sInstance)
+   if (!s_instance)
       new GamePlayback();
 
-   return sInstance;
+   return s_instance;
 }
 
 bool GamePlayback::isReplaying() const
 {
-   return mReplaying;
+   return _replaying;
 }
 
 void GamePlayback::setReplaying(bool value)
 {
-   mReplaying = value;
+   _replaying = value;
 }
 
 void GamePlayback::setRecording(bool recording)
 {
-   mRecording = recording;
+   _recording = recording;
 }
 
 bool GamePlayback::isRecording() const
 {
-   return mRecording;
+   return _recording;
 }
 
 void GamePlayback::record(Packet*) {}

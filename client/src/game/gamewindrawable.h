@@ -80,50 +80,50 @@ private:
    void drawSceneToFramebuffer(float alpha);
    void drawPsdContents(float alpha);
 
-   Color mColor;
-   Constants::Color mColorEnum;
-   std::string mWinnerName;
+   Color _color;
+   Constants::Color _color_enum;
+   std::string _winner_name;
 
-   BitmapFont* mLargeFont;
-   BitmapFont* mDefaultFont;
+   BitmapFont* _large_font;
+   BitmapFont* _default_font;
 
-   SceneGraph* mScene;
+   SceneGraph* _scene;
 
-   float mRenderTime;
-   float mTime;
-   float mDeltaTime;
-   float mStartTime;
+   float _render_time;
+   float _time;
+   float _delta_time;
+   float _start_time;
 
-   bool mDrawGame;
+   bool _draw_game;
 
-   BlurFilter* mBlur;
+   BlurFilter* _blur;
 
    // dedicated offscreen targets this port needs in place of the original's persistent
    // MainDrawable-owned game framebuffer (MainDrawable doesn't exist here - see gamedrawable.h).
-   // mSnapshotTexture is a plain (non-FBO-attached) copy of the just-rendered frame - BlurFilter
-   // reads from it while writing into mBackdropFb, avoiding a read/write feedback loop on the
-   // same texture. mSceneFb holds the real 3D cup+player render, composited on top afterward.
-   FrameBuffer* mBackdropFb;
-   FrameBuffer* mSceneFb;
-   unsigned int mSnapshotTexture;
+   // _snapshot_texture is a plain (non-FBO-attached) copy of the just-rendered frame - BlurFilter
+   // reads from it while writing into _backdrop_fb, avoiding a read/write feedback loop on the
+   // same texture. _scene_fb holds the real 3D cup+player render, composited on top afterward.
+   FrameBuffer* _backdrop_fb;
+   FrameBuffer* _scene_fb;
+   unsigned int _snapshot_texture;
 
-   GameInformation* mGameInformation;
-   std::vector<Weighted<PlayerInfo*, int>> mPlayerScores;
-   float mPlayerScoresAnimated[10];
+   GameInformation* _game_information;
+   std::vector<Weighted<PlayerInfo*, int>> _player_scores;
+   float _player_scores_animated[10];
 
-   PlayerItem* mPlayerItem;
-   MotionMixer* mMotionMixer;
-   Mesh* mPlayerMesh;
-   PlayerMaterial* mPlayerMaterial;
-   Texture mPlayerTextures[10];
+   PlayerItem* _player_item;
+   MotionMixer* _motion_mixer;
+   Mesh* _player_mesh;
+   PlayerMaterial* _player_material;
+   Texture _player_textures[10];
 
-   std::string mFilename;
-   PSD mPsd;
-   std::vector<PSDLayer*> mPsdLayers;
+   std::string _filename;
+   PSD _psd;
+   std::vector<PSDLayer*> _psd_layers;
 
-   PSDLayer* mRanks[10];
-   PSDLayer* mIcons[10];
-   PSDLayer* mNames[10];
-   PSDLayer* mPoints[10];
-   PSDLayer* mBars[10];
+   PSDLayer* _ranks[10];
+   PSDLayer* _icons[10];
+   PSDLayer* _names[10];
+   PSDLayer* _points[10];
+   PSDLayer* _bars[10];
 };

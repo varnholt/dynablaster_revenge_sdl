@@ -73,18 +73,18 @@ class GameSettings
             void initializeIndividualColor();
 
             //! color map
-            std::map<Constants::Color, Color> mPlayerColors;
+            std::map<Constants::Color, Color> _player_colors;
 
-            uint32_t mColorWhite = 0;
-            uint32_t mColorBlack = 0;
-            uint32_t mColorRed = 0;
-            uint32_t mColorGreen = 0;
-            uint32_t mColorBlue = 0;
-            uint32_t mColorGrey = 0;
-            uint32_t mColorYellow = 0;
-            uint32_t mColorPurple = 0;
-            uint32_t mColorCyan = 0;
-            uint32_t mColorOrange = 0;
+            uint32_t _color_white = 0;
+            uint32_t _color_black = 0;
+            uint32_t _color_red = 0;
+            uint32_t _color_green = 0;
+            uint32_t _color_blue = 0;
+            uint32_t _color_grey = 0;
+            uint32_t _color_yellow = 0;
+            uint32_t _color_purple = 0;
+            uint32_t _color_cyan = 0;
+            uint32_t _color_orange = 0;
       };
 
 
@@ -151,34 +151,34 @@ class GameSettings
       protected:
 
             //! skip menu
-            bool mSkipMenu;
+            bool _skip_menu;
 
             //! show splash screen
-            bool mShowSplash;
+            bool _show_splash;
 
             //! music enabled flag
-            bool mMusicEnabled;
+            bool _music_enabled;
 
             //! preselected level
-            std::string mLevel;
+            std::string _level;
 
             //! dryrun
-            bool mDryRunEnabled;
+            bool _dry_run_enabled;
 
             //! game recording enabled
-            bool mGameRecordingEnabled;
+            bool _game_recording_enabled;
 
             //! joysticks enabled
-            bool mJoysticksEnabled;
+            bool _joysticks_enabled;
 
             //! pouet page
-            std::string mPagePouet;
+            std::string _page_pouet;
 
             //! facebook page
-            std::string mPageFacebook;
+            std::string _page_facebook;
 
             //! webpage
-            std::string mPageHome;
+            std::string _page_home;
       };
 
 
@@ -215,10 +215,10 @@ class GameSettings
       protected:
 
             //! camera shake intensity
-            float mCameraShakeIntensity;
+            float _camera_shake_intensity;
 
             //! camera follows player
-            bool mCameraFollowsPlayer;
+            bool _camera_follows_player;
       };
 
 
@@ -287,25 +287,25 @@ class GameSettings
             // options
 
             //! sfx volume
-            float mVolumeSfx;
+            float _volume_sfx;
 
             //! music volume
-            float mVolumeMusic;
+            float _volume_music;
 
             //! sfx volume default
-            float mVolumeSfxDefault;
+            float _volume_sfx_default;
 
             //! music volume default
-            float mVolumeMusicDefault;
+            float _volume_music_default;
 
             //! checked if music is shuffled
-            bool mShuffleMusic;
+            bool _shuffle_music;
 
             //! checked if 1st track is shuffled
-            bool mShuffle1stTrackOnly;
+            bool _shuffle1st_track_only;
 
             //! checked if music player shall be shown
-            bool mMusicPlayerVisible;
+            bool _music_player_visible;
       };
 
       class LoginSettings : public SettingsPrivate
@@ -388,37 +388,37 @@ class GameSettings
       protected:
 
             //! login nick
-            std::string mNick;
+            std::string _nick;
 
             //! login host
-            std::string mHost;
+            std::string _host;
 
             //! player 2 nick
-            std::string mPlayer2Nick;
+            std::string _player2_nick;
 
             //! player 3 nick
-            std::string mPlayer3Nick;
+            std::string _player3_nick;
 
             //! player 4 nick
-            std::string mPlayer4Nick;
+            std::string _player4_nick;
 
             //! player 5 nick
-            std::string mPlayer5Nick;
+            std::string _player5_nick;
 
             //! player 6 nick
-            std::string mPlayer6Nick;
+            std::string _player6_nick;
 
             //! player 7 nick
-            std::string mPlayer7Nick;
+            std::string _player7_nick;
 
             //! player 8 nick
-            std::string mPlayer8Nick;
+            std::string _player8_nick;
 
             //! player 9 nick
-            std::string mPlayer9Nick;
+            std::string _player9_nick;
 
             //! player 10 nick
-            std::string mPlayer10Nick;
+            std::string _player10_nick;
       };
 
 
@@ -509,37 +509,37 @@ class GameSettings
          protected:
 
             //! window width
-            int mWidth;
+            int _width;
 
             //! window height
-            int mHeight;
+            int _height;
 
             //! rendering resolution (eg 1x1, 2x2, ...)
-            int mResolution;
+            int _resolution;
 
             //! antialias samples
-            int mAntialias;
+            int _antialias;
 
             //! fullscreen flag
-            bool mFullscreen;
+            bool _fullscreen;
 
             //! brightness
-            float mBrightness;
+            float _brightness;
 
             //! vsync
-            int mVSync;
+            int _v_sync;
 
             //! show fps
-            bool mShowFps;
+            bool _show_fps;
 
             //! camera zoom factor
-            float mZoom;
+            float _zoom;
 
             //! screen border compensation
-            int mBorderLeft;
-            int mBorderTop;
-            int mBorderRight;
-            int mBorderBottom;
+            int _border_left;
+            int _border_top;
+            int _border_right;
+            int _border_bottom;
       };
 
 
@@ -560,7 +560,7 @@ class GameSettings
             void restoreDefaults();
 
             //! setter for keymap
-            void setKeyMap(const std::unordered_map<Constants::Key, int>& keyMap);
+            void setKeyMap(const std::unordered_map<Constants::Key, int>& key_map);
 
             //! getter for keymap
             std::unordered_map<Constants::Key, int> getKeyMap() const;
@@ -598,20 +598,20 @@ class GameSettings
             //! initialize default map
             void initializeDefaultMap();
 
-            //! looks up a key in mKeyMap, 0 if not present
+            //! looks up a key in _key_map, 0 if not present
             SDL_Keycode getKey(Constants::Key key) const;
 
             //! keymap
-            std::unordered_map<Constants::Key, int> mKeyMap;
+            std::unordered_map<Constants::Key, int> _key_map;
 
             //! analogue axis 1
-            int mAnalogueAxis1;
+            int _analogue_axis1;
 
             //! analogue axis 2
-            int mAnalogueAxis2;
+            int _analogue_axis2;
 
             //! analogue sensitivity
-            int mAnalogueTreshold;
+            int _analogue_treshold;
       };
 
 
@@ -710,43 +710,43 @@ class GameSettings
       protected:
 
             //! single player flag
-            bool mSinglePlayer;
+            bool _single_player;
 
             //! game name
-            std::string mGameName;
+            std::string _game_name;
 
             //! level index
-            int mLevelIndex;
+            int _level_index;
 
             //! number of rounds
-            int mRounds;
+            int _rounds;
 
             //! duration
-            int mDuration;
+            int _duration;
 
             //! maximum player count
-            int mMaxPlayers;
+            int _max_players;
 
             //! bot count
-            int mBotCount;
+            int _bot_count;
 
             //! extra flag: bombs
-            bool mExtraBombs;
+            bool _extra_bombs;
 
             //! extra flag: flames
-            bool mExtraFlames;
+            bool _extra_flames;
 
             //! extra flag: speedups
-            bool mExtraSpeedUps;
+            bool _extra_speed_ups;
 
             //! extra flag: kicks
-            bool mExtraKicks;
+            bool _extra_kicks;
 
             //! extra flag: skulls
-            bool mExtraSkulls;
+            bool _extra_skulls;
 
             //! dimensions
-            Constants::Dimension mDimensions;
+            Constants::Dimension _dimensions;
       };
 
 
@@ -796,40 +796,40 @@ class GameSettings
       GameSettings();
 
       //! development setting
-      DevelopmentSettings* mDevelopmentSettings;
+      DevelopmentSettings* _development_settings;
 
       //! audio settings
-      AudioSettings* mAudioSettings;
+      AudioSettings* _audio_settings;
 
       //! gameplay settings
-      GameplaySettings* mGameplaySettings;
+      GameplaySettings* _gameplay_settings;
 
       //! login settings
-      LoginSettings* mLoginSettings;
+      LoginSettings* _login_settings;
 
       //! video settings
-      VideoSettings* mVideoSettings;
+      VideoSettings* _video_settings;
 
       //! video settings backup
-      VideoSettings* mVideoSettingsBackup;
+      VideoSettings* _video_settings_backup;
 
       //! controller settings
-      ControllerSettings* mControllerSettings;
+      ControllerSettings* _controller_settings;
 
       //! creategame settings for single player
-      CreateGameSettings* mCreateGameSettingsSingle;
+      CreateGameSettings* _create_game_settings_single;
 
       //! creategame settings for multi player
-      CreateGameSettings* mCreateGameSettingsMulti;
+      CreateGameSettings* _create_game_settings_multi;
 
       //! design settings
-      StyleSettings* mStyleSettings;
+      StyleSettings* _style_settings;
 
       //! singleton instance
-      static GameSettings* sSettings;
+      static GameSettings* s_settings;
 
       //! list of settings
-      std::vector<SettingsPrivate*> mSettings;
+      std::vector<SettingsPrivate*> _settings;
 };
 
 #endif // GAMESETTINGS_H

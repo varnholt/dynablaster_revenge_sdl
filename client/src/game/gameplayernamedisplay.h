@@ -33,16 +33,16 @@ private:
    float computeFontAlpha() const;
    float computeArrowAlpha() const;
 
-   FrameTimer mActiveTime;
-   std::vector<Vector> mPositions;
-   std::vector<std::string> mNames;
-   BitmapFont* mFont;
-   bool mShowArrow;
-   Texture mArrowTexture;
-   Vector mArrowPosition;
-   unsigned int mArrowShader;
-   unsigned int mArrowVertexBuffer;
-   unsigned int mArrowIndexBuffer;
-   int mArrowParamTexture;
-   int mArrowParamAlpha;
+   FrameTimer _active_time;
+   std::vector<Vector> _positions;
+   std::vector<std::string> _names;
+   BitmapFont* _font;
+   bool _show_arrow;
+   Texture _arrow_texture;
+   Vector _arrow_position;
+   unsigned int _arrow_shader;
+   unsigned int _arrow_vertex_buffer;
+   unsigned int _arrow_index_buffer;
+   int _arrow_param_texture;
+   int _arrow_param_alpha;
 };

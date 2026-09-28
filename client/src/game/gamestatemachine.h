@@ -12,7 +12,7 @@ class GameStateMachine
 
       static GameStateMachine* getInstance();
 
-      void setState(Constants::GameState nextState);
+      void setState(Constants::GameState next_state);
 
       Constants::GameState getState() const;
 
@@ -23,9 +23,9 @@ class GameStateMachine
 
       GameStateMachine();
 
-      Constants::GameState mState;
+      Constants::GameState _state;
 
-      static GameStateMachine* sInstance;
+      static GameStateMachine* s_instance;
 
 };
 
