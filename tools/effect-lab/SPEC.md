@@ -38,6 +38,8 @@ At frame 60 (t = 1.0 s) fire the effect's trigger call once.
 - infected   : playerInfected(0, SkullSlow, -1, 6, 5)
 - startalers : extraRemoved(6, 5, false, ExtraBomb, 0)
 - death      : removePlayer(0)
+- fuse       : createMapItem(new BombMapItem(0, 2, 100, 8, 5)) - a bomb two tiles right of the local
+               player; the lab keeps it alive (never removed) for all captures
 
 ## Captures
 Frames 60 + {6, 30, 60, 120, 180, 300} (= +100, +500, +1000, +2000, +3000, +5000 ms after the

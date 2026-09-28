@@ -14,6 +14,7 @@
 #include "game/bombermanclient.h"
 #include "game/gamedrawable.h"
 #include "gameinformation.h"
+#include "bombmapitem.h"
 #include "playerinfo.h"
 
 #include <SDL3/SDL.h>
@@ -66,6 +67,13 @@ const std::map<std::string, Trigger>& triggers()
       {"infected", [](GameDrawable& game) { game.playerInfected(LOCAL_PLAYER_ID, Constants::SkullSlow, -1, 6, 5); }},
       {"startalers", [](GameDrawable& game) { game.extraRemoved(6, 5, false, Constants::ExtraBomb, LOCAL_PLAYER_ID); }},
       {"death", [](GameDrawable& game) { game.removePlayer(LOCAL_PLAYER_ID); }},
+      {"fuse",
+       [](GameDrawable& game)
+       {
+          // never removed, so it lives until the process exits
+          static BombMapItem bomb(LOCAL_PLAYER_ID, 2, 100, 8, 5);
+          game.createMapItem(&bomb);
+       }},
    };
 
    return effects;
