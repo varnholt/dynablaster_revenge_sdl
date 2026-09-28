@@ -349,7 +349,7 @@ void PlayerInvincibleEffect::blurPlayers(FrameBuffer* temp, const Matrix& proj)
 
       temp->bind();
       activeDevice->clear();
-      setMaterialFade(player, player->getFade());
+      setMaterialFade(player.get(), player->getFade());
       mat->renderDiffuse();
       temp->unbind();
 
