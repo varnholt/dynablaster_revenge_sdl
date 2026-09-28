@@ -438,9 +438,10 @@ if (EMSCRIPTEN)
         # SettingsValue::toFloat()'s try/catch (shared/settings.cpp) needs real catching to work.
         -sDISABLE_EXCEPTION_CATCHING=0
         --emrun
-        # only the castle level ships in the browser, LevelFactory falls back to it
-        --exclude-file "*/data/level-mansion*"
-        --exclude-file "*/data/level-space*"
+        # only the castle level ships in the browser, LevelFactory falls back to it; SHELL: keeps
+        # CMake from de-duplicating the repeated --exclude-file flag away from its argument
+        "SHELL:--exclude-file '*/data/level-mansion*'"
+        "SHELL:--exclude-file '*/data/level-space*'"
         --preload-file ${CMAKE_SOURCE_DIR}/data@data
     )
     set_target_properties(dynablaster_revenge PROPERTIES SUFFIX ".html")

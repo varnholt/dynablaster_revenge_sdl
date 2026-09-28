@@ -16,14 +16,14 @@ public:
    LevelCastle();
    ~LevelCastle() override;
 
-   virtual void initialize();
-   virtual void draw();
-   virtual void animate(float dt);
-   virtual void reset();
-   virtual void loadData();
+   void initialize() override;
+   void draw() override;
+   void animate(float dt) override;
+   void reset() override;
+   void loadData() override;
    std::string getLensFlareKey() const override;
 
-   Material* createMaterial(SceneGraph* scene, int id) const;
+   Material* createMaterial(SceneGraph* scene, int id) const override;
 
 private:
    std::unique_ptr<SnowAnimation> _snow_animation;
