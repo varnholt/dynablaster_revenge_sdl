@@ -118,6 +118,9 @@ public:
    void setPlayerPosition(int id, float x, float y, float dir);
    void setPlayerSpeed(int id, float dx, float dy, float da);
    void setPlayerId(int id);
+
+   //! effect lab: suppress the player name tags
+   void setPlayerNamesEnabled(bool enabled);
    void setMapItemPosition(MapItem*, float x, float y, float z);
 
    //! extra has been removed
@@ -194,6 +197,7 @@ private:
    std::unique_ptr<MushroomAnimation> _mushroom_animation;
    std::unique_ptr<ShroomFilter> _shroom_filter;
    std::unique_ptr<InvisiblePlayerEffect> _invisible_player_effect;
+   bool _player_names_enabled = true;
 
    float _time;
    float _time_prev;

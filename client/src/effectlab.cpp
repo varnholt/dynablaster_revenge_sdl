@@ -127,6 +127,7 @@ int runEffectLab(const std::string& effect, const std::string& out_dir)
    GameDrawable game(&device);
    game.initializeGL();
    game.setVisible(true);
+   game.setPlayerNamesEnabled(false);
    game.setPlayfieldSize(13, 11);
    game.setPlayfieldScale(1.0f, 1.0f);
    game.loadLevel("level-castle");
