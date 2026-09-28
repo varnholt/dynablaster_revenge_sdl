@@ -4,13 +4,17 @@
 #include "../level.h"
 #include "materials/materialfactory.h"
 
-// Not ported yet: SnowAnimation (immediate-mode GL).
+#include <memory>
+
+class SnowAnimation;
+
 class LevelCastle : public Level, public MaterialFactory
 {
 
 public:
 
    LevelCastle();
+   ~LevelCastle() override;
 
    virtual void initialize();
    virtual void draw();
@@ -20,4 +24,7 @@ public:
    std::string getLensFlareKey() const override;
 
    Material* createMaterial(SceneGraph* scene, int id) const;
+
+private:
+   std::unique_ptr<SnowAnimation> _snow_animation;
 };
