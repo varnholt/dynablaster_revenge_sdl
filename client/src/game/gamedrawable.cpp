@@ -18,6 +18,7 @@
 #include "fuseparticlesystem.h"
 #include "gameplayernamedisplay.h"
 #include "playerdeatheffect.h"
+#include "playerinfectedeffect.h"
 #include "extra.h"
 #include "extramapitem.h"
 #include "gamesettings.h"
@@ -50,6 +51,7 @@ GameDrawable::GameDrawable(RenderDevice* device)
    mDestructAnim(),
    mDetonations(nullptr),
    mPlayerDeathEffect(nullptr),
+   mPlayerInfectedEffect(nullptr),
    mPlayerNameDisplay(nullptr),
    mFuseParticleSystem(nullptr),
    mTime(0.0f),
@@ -98,6 +100,7 @@ GameDrawable::~GameDrawable()
    deleteLevelData();
    delete mDetonations;
    delete mPlayerDeathEffect;
+   delete mPlayerInfectedEffect;
    delete mPlayerNameDisplay;
    delete mFuseParticleSystem;
 }
@@ -367,6 +370,7 @@ void GameDrawable::initializeGL()
    mDetonations->init();
 
    mPlayerDeathEffect = new PlayerDeathEffect();
+   mPlayerInfectedEffect = new PlayerInfectedEffect();
 
    mPlayerNameDisplay = new GamePlayerNameDisplay();
    mPlayerNameDisplay->initialize();
@@ -589,18 +593,32 @@ void GameDrawable::shakeBlock(MapItem* item)
 
 //-----------------------------------------------------------------------------
 /*!
-   Real per-skull-type visual flourishes (mushroom screen filter, invincible-ribbon spawn,
-   invisibility) are deferred (see header comment) - the actual infection *state* still comes
-   through fully via BombermanClient's packet handling regardless of what renders here.
+   Mushroom screen filter, invincible-ribbon spawn and invisibility are still deferred (see header
+   comment) - the actual status *state* flows through fully via BombermanClient regardless.
 */
 void GameDrawable::playerInfected(
-   int /*id*/,
-   Constants::SkullType /*skullType*/,
+   int id,
+   Constants::SkullType skullType,
    int /*infectorId*/,
    int /*extraX*/,
    int /*extraY*/
 )
 {
+   PlayerItem* playerItem = getPlayer(id);
+
+   if (!playerItem)
+   {
+      return;
+   }
+
+   if (skullType == Constants::SkullReset)
+   {
+      mPlayerInfectedEffect->remove(playerItem->getMaterial());
+   }
+   else if (skullType != Constants::SkullInvincible && skullType != Constants::SkullInvisible)
+   {
+      mPlayerInfectedEffect->add(playerItem->getMaterial());
+   }
 }
 
 
@@ -1072,6 +1090,7 @@ void GameDrawable::removePlayer(int id)
    if (player)
    {
       player->kill();
+      mPlayerInfectedEffect->remove(player->getMaterial());
    }
 
    // check for survivors
@@ -1125,6 +1144,7 @@ void GameDrawable::gameStateChanged()
    switch (GameStateMachine::getInstance()->getState())
    {
       case Constants::GameStopped:
+         mPlayerInfectedEffect->clear();
          mWinAnimationStarted = false;
          break;
 
@@ -1153,6 +1173,8 @@ void GameDrawable::animate(float time)
 
    if (mPlayerDeathEffect)
       mPlayerDeathEffect->animate(delta);
+
+   mPlayerInfectedEffect->animate(delta);
 
    mFuseParticleSystem->animate(delta);
 
@@ -1386,6 +1408,7 @@ void GameDrawable::paintGL()
    }
 
    mPlayerDeathEffect->render();
+   mPlayerInfectedEffect->render();
 
    // draw player names
    if (mPlayerNameDisplay->isActive())
