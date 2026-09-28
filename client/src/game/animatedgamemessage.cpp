@@ -2,23 +2,23 @@
 
 #include "animatedgamemessage.h"
 
-AnimatedGameMessage::AnimatedGameMessage() : GameMessage(), mAlpha(1.0f)
+AnimatedGameMessage::AnimatedGameMessage() : GameMessage(), _alpha(1.0f)
 {
 }
 
 void AnimatedGameMessage::setVertices(const Array<Vertex>& vertices)
 {
-   mVertices.copy(vertices);
+   _vertices.copy(vertices);
 }
 
 const Array<Vertex>& AnimatedGameMessage::getVertices() const
 {
-   return mVertices;
+   return _vertices;
 }
 
 float AnimatedGameMessage::getAlpha() const
 {
-   return mAlpha;
+   return _alpha;
 }
 
 void AnimatedGameMessage::initialize()

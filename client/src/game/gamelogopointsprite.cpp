@@ -14,8 +14,8 @@ Texture GameLogoPointSprite::sTexture;
 unsigned int GameLogoPointSprite::sShader = 0;
 int GameLogoPointSprite::sTextureParam = -1;
 unsigned int GameLogoPointSprite::sVertexBuffer = 0;
-Array<Vector> GameLogoPointSprite::mPositions;
-Array<float> GameLogoPointSprite::mGlowValues;
+Array<Vector> GameLogoPointSprite::_positions;
+Array<float> GameLogoPointSprite::_glow_values;
 
 //-----------------------------------------------------------------------------
 /*!
@@ -41,10 +41,10 @@ void GameLogoPointSprite::initialize()
 //-----------------------------------------------------------------------------
 /*!
  */
-void GameLogoPointSprite::setPointSprites(const Array<Vector>& v, const Array<float>& glowValues)
+void GameLogoPointSprite::setPointSprites(const Array<Vector>& v, const Array<float>& glow_values)
 {
-   mPositions = v;
-   mGlowValues = glowValues;
+   _positions = v;
+   _glow_values = glow_values;
 }
 
 //-----------------------------------------------------------------------------
@@ -52,7 +52,7 @@ void GameLogoPointSprite::setPointSprites(const Array<Vector>& v, const Array<fl
  */
 void GameLogoPointSprite::draw()
 {
-   if (mPositions.size() == 0)
+   if (_positions.size() == 0)
       return;
 
    // bind point sprite texture and shader
@@ -69,17 +69,17 @@ void GameLogoPointSprite::draw()
    // glBegin(GL_QUADS) vertex order (BL, BR, TR, TL) so GL_TRIANGLES(0,1,2)+(0,2,3) reproduces the
    // same quad.
    std::vector<float> verts;
-   verts.reserve(mPositions.size() * 6 * 5);
+   verts.reserve(_positions.size() * 6 * 5);
 
-   for (int i = 0; i < mPositions.size(); i++)
+   for (int i = 0; i < _positions.size(); i++)
    {
-      const float pointSize = mGlowValues[i];
-      const Vector& p = mPositions[i];
+      const float point_size = _glow_values[i];
+      const Vector& p = _positions[i];
 
-      const float bl[5] = {p.x - pointSize, p.y - pointSize, p.z, 0.0f, 0.0f};
-      const float br[5] = {p.x + pointSize, p.y - pointSize, p.z, 1.0f, 0.0f};
-      const float tr[5] = {p.x + pointSize, p.y + pointSize, p.z, 1.0f, 1.0f};
-      const float tl[5] = {p.x - pointSize, p.y + pointSize, p.z, 0.0f, 1.0f};
+      const float bl[5] = {p.x - point_size, p.y - point_size, p.z, 0.0f, 0.0f};
+      const float br[5] = {p.x + point_size, p.y - point_size, p.z, 1.0f, 0.0f};
+      const float tr[5] = {p.x + point_size, p.y + point_size, p.z, 1.0f, 1.0f};
+      const float tl[5] = {p.x - point_size, p.y + point_size, p.z, 0.0f, 1.0f};
 
       const float* quad[6] = {bl, br, tr, bl, tr, tl};
       for (int v = 0; v < 6; v++)
@@ -96,7 +96,7 @@ void GameLogoPointSprite::draw()
    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 5, (GLvoid*)0);
    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 5, (GLvoid*)(sizeof(float) * 3));
 
-   glDrawArrays(GL_TRIANGLES, 0, mPositions.size() * 6);
+   glDrawArrays(GL_TRIANGLES, 0, _positions.size() * 6);
 
    glDisableVertexAttribArray(0);
    glDisableVertexAttribArray(1);
