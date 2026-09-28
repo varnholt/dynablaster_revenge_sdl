@@ -16,11 +16,11 @@ public:
    float elapsed(float time) const;
 
 private:
-   int mCenterX;
-   int mCenterY;
-   int mLeft;
-   int mRight;
-   int mTop;
-   int mBottom;
-   float mStartTime;
+   int _center_x;
+   int _center_y;
+   int _left;
+   int _right;
+   int _top;
+   int _bottom;
+   float _start_time;
 };
