@@ -288,7 +288,7 @@ int main(int /*argc*/, char** /*argv*/)
       [&](const std::string& artist, const std::string& album, const std::string& track)
       { musicPlayerDrawable.showCurrentlyPlaying(artist, album, track); }
    );
-   gameDrawable.levelLoadedSignal.connect([&](const std::string& path) { bombermanClient.levelLoaded(path); });
+   gameDrawable.level_loaded_signal.connect([&](const std::string& path) { bombermanClient.levelLoaded(path); });
    bombermanClient.loadLevelSignal.connect([&](const std::string& level) { gameDrawable.loadLevel(level); });
    bombermanClient.shakeBlockSignal.connect([&](MapItem* item) { gameDrawable.shakeBlock(item); });
    bombermanClient.setPlayerPositionSignal.connect([&](int id, float x, float y, float ang)
@@ -306,8 +306,8 @@ int main(int /*argc*/, char** /*argv*/)
    bombermanClient.removeMapItemSignal.connect([&](MapItem* item) { bombermanClient.getPositionInterpolation()->removeMapItem(item); });
    bombermanClient.playfieldScaleSignal.connect([&](float x, float y) { gameDrawable.setPlayfieldScale(x, y); });
    bombermanClient.playfieldSizeSignal.connect([&](int width, int height) { gameDrawable.setPlayfieldSize(width, height); });
-   gameDrawable.keyPressedSignal.connect([&](const KeyEvent& event) { bombermanClient.keyPressed(event); });
-   gameDrawable.keyReleasedSignal.connect([&](const KeyEvent& event) { bombermanClient.keyReleased(event); });
+   gameDrawable.key_pressed_signal.connect([&](const KeyEvent& event) { bombermanClient.keyPressed(event); });
+   gameDrawable.key_released_signal.connect([&](const KeyEvent& event) { bombermanClient.keyReleased(event); });
    bombermanClient.createMapItemSignal.connect([&](MapItem* item) { gameDrawable.createMapItem(item); });
    bombermanClient.removeMapItemSignal.connect([&](MapItem* item) { gameDrawable.removeMapItem(item); });
    bombermanClient.destroyMapItemSignal.connect([&](MapItem* item, float flameCount) { gameDrawable.destroyMapItem(item, flameCount); });
