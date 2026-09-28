@@ -35,15 +35,15 @@ public:
    float getFade() const;
 
 private:
-   Material* mMaterial;
-   int mWidth;
-   int mHeight;
-   unsigned int mTexture[2];
-   unsigned int mTarget[2];
+   Material* _material;
+   int _width;
+   int _height;
+   unsigned int _texture[2];
+   unsigned int _target[2];
 
-   Vector mMin;
-   Vector mMax;
-   Vector mCenter;
-   float mFade;
-   bool mRemove;
+   Vector _min;
+   Vector _max;
+   Vector _center;
+   float _fade;
+   bool _remove;
 };
