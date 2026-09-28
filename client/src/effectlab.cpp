@@ -104,7 +104,7 @@ std::unique_ptr<PlayerInfo> makePlayerInfo(int32_t id, const std::string& nick, 
 }
 }  // namespace
 
-int runEffectLab(const std::string& effect, const std::string& out_dir)
+int runEffectLab(const std::string& effect, const std::string& out_dir, const std::string& level)
 {
    const auto trigger = triggers().find(effect);
    if (trigger == triggers().end())
@@ -136,7 +136,7 @@ int runEffectLab(const std::string& effect, const std::string& out_dir)
 
    // stands in for the state the server would normally have sent
    BombermanClient client;
-   client.getGames()->emplace_back(0, 2, 10, "lab", "level-castle", LOCAL_PLAYER_ID, Constants::Dimension13x11, 0, 0, 0, 0, 1, false);
+   client.getGames()->emplace_back(0, 2, 10, "lab", level, LOCAL_PLAYER_ID, Constants::Dimension13x11, 0, 0, 0, 0, 1, false);
    client.setGameId(0);
    client.setPlayerId(LOCAL_PLAYER_ID);
 
@@ -152,7 +152,7 @@ int runEffectLab(const std::string& effect, const std::string& out_dir)
    game.setPlayerNamesEnabled(false);
    game.setPlayfieldSize(13, 11);
    game.setPlayfieldScale(1.0f, 1.0f);
-   game.loadLevel("level-castle");
+   game.loadLevel(level);
    game.setPlayerId(LOCAL_PLAYER_ID);
    game.addPlayer(LOCAL_PLAYER_ID, "lab", Constants::ColorWhite);
    game.addPlayer(OTHER_PLAYER_ID, "bot", Constants::ColorRed);
