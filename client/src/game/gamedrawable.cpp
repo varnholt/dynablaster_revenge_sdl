@@ -19,6 +19,8 @@
 #include "gameplayernamedisplay.h"
 #include "startalersfactory.h"
 #include "playerdeatheffect.h"
+#include "playerinfectedeffect.h"
+#include "playerinvincibleeffect.h"
 #include "extra.h"
 #include "extramapitem.h"
 #include "gamesettings.h"
@@ -51,8 +53,10 @@ GameDrawable::GameDrawable(RenderDevice* device)
    _destruct_anim(),
    _detonations(nullptr),
    _player_death_effect(nullptr),
+   _player_infected_effect(nullptr),
    _player_name_display(nullptr),
    _fuse_particle_system(nullptr),
+   _player_invincible_effect(nullptr),
    _star_talers_factory(nullptr),
    _time(0.0f),
    _time_prev(0.0f),
@@ -100,8 +104,10 @@ GameDrawable::~GameDrawable()
    deleteLevelData();
    delete _detonations;
    delete _player_death_effect;
+   delete _player_infected_effect;
    delete _player_name_display;
    delete _fuse_particle_system;
+   delete _player_invincible_effect;
    delete _star_talers_factory;
 }
 
@@ -370,11 +376,13 @@ void GameDrawable::initializeGL()
    _detonations->init();
 
    _player_death_effect = new PlayerDeathEffect();
+   _player_infected_effect = new PlayerInfectedEffect();
 
    _player_name_display = new GamePlayerNameDisplay();
    _player_name_display->initialize();
 
    _fuse_particle_system = new FuseParticleSystem();
+   _player_invincible_effect = new PlayerInvincibleEffect();
 
    _star_talers_factory = new StarTalersFactory();
    _star_talers_factory->initialize();
@@ -595,18 +603,38 @@ void GameDrawable::shakeBlock(MapItem* item)
 
 //-----------------------------------------------------------------------------
 /*!
-   Real per-skull-type visual flourishes (mushroom screen filter, invincible-ribbon spawn,
-   invisibility) are deferred (see header comment) - the actual infection *state* still comes
-   through fully via BombermanClient's packet handling regardless of what renders here.
+   Mushroom screen filter and invisibility are still deferred (see header comment) - the actual
+   status *state* flows through fully via BombermanClient regardless.
 */
 void GameDrawable::playerInfected(
-   int /*id*/,
-   Constants::SkullType /*skull_type*/,
+   int id,
+   Constants::SkullType skull_type,
    int /*infector_id*/,
    int /*extra_x*/,
    int /*extra_y*/
 )
 {
+   PlayerItem* player_item = getPlayer(id);
+   if (!player_item)
+   {
+      return;
+   }
+
+   if (skull_type == Constants::SkullReset)
+   {
+      _player_infected_effect->remove(player_item->getMaterial());
+      _player_invincible_effect->remove(player_item->getMaterial());
+      return;
+   }
+
+   if (skull_type == Constants::SkullInvincible)
+   {
+      _player_invincible_effect->add(player_item->getMaterial());
+   }
+   else if (skull_type != Constants::SkullInvisible)
+   {
+      _player_infected_effect->add(player_item->getMaterial());
+   }
 }
 
 
@@ -1082,6 +1110,7 @@ void GameDrawable::removePlayer(int id)
    if (player)
    {
       player->kill();
+      _player_infected_effect->remove(player->getMaterial());
    }
 
    // check for survivors
@@ -1135,6 +1164,7 @@ void GameDrawable::gameStateChanged()
    switch (GameStateMachine::getInstance()->getState())
    {
       case Constants::GameStopped:
+         _player_infected_effect->clear();
          _win_animation_started = false;
          break;
 
@@ -1164,7 +1194,10 @@ void GameDrawable::animate(float time)
    if (_player_death_effect)
       _player_death_effect->animate(delta);
 
+   _player_infected_effect->animate(delta);
+
    _fuse_particle_system->animate(delta);
+   _player_invincible_effect->animate(delta);
    _star_talers_factory->update(delta * 0.05f);
 
    _camera_anim+=delta*60.0f;
@@ -1371,6 +1404,7 @@ void GameDrawable::paintGL()
 
    _detonations->render();
    _fuse_particle_system->render();
+   _player_invincible_effect->render();
    _star_talers_factory->render();
 
    // start flow fields when a player got killed (and the kill anim is over) - matches the
@@ -1398,6 +1432,7 @@ void GameDrawable::paintGL()
    }
 
    _player_death_effect->render();
+   _player_infected_effect->render();
 
    // draw player names
    if (_player_name_display->isActive())
