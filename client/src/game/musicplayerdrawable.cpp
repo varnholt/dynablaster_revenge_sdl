@@ -1,5 +1,3 @@
-// GLES3 port of client/src/game/musicplayerdrawable.cpp.
-
 #include "musicplayerdrawable.h"
 
 #include "gldevice.h"
@@ -48,35 +46,35 @@ constexpr int TRACK_LINE_2_CORRECTION_OFFSET_Y = 2;
 
 MusicPlayerDrawable::MusicPlayerDrawable(RenderDevice* dev)
     : Drawable(dev),
-      mFont(nullptr),
-      mAnimationFactor(0.0f),
-      mFadeIn(false),
-      mIdle(false),
-      mFadeOut(false),
-      mMaxWidth(-1),
-      mFontOffsetArtistX(0),
-      mFontOffsetArtistY(0),
-      mFontOffsetArtistHeight(0),
-      mFontOffsetAlbumX(0),
-      mFontOffsetAlbumY(0),
-      mFontOffsetAlbumHeight(0),
-      mFontOffsetTrackLine1X(0),
-      mFontOffsetTrackLine1Y(0),
-      mFontOffsetTrackLine1Height(0),
-      mFontOffsetTrackLine2X(0),
-      mFontOffsetTrackLine2Y(0),
-      mFontOffsetTrackLine2Height(0),
-      mAnimating(false),
-      mInGame(false)
+      _font(nullptr),
+      _animation_factor(0.0f),
+      _fade_in(false),
+      _idle(false),
+      _fade_out(false),
+      _max_width(-1),
+      _font_offset_artist_x(0),
+      _font_offset_artist_y(0),
+      _font_offset_artist_height(0),
+      _font_offset_album_x(0),
+      _font_offset_album_y(0),
+      _font_offset_album_height(0),
+      _font_offset_track_line1_x(0),
+      _font_offset_track_line1_y(0),
+      _font_offset_track_line1_height(0),
+      _font_offset_track_line2_x(0),
+      _font_offset_track_line2_y(0),
+      _font_offset_track_line2_height(0),
+      _animating(false),
+      _in_game(false)
 {
-   mFilename = "data/musicplayer/player.psd";
+   _filename = "data/musicplayer/player.psd";
 }
 
 MusicPlayerDrawable::~MusicPlayerDrawable()
 {
-   for (PSDLayer* layer : mPsdLayers)
+   for (PSDLayer* layer : _psd_layers)
       delete layer;
-   mPsdLayers.clear();
+   _psd_layers.clear();
 }
 
 void MusicPlayerDrawable::initializeGL()
@@ -85,50 +83,50 @@ void MusicPlayerDrawable::initializeGL()
 
    initializeLayers();
 
-   mFont = FontPool::Instance()->get("default");
+   _font = FontPool::Instance()->get("default");
 
    FileStream::removePath("data/musicplayer");
 }
 
 void MusicPlayerDrawable::initializeLayers()
 {
-   mPsd.load(mFilename.c_str());
+   _psd.load(_filename.c_str());
 
-   for (int l = 0; l < mPsd.getLayerCount(); l++)
+   for (int l = 0; l < _psd.getLayerCount(); l++)
    {
-      PSD::Layer* layer = mPsd.getLayer(l);
+      PSD::Layer* layer = _psd.getLayer(l);
 
-      const std::string layerName = layer->getName();
+      const std::string layer_name = layer->getName();
 
-      if (layerName == LAYER_TRACK_LINE_1)
+      if (layer_name == LAYER_TRACK_LINE_1)
       {
-         mFontOffsetTrackLine1X = layer->getLeft() + TRACK_LINE_1_CORRECTION_OFFSET_X;
-         mFontOffsetTrackLine1Y = layer->getTop() + TRACK_LINE_1_CORRECTION_OFFSET_Y;
-         mFontOffsetTrackLine1Height = layer->getHeight();
+         _font_offset_track_line1_x = layer->getLeft() + TRACK_LINE_1_CORRECTION_OFFSET_X;
+         _font_offset_track_line1_y = layer->getTop() + TRACK_LINE_1_CORRECTION_OFFSET_Y;
+         _font_offset_track_line1_height = layer->getHeight();
       }
-      else if (layerName == LAYER_TRACK_LINE_2)
+      else if (layer_name == LAYER_TRACK_LINE_2)
       {
-         mFontOffsetTrackLine2X = layer->getLeft() + TRACK_LINE_2_CORRECTION_OFFSET_X;
-         mFontOffsetTrackLine2Y = layer->getTop() + TRACK_LINE_2_CORRECTION_OFFSET_X;
-         mFontOffsetTrackLine2Height = layer->getHeight();
+         _font_offset_track_line2_x = layer->getLeft() + TRACK_LINE_2_CORRECTION_OFFSET_X;
+         _font_offset_track_line2_y = layer->getTop() + TRACK_LINE_2_CORRECTION_OFFSET_X;
+         _font_offset_track_line2_height = layer->getHeight();
       }
-      else if (layerName == LAYER_ALBUM)
+      else if (layer_name == LAYER_ALBUM)
       {
-         mFontOffsetAlbumX = layer->getLeft() + ALBUM_CORRECTION_OFFSET_X;
-         mFontOffsetAlbumY = layer->getTop() + ALBUM_CORRECTION_OFFSET_Y;
-         mFontOffsetAlbumHeight = layer->getHeight();
+         _font_offset_album_x = layer->getLeft() + ALBUM_CORRECTION_OFFSET_X;
+         _font_offset_album_y = layer->getTop() + ALBUM_CORRECTION_OFFSET_Y;
+         _font_offset_album_height = layer->getHeight();
       }
-      else if (layerName == LAYER_ARTIST)
+      else if (layer_name == LAYER_ARTIST)
       {
-         mFontOffsetArtistX = layer->getLeft() + ARTIST_CORRECTION_OFFSET_X;
-         mFontOffsetArtistY = layer->getTop() + ARTIST_CORRECTION_OFFSET_Y;
-         mFontOffsetArtistHeight = layer->getHeight();
+         _font_offset_artist_x = layer->getLeft() + ARTIST_CORRECTION_OFFSET_X;
+         _font_offset_artist_y = layer->getTop() + ARTIST_CORRECTION_OFFSET_Y;
+         _font_offset_artist_height = layer->getHeight();
       }
 
-      if (layer->getWidth() + layer->getLeft() > mMaxWidth)
-         mMaxWidth = layer->getWidth() + layer->getLeft();
+      if (layer->getWidth() + layer->getLeft() > _max_width)
+         _max_width = layer->getWidth() + layer->getLeft();
 
-      mPsdLayers.push_back(new PSDLayer(layer));
+      _psd_layers.push_back(new PSDLayer(layer));
    }
 }
 
@@ -136,7 +134,7 @@ void MusicPlayerDrawable::initGlParameters()
 {
    static_cast<GLDevice*>(mDevice)->pushProjection();
    static_cast<GLDevice*>(mDevice)->setProjectionMatrix(
-      Matrix::ortho(0.0f, (float)mPsd.getWidth(), (float)mPsd.getHeight(), 0.0f, -1.0f, 1.0f)
+      Matrix::ortho(0.0f, (float)_psd.getWidth(), (float)_psd.getHeight(), 0.0f, -1.0f, 1.0f)
    );
 
    glEnable(GL_BLEND);
@@ -162,110 +160,110 @@ void MusicPlayerDrawable::paintGL()
 {
    initGlParameters();
 
-   const float xOffset = (1.0f - mAnimationFactor) * mMaxWidth;
-   const float yFactor = isInGame() ? MENU_Y_FACTOR_INGAME : MENU_Y_FACTOR_MENUS;
+   const float x_offset = (1.0f - _animation_factor) * _max_width;
+   const float y_factor = isInGame() ? MENU_Y_FACTOR_INGAME : MENU_Y_FACTOR_MENUS;
 
-   for (int layerIndex = 0; layerIndex < mPsd.getLayerCount(); layerIndex++)
+   for (int layer_index = 0; layer_index < _psd.getLayerCount(); layer_index++)
    {
-      PSD::Layer* psdLayer = mPsd.getLayer(layerIndex);
+      PSD::Layer* psd_layer = _psd.getLayer(layer_index);
 
-      if (psdLayer->isVisible())
+      if (psd_layer->isVisible())
       {
-         const float top = -(float)psdLayer->getTop() * (1.0f - yFactor);
-         mPsdLayers[layerIndex]->render(-xOffset, top);
+         const float top = -(float)psd_layer->getTop() * (1.0f - y_factor);
+         _psd_layers[layer_index]->render(-x_offset, top);
       }
    }
 
-   mFont->setColor(1.0f, 1.0f, 1.0f, 0.75f);
-   mFont->buildVertices(
-      0.12f, mArtist.c_str(), (float)mFontOffsetArtistX - xOffset, (float)mFontOffsetArtistY * yFactor + mFontOffsetArtistHeight
+   _font->setColor(1.0f, 1.0f, 1.0f, 0.75f);
+   _font->buildVertices(
+      0.12f, _artist.c_str(), (float)_font_offset_artist_x - x_offset, (float)_font_offset_artist_y * y_factor + _font_offset_artist_height
    );
-   mFont->draw();
+   _font->draw();
 
-   mFont->setColor(1.0f, 1.0f, 1.0f, 0.5f);
-   mFont->buildVertices(
-      0.1f, mAlbum.c_str(), (float)mFontOffsetAlbumX - xOffset, (float)mFontOffsetAlbumY * yFactor + mFontOffsetAlbumHeight
+   _font->setColor(1.0f, 1.0f, 1.0f, 0.5f);
+   _font->buildVertices(
+      0.1f, _album.c_str(), (float)_font_offset_album_x - x_offset, (float)_font_offset_album_y * y_factor + _font_offset_album_height
    );
-   mFont->draw();
+   _font->draw();
 
-   mFont->setColor(1.0f, 1.0f, 1.0f, 1.0f);
-   mFont->buildVertices(
+   _font->setColor(1.0f, 1.0f, 1.0f, 1.0f);
+   _font->buildVertices(
       0.1f,
-      mTrackLine1.c_str(),
-      (float)mFontOffsetTrackLine1X - xOffset,
-      (float)mFontOffsetTrackLine1Y * yFactor + mFontOffsetTrackLine1Height
+      _track_line1.c_str(),
+      (float)_font_offset_track_line1_x - x_offset,
+      (float)_font_offset_track_line1_y * y_factor + _font_offset_track_line1_height
    );
-   mFont->draw();
+   _font->draw();
 
-   mFont->buildVertices(
+   _font->buildVertices(
       0.1f,
-      mTrackLine2.c_str(),
-      (float)mFontOffsetTrackLine2X - xOffset,
-      (float)mFontOffsetTrackLine2Y * yFactor + mFontOffsetTrackLine2Height
+      _track_line2.c_str(),
+      (float)_font_offset_track_line2_x - x_offset,
+      (float)_font_offset_track_line2_y * y_factor + _font_offset_track_line2_height
    );
-   mFont->draw();
+   _font->draw();
 
    cleanupGlParameters();
 }
 
 void MusicPlayerDrawable::animate(float /*time*/)
 {
-   const float msecs = FrameTimer::currentTime().msecsTo(mAnimationStopTime);
+   const float msecs = FrameTimer::currentTime().msecsTo(_animation_stop_time);
 
-   if (mFadeIn)
+   if (_fade_in)
    {
       if (msecs < 0.0f)
       {
-         mFadeIn = false;
-         mIdle = true;
+         _fade_in = false;
+         _idle = true;
 
-         mAnimationStopTime = FrameTimer::currentTime().addMSecs(FADE_IDLE_TIME);
-         mAnimationFactor = 1.0f;
+         _animation_stop_time = FrameTimer::currentTime().addMSecs(FADE_IDLE_TIME);
+         _animation_factor = 1.0f;
       }
       else
       {
-         mAnimationFactor = 1.0f - (msecs / FADE_IN_TIME);
-         mAnimationFactor = sinf(mAnimationFactor * 3.14159265f * 0.5f);
-         mAnimationFactor = mAnimationFactor * mAnimationFactor * mAnimationFactor;
+         _animation_factor = 1.0f - (msecs / FADE_IN_TIME);
+         _animation_factor = sinf(_animation_factor * 3.14159265f * 0.5f);
+         _animation_factor = _animation_factor * _animation_factor * _animation_factor;
       }
    }
-   else if (mIdle)
+   else if (_idle)
    {
       if (msecs < 0.0f)
       {
-         mIdle = false;
-         mFadeOut = true;
+         _idle = false;
+         _fade_out = true;
 
-         mAnimationStopTime = FrameTimer::currentTime().addMSecs(FADE_OUT_TIME);
-         mAnimationFactor = 1.0f;
+         _animation_stop_time = FrameTimer::currentTime().addMSecs(FADE_OUT_TIME);
+         _animation_factor = 1.0f;
       }
       else
       {
-         mAnimationFactor = 1.0f;
+         _animation_factor = 1.0f;
       }
    }
-   else if (mFadeOut)
+   else if (_fade_out)
    {
       if (msecs < 0.0f)
       {
-         mFadeOut = false;
+         _fade_out = false;
          mVisible = false;
-         mAnimating = false;
-         mAnimationFactor = 0.0f;
+         _animating = false;
+         _animation_factor = 0.0f;
       }
       else
       {
-         mAnimationFactor = msecs / FADE_OUT_TIME;
-         mAnimationFactor = sinf(mAnimationFactor * 3.14159265f * 0.5f);
+         _animation_factor = msecs / FADE_OUT_TIME;
+         _animation_factor = sinf(_animation_factor * 3.14159265f * 0.5f);
       }
    }
 }
 
 void MusicPlayerDrawable::startAnimation()
 {
-   mAnimationStopTime = FrameTimer::currentTime().addMSecs(FADE_IN_TIME);
+   _animation_stop_time = FrameTimer::currentTime().addMSecs(FADE_IN_TIME);
 
-   mFadeIn = true;
+   _fade_in = true;
    mVisible = true;
 }
 
@@ -276,45 +274,45 @@ void MusicPlayerDrawable::showCurrentlyPlaying(const std::string& artist, const 
    if (SoundManager::getInstance()->getVolumeMusic() <= 0.0f || !GameSettings::getInstance()->getAudioSettings()->isMusicPlayerVisibile())
       return;
 
-   mArtist = artist;
-   mAlbum = album;
-   mTrackLine2.clear();
-   mTrackLine1 = track;
+   _artist = artist;
+   _album = album;
+   _track_line2.clear();
+   _track_line1 = track;
 
    // break the track name onto a second line, moving one more trailing word at a time, until
    // line 1 fits - matches the original's own word-wrap loop exactly.
    int count = 0;
-   while (mTrackLine1.length() > 20)
+   while (_track_line1.length() > 20)
    {
-      mTrackLine1 = track;
-      mTrackLine2.clear();
+      _track_line1 = track;
+      _track_line2.clear();
 
       count++;
 
-      std::vector<std::string> words = StringUtils::split(mTrackLine1, ' ');
+      std::vector<std::string> words = StringUtils::split(_track_line1, ' ');
       if (words.empty())
          break;
 
       for (int i = 0; i < count && !words.empty(); i++)
       {
-         mTrackLine2 = words.back() + " " + mTrackLine2;
+         _track_line2 = words.back() + " " + _track_line2;
          words.pop_back();
       }
 
-      mTrackLine2 = StringUtils::trim(mTrackLine2);
+      _track_line2 = StringUtils::trim(_track_line2);
 
-      mTrackLine1.clear();
+      _track_line1.clear();
       for (std::size_t i = 0; i < words.size(); i++)
       {
          if (i > 0)
-            mTrackLine1 += " ";
-         mTrackLine1 += words[i];
+            _track_line1 += " ";
+         _track_line1 += words[i];
       }
    }
 
-   if (!mAnimating)
+   if (!_animating)
    {
-      mAnimating = true;
+      _animating = true;
       TimerHandler::singleShot(ANIMATION_DELAY_TIME, [this]() { startAnimation(); });
    }
 }
@@ -326,10 +324,10 @@ void MusicPlayerDrawable::setVisible(bool /*visible*/)
 
 bool MusicPlayerDrawable::isInGame() const
 {
-   return mInGame;
+   return _in_game;
 }
 
 void MusicPlayerDrawable::setInGame(bool game)
 {
-   mInGame = game;
+   _in_game = game;
 }

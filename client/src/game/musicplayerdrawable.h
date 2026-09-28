@@ -1,7 +1,5 @@
 #pragma once
 
-// GLES3 port of client/src/game/musicplayerdrawable.cpp.
-
 #include "framework/drawable.h"
 #include "framework/frametimer.h"
 #include "image/psd.h"
@@ -38,44 +36,44 @@ private:
    void initGlParameters();
    void cleanupGlParameters();
 
-   PSD mPsd;
-   std::vector<PSDLayer*> mPsdLayers;
-   std::string mFilename;
+   PSD _psd;
+   std::vector<PSDLayer*> _psd_layers;
+   std::string _filename;
 
-   BitmapFont* mFont;
+   BitmapFont* _font;
 
-   std::string mArtist;
-   std::string mAlbum;
-   std::string mTrackLine1;
-   std::string mTrackLine2;
+   std::string _artist;
+   std::string _album;
+   std::string _track_line1;
+   std::string _track_line2;
 
-   FrameTimer mAnimationStopTime;
+   FrameTimer _animation_stop_time;
 
-   float mAnimationFactor;
+   float _animation_factor;
 
-   bool mFadeIn;
-   bool mIdle;
-   bool mFadeOut;
+   bool _fade_in;
+   bool _idle;
+   bool _fade_out;
 
-   int mMaxWidth;
+   int _max_width;
 
-   int mFontOffsetArtistX;
-   int mFontOffsetArtistY;
-   int mFontOffsetArtistHeight;
+   int _font_offset_artist_x;
+   int _font_offset_artist_y;
+   int _font_offset_artist_height;
 
-   int mFontOffsetAlbumX;
-   int mFontOffsetAlbumY;
-   int mFontOffsetAlbumHeight;
+   int _font_offset_album_x;
+   int _font_offset_album_y;
+   int _font_offset_album_height;
 
-   int mFontOffsetTrackLine1X;
-   int mFontOffsetTrackLine1Y;
-   int mFontOffsetTrackLine1Height;
+   int _font_offset_track_line1_x;
+   int _font_offset_track_line1_y;
+   int _font_offset_track_line1_height;
 
-   int mFontOffsetTrackLine2X;
-   int mFontOffsetTrackLine2Y;
-   int mFontOffsetTrackLine2Height;
+   int _font_offset_track_line2_x;
+   int _font_offset_track_line2_y;
+   int _font_offset_track_line2_height;
 
-   bool mAnimating;
+   bool _animating;
 
-   bool mInGame;
+   bool _in_game;
 };

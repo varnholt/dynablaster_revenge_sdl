@@ -33,6 +33,7 @@ class Material;
 class Mesh;
 class Node;
 class PlayerDeathEffect;
+class PlayerInfectedEffect;
 class PlayerInvincibleEffect;
 class PlayerItem;
 class RenderDevice;
@@ -42,7 +43,7 @@ class StarTalersFactory;
 
 // Real map/players/bombs/extras/HUD rendering.
 // Not implemented yet (backlog, see project memory): ExtraAnimation/ExtraRevealAnimation,
-// MushroomAnimation+ShroomFilter, InvisiblePlayerEffect, PlayerInfectedEffect,
+// MushroomAnimation+ShroomFilter, InvisiblePlayerEffect,
 // RibbonAnimationFactory/LensFlareFactory, GamePlaybackDisplay, HeadlessIntegration.
 // Dead code, not ported: drawTestQuad/drawBoundingBox/drawBoundingRect/playerBoundingRect/
 // loadExplosion, INSPECT_SCENE debug input, mExportScene.
@@ -182,6 +183,7 @@ private:
    Array<Node*> _destruct_anim;
    DetonationManager* _detonations;
    PlayerDeathEffect* _player_death_effect;
+   PlayerInfectedEffect* _player_infected_effect;
    GamePlayerNameDisplay* _player_name_display;
    FuseParticleSystem* _fuse_particle_system;
    PlayerInvincibleEffect* _player_invincible_effect;
