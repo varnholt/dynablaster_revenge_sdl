@@ -38,6 +38,8 @@ constexpr int32_t TRIGGER_FRAME = 60;
 constexpr std::array<int32_t, 6> CAPTURE_OFFSETS = {6, 30, 60, 120, 180, 300};
 // the extra animations are short, sample them more densely too
 constexpr std::array<int32_t, 4> SHORT_CAPTURE_OFFSETS = {3, 9, 15, 21};
+// snow only shows once flakes have fallen through and respawned after the countdown
+constexpr std::array<int32_t, 3> LONG_CAPTURE_OFFSETS = {600, 900, 1200};
 
 constexpr int32_t LOCAL_PLAYER_ID = 0;
 constexpr int32_t OTHER_PLAYER_ID = 1;
@@ -65,6 +67,7 @@ const std::map<std::string, Trigger>& triggers()
 {
    static const std::map<std::string, Trigger> effects = {
       {"baseline", [](GameDrawable&) {}},
+      {"snow", [](GameDrawable&) {}},
       {"mushroom", [](GameDrawable& game) { game.playerInfected(LOCAL_PLAYER_ID, Constants::SkullMushroom, -1, 6, 5); }},
       {"invisible", [](GameDrawable& game) { game.playerInfected(LOCAL_PLAYER_ID, Constants::SkullInvisible, -1, 6, 5); }},
       {"invincible", [](GameDrawable& game) { game.playerInfected(LOCAL_PLAYER_ID, Constants::SkullInvincible, -1, 6, 5); }},
@@ -156,7 +159,7 @@ int runEffectLab(const std::string& effect, const std::string& out_dir)
    game.setPlayerPosition(LOCAL_PLAYER_ID, 6.5f, 5.5f, 0.0f);
    game.setPlayerPosition(OTHER_PLAYER_ID, 4.5f, 5.5f, 0.0f);
 
-   const int32_t last_frame = TRIGGER_FRAME + CAPTURE_OFFSETS.back();
+   const int32_t last_frame = TRIGGER_FRAME + (effect == "snow" ? LONG_CAPTURE_OFFSETS.back() : CAPTURE_OFFSETS.back());
 
    for (int32_t frame = 0; frame <= last_frame; ++frame)
    {
@@ -190,6 +193,10 @@ int runEffectLab(const std::string& effect, const std::string& out_dir)
       if (effect.starts_with("extra"))
       {
          offsets.insert(offsets.end(), SHORT_CAPTURE_OFFSETS.begin(), SHORT_CAPTURE_OFFSETS.end());
+      }
+      else if (effect == "snow")
+      {
+         offsets.insert(offsets.end(), LONG_CAPTURE_OFFSETS.begin(), LONG_CAPTURE_OFFSETS.end());
       }
 
       for (const auto offset : offsets)

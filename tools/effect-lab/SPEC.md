@@ -48,6 +48,8 @@ At frame 60 (t = 1.0 s) fire the effect's trigger call once.
 Frames 60 + {6, 30, 60, 120, 180, 300} (= +100, +500, +1000, +2000, +3000, +5000 ms after the
 trigger). Read the back buffer right before swap. File name: `<effect>_<ms>.png`, e.g.
 `mushroom_500.png`, written to `D:\git\effect-lab\old\` or `D:\git\effect-lab\new\`.
+snow: no trigger (like baseline) but additionally captures at frames 60 + {600, 900, 1200}
+(+10000/15000/20000 ms); flakes only become visible after the countdown and a respawn.
 extrareveal/extradestroy additionally capture at frames 60 + {3, 9, 15, 21} (+50/150/250/350 ms).
 Process exits after the last capture.
 

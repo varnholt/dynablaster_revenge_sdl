@@ -1,5 +1,6 @@
 // header
 #include "levelcastle.h"
+#include "snowanimation.h"
 
 #include <format>
 #include <numbers>
@@ -35,7 +36,8 @@
 #include <math.h>
 
 LevelCastle::LevelCastle()
- : Level(Level::LevelCastle)
+ : Level(Level::LevelCastle),
+   _snow_animation(std::make_unique<SnowAnimation>())
 {
 }
 
@@ -43,9 +45,14 @@ LevelCastle::LevelCastle()
 //-----------------------------------------------------------------------------
 /*!
 */
+LevelCastle::~LevelCastle() = default;
+
+
+//-----------------------------------------------------------------------------
+/*!
+*/
 void LevelCastle::initialize()
 {
-   // snow animation + castle lens flare deliberately dropped - see header comment.
 }
 
 
@@ -54,16 +61,19 @@ void LevelCastle::initialize()
 */
 void LevelCastle::draw()
 {
-   // snow animation deliberately dropped - see header comment.
+   // the snow's unit square spans the level, -8 compensates the wind drift
+   Matrix transform = Matrix::scale(15.0f, 15.0f, 15.0f);
+   transform.translate(Vector(-8.0f, -17.0f, 0.0f));
+   _snow_animation->draw(transform);
 }
 
 
 //-----------------------------------------------------------------------------
 /*!
 */
-void LevelCastle::animate(float /*dt*/)
+void LevelCastle::animate(float dt)
 {
-   // snow animation deliberately dropped - see header comment.
+   _snow_animation->animate(dt);
 }
 
 
@@ -72,7 +82,7 @@ void LevelCastle::animate(float /*dt*/)
 */
 void LevelCastle::reset()
 {
-   // snow animation deliberately dropped - see header comment.
+   _snow_animation->reset();
 }
 
 

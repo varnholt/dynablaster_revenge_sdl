@@ -343,6 +343,8 @@ add_library(dynablaster_core STATIC
     src/levels/levelfactory.h
     src/levels/castle/levelcastle.cpp
     src/levels/castle/levelcastle.h
+    src/levels/castle/snowanimation.cpp
+    src/levels/castle/snowanimation.h
     src/game/detonationmanager.cpp
     src/game/detonationmanager.h
     src/game/detonation.cpp
