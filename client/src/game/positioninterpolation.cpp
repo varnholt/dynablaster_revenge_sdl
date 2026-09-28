@@ -19,7 +19,7 @@
 
 PositionInterpolation::PositionInterpolation()
 {
-   mTimer.timeoutSignal.connect([this]() { update(); });
+   _timer.timeoutSignal.connect([this]() { update(); });
 
    GameStateMachine::getInstance()->stateChangedSignal.connect([this]() { gameStateChanged(); });
 }
@@ -30,18 +30,18 @@ PositionInterpolation::~PositionInterpolation() = default;
 
 void PositionInterpolation::update()
 {
-   float curTime= GlobalTime::Instance()->getTime();
+   float cur_time= GlobalTime::Instance()->getTime();
 
-   float clientDelta= curTime - mTime;
+   float client_delta= cur_time - _time;
 
    // rescale client frame delta to server heartbeat interval
-   float serverDelta= 1.0f / SERVER_HEARTBEAT_IN_HZ;
-   float delta= clientDelta / serverDelta;
+   float server_delta= 1.0f / SERVER_HEARTBEAT_IN_HZ;
+   float delta= client_delta / server_delta;
 
    interpolatePlayerPositions(delta);
    interpolateMapItemPositions(delta);
 
-   mTime= curTime;
+   _time= cur_time;
 }
 
 
@@ -49,21 +49,21 @@ void PositionInterpolation::moveMapItem(
    MapItem * item,
    Constants::Direction dir,
    float speed,
-   int nominalX,
-   int nominalY
+   int nominal_x,
+   int nominal_y
 )
 {
    // animation stopped
    if (dir == Constants::DirectionUnknown)
    {
-      auto iter = mMapItemAnimations.find(item);
+      auto iter = _map_item_animations.find(item);
 
       // relocate bomb map item at its nominal position
-      if (iter != mMapItemAnimations.end())
+      if (iter != _map_item_animations.end())
       {
          MapItemAnimation* anim = iter->second.get();
-         anim->_nominal_x = nominalX;
-         anim->_nominal_y = nominalY;
+         anim->_nominal_x = nominal_x;
+         anim->_nominal_y = nominal_y;
          anim->_direction = dir;
       }
    }
@@ -71,9 +71,9 @@ void PositionInterpolation::moveMapItem(
    {
       MapItemAnimation* animation = 0;
 
-      if (std::find(mMapItems.begin(), mMapItems.end(), item) != mMapItems.end())
+      if (std::find(_map_items.begin(), _map_items.end(), item) != _map_items.end())
       {
-         animation = mMapItemAnimations[item].get();
+         animation = _map_item_animations[item].get();
          animation->reset();
          animation->_direction = dir;
          animation->_speed = speed;
@@ -87,8 +87,8 @@ void PositionInterpolation::moveMapItem(
          animation->bounce_signal.connect([this]() { bounceSignal(); });
 
          // store item data
-         mMapItems.push_back(item);
-         mMapItemAnimations[item] = std::move(owned_animation);
+         _map_items.push_back(item);
+         _map_item_animations[item] = std::move(owned_animation);
       }
    }
 }
@@ -96,14 +96,14 @@ void PositionInterpolation::moveMapItem(
 
 void PositionInterpolation::removeMapItem(MapItem* item)
 {
-   auto it = std::find(mMapItems.begin(), mMapItems.end(), item);
-   if (it != mMapItems.end())
-      mMapItems.erase(it);
+   auto it = std::find(_map_items.begin(), _map_items.end(), item);
+   if (it != _map_items.end())
+      _map_items.erase(it);
 
-   auto animIt = mMapItemAnimations.find(item);
-   if (animIt != mMapItemAnimations.end())
+   auto anim_it = _map_item_animations.find(item);
+   if (anim_it != _map_item_animations.end())
    {
-      mMapItemAnimations.erase(animIt);
+      _map_item_animations.erase(anim_it);
    }
 }
 
@@ -162,9 +162,9 @@ void PositionInterpolation::interpolatePlayerPositions(float delta)
 
 void PositionInterpolation::interpolateMapItemPositions(float dt)
 {
-   for (MapItem* item : mMapItems)
+   for (MapItem* item : _map_items)
    {
-      MapItemAnimation* animation = mMapItemAnimations[item].get();
+      MapItemAnimation* animation = _map_item_animations[item].get();
 
       animation->animate(dt);
 
@@ -192,16 +192,16 @@ void PositionInterpolation::interpolateMapItemPositions(float dt)
 
       if (animation->_direction == Constants::DirectionUnknown)
       {
-         float diffX = x - animation->_nominal_x;
-         float diffY = y - animation->_nominal_y;
+         float diff_x = x - animation->_nominal_x;
+         float diff_y = y - animation->_nominal_y;
 
          if (
-               (std::fabs(diffX) > MAP_ITEM_MOVE_EPSILON)
-            || (std::fabs(diffY) > MAP_ITEM_MOVE_EPSILON)
+               (std::fabs(diff_x) > MAP_ITEM_MOVE_EPSILON)
+            || (std::fabs(diff_y) > MAP_ITEM_MOVE_EPSILON)
          )
          {
-            animation->_x -= 0.1 * diffX;
-            animation->_y -= 0.1 * diffY;
+            animation->_x -= 0.1 * diff_x;
+            animation->_y -= 0.1 * diff_y;
 
             // stop bouncing
             float factor = animation->_factor;
@@ -238,18 +238,18 @@ void PositionInterpolation::gameStateChanged()
    {
       case Constants::GamePreparing:
       {
-         mTimer.start(1);
+         _timer.start(1);
          break;
       }
 
       case Constants::GameStopped:
       {
          // stop timer
-         mTimer.stop();
+         _timer.stop();
 
          // clear all animated mapitems
-         mMapItems.clear();
-         mMapItemAnimations.clear();
+         _map_items.clear();
+         _map_item_animations.clear();
 
          break;
       }

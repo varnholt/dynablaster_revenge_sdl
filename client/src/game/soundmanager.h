@@ -21,7 +21,7 @@ class SoundManager
 public:
    static SoundManager* getInstance();
 
-   void fadeOut(float fadeOutTime);
+   void fadeOut(float fade_out_time);
    void restartPlayListAfterFadeOut(int delay);
 
    void startPlaylist();
@@ -46,7 +46,7 @@ public:
    void playSoundBombBounce();
    void playSoundBoxShake();
    void playSoundExtraRevealed();
-   void playSkullSound(Constants::SkullType skullType);
+   void playSkullSound(Constants::SkullType skull_type);
    void playSoundGameWin();
    void playSoundGameDraw();
 
@@ -54,7 +54,7 @@ public:
    void playSoundMouseClick(const std::string& page);
    void playSoundTick();
 
-   // ticks on mMusicTimer; auto-advances finished tracks and drives the fade-out ramp.
+   // ticks on _music_timer; auto-advances finished tracks and drives the fade-out ramp.
    void updateMusic();
 
    // matches the original's SoundManager::musicPlaying(artist, album, track) signal -
@@ -112,28 +112,28 @@ protected:
    // decodes the whole track up front via minimp3 and queues it in one go.
    void playTrack(std::size_t index);
 
-   static constexpr int channelCount = 8;
+   static constexpr int channel_count = 8;
 
-   SDL_AudioDeviceID mDevice = 0;
-   std::array<SDL_AudioStream*, channelCount> mChannels{};
-   int mNextChannel = 0;
-   std::array<Sample, SampleCount> mSamples{};
+   SDL_AudioDeviceID _device = 0;
+   std::array<SDL_AudioStream*, channel_count> _channels{};
+   int _next_channel = 0;
+   std::array<Sample, SampleCount> _samples{};
 
    // skips the click sound on the very first pageChanged (initial page load, not a real click).
-   bool mMouseClickInitialized = false;
+   bool _mouse_click_initialized = false;
 
-   float mVolumeMusic = 1.0f;
-   float mVolumeSfx = 1.0f;
+   float _volume_music = 1.0f;
+   float _volume_sfx = 1.0f;
 
-   SDL_AudioStream* mMusicStream = nullptr;
-   std::vector<std::filesystem::path> mPlaylist;
-   std::size_t mTrackIndex = 0;
-   Timer mMusicTimer;
+   SDL_AudioStream* _music_stream = nullptr;
+   std::vector<std::filesystem::path> _playlist;
+   std::size_t _track_index = 0;
+   Timer _music_timer;
 
-   bool mFading = false;
-   float mFadeStartVolume = 1.0f;
-   float mFadeDurationMs = 1000.0f;
-   float mFadeElapsedMs = 0.0f;
+   bool _fading = false;
+   float _fade_start_volume = 1.0f;
+   float _fade_duration_ms = 1000.0f;
+   float _fade_elapsed_ms = 0.0f;
 
    static SoundManager* sInstance;
 };

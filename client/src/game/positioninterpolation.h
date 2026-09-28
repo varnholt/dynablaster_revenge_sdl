@@ -23,7 +23,7 @@ class PositionInterpolation
       //! constructor
       PositionInterpolation();
 
-      //! destructor (out-of-line: mMapItemAnimations owns MapItemAnimation via unique_ptr,
+      //! destructor (out-of-line: _map_item_animations owns MapItemAnimation via unique_ptr,
       //! only forward-declared here)
       ~PositionInterpolation();
 
@@ -44,8 +44,8 @@ class PositionInterpolation
          MapItem* item,
          Constants::Direction dir,
          float speed,
-         int nominalX,
-         int nominalY
+         int nominal_x,
+         int nominal_y
       );
 
       //! a mapitem is removed (bomb exploded)
@@ -68,16 +68,16 @@ class PositionInterpolation
 
 
       //! last update time
-      float mTime;
+      float _time;
 
       //! update timer
-      FrameTimer mTimer;
+      FrameTimer _timer;
 
       //! list of animated mapitems
-      std::vector<MapItem*> mMapItems;
+      std::vector<MapItem*> _map_items;
 
       //! map mapitem <-> mapitemanimation
-      std::unordered_map<MapItem*, std::unique_ptr<MapItemAnimation>> mMapItemAnimations;
+      std::unordered_map<MapItem*, std::unique_ptr<MapItemAnimation>> _map_item_animations;
 };
 
 #endif // POSITIONINTERPOLATION_H
