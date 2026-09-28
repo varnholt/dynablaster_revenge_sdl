@@ -75,38 +75,38 @@
 #include <cstdint>
 
 // static variables
-BombermanClient* BombermanClient::mInstance = nullptr;
+BombermanClient* BombermanClient::_instance = nullptr;
 
 //-----------------------------------------------------------------------------
 /*!
  */
 BombermanClient::BombermanClient(/*const std::string& host, const std::string& nick*/)
-    : mKeysPressed(0),
-      mBombReleased(true),
-      mSocket(nullptr),
-      mAddress(nullptr),
-      mBlockSize(0),
-      mId(-1),
-      mGameId(-1),
-      mDead(true),
-      mConnected(false),
-      mLoginAfterConnect(false),
-      mServer(nullptr),
-      mCurrentPlayerInfo(nullptr),
-      mPositionInterpolation(nullptr),
-      mIngameMessagingActive(false),
-      mMainMenuActive(false),
-      mBotFactory(nullptr)
+    : _keys_pressed(0),
+      _bomb_released(true),
+      _socket(nullptr),
+      _address(nullptr),
+      _block_size(0),
+      _id(-1),
+      _game_id(-1),
+      _dead(true),
+      _connected(false),
+      _login_after_connect(false),
+      _server(nullptr),
+      _current_player_info(nullptr),
+      _position_interpolation(nullptr),
+      _ingame_messaging_active(false),
+      _main_menu_active(false),
+      _bot_factory(nullptr)
 {
-   mInstance = this;
+   _instance = this;
 
-   mPositionInterpolation = std::make_unique<PositionInterpolation>();
+   _position_interpolation = std::make_unique<PositionInterpolation>();
 
-   mPositionInterpolation->bounceSignal.connect([]() { SoundManager::getInstance()->playSoundBombBounce(); });
+   _position_interpolation->bounceSignal.connect([]() { SoundManager::getInstance()->playSoundBombBounce(); });
 
    GameStateMachine::getInstance()->stateChangedSignal.connect([this]() { gameStateChanged(); });
 
-   mBotFactory = std::make_unique<BotFactory>();
+   _bot_factory = std::make_unique<BotFactory>();
 
    // enable game playback
    initializePlayback();
@@ -117,13 +117,13 @@ BombermanClient::BombermanClient(/*const std::string& host, const std::string& n
  */
 void BombermanClient::initialize()
 {
-   mPollTimer.timeoutSignal.connect([this]() { poll(); });
-   mPollTimer.start(16);
+   _poll_timer.timeoutSignal.connect([this]() { poll(); });
+   _poll_timer.start(16);
 
    // interpolation
    moveMapItemSignal.connect(
       [this](MapItem* item, Constants::Direction dir, float speed, int nominalX, int nominalY)
-      { mPositionInterpolation->moveMapItem(item, dir, speed, nominalX, nominalY); }
+      { _position_interpolation->moveMapItem(item, dir, speed, nominalX, nominalY); }
    );
 }
 
@@ -132,16 +132,16 @@ void BombermanClient::initialize()
  */
 BombermanClient::~BombermanClient()
 {
-   mInstance = nullptr;
+   _instance = nullptr;
    clearPlayerInfoMap();
 
-   mServerThread.request_stop();
-   if (mServerThread.joinable())
+   _server_thread.request_stop();
+   if (_server_thread.joinable())
    {
-      mServerThread.join();
+      _server_thread.join();
    }
 
-   delete mServer;
+   delete _server;
 }
 
 //-----------------------------------------------------------------------------
@@ -150,7 +150,7 @@ BombermanClient::~BombermanClient()
 */
 BombermanClient* BombermanClient::getInstance()
 {
-   return mInstance;
+   return _instance;
 }
 
 //-----------------------------------------------------------------------------
@@ -159,7 +159,7 @@ BombermanClient* BombermanClient::getInstance()
 */
 std::vector<GameInformation>* BombermanClient::getGames() const
 {
-   return &mGames;
+   return &_games;
 }
 
 //-----------------------------------------------------------------------------
@@ -168,7 +168,7 @@ std::vector<GameInformation>* BombermanClient::getGames() const
 */
 void BombermanClient::setGameId(int id)
 {
-   mGameId = id;
+   _game_id = id;
 }
 
 //-----------------------------------------------------------------------------
@@ -177,7 +177,7 @@ void BombermanClient::setGameId(int id)
 */
 int BombermanClient::getGameId() const
 {
-   return mGameId;
+   return _game_id;
 }
 
 //-----------------------------------------------------------------------------
@@ -195,18 +195,18 @@ bool BombermanClient::isGameIdValid() const
 */
 GameInformation* BombermanClient::getGameInformation(int id) const
 {
-   GameInformation* gameInfo = nullptr;
+   GameInformation* game_info = nullptr;
 
-   for (int i = 0; i < mGames.size(); i++)
+   for (int i = 0; i < _games.size(); i++)
    {
-      if (mGames.at(i).getId() == id)
+      if (_games.at(i).getId() == id)
       {
-         gameInfo = &mGames[i];
+         game_info = &_games[i];
          break;
       }
    }
 
-   return gameInfo;
+   return game_info;
 }
 
 //-----------------------------------------------------------------------------
@@ -224,7 +224,7 @@ GameInformation* BombermanClient::getCurrentGameInformation() const
 */
 void BombermanClient::setPlayerId(int id)
 {
-   mId = id;
+   _id = id;
 }
 
 //-----------------------------------------------------------------------------
@@ -233,7 +233,7 @@ void BombermanClient::setPlayerId(int id)
 */
 int BombermanClient::getPlayerId() const
 {
-   return mId;
+   return _id;
 }
 
 //-----------------------------------------------------------------------------
@@ -255,14 +255,14 @@ bool BombermanClient::isPlayerOwner() const
 
 //-----------------------------------------------------------------------------
 /*!
-   \param playerId player id
+   \param player_id player id
    \return player color
 */
-Constants::Color BombermanClient::getColor(int playerId) const
+Constants::Color BombermanClient::getColor(int player_id) const
 {
    Constants::Color color = Constants::ColorWhite;
 
-   PlayerInfo* info = getPlayerInfo(playerId);
+   PlayerInfo* info = getPlayerInfo(player_id);
 
    if (info)
       color = info->getColor();
@@ -278,9 +278,9 @@ void BombermanClient::send(Packet* packet)
 {
    packet->serialize();
 
-   if (mSocket)
+   if (_socket)
    {
-      NET_WriteToStreamSocket(mSocket, packet->constData(), static_cast<int>(packet->size()));
+      NET_WriteToStreamSocket(_socket, packet->constData(), static_cast<int>(packet->size()));
    }
 }
 
@@ -290,7 +290,7 @@ void BombermanClient::send(Packet* packet)
 */
 void BombermanClient::setHost(const std::string& host)
 {
-   mHost = host;
+   _host = host;
 }
 
 //-----------------------------------------------------------------------------
@@ -299,7 +299,7 @@ void BombermanClient::setHost(const std::string& host)
 */
 const std::string& BombermanClient::getHost() const
 {
-   return mHost;
+   return _host;
 }
 
 //-----------------------------------------------------------------------------
@@ -307,9 +307,9 @@ const std::string& BombermanClient::getHost() const
  */
 void BombermanClient::connectToServer()
 {
-   mAddress = NET_ResolveHostname(getHost().c_str());
+   _address = NET_ResolveHostname(getHost().c_str());
 
-   if (!mAddress)
+   if (!_address)
    {
       reportConnectionError(SDL_GetError());
    }
@@ -324,7 +324,7 @@ void BombermanClient::clientConnect()
 
    setConnected(true);
 
-   if (mLoginAfterConnect)
+   if (_login_after_connect)
    {
       login(getNick());
    }
@@ -356,11 +356,11 @@ void BombermanClient::clientDisconnect()
 
    qDebug("disconnected");
 
-   auto it = mMapItems.begin();
-   while (it != mMapItems.end())
+   auto it = _map_items.begin();
+   while (it != _map_items.end())
    {
       MapItem* item = it->second;
-      it = mMapItems.erase(it);
+      it = _map_items.erase(it);
       delete item;
    }
 }
@@ -371,16 +371,16 @@ void BombermanClient::clientDisconnect()
 */
 void BombermanClient::disconnectFromServer()
 {
-   if (mAddress)
+   if (_address)
    {
-      NET_UnrefAddress(mAddress);
-      mAddress = nullptr;
+      NET_UnrefAddress(_address);
+      _address = nullptr;
    }
 
-   if (mSocket)
+   if (_socket)
    {
-      NET_DestroyStreamSocket(mSocket);
-      mSocket = nullptr;
+      NET_DestroyStreamSocket(_socket);
+      _socket = nullptr;
    }
 
    clientDisconnect();
@@ -410,20 +410,20 @@ void BombermanClient::reportConnectionError(const char* reason)
 bool BombermanClient::packetAvailable()
 {
    // blocksize not initialized yet
-   if (mBlockSize == 0)
+   if (_block_size == 0)
    {
       // not enough data to read blocksize?
-      if (mBuffer.bytesAvailable() < sizeof(uint16_t))
+      if (_buffer.bytesAvailable() < sizeof(uint16_t))
          return false;
 
       // read blocksize
-      BinaryReader sizeReader = mBuffer.reader();
-      sizeReader >> mBlockSize;
-      mBuffer.consume(sizeReader.pos());
+      BinaryReader size_reader = _buffer.reader();
+      size_reader >> _block_size;
+      _buffer.consume(size_reader.pos());
    }
 
    // enough data?
-   return (mBuffer.bytesAvailable() >= mBlockSize);
+   return (_buffer.bytesAvailable() >= _block_size);
 }
 
 //-----------------------------------------------------------------------------
@@ -432,7 +432,7 @@ bool BombermanClient::packetAvailable()
 */
 bool BombermanClient::isIngameMessagingActive() const
 {
-   return mIngameMessagingActive;
+   return _ingame_messaging_active;
 }
 
 //-----------------------------------------------------------------------------
@@ -441,7 +441,7 @@ bool BombermanClient::isIngameMessagingActive() const
 */
 void BombermanClient::setIngameMessagingActive(bool active)
 {
-   mIngameMessagingActive = active;
+   _ingame_messaging_active = active;
 }
 
 //-----------------------------------------------------------------------------
@@ -461,8 +461,8 @@ MapItem* BombermanClient::getMapItem(int id) const
 {
    MapItem* item = nullptr;
 
-   auto it = mMapItems.find(id);
-   if (it != mMapItems.end())
+   auto it = _map_items.find(id);
+   if (it != _map_items.end())
       item = it->second;
 
    return item;
@@ -477,24 +477,24 @@ void BombermanClient::processCreateGameResponse(Packet* packet)
    CreateGameResponsePacket* response = dynamic_cast<CreateGameResponsePacket*>(packet);
 
    // extract game information
-   GameInformation gameInformation = response->getGameInformation();
-   int gameId = gameInformation.getId();
-   int playerId = gameInformation.getCreatorId();
+   GameInformation game_information = response->getGameInformation();
+   int game_id = game_information.getId();
+   int player_id = game_information.getCreatorId();
    bool success = false;
 
-   if (gameId > -1)
+   if (game_id > -1)
    {
-      qDebug("BombermanClient::data(): game %d created", gameId);
+      qDebug("BombermanClient::data(): game %d created", game_id);
 
       // update game information
-      GameInformation* oldGameInformation = getGameInformation(gameId);
-      if (oldGameInformation)
+      GameInformation* old_game_information = getGameInformation(game_id);
+      if (old_game_information)
       {
-         *oldGameInformation = gameInformation;
+         *old_game_information = game_information;
       }
       else
       {
-         mGames.push_back(gameInformation);
+         _games.push_back(game_information);
       }
 
       success = true;
@@ -504,7 +504,7 @@ void BombermanClient::processCreateGameResponse(Packet* packet)
       qDebug("BombermanClient::data(): game create request failed");
    }
 
-   createGameResponseSignal(success, gameId, playerId == getPlayerId());
+   createGameResponseSignal(success, game_id, player_id == getPlayerId());
 }
 
 //-----------------------------------------------------------------------------
@@ -514,7 +514,7 @@ void BombermanClient::processCreateGameResponse(Packet* packet)
 */
 void BombermanClient::addPlayerInfo(int id, PlayerInfo* info)
 {
-   mPlayerInfo[id] = info;
+   _player_info[id] = info;
 }
 
 //-----------------------------------------------------------------------------
@@ -531,7 +531,7 @@ void BombermanClient::processJoinGameResponse(Packet* packet)
 
       int id = response->getPlayerId();
 
-      if (!mPlayerInfo.contains(id))
+      if (!_player_info.contains(id))
       {
          info = new PlayerInfo();
          info->setId(id);
@@ -542,7 +542,7 @@ void BombermanClient::processJoinGameResponse(Packet* packet)
          addPlayerInfo(id, info);
 
          // send infomap to all instances interested in them
-         playerInfoMapUpdatedSignal(&mPlayerInfo);
+         playerInfoMapUpdatedSignal(&_player_info);
 
          // play "player joined sample"
          if (!GamePlayback::getInstance()->isReplaying())
@@ -559,11 +559,11 @@ void BombermanClient::processJoinGameResponse(Packet* packet)
          // store game id
          setGameId(response->getGameId());
 
-         GameInformation* gameInformation = getGameInformation(getGameId());
+         GameInformation* game_information = getGameInformation(getGameId());
 
          int width = 0;
          int height = 0;
-         switch (gameInformation->getMapDimensions())
+         switch (game_information->getMapDimensions())
          {
             case Constants::Dimension13x11:
                width = 13;
@@ -583,8 +583,8 @@ void BombermanClient::processJoinGameResponse(Packet* packet)
          }
 
          playfieldSizeSignal(width, height);
-         playfieldScaleSignal(gameInformation->getMapScaleX(), gameInformation->getMapScaleY());
-         loadLevelSignal(gameInformation->getLevelName());
+         playfieldScaleSignal(game_information->getMapScaleX(), game_information->getMapScaleY());
+         loadLevelSignal(game_information->getLevelName());
          joinGameResponseSignal(true);
       }
    }
@@ -625,12 +625,12 @@ void BombermanClient::processListGameResponse(Packet* packet)
    }
    else
    {
-      mGames = list->getGames();
+      _games = list->getGames();
    }
 
-   // qDebug("BombermanClient::data(): %d games received", mGames.size());
+   // qDebug("BombermanClient::data(): %d games received", _games.size());
 
-   gamesListUpdatedSignal(mGames);
+   gamesListUpdatedSignal(_games);
 }
 
 //-----------------------------------------------------------------------------
@@ -664,10 +664,10 @@ void BombermanClient::processPlayerKilled(Packet* packet)
       rumbleSignal(0.5f, 2000);
 
    // update player info instance
-   PlayerInfo* killedPlayer = getPlayerInfo(kill->getPlayerId());
-   if (killedPlayer)
+   PlayerInfo* killed_player = getPlayerInfo(kill->getPlayerId());
+   if (killed_player)
    {
-      killedPlayer->setKilled(true);
+      killed_player->setKilled(true);
    }
 
    // play killed sample
@@ -680,17 +680,17 @@ void BombermanClient::processPlayerKilled(Packet* packet)
 */
 void BombermanClient::processPlayerInfected(Packet* packet)
 {
-   PlayerInfectedPacket* infectedPacket = dynamic_cast<PlayerInfectedPacket*>(packet);
+   PlayerInfectedPacket* infected_packet = dynamic_cast<PlayerInfectedPacket*>(packet);
 
-   PlayerInfo* player = getPlayerInfo(infectedPacket->getPlayerId());
+   PlayerInfo* player = getPlayerInfo(infected_packet->getPlayerId());
 
    if (player)
    {
       /*
       // create guarded pointer with disease
       QPointer<PlayerDisease> disease = new PlayerDisease();
-      disease.data()->setType(infectedPacket->getSkullType());
-      disease.data()->setDuration(infectedPacket->getDuration());
+      disease.data()->setType(infected_packet->getSkullType());
+      disease.data()->setDuration(infected_packet->getDuration());
       disease->activate();
 
       // infect player
@@ -698,14 +698,14 @@ void BombermanClient::processPlayerInfected(Packet* packet)
       */
 
       playerInfectedSignal(
-         infectedPacket->getPlayerId(),
-         infectedPacket->getSkullType(),
-         infectedPacket->getInfectorId(),
-         infectedPacket->getExtraPosX(),
-         infectedPacket->getExtraPosY()
+         infected_packet->getPlayerId(),
+         infected_packet->getSkullType(),
+         infected_packet->getInfectorId(),
+         infected_packet->getExtraPosX(),
+         infected_packet->getExtraPosY()
       );
 
-      SoundManager::getInstance()->playSkullSound(infectedPacket->getSkullType());
+      SoundManager::getInstance()->playSkullSound(infected_packet->getSkullType());
    }
 }
 
@@ -737,12 +737,12 @@ void BombermanClient::processDetonation(Packet* packet)
 */
 void BombermanClient::processError(Packet* packet)
 {
-   ErrorPacket* errorPacket = dynamic_cast<ErrorPacket*>(packet);
+   ErrorPacket* error_packet = dynamic_cast<ErrorPacket*>(packet);
 
    // show error received from server
-   HelpManager::getInstance()->addMessage("", errorPacket->getErrorMessage(), Constants::HelpSeverityError);
+   HelpManager::getInstance()->addMessage("", error_packet->getErrorMessage(), Constants::HelpSeverityError);
 
-   switch (errorPacket->getErrorType())
+   switch (error_packet->getErrorType())
    {
       // if sync fails, the player is kicked out of the game
       case Constants::ErrorSyncTimeout:
@@ -768,14 +768,14 @@ void BombermanClient::processError(Packet* packet)
 */
 PlayerInfo* BombermanClient::getPlayerInfo(int id) const
 {
-   PlayerInfo* pInfo = nullptr;
+   PlayerInfo* p_info = nullptr;
 
-   auto iter = mPlayerInfo.find(id);
+   auto iter = _player_info.find(id);
 
-   if (iter != mPlayerInfo.end())
-      pInfo = iter->second;
+   if (iter != _player_info.end())
+      p_info = iter->second;
 
-   return pInfo;
+   return p_info;
 }
 
 //-----------------------------------------------------------------------------
@@ -784,7 +784,7 @@ PlayerInfo* BombermanClient::getPlayerInfo(int id) const
 */
 void BombermanClient::setCurrentPlayerInfo(PlayerInfo* info)
 {
-   mCurrentPlayerInfo = info;
+   _current_player_info = info;
 }
 
 //-----------------------------------------------------------------------------
@@ -793,7 +793,7 @@ void BombermanClient::setCurrentPlayerInfo(PlayerInfo* info)
 */
 PlayerInfo* BombermanClient::getCurrentPlayerInfo() const
 {
-   return mCurrentPlayerInfo;
+   return _current_player_info;
 }
 
 //-----------------------------------------------------------------------------
@@ -803,8 +803,8 @@ PlayerInfo* BombermanClient::getCurrentPlayerInfo() const
 std::vector<PlayerInfo*> BombermanClient::getPlayerInfoList() const
 {
    std::vector<PlayerInfo*> list;
-   list.reserve(mPlayerInfo.size());
-   for (const auto& [id, info] : mPlayerInfo)
+   list.reserve(_player_info.size());
+   for (const auto& [id, info] : _player_info)
       list.push_back(info);
    return list;
 }
@@ -815,7 +815,7 @@ std::vector<PlayerInfo*> BombermanClient::getPlayerInfoList() const
 */
 std::map<int, PlayerInfo*>* BombermanClient::getPlayerInfoMap() const
 {
-   return &mPlayerInfo;
+   return &_player_info;
 }
 
 //-----------------------------------------------------------------------------
@@ -824,7 +824,7 @@ std::map<int, PlayerInfo*>* BombermanClient::getPlayerInfoMap() const
 */
 PositionInterpolation* BombermanClient::getPositionInterpolation() const
 {
-   return mPositionInterpolation.get();
+   return _position_interpolation.get();
 }
 
 //-----------------------------------------------------------------------------
@@ -833,7 +833,7 @@ PositionInterpolation* BombermanClient::getPositionInterpolation() const
 */
 const std::string& BombermanClient::getMessage() const
 {
-   return mMessage;
+   return _message;
 }
 
 //-----------------------------------------------------------------------------
@@ -842,7 +842,7 @@ const std::string& BombermanClient::getMessage() const
 */
 void BombermanClient::setMessage(const std::string& message)
 {
-   mMessage = message;
+   _message = message;
 }
 
 //-----------------------------------------------------------------------------
@@ -851,7 +851,7 @@ void BombermanClient::setMessage(const std::string& message)
 */
 void BombermanClient::setConnected(bool connected)
 {
-   mConnected = connected;
+   _connected = connected;
 }
 
 //-----------------------------------------------------------------------------
@@ -860,7 +860,7 @@ void BombermanClient::setConnected(bool connected)
 */
 bool BombermanClient::isConnected() const
 {
-   return mConnected;
+   return _connected;
 }
 
 //-----------------------------------------------------------------------------
@@ -869,7 +869,7 @@ bool BombermanClient::isConnected() const
 */
 bool BombermanClient::isHosting() const
 {
-   return mServer;
+   return _server;
 }
 
 //-----------------------------------------------------------------------------
@@ -878,21 +878,21 @@ bool BombermanClient::isHosting() const
 */
 void BombermanClient::processPosition(Packet* packet)
 {
-   PositionPacket* posPacket = dynamic_cast<PositionPacket*>(packet);
+   PositionPacket* pos_packet = dynamic_cast<PositionPacket*>(packet);
 
-   PlayerInfo* playerInfo = getPlayerInfo(posPacket->getPlayerId());
+   PlayerInfo* player_info = getPlayerInfo(pos_packet->getPlayerId());
 
-   if (playerInfo)
+   if (player_info)
    {
-      playerInfo->setPosition(posPacket->getX(), posPacket->getY(), posPacket->getAngle());
+      player_info->setPosition(pos_packet->getX(), pos_packet->getY(), pos_packet->getAngle());
 
-      playerInfo->setPositionDelta(posPacket->getDeltaX(), posPacket->getDeltaY(), posPacket->getAngleDelta());
+      player_info->setPositionDelta(pos_packet->getDeltaX(), pos_packet->getDeltaY(), pos_packet->getAngleDelta());
 
-      playerInfo->setDirections(posPacket->getDirections());
+      player_info->setDirections(pos_packet->getDirections());
 
-      setPlayerPositionSignal(posPacket->getPlayerId(), posPacket->getX(), posPacket->getY(), posPacket->getAngle());
+      setPlayerPositionSignal(pos_packet->getPlayerId(), pos_packet->getX(), pos_packet->getY(), pos_packet->getAngle());
 
-      setPlayerSpeedSignal(posPacket->getPlayerId(), posPacket->getDeltaX(), posPacket->getDeltaY(), posPacket->getAngleDelta());
+      setPlayerSpeedSignal(pos_packet->getPlayerId(), pos_packet->getDeltaX(), pos_packet->getDeltaY(), pos_packet->getAngleDelta());
    }
 }
 
@@ -903,7 +903,7 @@ void BombermanClient::processPosition(Packet* packet)
 void BombermanClient::processMapItemCreated(Packet* packet)
 {
    MapItem* item = new MapItem(dynamic_cast<MapItemCreatedPacket*>(packet));
-   mMapItems[item->getUniqueId()] = item;
+   _map_items[item->getUniqueId()] = item;
    createMapItemSignal(item);
 }
 
@@ -913,15 +913,15 @@ void BombermanClient::processMapItemCreated(Packet* packet)
 */
 void BombermanClient::processMapItemMove(Packet* packet)
 {
-   MapItemMovePacket* movePacket = dynamic_cast<MapItemMovePacket*>(packet);
-   MapItem* item = getMapItem(movePacket->getMapItemId());
+   MapItemMovePacket* move_packet = dynamic_cast<MapItemMovePacket*>(packet);
+   MapItem* item = getMapItem(move_packet->getMapItemId());
 
    if (item)
    {
-      moveMapItemSignal(item, movePacket->getDirection(), movePacket->getSpeed(), movePacket->getNominalX(), movePacket->getNominalY());
+      moveMapItemSignal(item, move_packet->getDirection(), move_packet->getSpeed(), move_packet->getNominalX(), move_packet->getNominalY());
 
       // play kick sound
-      if (movePacket->getSpeed() > 0.0f)
+      if (move_packet->getSpeed() > 0.0f)
          SoundManager::getInstance()->playSoundKick();
    }
 }
@@ -933,7 +933,7 @@ void BombermanClient::processMapItemMove(Packet* packet)
 void BombermanClient::processExtraMapItemCreated(Packet* packet)
 {
    ExtraMapItem* extra = new ExtraMapItem(dynamic_cast<ExtraMapItemCreatedPacket*>(packet));
-   mMapItems[extra->getUniqueId()] = extra;
+   _map_items[extra->getUniqueId()] = extra;
    createMapItemSignal(extra);
 
    SoundManager::getInstance()->playSoundExtraRevealed();
@@ -945,21 +945,21 @@ void BombermanClient::processExtraMapItemCreated(Packet* packet)
 */
 void BombermanClient::processGameStats(Packet* packet)
 {
-   GameStatsPacket* statsPacket = dynamic_cast<GameStatsPacket*>(packet);
+   GameStatsPacket* stats_packet = dynamic_cast<GameStatsPacket*>(packet);
 
    // stats are copied
-   std::vector<int> ids = statsPacket->getPlayerIds();
-   std::vector<PlayerStats> overallStats = statsPacket->getOverallStats();
-   std::vector<PlayerStats> roundStats = statsPacket->getRoundStats();
+   std::vector<int> ids = stats_packet->getPlayerIds();
+   std::vector<PlayerStats> overall_stats = stats_packet->getOverallStats();
+   std::vector<PlayerStats> round_stats = stats_packet->getRoundStats();
 
    PlayerInfo* info = nullptr;
 
    int i = 0;
    for (int id : ids)
    {
-      auto iter = mPlayerInfo.find(id);
+      auto iter = _player_info.find(id);
 
-      if (iter != mPlayerInfo.end())
+      if (iter != _player_info.end())
       {
          info = iter->second;
 
@@ -974,14 +974,14 @@ void BombermanClient::processGameStats(Packet* packet)
          );
          */
 
-         info->setOverallStats(overallStats[i]);
-         info->setRoundStats(roundStats[i]);
+         info->setOverallStats(overall_stats[i]);
+         info->setRoundStats(round_stats[i]);
       }
 
       i++;
    }
 
-   playerInfoMapUpdatedSignal(&mPlayerInfo);
+   playerInfoMapUpdatedSignal(&_player_info);
 }
 
 //-----------------------------------------------------------------------------
@@ -998,7 +998,7 @@ void BombermanClient::processExtraMapItemDestroyed(Packet* packet)
       item->setDestroyDirection(remove->getDirection());
 
       destroyMapItemSignal(item, remove->getIntensity());
-      mMapItems.erase(item->getUniqueId());
+      _map_items.erase(item->getUniqueId());
       delete item;
    }
 }
@@ -1015,7 +1015,7 @@ void BombermanClient::processMapItemRemoved(Packet* packet)
    if (item)
    {
       removeMapItemSignal(item);
-      mMapItems.erase(item->getUniqueId());
+      _map_items.erase(item->getUniqueId());
       delete item;
    }
 }
@@ -1026,13 +1026,13 @@ void BombermanClient::processMapItemRemoved(Packet* packet)
 */
 void BombermanClient::broadcastAddPlayerData()
 {
-   for (const auto& [id, playerInfo] : mPlayerInfo)
+   for (const auto& [id, player_info] : _player_info)
    {
       // reset killed flag
-      playerInfo->setKilled(false);
+      player_info->setKilled(false);
 
       // tell game drawable about players in the game
-      addPlayerSignal(playerInfo->getId(), playerInfo->getNick(), playerInfo->getColor());
+      addPlayerSignal(player_info->getId(), player_info->getNick(), player_info->getColor());
    }
 }
 
@@ -1041,9 +1041,9 @@ void BombermanClient::broadcastAddPlayerData()
  */
 void BombermanClient::broadcastPlayerStartPositions()
 {
-   for (const auto& [id, playerInfo] : mPlayerInfo)
+   for (const auto& [id, player_info] : _player_info)
    {
-      setPlayerPositionSignal(playerInfo->getId(), playerInfo->getX(), playerInfo->getY(), playerInfo->getAngle());
+      setPlayerPositionSignal(player_info->getId(), player_info->getX(), player_info->getY(), player_info->getAngle());
    }
 }
 
@@ -1059,7 +1059,7 @@ void BombermanClient::processStartGameResponse(Packet* packet)
    setIngameMessagingActive(false);
    GameStateMachine::getInstance()->setState(Constants::GameActive);
 
-   mDead = false;
+   _dead = false;
 
    gameStartedSignal();
 
@@ -1086,7 +1086,7 @@ void BombermanClient::processStopGameResponse(Packet* packet)
 
    GameStateMachine::getInstance()->setState(Constants::GameStopped);
 
-   mDead = true;
+   _dead = true;
 
    if (response->isFinished())
    {
@@ -1140,14 +1140,14 @@ void BombermanClient::processGameEvent(Packet* packet)
 */
 void BombermanClient::processMessage(Packet* packet)
 {
-   MessagePacket* messagePacket = dynamic_cast<MessagePacket*>(packet);
+   MessagePacket* message_packet = dynamic_cast<MessagePacket*>(packet);
 
-   messageReceivedSignal(messagePacket->getSenderId(), messagePacket->getMessage(), messagePacket->isTypingFinished());
+   messageReceivedSignal(message_packet->getSenderId(), message_packet->getMessage(), message_packet->isTypingFinished());
 
-   if (messagePacket->isTypingFinished())
+   if (message_packet->isTypingFinished())
    {
       // omit broadcast messages
-      if (messagePacket->getSenderId() != -1 && messagePacket->getSenderId() != getPlayerId())
+      if (message_packet->getSenderId() != -1 && message_packet->getSenderId() != getPlayerId())
       {
          SoundManager::getInstance()->playSoundMessageReceived();
       }
@@ -1160,29 +1160,29 @@ void BombermanClient::processMessage(Packet* packet)
 */
 void BombermanClient::processTime(Packet* packet)
 {
-   TimePacket* timePacket = dynamic_cast<TimePacket*>(packet);
+   TimePacket* time_packet = dynamic_cast<TimePacket*>(packet);
 
    /*
       qDebug(
          "BombermanClient::data: server time: %s, left: %d",
          qPrintable(packet->getTimestamp().toString()),
-         timePacket->getTimeLeft()
+         time_packet->getTimeLeft()
       );
    */
 
-   GameInformation* gameInformation = getCurrentGameInformation();
+   GameInformation* game_information = getCurrentGameInformation();
 
-   if (gameInformation)
+   if (game_information)
    {
-      int timeLeft = timePacket->getTimeLeft();
-      int duration = gameInformation->getDuration();
+      int time_left = time_packet->getTimeLeft();
+      int duration = game_information->getDuration();
 
-      if (timeLeft == (duration * 3 / 20))
+      if (time_left == (duration * 3 / 20))
       {
          SoundManager::getInstance()->playSoundHurryUp();
       }
 
-      timeChangedSignal(timeLeft, duration);
+      timeChangedSignal(time_left, duration);
    }
 }
 
@@ -1194,14 +1194,14 @@ void BombermanClient::processCountdown(Packet* packet)
 {
    GameStateMachine::getInstance()->setState(Constants::GamePreparing);
 
-   CountdownPacket* countdownPacket = dynamic_cast<CountdownPacket*>(packet);
+   CountdownPacket* countdown_packet = dynamic_cast<CountdownPacket*>(packet);
 
-   int timeLeft = countdownPacket->getTimeLeft();
+   int time_left = countdown_packet->getTimeLeft();
 
-   qDebug("BombermanClient::processCountdown: left: %d", timeLeft);
+   qDebug("BombermanClient::processCountdown: left: %d", time_left);
 
    // sync tick
-   if (timeLeft == SERVER_PREPARATION_TIME + SERVER_PREPARATION_SYNC_TIME - 1)
+   if (time_left == SERVER_PREPARATION_TIME + SERVER_PREPARATION_SYNC_TIME - 1)
    {
       // use first tick to mute the music while the
       // countdown samples are played
@@ -1214,12 +1214,12 @@ void BombermanClient::processCountdown(Packet* packet)
    }
 
    // next ticks
-   if (timeLeft <= SERVER_PREPARATION_TIME - 1)
+   if (time_left <= SERVER_PREPARATION_TIME - 1)
    {
-      countdownSignal(timeLeft);
+      countdownSignal(time_left);
 
       // play sample
-      SoundManager::getInstance()->playSoundTime(timeLeft);
+      SoundManager::getInstance()->playSoundTime(time_left);
    }
 }
 
@@ -1410,17 +1410,17 @@ void BombermanClient::processPacket(Packet* packet)
 void BombermanClient::readData()
 {
    char chunk[4096];
-   int bytesRead;
+   int bytes_read;
 
-   while ((bytesRead = NET_ReadFromStreamSocket(mSocket, chunk, sizeof(chunk))) > 0)
+   while ((bytes_read = NET_ReadFromStreamSocket(_socket, chunk, sizeof(chunk))) > 0)
    {
-      mBuffer.append(chunk, bytesRead);
+      _buffer.append(chunk, bytes_read);
    }
 
-   if (bytesRead < 0)
+   if (bytes_read < 0)
    {
-      NET_DestroyStreamSocket(mSocket);
-      mSocket = nullptr;
+      NET_DestroyStreamSocket(_socket);
+      _socket = nullptr;
       clientDisconnect();
       return;
    }
@@ -1428,16 +1428,16 @@ void BombermanClient::readData()
    while (packetAvailable())
    {
       // block was read completely
-      BinaryReader in = mBuffer.reader();
+      BinaryReader in = _buffer.reader();
       auto packet = Packet::deserialize(in);
-      mBuffer.consume(in.pos());
+      _buffer.consume(in.pos());
 
       processPacket(packet.get());
 
-      mBlockSize = 0;
+      _block_size = 0;
    }
 
-   mBuffer.compact();
+   _buffer.compact();
 }
 
 //-----------------------------------------------------------------------------
@@ -1446,19 +1446,19 @@ void BombermanClient::readData()
 */
 void BombermanClient::poll()
 {
-   if (mAddress)
+   if (_address)
    {
-      NET_Status status = NET_GetAddressStatus(mAddress);
+      NET_Status status = NET_GetAddressStatus(_address);
 
       if (status == NET_SUCCESS)
       {
-         NET_Address* address = mAddress;
-         mAddress = nullptr;
+         NET_Address* address = _address;
+         _address = nullptr;
 
-         mSocket = NET_CreateClient(address, 6300, 0);
+         _socket = NET_CreateClient(address, 6300, 0);
          NET_UnrefAddress(address);
 
-         if (!mSocket)
+         if (!_socket)
          {
             reportConnectionError(SDL_GetError());
          }
@@ -1466,16 +1466,16 @@ void BombermanClient::poll()
       else if (status == NET_FAILURE)
       {
          reportConnectionError(SDL_GetError());
-         NET_UnrefAddress(mAddress);
-         mAddress = nullptr;
+         NET_UnrefAddress(_address);
+         _address = nullptr;
       }
 
       return;
    }
 
-   if (mSocket && !isConnected())
+   if (_socket && !isConnected())
    {
-      NET_Status status = NET_GetConnectionStatus(mSocket);
+      NET_Status status = NET_GetConnectionStatus(_socket);
 
       if (status == NET_SUCCESS)
       {
@@ -1485,14 +1485,14 @@ void BombermanClient::poll()
       else if (status == NET_FAILURE)
       {
          reportConnectionError(SDL_GetError());
-         NET_DestroyStreamSocket(mSocket);
-         mSocket = nullptr;
+         NET_DestroyStreamSocket(_socket);
+         _socket = nullptr;
       }
 
       return;
    }
 
-   if (mSocket && isConnected())
+   if (_socket && isConnected())
    {
       readData();
    }
@@ -1504,14 +1504,14 @@ void BombermanClient::poll()
 */
 void BombermanClient::keyPressed(const KeyEvent& event)
 {
-   GameSettings::ControllerSettings* controllerSettings = GameSettings::getInstance()->getControllerSettings();
+   GameSettings::ControllerSettings* controller_settings = GameSettings::getInstance()->getControllerSettings();
 
-   bool controlKey = event.key() == controllerSettings->getUpKey() || event.key() == controllerSettings->getDownKey() ||
-                     event.key() == controllerSettings->getLeftKey() || event.key() == controllerSettings->getRightKey() ||
-                     event.key() == controllerSettings->getBombKey() || event.key() == controllerSettings->getZoomInKey() ||
-                     event.key() == controllerSettings->getZoomOutKey() || event.key() == controllerSettings->getStartKey();
+   bool control_key = event.key() == controller_settings->getUpKey() || event.key() == controller_settings->getDownKey() ||
+                     event.key() == controller_settings->getLeftKey() || event.key() == controller_settings->getRightKey() ||
+                     event.key() == controller_settings->getBombKey() || event.key() == controller_settings->getZoomInKey() ||
+                     event.key() == controller_settings->getZoomOutKey() || event.key() == controller_settings->getStartKey();
 
-   if ((controlKey && !event.isAutoRepeat()) || !controlKey)
+   if ((control_key && !event.isAutoRepeat()) || !control_key)
    {
       processKeyPressed(event.key());
    }
@@ -1532,11 +1532,11 @@ void BombermanClient::keyReleased(const KeyEvent& event)
  */
 void BombermanClient::releaseAllKeys()
 {
-   if (mKeysPressed != 0)
+   if (_keys_pressed != 0)
    {
       // next bomb may be dropped
-      mBombReleased = true;
-      mKeysPressed = 0;
+      _bomb_released = true;
+      _keys_pressed = 0;
 
       // send key changes
       processKeyReleased(0);
@@ -1548,14 +1548,14 @@ void BombermanClient::releaseAllKeys()
  */
 void BombermanClient::clearPlayerInfoMap()
 {
-   for (const auto& [id, info] : mPlayerInfo)
+   for (const auto& [id, info] : _player_info)
    {
-      if (info == mCurrentPlayerInfo)
-         mCurrentPlayerInfo = nullptr;
+      if (info == _current_player_info)
+         _current_player_info = nullptr;
 
       delete info;
    }
-   mPlayerInfo.clear();
+   _player_info.clear();
 }
 
 //-----------------------------------------------------------------------------
@@ -1564,14 +1564,14 @@ void BombermanClient::clearPlayerInfoMap()
 */
 void BombermanClient::removePlayerInfo(int id)
 {
-   auto it = mPlayerInfo.find(id);
-   if (it != mPlayerInfo.end())
+   auto it = _player_info.find(id);
+   if (it != _player_info.end())
    {
-      if (it->second == mCurrentPlayerInfo)
-         mCurrentPlayerInfo = nullptr;
+      if (it->second == _current_player_info)
+         _current_player_info = nullptr;
 
       delete it->second;
-      mPlayerInfo.erase(it);
+      _player_info.erase(it);
    }
 }
 
@@ -1581,25 +1581,25 @@ void BombermanClient::removePlayerInfo(int id)
 */
 void BombermanClient::processLeaveGameResponse(Packet* packet)
 {
-   LeaveGameResponsePacket* leavePacket = dynamic_cast<LeaveGameResponsePacket*>(packet);
+   LeaveGameResponsePacket* leave_packet = dynamic_cast<LeaveGameResponsePacket*>(packet);
 
    // either we left the game, so we have to clear the player info map
    // completely, or it was just one player, so the player map keeps intact
-   if (leavePacket->getPlayerId() == getPlayerId())
+   if (leave_packet->getPlayerId() == getPlayerId())
    {
       clearPlayerInfoMap();
    }
    else
    {
       // remove player from playerinfo-map
-      removePlayerInfo(leavePacket->getPlayerId());
+      removePlayerInfo(leave_packet->getPlayerId());
    }
 
    // send infomap to all instances interested in them
-   playerInfoMapUpdatedSignal(&mPlayerInfo);
+   playerInfoMapUpdatedSignal(&_player_info);
 
    // remove player
-   removePlayerSignal(leavePacket->getPlayerId());
+   removePlayerSignal(leave_packet->getPlayerId());
 
    // play "player left sample"
    if (!GamePlayback::getInstance()->isReplaying())
@@ -1612,9 +1612,9 @@ void BombermanClient::processLeaveGameResponse(Packet* packet)
 */
 void BombermanClient::processExtraShake(Packet* packet)
 {
-   ExtraShakePacket* shakePacket = dynamic_cast<ExtraShakePacket*>(packet);
+   ExtraShakePacket* shake_packet = dynamic_cast<ExtraShakePacket*>(packet);
 
-   MapItem* item = getMapItem(shakePacket->getMapItemUniqueId());
+   MapItem* item = getMapItem(shake_packet->getMapItemUniqueId());
 
    if (item)
    {
@@ -1630,7 +1630,7 @@ void BombermanClient::sendKeysPressedPacket()
 {
    // build keypacket
    // qDebug("BombermanClient::keyPressed: sending keypacket");
-   KeyPacket kPacket(0, mKeysPressed);
+   KeyPacket kPacket(0, _keys_pressed);
    send(&kPacket);
 }
 
@@ -1641,8 +1641,8 @@ void BombermanClient::removeBombKeyFlag()
 {
    // in any case remove the bomb key from the key combination
    // to avoid unwanted bomb dropping
-   if ((mKeysPressed & Constants::KeyBomb) == Constants::KeyBomb)
-      mKeysPressed &= ~Constants::KeyBomb;
+   if ((_keys_pressed & Constants::KeyBomb) == Constants::KeyBomb)
+      _keys_pressed &= ~Constants::KeyBomb;
 }
 
 //-----------------------------------------------------------------------------
@@ -1683,7 +1683,7 @@ void BombermanClient::processKeyPressed(int key)
       }
 
       leaveGameRequest();
-      mBotFactory->removeAll();
+      _bot_factory->removeAll();
 
       // reset game data is called before showMenu/showMainMenu
       // as the win drawable sets itself visible when the game state
@@ -1715,29 +1715,29 @@ void BombermanClient::processKeyPressed(int key)
    {
       bool moved = false;
 
-      GameSettings::ControllerSettings* controllerSettings = GameSettings::getInstance()->getControllerSettings();
+      GameSettings::ControllerSettings* controller_settings = GameSettings::getInstance()->getControllerSettings();
 
-      if (key == controllerSettings->getUpKey())
+      if (key == controller_settings->getUpKey())
       {
-         mKeysPressed |= Constants::KeyUp;
+         _keys_pressed |= Constants::KeyUp;
          moved = true;
       }
-      else if (key == controllerSettings->getDownKey())
+      else if (key == controller_settings->getDownKey())
       {
-         mKeysPressed |= Constants::KeyDown;
+         _keys_pressed |= Constants::KeyDown;
          moved = true;
       }
-      else if (key == controllerSettings->getLeftKey())
+      else if (key == controller_settings->getLeftKey())
       {
-         mKeysPressed |= Constants::KeyLeft;
+         _keys_pressed |= Constants::KeyLeft;
          moved = true;
       }
-      else if (key == controllerSettings->getRightKey())
+      else if (key == controller_settings->getRightKey())
       {
-         mKeysPressed |= Constants::KeyRight;
+         _keys_pressed |= Constants::KeyRight;
          moved = true;
       }
-      else if (key == controllerSettings->getBombKey()
+      else if (key == controller_settings->getBombKey()
                // || key == Qt::Key_Space
                // || key == Qt::Key_Control
       )
@@ -1747,19 +1747,19 @@ void BombermanClient::processKeyPressed(int key)
          //       flag was not reset properly, therefore bombkey-presses
          //       were left out.. duh.
          //
-         if (true /*mBombReleased*/)
+         if (true /*_bomb_released*/)
          {
             // in any case remove the bomb key in order to avoid dropping
             // too many bombs (i.e. autofire is disabled for bombs)
-            mBombReleased = false;
-            mKeysPressed |= Constants::KeyBomb;
+            _bomb_released = false;
+            _keys_pressed |= Constants::KeyBomb;
             moved = true;
          }
       }
 
       if (moved)
       {
-         if (!mDead)
+         if (!_dead)
          {
             sendKeysPressedPacket();
             removeBombKeyFlag();
@@ -1770,23 +1770,23 @@ void BombermanClient::processKeyPressed(int key)
 
 void BombermanClient::processKeyReleased(int key)
 {
-   GameSettings::ControllerSettings* controllerSettings = GameSettings::getInstance()->getControllerSettings();
+   GameSettings::ControllerSettings* controller_settings = GameSettings::getInstance()->getControllerSettings();
 
-   if (key == controllerSettings->getUpKey())
+   if (key == controller_settings->getUpKey())
    {
-      mKeysPressed &= ~Constants::KeyUp;
+      _keys_pressed &= ~Constants::KeyUp;
    }
-   else if (key == controllerSettings->getDownKey())
+   else if (key == controller_settings->getDownKey())
    {
-      mKeysPressed &= ~Constants::KeyDown;
+      _keys_pressed &= ~Constants::KeyDown;
    }
-   else if (key == controllerSettings->getLeftKey())
+   else if (key == controller_settings->getLeftKey())
    {
-      mKeysPressed &= ~Constants::KeyLeft;
+      _keys_pressed &= ~Constants::KeyLeft;
    }
-   else if (key == controllerSettings->getRightKey())
+   else if (key == controller_settings->getRightKey())
    {
-      mKeysPressed &= ~Constants::KeyRight;
+      _keys_pressed &= ~Constants::KeyRight;
    }
    // zoom camera
    else if (key == SDLK_LEFTBRACKET)
@@ -1797,37 +1797,37 @@ void BombermanClient::processKeyReleased(int key)
    {
       zoomInSignal(false);
    }
-   else if (key == controllerSettings->getBombKey())
+   else if (key == controller_settings->getBombKey())
    {
       // next bomb may be dropped
-      mBombReleased = true;
-      mKeysPressed &= ~Constants::KeyBomb;
+      _bomb_released = true;
+      _keys_pressed &= ~Constants::KeyBomb;
    }
 
    /*
       switch (key)
       {
          case Qt::Key_Up:
-            mKeysPressed &= ~Constants::KeyUp;
+            _keys_pressed &= ~Constants::KeyUp;
             break;
 
          case Qt::Key_Down:
-            mKeysPressed &= ~Constants::KeyDown;
+            _keys_pressed &= ~Constants::KeyDown;
             break;
 
          case Qt::Key_Left:
-            mKeysPressed &= ~Constants::KeyLeft;
+            _keys_pressed &= ~Constants::KeyLeft;
             break;
 
          case Qt::Key_Right:
-            mKeysPressed &= ~Constants::KeyRight;
+            _keys_pressed &= ~Constants::KeyRight;
             break;
 
          case Qt::Key_Control:
          {
             // next bomb may be dropped
-            mBombReleased = true;
-            mKeysPressed &= ~Constants::KeyBomb;
+            _bomb_released = true;
+            _keys_pressed &= ~Constants::KeyBomb;
          }
 
          default:
@@ -1835,11 +1835,11 @@ void BombermanClient::processKeyReleased(int key)
       }
    */
 
-   if (!mDead)
+   if (!_dead)
    {
       // build keypacket
       // qDebug("BombermanClient::keyPressed: sending keypacket");
-      KeyPacket kPacket(0, mKeysPressed);
+      KeyPacket kPacket(0, _keys_pressed);
       send(&kPacket);
    }
 }
@@ -1857,7 +1857,7 @@ void BombermanClient::debugKeyboardInput()
 void BombermanClient::resetClientState()
 {
    setConnected(false);
-   mDead = true;
+   _dead = true;
 
    // we're disconnected
    loginResponseSignal(false);
@@ -1868,13 +1868,13 @@ void BombermanClient::resetClientState()
  */
 void BombermanClient::resetGameData()
 {
-   for (const auto& [id, p] : mPlayerInfo)
+   for (const auto& [id, p] : _player_info)
    {
       removePlayerSignal(p->getId());
    }
 
    clearPlayerInfoMap();
-   mGames.clear();
+   _games.clear();
 
    setGameId(-1);
 
@@ -1927,7 +1927,7 @@ void BombermanClient::stopGame()
 */
 void BombermanClient::setNick(const std::string& nick)
 {
-   mNick = nick;
+   _nick = nick;
 }
 
 //-----------------------------------------------------------------------------
@@ -1936,7 +1936,7 @@ void BombermanClient::setNick(const std::string& nick)
 */
 const std::string& BombermanClient::getNick() const
 {
-   return mNick;
+   return _nick;
 }
 
 //-----------------------------------------------------------------------------
@@ -2000,9 +2000,9 @@ void BombermanClient::createGame(
    Constants::Dimension dimension
 )
 {
-   bool dryRun = GameSettings::getInstance()->getDevelopmentSettings()->isDryRunEnabled();
+   bool dry_run = GameSettings::getInstance()->getDevelopmentSettings()->isDryRunEnabled();
 
-   if (dryRun)
+   if (dry_run)
       rounds = 999;
 
    CreateGameRequestPacket packet(
@@ -2056,9 +2056,9 @@ void BombermanClient::stopGame(int game)
 //-----------------------------------------------------------------------------
 /*!
  */
-void BombermanClient::setLoginAfterConnect(bool loginAfterConnect)
+void BombermanClient::setLoginAfterConnect(bool login_after_connect)
 {
-   mLoginAfterConnect = loginAfterConnect;
+   _login_after_connect = login_after_connect;
 }
 
 //-----------------------------------------------------------------------------
@@ -2068,19 +2068,19 @@ void BombermanClient::setLoginAfterConnect(bool loginAfterConnect)
 */
 void BombermanClient::loginRequest(const std::string& host, const std::string& nick)
 {
-   const std::string previousHost = getHost();
-   const bool connectedOrConnecting = (mSocket != nullptr) || (mAddress != nullptr);
+   const std::string previous_host = getHost();
+   const bool connected_or_connecting = (_socket != nullptr) || (_address != nullptr);
 
    setHost(host);
    setNick(nick);
 
    // we first have to disconnect from the current server
    // because its hostname obviously differs from ours
-   if (connectedOrConnecting && StringUtils::toLower(previousHost) != StringUtils::toLower(host))
+   if (connected_or_connecting && StringUtils::toLower(previous_host) != StringUtils::toLower(host))
    {
       qDebug(
          "BombermanClient::loginRequest: connect to another host: %s -> %s",
-         StringUtils::toLower(previousHost).c_str(),
+         StringUtils::toLower(previous_host).c_str(),
          StringUtils::toLower(host).c_str()
       );
 
@@ -2093,7 +2093,7 @@ void BombermanClient::loginRequest(const std::string& host, const std::string& n
       {
          setConnected(false);
          connectToServer();
-         mLoginAfterConnect = true;
+         _login_after_connect = true;
       }
       else
       {
@@ -2125,19 +2125,19 @@ void BombermanClient::gameListRequest()
  */
 void BombermanClient::host()
 {
-   if (!mServer)
+   if (!_server)
    {
-      mServer = new Server();
+      _server = new Server();
 
-      if (mServer->isListening())
+      if (_server->isListening())
       {
          // runs on its own thread, decoupled from the client's render/frame rate
-         mServerThread = std::jthread(
-            [this](std::stop_token stopToken)
+         _server_thread = std::jthread(
+            [this](std::stop_token stop_token)
             {
-               mServer->startPolling();
+               _server->startPolling();
 
-               while (!stopToken.stop_requested())
+               while (!stop_token.stop_requested())
                {
                   Timer::update();
 
@@ -2145,7 +2145,7 @@ void BombermanClient::host()
                   // resolution (~15.6ms on Windows regardless of what's requested) - spin-waiting
                   // via yield() isn't, so it replaces the sleep here.
                   auto next = std::chrono::steady_clock::now() + std::chrono::milliseconds(1);
-                  while (std::chrono::steady_clock::now() < next && !stopToken.stop_requested())
+                  while (std::chrono::steady_clock::now() < next && !stop_token.stop_requested())
                   {
                      std::this_thread::yield();
                   }
@@ -2159,8 +2159,8 @@ void BombermanClient::host()
       {
          HelpManager::getInstance()->addMessage("", TEXT_ERROR_UNABLE_TO_BIND, Constants::HelpSeverityError);
 
-         delete mServer;
-         mServer = nullptr;
+         delete _server;
+         _server = nullptr;
       }
    }
 }
@@ -2173,8 +2173,8 @@ void BombermanClient::initializeBots()
    if (isPlayerOwner())
    {
       // pass relevant data to bot factory
-      mBotFactory->setHostname(getHost());
-      mBotFactory->setGameId(getGameId());
+      _bot_factory->setHostname(getHost());
+      _bot_factory->setGameId(getGameId());
 
       int bots = 0;
 
@@ -2183,7 +2183,7 @@ void BombermanClient::initializeBots()
       else
          bots = GameSettings::getInstance()->getCreateGameSettingsMulti()->getBotCount();
 
-      mBotFactory->add(bots);
+      _bot_factory->add(bots);
    }
 }
 
@@ -2236,11 +2236,11 @@ std::vector<std::string> BombermanClient::getLocalIps() const
 */
 bool BombermanClient::isSinglePlayer() const
 {
-   bool singlePlayer = false;
+   bool single_player = false;
 
-   singlePlayer = (getGameMode() == Constants::GameModeSinglePlayer);
+   single_player = (getGameMode() == Constants::GameModeSinglePlayer);
 
-   return singlePlayer;
+   return single_player;
 }
 
 //-----------------------------------------------------------------------------
@@ -2249,7 +2249,7 @@ bool BombermanClient::isSinglePlayer() const
 */
 Constants::GameMode BombermanClient::getGameMode() const
 {
-   return mGameMode;
+   return _game_mode;
 }
 
 //-----------------------------------------------------------------------------
@@ -2258,7 +2258,7 @@ Constants::GameMode BombermanClient::getGameMode() const
 */
 void BombermanClient::setGameMode(const Constants::GameMode& mode)
 {
-   mGameMode = mode;
+   _game_mode = mode;
 }
 
 //-----------------------------------------------------------------------------
@@ -2316,7 +2316,7 @@ void BombermanClient::idle(bool idle)
 */
 void BombermanClient::setMainMenuActive(bool active)
 {
-   mMainMenuActive = active;
+   _main_menu_active = active;
 }
 
 //-----------------------------------------------------------------------------
@@ -2328,18 +2328,18 @@ void BombermanClient::showIps()
    // only do this when we're somewhere in the menus
    if (GameStateMachine::getInstance()->getState() == Constants::GameStopped)
    {
-      std::vector<std::string> ipList = getLocalIps();
+      std::vector<std::string> ip_list = getLocalIps();
 
       std::size_t index = 0;
-      while (index < ipList.size())
+      while (index < ip_list.size())
       {
          // combine two ips per message
-         std::string combined = ipList[index++];
-         if (index < ipList.size())
-            combined += ";" + ipList[index++];
+         std::string combined = ip_list[index++];
+         if (index < ip_list.size())
+            combined += ";" + ip_list[index++];
 
-         std::string ipText = std::format("your ips are;{}", combined);
-         HelpManager::getInstance()->addMessage("", ipText, Constants::HelpSeverityNotification);
+         std::string ip_text = std::format("your ips are;{}", combined);
+         HelpManager::getInstance()->addMessage("", ip_text, Constants::HelpSeverityNotification);
       }
    }
 }
@@ -2350,5 +2350,5 @@ void BombermanClient::showIps()
 */
 bool BombermanClient::isMainMenuActive() const
 {
-   return mMainMenuActive;
+   return _main_menu_active;
 }
