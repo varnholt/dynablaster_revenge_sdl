@@ -176,10 +176,8 @@ Settings::Settings(const std::string& filename, Format /*format*/) : _file(acqui
 {
 }
 
-Settings::~Settings()
-{
-   save();
-}
+// setValue() already saves, so a read-only use must not rewrite the file
+Settings::~Settings() = default;
 
 void Settings::beginGroup(const std::string& group)
 {

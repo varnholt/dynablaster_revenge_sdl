@@ -43,6 +43,9 @@ public:
    virtual void reset();
    virtual void loadData();
 
+   //! key of this level's lens flare in flares.ini, empty for none
+   virtual std::string getLensFlareKey() const;
+
    std::string path() const;
    SceneGraph* getScene() const;
    SceneGraph* getLevel() const;

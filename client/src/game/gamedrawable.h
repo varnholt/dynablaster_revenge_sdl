@@ -33,6 +33,7 @@ class MapItem;
 class Material;
 class InvisiblePlayerEffect;
 class ExtraAnimations;
+class LensFlareFactory;
 class RibbonAnimationFactory;
 class Mesh;
 class MushroomAnimation;
@@ -49,7 +50,7 @@ class StarTalersFactory;
 
 // Real map/players/bombs/extras/HUD rendering.
 // Not implemented yet (backlog, see project memory):
-// LensFlareFactory, GamePlaybackDisplay, HeadlessIntegration.
+// GamePlaybackDisplay, HeadlessIntegration.
 // Dead code, not ported: drawTestQuad/drawBoundingBox/drawBoundingRect/playerBoundingRect/
 // loadExplosion, INSPECT_SCENE debug input, mExportScene.
 class GameDrawable : public Drawable
@@ -201,6 +202,7 @@ private:
    std::unique_ptr<InvisiblePlayerEffect> _invisible_player_effect;
    std::unique_ptr<ExtraAnimations> _extra_animations;
    std::unique_ptr<RibbonAnimationFactory> _ribbon_animation_factory;
+   std::unique_ptr<LensFlareFactory> _lens_flare_factory;
    bool _player_names_enabled = true;
 
    float _time;

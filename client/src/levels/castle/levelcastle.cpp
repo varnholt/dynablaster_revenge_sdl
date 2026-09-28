@@ -280,3 +280,12 @@ void LevelCastle::loadData()
       mPlayers->setCamera(0);
    }
 }
+
+
+//-----------------------------------------------------------------------------
+/*!
+*/
+std::string LevelCastle::getLensFlareKey() const
+{
+   return "castle";
+}
