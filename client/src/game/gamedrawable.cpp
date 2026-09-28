@@ -25,6 +25,7 @@
 #include "playerinvincibleeffect.h"
 #include "extra.h"
 #include "extraanimations.h"
+#include "effects/lensflare/lensflarefactory.h"
 #include "effects/ribbons/ribbonanimationfactory.h"
 #include "extramapitem.h"
 #include "gamesettings.h"
@@ -139,6 +140,11 @@ void GameDrawable::deleteLevelData()
    if (_invisible_player_effect)
    {
       _invisible_player_effect->setPlayerScene(nullptr);
+   }
+
+   if (_lens_flare_factory)
+   {
+      _lens_flare_factory->activate({});
    }
 
    for (int i=0;i<_destruct_anim.size(); i++)
@@ -343,6 +349,7 @@ void GameDrawable::loadLevel(const std::string& level_path)
    _playfield= _level->getScene();
    _players= _level->getPlayers();
    _invisible_player_effect->setPlayerScene(_players);
+   _lens_flare_factory->activate(_level->getLensFlareKey());
 
    _playfield->setGlobalTransform(
       Matrix::scale(
@@ -416,6 +423,7 @@ void GameDrawable::initializeGL()
    _invisible_player_effect = std::make_unique<InvisiblePlayerEffect>();
    _extra_animations = std::make_unique<ExtraAnimations>();
    _ribbon_animation_factory = std::make_unique<RibbonAnimationFactory>();
+   _lens_flare_factory = std::make_unique<LensFlareFactory>();
 }
 
 
@@ -1513,6 +1521,8 @@ void GameDrawable::paintGL()
       _shroom_filter->setTime(GlobalTime::Instance()->getTime());
       _shroom_filter->apply();
    }
+
+   _lens_flare_factory->draw();
 
    _time_prev = _time;
 }

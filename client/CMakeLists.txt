@@ -259,6 +259,10 @@ add_library(dynablaster_core STATIC
     src/postproduction/shroomfilter.h
     src/effects/ribbons/ribbonanimationfactory.cpp
     src/effects/ribbons/ribbonanimationfactory.h
+    src/effects/lensflare/lensflare.cpp
+    src/effects/lensflare/lensflare.h
+    src/effects/lensflare/lensflarefactory.cpp
+    src/effects/lensflare/lensflarefactory.h
     src/effects/spherefragments/vertex3d.h
     src/effects/spherefragments/geometryvbo.cpp
     src/effects/spherefragments/geometryvbo.h
