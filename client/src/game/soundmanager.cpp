@@ -194,7 +194,7 @@ void SoundManager::restartPlayListAfterFadeOut(int delay)
       [this]()
       {
          SDL_SetAudioStreamGain(mMusicStream, mVolumeMusic);
-         startPlaylist();
+         playNextTrack();
       }
    );
 }
@@ -242,6 +242,18 @@ void SoundManager::startPlaylist()
    }
 
    mTrackIndex = 0;
+   playTrack(mTrackIndex);
+}
+
+void SoundManager::playNextTrack()
+{
+   if (mPlaylist.empty())
+   {
+      startPlaylist();
+      return;
+   }
+
+   mTrackIndex = (mTrackIndex + 1) % mPlaylist.size();
    playTrack(mTrackIndex);
 }
 

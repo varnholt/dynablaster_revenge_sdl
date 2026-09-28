@@ -25,6 +25,7 @@ public:
    void restartPlayListAfterFadeOut(int delay);
 
    void startPlaylist();
+   void playNextTrack();
 
    float getVolumeMusic() const;
    float getVolumeSfx() const;
