@@ -2,16 +2,9 @@
 
 #include "framework/gldevice.h"
 
-MotionBlurFilter::MotionBlurFilter()
-   : Filter("motionblur"),
-     _shader(0),
-     _intensity_param(-1),
-     _intensity(0.0f),
-     _motion_dir_param(-1)
+MotionBlurFilter::MotionBlurFilter() : Filter("motionblur")
 {
 }
-
-MotionBlurFilter::~MotionBlurFilter() = default;
 
 bool MotionBlurFilter::init()
 {
@@ -23,7 +16,7 @@ bool MotionBlurFilter::init()
    return true;
 }
 
-void MotionBlurFilter::process(unsigned int, float, float)
+void MotionBlurFilter::process(uint32_t, float, float)
 {
    activeDevice->setShader(_shader);
    activeDevice->setParameter(_intensity_param, _intensity);
@@ -40,9 +33,9 @@ float MotionBlurFilter::getIntensity() const
    return _intensity;
 }
 
-void MotionBlurFilter::setMotionDir(const Vector2& dir)
+void MotionBlurFilter::setMotionDir(const Vector2& direction)
 {
-   _motion_dir = dir;
+   _motion_dir = direction;
 }
 
 const Vector2& MotionBlurFilter::getMotionDir() const

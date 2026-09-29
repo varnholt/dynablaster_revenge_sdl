@@ -48,7 +48,7 @@ void ShroomFilter::apply()
    process(_snapshot_texture, 1.0f, 1.0f);
 }
 
-void ShroomFilter::process(unsigned int texture, float u, float v)
+void ShroomFilter::process(uint32_t texture, float u, float v)
 {
    activeDevice->setShader(_shader);
 
