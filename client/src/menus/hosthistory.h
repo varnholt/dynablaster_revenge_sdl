@@ -1,27 +1,18 @@
-#ifndef HOSTHISTORY_H
-#define HOSTHISTORY_H
+#pragma once
 
 #include <string>
 #include <vector>
 
-
 class HostHistory
 {
-
 public:
-
-   //! constructor
-   HostHistory();
-
    //! add an entry
    void add(const std::string& host);
 
-   //! get all entries
+   //! get all entries, the selected one first
    std::vector<std::string> load(const std::string& selected = std::string());
 
-
 protected:
-
    //! serialize entries
    void serialize();
 
@@ -29,8 +20,5 @@ protected:
    void deserialize();
 
    //! list of hosts
-   std::vector<std::string> mHosts;
-
+   std::vector<std::string> _hosts;
 };
-
-#endif // HOSTHISTORY_H

@@ -1,12 +1,9 @@
 #pragma once
 
-// base
 #include "menupageitem.h"
 
-// math
 #include "math/color.h"
 
-// forward declarations
 class BitmapFont;
 
 class MenuPageLabelItem : public MenuPageItem
@@ -14,25 +11,23 @@ class MenuPageLabelItem : public MenuPageItem
 public:
    MenuPageLabelItem();
 
-   // main
+   void draw() override;
 
-   virtual void draw();
-
-   virtual void initialize();
+   void initialize() override;
 
    std::string getText() const;
 
-   void setFontName(const std::string& fontName);
+   void setFontName(const std::string& font_name);
 
    void setText(const std::string&);
 
-   void setFontXOffset(int xOffset);
+   void setFontXOffset(int x_offset);
 
-   void setFontYOffset(int yOffset);
+   void setFontYOffset(int y_offset);
 
    void setScale(float scale);
 
-   void setMaxChars(int maxChars);
+   void setMaxChars(int max_chars);
 
    void setColor(const Color& color);
 
@@ -43,25 +38,23 @@ public:
    void setCenterHeight(float height);
 
 protected:
-   std::string mFontName;
+   std::string _font_name;
 
-   BitmapFont* mFont;
+   // non-owning, fonts belong to the FontPool
+   BitmapFont* _font = nullptr;
 
-   std::string mText;
+   std::string _text;
 
-   int mFontXOffset;
+   int _font_x_offset = 0;
+   int _font_y_offset = 0;
+   int _max_chars = 255;
 
-   int mFontYOffset;
+   float _scale = 0.0f;
 
-   int mMaxChars;
+   Color _color;
 
-   float mScale;
+   int _alpha = 255;
 
-   Color mColor;
-
-   int mAlpha;
-
-   float mCenterWidth;
-
-   float mCenterHeight;
+   float _center_width = -1.0f;
+   float _center_height = -1.0f;
 };

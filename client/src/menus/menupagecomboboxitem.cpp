@@ -1,7 +1,5 @@
-// header
 #include "menupagecomboboxitem.h"
 
-// menus
 #include "clipper.h"
 #include "framework/gldevice.h"
 #include "math/matrix.h"
@@ -9,28 +7,27 @@
 #include "menupagelabelitem.h"
 #include "menupagelistitemelement.h"
 
+#include <array>
 #include <cstring>
 
-// init static maps
-std::map<std::string, MenuPageComboBoxItem*> MenuPageComboBoxItem::sMapComboBoxes;
-std::map<std::string, MenuPageLabelItem*> MenuPageComboBoxItem::sMapLabels;
-std::map<std::string, MenuPageButtonItem*> MenuPageComboBoxItem::sMapButtons;
+std::map<std::string, MenuPageComboBoxItem*> MenuPageComboBoxItem::_map_combo_boxes;
+std::map<std::string, MenuPageLabelItem*> MenuPageComboBoxItem::_map_labels;
+std::map<std::string, MenuPageButtonItem*> MenuPageComboBoxItem::_map_buttons;
 
 MenuPageComboBoxItem::MenuPageComboBoxItem()
-    : mVisibleAnimationTime(0.0), mInvisibleAnimationTime(0.0), mButtonItem(0), mLabelItem(0), mQuadVertexBuffer(0)
 {
-   mPageItemType = PageItemTypeCombobox;
+   _page_item_type = PageItemTypeCombobox;
 }
 
 void MenuPageComboBoxItem::initialize()
 {
    MenuPageListItem::initialize();
-   mClipper->setBounds(0, 0, 9999, 9999);
+   _clipper->setBounds(0, 0, 9999, 9999);
 
    // initially every combobox is invisible
    setVisible(false);
 
-   mVerticalSpacing = 0;
+   _vertical_spacing = 0;
 }
 
 void MenuPageComboBoxItem::setFocus(bool focus)
@@ -38,7 +35,9 @@ void MenuPageComboBoxItem::setFocus(bool focus)
    MenuPageListItem::setFocus(focus);
 
    if (!focus)
+   {
       setVisible(false);
+   }
 }
 
 bool MenuPageComboBoxItem::isModal() const
@@ -50,57 +49,60 @@ void MenuPageComboBoxItem::setVisible(bool visible)
 {
    if (visible != isVisible())
    {
-      // change button visibility
-      MenuPageButtonItem* button = getButtonItem();
-
-      if (button)
+      if (MenuPageButtonItem* button = getButtonItem())
+      {
          button->setVisible(!visible);
+      }
 
-      // change label visibility
-      MenuPageLabelItem* label = getLabelItem();
-
-      if (label)
+      if (MenuPageLabelItem* label = getLabelItem())
+      {
          label->setVisible(!visible);
+      }
 
       MenuPageListItem::setVisible(visible);
    }
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   Legacy glBegin(GL_QUADS)/glColor4ub draw becomes a small dynamic vertex buffer through the
-   shared texalphaignore shader (already bound by MenuDrawable for the whole page-render pass) -
-   same treatment as MenuPageBackgroundItem's animated quad.
-*/
 void MenuPageComboBoxItem::drawQuad(PSDLayer* layer, float x, float y, float width, float height, int opacity)
 {
    glBindTexture(GL_TEXTURE_2D, layer->getTexture());
 
-   float u = layer->getU();
-   float v = layer->getV();
+   const float u = layer->getU();
+   const float v = layer->getV();
 
-   const float quad[] = {
-      x, y, 0.0f, 0.0f, 0.0f, x,         y + height, 0.0f, 0.0f, v, x + width, y + height, 0.0f, u, v,
-      x, y, 0.0f, 0.0f, 0.0f, x + width, y + height, 0.0f, u,    v, x + width, y,          0.0f, u, 0.0f,
+   // clang-format off
+   const std::array<float, 30> quad = {
+      x,         y,          0.0f, 0.0f, 0.0f,
+      x,         y + height, 0.0f, 0.0f, v,
+      x + width, y + height, 0.0f, u,    v,
+      x,         y,          0.0f, 0.0f, 0.0f,
+      x + width, y + height, 0.0f, u,    v,
+      x + width, y,          0.0f, u,    0.0f,
    };
+   // clang-format on
+   constexpr int quad_size = static_cast<int>(sizeof(float) * 30);
 
-   if (mQuadVertexBuffer == 0)
-      mQuadVertexBuffer = activeDevice->createVertexBuffer(sizeof(quad), true);
+   if (_quad_vertex_buffer == 0)
+   {
+      _quad_vertex_buffer = activeDevice->createVertexBuffer(quad_size, true);
+   }
    else
-      activeDevice->allocateVertexBuffer(mQuadVertexBuffer, sizeof(quad), true);
+   {
+      activeDevice->allocateVertexBuffer(_quad_vertex_buffer, quad_size, true);
+   }
 
-   void* dst = activeDevice->lockVertexBuffer(mQuadVertexBuffer, sizeof(quad));
-   std::memcpy(dst, quad, sizeof(quad));
-   activeDevice->unlockVertexBuffer(mQuadVertexBuffer);
+   void* destination = activeDevice->lockVertexBuffer(_quad_vertex_buffer, quad_size);
+   std::memcpy(destination, quad.data(), quad_size);
+   activeDevice->unlockVertexBuffer(_quad_vertex_buffer);
 
    activeDevice->push(Matrix());
    activeDevice->setParameter(activeDevice->getParameterIndex("alpha"), opacity / 255.0f);
 
-   glBindBuffer(GL_ARRAY_BUFFER, mQuadVertexBuffer);
+   glBindBuffer(GL_ARRAY_BUFFER, _quad_vertex_buffer);
    glEnableVertexAttribArray(0);
    glEnableVertexAttribArray(1);
-   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 5, (GLvoid*)0);
-   glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 5, (GLvoid*)(sizeof(float) * 3));
+   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 5, nullptr);
+   glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 5, reinterpret_cast<GLvoid*>(sizeof(float) * 3));
 
    glDrawArrays(GL_TRIANGLES, 0, 6);
 
@@ -116,63 +118,61 @@ void MenuPageComboBoxItem::updateTableBounds()
    MenuPageListItem::updateTableBounds();
 
    // update layer bounds
-   int top = getCurrentLayer()->getTop();
-   int maxH = getMaxTableHeight();
+   const int top = getCurrentLayer()->getTop();
+   const int max_height = getMaxTableHeight();
 
-   getCurrentLayer()->setBottom(top + maxH);
+   getCurrentLayer()->setBottom(top + max_height);
 }
 
 void MenuPageComboBoxItem::draw()
 {
-   if (isVisible())
+   if (!isVisible())
    {
-      float yStep = mRowHeight + mVerticalSpacing;
-      float yOffset = 0.0f;
-      float height = 0.0f;
-      float width = 0.0f;
-      float x = 0.0f;
-      float y = 0.0f;
-
-      // draw first element layer
-      height = mRowHeight;
-      width = getLayerFirstElement()->getWidth();
-      x = getLayerFirstElement()->getLeft();
-      y = getLayerFirstElement()->getTop();
-
-      drawQuad(getLayerFirstElement(), x, y, width, height + 1);
-
-      // draw n-1th element layer
-      height = mRowHeight;
-      width = getLayerDefaultElement()->getWidth();
-      x = getLayerDefaultElement()->getLeft();
-      y = getLayerFirstElement()->getTop();
-
-      for (int i = 1; i < mElements.size() - 1; i++)
-      {
-         yOffset += yStep;
-         drawQuad(getLayerDefaultElement(), x, y + yOffset, width, height);
-      }
-
-      // draw last element layer
-      height = mRowHeight;
-      width = getLayerLastElement()->getWidth();
-      x = getLayerLastElement()->getLeft();
-      y = getLayerFirstElement()->getTop();
-
-      yOffset += yStep;
-      drawQuad(getLayerLastElement(), x, y + yOffset, width, height);
-
-      // draw gradient
-      height = mElements.size() * mRowHeight;
-      width = getLayerGradientElement()->getWidth();
-      x = getLayerGradientElement()->getLeft();
-      y = getLayerFirstElement()->getTop();
-
-      drawQuad(getLayerGradientElement(), x, y, width, height, static_cast<int>(getLayerGradientElement()->getOpacity() * 255.0f));
-
-      // call parent
-      MenuPageListItem::draw();
+      return;
    }
+
+   const float y_step = _row_height + _vertical_spacing;
+   const int element_count = static_cast<int>(_elements.size());
+   float y_offset = 0.0f;
+
+   // draw first element layer
+   float height = _row_height;
+   float width = getLayerFirstElement()->getWidth();
+   float x = getLayerFirstElement()->getLeft();
+   float y = getLayerFirstElement()->getTop();
+
+   drawQuad(getLayerFirstElement(), x, y, width, height + 1);
+
+   // draw n-1th element layer
+   height = _row_height;
+   width = getLayerDefaultElement()->getWidth();
+   x = getLayerDefaultElement()->getLeft();
+   y = getLayerFirstElement()->getTop();
+
+   for (int i = 1; i < element_count - 1; i++)
+   {
+      y_offset += y_step;
+      drawQuad(getLayerDefaultElement(), x, y + y_offset, width, height);
+   }
+
+   // draw last element layer
+   height = _row_height;
+   width = getLayerLastElement()->getWidth();
+   x = getLayerLastElement()->getLeft();
+   y = getLayerFirstElement()->getTop();
+
+   y_offset += y_step;
+   drawQuad(getLayerLastElement(), x, y + y_offset, width, height);
+
+   // draw gradient
+   height = element_count * _row_height;
+   width = getLayerGradientElement()->getWidth();
+   x = getLayerGradientElement()->getLeft();
+   y = getLayerFirstElement()->getTop();
+
+   drawQuad(getLayerGradientElement(), x, y, width, height, static_cast<int>(getLayerGradientElement()->getOpacity() * 255.0f));
+
+   MenuPageListItem::draw();
 }
 
 void MenuPageComboBoxItem::animate(float time)
@@ -186,115 +186,106 @@ void MenuPageComboBoxItem::dropDownEnabled(bool /*enabled*/)
 
 void MenuPageComboBoxItem::addComboBox(const std::string& key, MenuPageComboBoxItem* item)
 {
-   sMapComboBoxes[key] = item;
+   _map_combo_boxes[key] = item;
 }
 
 void MenuPageComboBoxItem::addButton(const std::string& key, MenuPageButtonItem* item)
 {
-   sMapButtons[key] = item;
+   _map_buttons[key] = item;
 }
 
 void MenuPageComboBoxItem::addLabel(const std::string& key, MenuPageLabelItem* item)
 {
-   sMapLabels[key] = item;
+   _map_labels[key] = item;
 }
 
-void MenuPageComboBoxItem::linkComboBoxToButton(const std::string& buttonKey, const std::string& comboBoxKey)
+void MenuPageComboBoxItem::linkComboBoxToButton(const std::string& button_key, const std::string& combo_box_key)
 {
-   if (sMapButtons.contains(buttonKey) && sMapComboBoxes.contains(comboBoxKey))
+   if (_map_buttons.contains(button_key) && _map_combo_boxes.contains(combo_box_key))
    {
-      MenuPageButtonItem* button = sMapButtons[buttonKey];
-      MenuPageComboBoxItem* comboBox = sMapComboBoxes[comboBoxKey];
+      MenuPageButtonItem* button = _map_buttons[button_key];
+      MenuPageComboBoxItem* combo_box = _map_combo_boxes[combo_box_key];
 
-      if (!comboBox->getButtonItem())
+      if (!combo_box->getButtonItem())
       {
-         comboBox->setButtonItem(button);
+         combo_box->setButtonItem(button);
 
-         button->actionSignal.connect([comboBox](const std::string&) { comboBox->setVisible(true); });
+         // both items belong to the same MenuPage and share its lifetime
+         button->actionSignal.connect([combo_box](const std::string&) { combo_box->setVisible(true); });
       }
    }
 }
 
-void MenuPageComboBoxItem::linkComboBoxToLabel(const std::string& labelKey, const std::string& comboBoxKey)
+void MenuPageComboBoxItem::linkComboBoxToLabel(const std::string& label_key, const std::string& combo_box_key)
 {
-   if (sMapLabels.contains(labelKey) && sMapComboBoxes.contains(comboBoxKey))
+   if (_map_labels.contains(label_key) && _map_combo_boxes.contains(combo_box_key))
    {
-      MenuPageLabelItem* label = sMapLabels[labelKey];
-      MenuPageComboBoxItem* comboBox = sMapComboBoxes[comboBoxKey];
-      comboBox->setLabelItem(label);
+      MenuPageLabelItem* label = _map_labels[label_key];
+      MenuPageComboBoxItem* combo_box = _map_combo_boxes[combo_box_key];
+      combo_box->setLabelItem(label);
 
-      comboBox->valueChangedSignal.connect([label](const std::string& value) { label->setText(value); });
+      combo_box->valueChangedSignal.connect([label](const std::string& value) { label->setText(value); });
    }
 }
 
 void MenuPageComboBoxItem::setButtonItem(MenuPageButtonItem* item)
 {
-   mButtonItem = item;
+   _button_item = item;
 }
 
 MenuPageButtonItem* MenuPageComboBoxItem::getButtonItem() const
 {
-   return mButtonItem;
+   return _button_item;
 }
 
 MenuPageButtonItem* MenuPageComboBoxItem::getButtonItem(const std::string& name)
 {
-   MenuPageButtonItem* button = 0;
-
-   auto it = sMapButtons.find(name);
-   if (it != sMapButtons.end())
-   {
-      button = it->second;
-   }
-
-   return button;
+   const auto iterator = _map_buttons.find(name);
+   return iterator != _map_buttons.end() ? iterator->second : nullptr;
 }
 
 void MenuPageComboBoxItem::setLabelItem(MenuPageLabelItem* item)
 {
-   mLabelItem = item;
+   _label_item = item;
 }
 
 MenuPageLabelItem* MenuPageComboBoxItem::getLabelItem() const
 {
-   return mLabelItem;
+   return _label_item;
 }
 
 void MenuPageComboBoxItem::mousePressed(int x, int y)
 {
-   if (isVisible())
+   if (!isVisible())
    {
-      MenuPageListItem::mousePressed(x, y);
+      return;
+   }
 
-      if (mActiveElement < mElements.size())
-      {
-         if (mElements.at(mActiveElement)->isActive())
-         {
-            setFocus(false);
+   MenuPageListItem::mousePressed(x, y);
 
-            std::string value = mElements.at(mActiveElement)->getText();
-            valueChangedSignal(value);
-         }
-      }
+   if (static_cast<size_t>(_active_element) < _elements.size() && _elements.at(_active_element)->isActive())
+   {
+      setFocus(false);
+
+      const std::string value = _elements.at(_active_element)->getText();
+      valueChangedSignal(value);
    }
 }
 
 std::string MenuPageComboBoxItem::getValue() const
 {
-   std::string value;
-
-   if (getLabelItem())
+   if (const MenuPageLabelItem* label = getLabelItem())
    {
-      value = getLabelItem()->getText();
+      return label->getText();
    }
 
-   return value;
+   return {};
 }
 
 void MenuPageComboBoxItem::setValue(const std::string& value)
 {
-   if (getLabelItem())
+   if (MenuPageLabelItem* label = getLabelItem())
    {
-      getLabelItem()->setText(value);
+      label->setText(value);
    }
 }

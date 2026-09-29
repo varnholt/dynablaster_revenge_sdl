@@ -1,15 +1,14 @@
 #include "menupagescrollbar.h"
 
 MenuPageScrollbar::MenuPageScrollbar()
-    : mPosition(0), mHeight(0), mTop(0), mOffset(0.0f), mRelativeToY(0), mSignalsBlocked(false)
 {
-   mPageItemType = PageItemTypeScrollbar;
-   mInteractive = true;
+   _page_item_type = PageItemTypeScrollbar;
+   _interactive = true;
 }
 
 void MenuPageScrollbar::mousePressed(int x, int y)
 {
-   mRelativeToY = y - mLayerActive->getTop();
+   _relative_to_y = y - _layer_active->getTop();
 
    setActive(true);
    MenuPageItem::mousePressed(x, y);
@@ -23,27 +22,28 @@ void MenuPageScrollbar::mouseReleased()
 
 void MenuPageScrollbar::mouseMoved(int x, int y)
 {
-   y -= mRelativeToY;
+   y -= _relative_to_y;
 
-   // max
-   if (y + mLayerActive->getHeight() > mTop + mHeight)
-      mPosition = mTop + mHeight - mLayerActive->getHeight();
-
-   // min
-   else if (y < mTop)
-      mPosition = mTop;
-
-   // in between
-   else
-      mPosition = y;
-
-   mLayerActive->getLayer()->setY(mPosition);
-
-   mOffset = (mPosition - mTop) / (float)(mHeight - mLayerActive->getHeight());
-
-   if (!mSignalsBlocked)
+   if (y + _layer_active->getHeight() > _top + _height)
    {
-      scrollToPercentageSignal(mOffset);
+      _position = _top + _height - _layer_active->getHeight();
+   }
+   else if (y < _top)
+   {
+      _position = _top;
+   }
+   else
+   {
+      _position = y;
+   }
+
+   _layer_active->getLayer()->setY(_position);
+
+   _offset = (_position - _top) / static_cast<float>(_height - _layer_active->getHeight());
+
+   if (!_signals_blocked)
+   {
+      scrollToPercentageSignal(_offset);
    }
 
    MenuPageItem::mouseMoved(x, y);
@@ -56,20 +56,20 @@ bool MenuPageScrollbar::isGrabbingMouseEvents()
 
 void MenuPageScrollbar::setHeight(int height)
 {
-   mHeight = height;
+   _height = height;
 }
 
 void MenuPageScrollbar::setTop(int top)
 {
-   mTop = top;
+   _top = top;
 }
 
 void MenuPageScrollbar::updateFromAnimation(float percent)
 {
    // reset mouse press relative y
-   mRelativeToY = 0;
+   _relative_to_y = 0;
 
-   mSignalsBlocked = true;
-   mouseMoved(0, mTop + ((mHeight - mLayerActive->getHeight()) * percent));
-   mSignalsBlocked = false;
+   _signals_blocked = true;
+   mouseMoved(0, _top + ((_height - _layer_active->getHeight()) * percent));
+   _signals_blocked = false;
 }

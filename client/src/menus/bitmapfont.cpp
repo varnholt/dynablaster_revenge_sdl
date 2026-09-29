@@ -1,4 +1,3 @@
-// header
 #include "bitmapfont.h"
 #include "defaultshader.h"
 #include "framework/gldevice.h"
@@ -8,155 +7,144 @@
 #include "math/vector4.h"
 #include "render/texturepool.h"
 
+#include <algorithm>
+#include <array>
+#include <vector>
+
 BitmapFont::BitmapFont(
    const char* filename,
    Parameter* description,
    float size,
    float spacing,
-   float distanceRadius,
-   float outlineRed,
-   float outlineGreen,
-   float outlineBlue,
-   float outlineAlpha,
-   float outlineRadius,
-   float softRadius,
+   float distance_radius,
+   float outline_red,
+   float outline_green,
+   float outline_blue,
+   float outline_alpha,
+   float outline_radius,
+   float soft_radius,
    float thickness
 )
-    : mTexture(0),
-      mDescription(description),
-      mSize(size),
-      mSpacing(spacing),
-      mRadius(distanceRadius),
-      mScaleU(0.0f),
-      mScaleV(0.0f),
-      mOutlineRed(outlineRed),
-      mOutlineGreen(outlineGreen),
-      mOutlineBlue(outlineBlue),
-      mOutlineAlpha(outlineAlpha),
-      mOutlineRadius(outlineRadius),
-      mSoftRadius(softRadius),
-      mThickness(thickness),
-      mColorRed(1.0f),
-      mColorGreen(1.0f),
-      mColorBlue(1.0f),
-      mColorAlpha(1.0f),
-      mBaseline(0.0f),
-      mBaseColumn(0.0f),
-      mVertexBuffer(0)
+    : _description(description),
+      _size(size),
+      _spacing(spacing),
+      _radius(distance_radius),
+      _outline_red(outline_red),
+      _outline_green(outline_green),
+      _outline_blue(outline_blue),
+      _outline_alpha(outline_alpha),
+      _outline_radius(outline_radius),
+      _soft_radius(soft_radius),
+      _thickness(thickness)
 {
-   mShader = activeDevice->loadShader("fontoutlines-vert.glsl", "fontoutlines-frag.glsl");
-   mParamTexture = activeDevice->getParameterIndex("distanceMap");
-   mParamOutlineColor = activeDevice->getParameterIndex("outlineColor");
-   mParamColor = activeDevice->getParameterIndex("color");
+   _shader = activeDevice->loadShader("fontoutlines-vert.glsl", "fontoutlines-frag.glsl");
+   _param_texture = activeDevice->getParameterIndex("distanceMap");
+   _param_outline_color = activeDevice->getParameterIndex("outlineColor");
+   _param_color = activeDevice->getParameterIndex("color");
 
-   mParamSoftRadius = activeDevice->getParameterIndex("aaRadius");
-   mParamOutlineRadius = activeDevice->getParameterIndex("outlineRadius");
-   mParamThickness = activeDevice->getParameterIndex("threshold");
-   mParamSampleOffset = activeDevice->getParameterIndex("sampleOffset");
+   _param_soft_radius = activeDevice->getParameterIndex("aaRadius");
+   _param_outline_radius = activeDevice->getParameterIndex("outlineRadius");
+   _param_thickness = activeDevice->getParameterIndex("threshold");
+   _param_sample_offset = activeDevice->getParameterIndex("sampleOffset");
 
    Image* image = ImagePool::Instance()->getImage(filename);
-   mTexture = TexturePool::Instance()->getTexture(image, TexturePool::Linear | TexturePool::Clamp);
-   mScaleU = 1.0f / image->getWidth();
-   mScaleV = 1.0f / image->getHeight();
-}
-
-BitmapFont::~BitmapFont()
-{
+   _texture = TexturePool::Instance()->getTexture(image, TexturePool::Linear | TexturePool::Clamp);
+   _scale_u = 1.0f / image->getWidth();
+   _scale_v = 1.0f / image->getHeight();
 }
 
 bool BitmapFont::isCharAvailable(char c) const
 {
-   return getCharParameter(c) != 0;
+   return getCharParameter(c) != nullptr;
 }
 
 void BitmapFont::setOutlineColor(float r, float g, float b, float a)
 {
-   mOutlineRed = r;
-   mOutlineGreen = g;
-   mOutlineBlue = b;
-   mOutlineAlpha = a;
+   _outline_red = r;
+   _outline_green = g;
+   _outline_blue = b;
+   _outline_alpha = a;
 }
 
 void BitmapFont::getOutlineColor(float& r, float& g, float& b, float& a)
 {
-   r = mOutlineRed;
-   g = mOutlineGreen;
-   b = mOutlineBlue;
-   a = mOutlineAlpha;
+   r = _outline_red;
+   g = _outline_green;
+   b = _outline_blue;
+   a = _outline_alpha;
 }
 
 void BitmapFont::setColor(float r, float g, float b, float a)
 {
-   mColorRed = r;
-   mColorGreen = g;
-   mColorBlue = b;
-   mColorAlpha = a;
+   _color_red = r;
+   _color_green = g;
+   _color_blue = b;
+   _color_alpha = a;
 }
 
 BitmapFont::Parameter* BitmapFont::getCharParameter(char c) const
 {
    if (c >= 0)
-      return &mDescription[(unsigned char)c];
-   else
-      return 0;
-}
-
-float BitmapFont::buildVertices(float size, const char* text, float x, float y, float centerWidth, float centerHeight)
-{
-   mVertices.clear();
-
-   // remember text position for cursor
-   mBaseColumn = x;
-   mBaseline = y;
-
-   size *= mSize;
-
-   x -= mRadius * size;
-
-   if (centerWidth >= 0.0f)
    {
-      float width = 0.0f;
-      int index = 0;
-      while (text[index])
-      {
-         Parameter* param = getCharParameter(text[index]);
-         if (param)
-            width += (param->space + mSpacing);
-         index++;
-      }
-      width -= mSpacing;  // remove last spacing
-
-      x += (centerWidth - (width + mRadius * 2) * size) * 0.5f;
+      return &_description[static_cast<uint8_t>(c)];
    }
 
-   if (centerHeight >= 0.0f)
+   return nullptr;
+}
+
+float BitmapFont::buildVertices(float size, const char* text, float x, float y, float center_width, float center_height)
+{
+   _vertices.clear();
+
+   // remember text position for cursor
+   _base_column = x;
+   _baseline = y;
+
+   size *= _size;
+
+   x -= _radius * size;
+
+   if (center_width >= 0.0f)
    {
-      float height = centerHeight;
-      Parameter* param = getCharParameter('M');
-      if (param)
-         height = (param->height - mRadius * 2) * size;
-      y -= (centerHeight - height) * 0.5f;
+      float width = 0.0f;
+      for (const char* character = text; *character; ++character)
+      {
+         if (const Parameter* param = getCharParameter(*character))
+         {
+            width += (param->space + _spacing);
+         }
+      }
+      width -= _spacing;  // remove last spacing
+
+      x += (center_width - (width + _radius * 2) * size) * 0.5f;
+   }
+
+   if (center_height >= 0.0f)
+   {
+      float height = center_height;
+      if (const Parameter* param = getCharParameter('M'))
+      {
+         height = (param->height - _radius * 2) * size;
+      }
+      y -= (center_height - height) * 0.5f;
    }
 
    while (*text)
    {
-      char c = *text++;
-      Parameter* param = getCharParameter(c);
+      const char c = *text++;
+      const Parameter* param = getCharParameter(c);
 
-      float xLeft = x - (param->basecolumn) * size;
-      float xRight = x - (param->basecolumn - param->width) * size;
-      float yTop = y - (param->baseline) * size;
-      float yBottom = y - (param->baseline + param->height) * size;
+      const float x_left = x - (param->basecolumn) * size;
+      const float x_right = x - (param->basecolumn - param->width) * size;
+      const float y_top = y - (param->baseline) * size;
+      const float y_bottom = y - (param->baseline + param->height) * size;
 
-      mVertices.add(Vertex(xLeft, yTop, param->x * mScaleU, (param->y + param->height) * mScaleV));
+      _vertices.add(Vertex(x_left, y_top, param->x * _scale_u, (param->y + param->height) * _scale_v));
+      _vertices.add(Vertex(x_right, y_top, (param->x + param->width) * _scale_u, (param->y + param->height) * _scale_v));
+      _vertices.add(Vertex(x_right, y_bottom, (param->x + param->width) * _scale_u, param->y * _scale_v));
+      _vertices.add(Vertex(x_left, y_bottom, param->x * _scale_u, param->y * _scale_v));
 
-      mVertices.add(Vertex(xRight, yTop, (param->x + param->width) * mScaleU, (param->y + param->height) * mScaleV));
-
-      mVertices.add(Vertex(xRight, yBottom, (param->x + param->width) * mScaleU, param->y * mScaleV));
-
-      mVertices.add(Vertex(xLeft, yBottom, param->x * mScaleU, param->y * mScaleV));
-
-      x += (param->space + mSpacing) * size;
+      x += (param->space + _spacing) * size;
    }
 
    return x;
@@ -164,132 +152,129 @@ float BitmapFont::buildVertices(float size, const char* text, float x, float y, 
 
 const Array<Vertex>& BitmapFont::getVertices() const
 {
-   return mVertices;
+   return _vertices;
 }
 
 void BitmapFont::draw()
 {
-   draw(mVertices);
+   draw(_vertices);
 }
 
 void BitmapFont::draw(const Array<Vertex>& vertices)
 {
-   const int quadCount = vertices.size() / 4;
-   if (quadCount <= 0)
+   const int quad_count = vertices.size() / 4;
+   if (quad_count <= 0)
+   {
       return;
+   }
 
-   activeDevice->setShader(mShader);
+   activeDevice->setShader(_shader);
 
-   // GLDevice::push() is what actually uploads u_modelViewProjection into whichever shader
-   // program is currently bound (see gldevice.cpp - it's per-program uniform storage, not a
-   // global). Without this call, fontoutlines' u_modelViewProjection is never set at all and
-   // stays at GLSL's zero-initialized default, collapsing every glyph vertex to a degenerate
-   // point that gets clipped - this was the actual cause of BitmapFont-drawn text never
-   // producing a single visible pixel anywhere in this port (see project memory). Text vertices
-   // are already baked in absolute page-space, so identity world (the page's ortho projection,
-   // already set for the whole page-render pass, supplies the rest).
+   // push() uploads u_modelViewProjection into the currently bound program; text vertices are
+   // already in page space, so identity world is correct
    activeDevice->push(Matrix());
 
-   float sampleOffset = (vertices[1].u - vertices[0].u) / (vertices[1].x - vertices[0].x);
+   const float sample_offset = (vertices[1].u - vertices[0].u) / (vertices[1].x - vertices[0].x);
 
-   glBindTexture(GL_TEXTURE_2D, mTexture);
-   activeDevice->bindSampler(mParamTexture, 0);
-   activeDevice->setParameter(mParamOutlineColor, Vector4(mOutlineRed, mOutlineGreen, mOutlineBlue, mOutlineAlpha));
-   activeDevice->setParameter(mParamColor, Vector4(mColorRed, mColorGreen, mColorBlue, mColorAlpha));
-   activeDevice->setParameter(mParamSoftRadius, mSoftRadius);
-   activeDevice->setParameter(mParamOutlineRadius, mOutlineRadius);
-   activeDevice->setParameter(mParamThickness, mThickness);
-   activeDevice->setParameter(mParamSampleOffset, sampleOffset * 1.0f);
+   glBindTexture(GL_TEXTURE_2D, _texture);
+   activeDevice->bindSampler(_param_texture, 0);
+   activeDevice->setParameter(_param_outline_color, Vector4(_outline_red, _outline_green, _outline_blue, _outline_alpha));
+   activeDevice->setParameter(_param_color, Vector4(_color_red, _color_green, _color_blue, _color_alpha));
+   activeDevice->setParameter(_param_soft_radius, _soft_radius);
+   activeDevice->setParameter(_param_outline_radius, _outline_radius);
+   activeDevice->setParameter(_param_thickness, _thickness);
+   activeDevice->setParameter(_param_sample_offset, sample_offset * 1.0f);
 
    // GLES3 has no GL_QUADS - each 4-vertex quad becomes 2 triangles (0,1,2 / 0,2,3), rebuilt
-   // into a plain interleaved (x,y,u,v) buffer every draw call since the text changes every
-   // frame anyway.
-   Array<float> data;
-   static const int order[6] = {0, 1, 2, 0, 2, 3};
-   for (int q = 0; q < quadCount; q++)
+   // into a plain interleaved (x,y,u,v) buffer every draw call
+   constexpr std::array<int, 6> order = {0, 1, 2, 0, 2, 3};
+   std::vector<float> data;
+   data.reserve(static_cast<size_t>(quad_count) * order.size() * 4);
+   for (int q = 0; q < quad_count; q++)
    {
-      for (int i = 0; i < 6; i++)
+      for (const int corner : order)
       {
-         const Vertex& v = vertices[q * 4 + order[i]];
-         data.add(v.x);
-         data.add(v.y);
-         data.add(v.u);
-         data.add(v.v);
+         const Vertex& vertex = vertices[q * 4 + corner];
+         data.push_back(vertex.x);
+         data.push_back(vertex.y);
+         data.push_back(vertex.u);
+         data.push_back(vertex.v);
       }
    }
 
-   const int size = data.size() * static_cast<int>(sizeof(float));
-   if (mVertexBuffer == 0)
-      mVertexBuffer = activeDevice->createVertexBuffer(size, true);
+   const int size = static_cast<int>(data.size() * sizeof(float));
+   if (_vertex_buffer == 0)
+   {
+      _vertex_buffer = activeDevice->createVertexBuffer(size, true);
+   }
    else
-      activeDevice->allocateVertexBuffer(mVertexBuffer, size, true);
+   {
+      activeDevice->allocateVertexBuffer(_vertex_buffer, size, true);
+   }
 
-   float* dst = (float*)activeDevice->lockVertexBuffer(mVertexBuffer, size);
-   for (int i = 0; i < data.size(); i++)
-      dst[i] = data[i];
-   activeDevice->unlockVertexBuffer(mVertexBuffer);
+   auto* destination = static_cast<float*>(activeDevice->lockVertexBuffer(_vertex_buffer, size));
+   std::ranges::copy(data, destination);
+   activeDevice->unlockVertexBuffer(_vertex_buffer);
 
-   glBindBuffer(GL_ARRAY_BUFFER, mVertexBuffer);
+   glBindBuffer(GL_ARRAY_BUFFER, _vertex_buffer);
    glEnableVertexAttribArray(0);
    glEnableVertexAttribArray(1);
-   glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 4, (GLvoid*)0);
-   glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 4, (GLvoid*)(sizeof(float) * 2));
+   glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 4, nullptr);
+   glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 4, reinterpret_cast<GLvoid*>(sizeof(float) * 2));
 
-   glDrawArrays(GL_TRIANGLES, 0, quadCount * 6);
+   glDrawArrays(GL_TRIANGLES, 0, quad_count * 6);
 
    glDisableVertexAttribArray(0);
    glDisableVertexAttribArray(1);
 
    activeDevice->pop();
 
-   // restore the shared menu shader rather than "no shader" - see defaultshader.h. Whichever
-   // page item draws next (most are plain PSDLayer-textured quads) relies on it already being
-   // bound, the same way MenuDrawable bound it before this whole page-render pass started.
+   // restore the shared menu shader rather than "no shader" - see defaultshader.h
    activeDevice->setShader(getDefaultMenuShader());
 }
 
-unsigned int BitmapFont::getTexture()
+uint32_t BitmapFont::getTexture()
 {
-   return mTexture;
+   return _texture;
 }
 
-void BitmapFont::getCursor(float size, int cursorPos, float& left, float& right, float& top, float& bottom)
+void BitmapFont::getCursor(float size, int cursor_position, float& left, float& right, float& top, float& bottom)
 {
-   size *= mSize;
-   cursorPos *= 4;
+   size *= _size;
+   cursor_position *= 4;
 
-   if (mVertices.size() < 4)
+   if (_vertices.size() < 4)
    {
       // empty string
-      Parameter* param = getCharParameter('M');
-      left = mBaseColumn;
-      right = left + param->space * size + mRadius * size * 2;
+      const Parameter* param = getCharParameter('M');
+      left = _base_column;
+      right = left + param->space * size + _radius * size * 2;
 
-      top = mBaseColumn - (param->baseline) * size;
-      bottom = mBaseline - (param->baseline + param->height) * size;
+      top = _base_column - (param->baseline) * size;
+      bottom = _baseline - (param->baseline + param->height) * size;
    }
-   else if (cursorPos >= mVertices.size())
+   else if (cursor_position >= _vertices.size())
    {
       // cursor at end of text
-      Parameter* param = getCharParameter('M');
-      cursorPos = mVertices.size() - 4;
+      const Parameter* param = getCharParameter('M');
+      cursor_position = _vertices.size() - 4;
 
-      left = mVertices[cursorPos + 1].x - (mRadius * size * 2) + mSpacing * size;
-      right = left + param->space * size + mRadius * size * 2;
+      left = _vertices[cursor_position + 1].x - (_radius * size * 2) + _spacing * size;
+      right = left + param->space * size + _radius * size * 2;
    }
    else
    {
-      left = mVertices[cursorPos].x;
-      right = mVertices[cursorPos + 1].x;
+      left = _vertices[cursor_position].x;
+      right = _vertices[cursor_position + 1].x;
    }
 
-   Parameter* param = getCharParameter('M');
-   top = mBaseline - (param->baseline) * size;
-   bottom = mBaseline - (param->baseline + param->height) * size;
+   const Parameter* param = getCharParameter('M');
+   top = _baseline - (param->baseline) * size;
+   bottom = _baseline - (param->baseline + param->height) * size;
 
-   top -= mRadius * size;
-   bottom += mRadius * size;
+   top -= _radius * size;
+   bottom += _radius * size;
 
-   left += mRadius * size;
-   right -= mRadius * size;
+   left += _radius * size;
+   right -= _radius * size;
 }

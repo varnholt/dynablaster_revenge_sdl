@@ -1,35 +1,31 @@
 #pragma once
 
-// base
 #include "menupageitem.h"
 
-// forward declarations
+#include <memory>
+
 class Clipper;
-class PSDLayer;
 
 class MenuPageScrollImageItem : public MenuPageItem
 {
 public:
    MenuPageScrollImageItem();
+   ~MenuPageScrollImageItem() override;
 
-   virtual ~MenuPageScrollImageItem();
+   void initialize() override;
 
-   virtual void initialize();
-
-   virtual void draw();
+   void draw() override;
 
    virtual void reset();
 
-   virtual void animate(float time);
+   void animate(float time) override;
 
 protected:
-   Clipper* mClipper;
+   std::unique_ptr<Clipper> _clipper;
 
-   PSDLayer* mLayer;
-
-   float mY;
-   float mStartTime;
-   float mAnimationTime;
-   bool mMoveUp;
-   float mRelativeTimePrevious;
+   float _y = 0.0f;
+   float _start_time = 0.0f;
+   float _animation_time = 0.0f;
+   bool _move_up = false;
+   float _relative_time_previous = 0.0f;
 };

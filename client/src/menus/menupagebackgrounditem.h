@@ -1,9 +1,11 @@
 #pragma once
 
-// base
 #include "menupageitem.h"
 
 #include "framework/frametimer.h"
+
+#include <array>
+#include <cstdint>
 
 class MenuPageBackgroundItem : public MenuPageItem
 {
@@ -15,31 +17,29 @@ public:
       BackgroundColorBlue
    };
 
-   //! constructor
    MenuPageBackgroundItem();
 
-   // main
+   void draw() override;
 
-   virtual void draw();
-
-   virtual void initialize();
+   void initialize() override;
 
    void addGradientLayer(PSDLayer* gradient, BackgroundColor color);
 
    void setBackgroundColor(BackgroundColor);
 
 private:
-   FrameTimer mElapsed;
+   FrameTimer _elapsed;
 
-   float mX;
-   float mY;
+   float _x = 0.0f;
+   float _y = 0.0f;
 
-   FrameTimer mFlipBackgroundElapsed;
-   BackgroundColor mBackgroundColor;
-   BackgroundColor mBackgroundColorPrevious;
-   PSDLayer* mBackgroundLayers[BackgroundColorBlue + 1];
+   FrameTimer _flip_background_elapsed;
+   BackgroundColor _background_color = BackgroundColorBlue;
+   BackgroundColor _background_color_previous = BackgroundColorBlue;
 
-   // the scrolling quad this draws directly (not via PSDLayer, since its texcoords animate
-   // every frame) needs its own dynamically re-uploaded buffer - see draw().
-   unsigned int mVertexBuffer;
+   // non-owning, the layers belong to the MenuPage
+   std::array<PSDLayer*, BackgroundColorBlue + 1> _background_layers{};
+
+   // the scrolling quad drawn directly (its texcoords animate every frame) - see draw()
+   uint32_t _vertex_buffer = 0;
 };

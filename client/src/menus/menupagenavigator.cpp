@@ -88,7 +88,7 @@ bool isOptionsPage(const std::string& page)
 // matches GameMenuWorkflow::isHostLocal() - true if the configured host resolves to one of this
 // machine's own network interfaces, in which case MULTI also hosts an in-process server (same as
 // SINGLE always does), rather than only connecting out to a remote one.
-bool isHostLocal(const std::string& hostName)
+bool isHostLocal(const std::string& host_name)
 {
    bool local = false;
 
@@ -101,8 +101,10 @@ bool isHostLocal(const std::string& hostName)
       {
          const char* address = NET_GetAddressString(addresses[i]);
 
-         if (address && hostName == std::string(address))
+         if (address && host_name == std::string(address))
+         {
             local = true;
+         }
       }
 
       NET_FreeLocalAddresses(addresses);
@@ -119,10 +121,14 @@ bool needsBrowser(const std::string& action)
 void logUnhandled(const std::string& page, const std::string& action)
 {
    if (action.empty())
+   {
       return;
+   }
 
    if (needsBrowser(action))
+   {
       qDebug("MenuPageNavigator: page=%s action=%s needs opening an external browser (not implemented)", page.c_str(), action.c_str());
+   }
    // else: not a real menu action (e.g. an editablecombobox's own internal layer-name emission) -
    // the real GameMenuWorkflow doesn't log these either, so neither do we.
 }
@@ -132,38 +138,56 @@ void logUnhandled(const std::string& page, const std::string& action)
 MenuPageNavigator::MenuPageNavigator()
 {
    // matches GameMenuInterfaceCreate's constructor.
-   mSortedLevelNames.push_back(Level::getLevelName(Level::LevelCastle));
-   mSortedLevelNames.push_back(Level::getLevelName(Level::LevelMansion));
-   mSortedLevelNames.push_back(Level::getLevelName(Level::LevelSpace));
+   _sorted_level_names.push_back(Level::getLevelName(Level::LevelCastle));
+   _sorted_level_names.push_back(Level::getLevelName(Level::LevelMansion));
+   _sorted_level_names.push_back(Level::getLevelName(Level::LevelSpace));
 
-   mSortedLevelDirNames.push_back(Level::getLevelDirectoryName(Level::LevelCastle));
-   mSortedLevelDirNames.push_back(Level::getLevelDirectoryName(Level::LevelMansion));
-   mSortedLevelDirNames.push_back(Level::getLevelDirectoryName(Level::LevelSpace));
+   _sorted_level_dir_names.push_back(Level::getLevelDirectoryName(Level::LevelCastle));
+   _sorted_level_dir_names.push_back(Level::getLevelDirectoryName(Level::LevelMansion));
+   _sorted_level_dir_names.push_back(Level::getLevelDirectoryName(Level::LevelSpace));
 
    // BombermanClient must already be constructed+initialize()'d by main.cpp before this runs -
    // getInstance() doesn't self-construct (matches the real client/src/game/bombermanclientgui.cpp
    // construction order).
-   BombermanClient::getInstance()->loginResponseSignal.connect([this](bool granted) { onLoginResponse(granted); });
-   BombermanClient::getInstance()->createGameResponseSignal.connect([this](bool granted, int gameId, bool owner)
-                                                                    { onCreateGameResponse(granted, gameId, owner); });
-   BombermanClient::getInstance()->joinGameResponseSignal.connect([this](bool success) { onJoinGameResponse(success); });
-   BombermanClient::getInstance()->gameStartedSignal.connect([this]() { onGameStarted(); });
+   BombermanClient* client = BombermanClient::getInstance();
+   _login_response_connection = client->loginResponseSignal.connect([this](bool granted) { onLoginResponse(granted); });
+   _create_game_response_connection = client->createGameResponseSignal.connect([this](bool granted, int game_id, bool owner)
+                                                                               { onCreateGameResponse(granted, game_id, owner); });
+   _join_game_response_connection = client->joinGameResponseSignal.connect([this](bool success) { onJoinGameResponse(success); });
+   _game_started_connection = client->gameStartedSignal.connect([this]() { onGameStarted(); });
 
    // matches GameMenuInterfaceLounge's constructor connection - keeps the lounge's player rows
    // (nick/wins/rank/owner-icon) live-updated whenever the player set changes (join/leave/bot
    // added). Without this, bots that join after the lounge page is already showing never appear.
-   BombermanClient::getInstance()->playerInfoMapUpdatedSignal.connect([this](std::map<int, PlayerInfo*>* infoMap)
-                                                                      { onPlayerInfoMapUpdated(infoMap); });
+   _player_info_map_updated_connection =
+      client->playerInfoMapUpdatedSignal.connect([this](std::map<int, PlayerInfo*>* info_map) { onPlayerInfoMapUpdated(info_map); });
 
    // matches GameMenuWorkflow's own connection to BombermanClient::messageReceived - lounge chat.
-   BombermanClient::getInstance()->messageReceivedSignal.connect([this](int senderId, const std::string& message, bool finished)
-                                                                 { onMessageReceived(senderId, message, finished); });
+   _message_received_connection = client->messageReceivedSignal.connect([this](int sender_id, const std::string& message, bool finished)
+                                                                        { onMessageReceived(sender_id, message, finished); });
 
    // matches MenuWorkflow::initialize() calling deserializeLoginData() once at startup - the
    // main menu is already the current page by construction time (no pageChanged() fires for it
    // the very first time), so this can't wait for onPageChanged()'s own kMainMenu branch below.
    deserializeLoginData();
    deserializeVersion();
+}
+
+MenuPageNavigator::~MenuPageNavigator()
+{
+   // only still connected while GAME_CREATE / OPTIONS_AUDIO is the current page
+   setMonitorCreateGameOptionsEnabled(false);
+   setMonitorAudioSettingsEnabled(false);
+
+   if (BombermanClient* client = BombermanClient::getInstance())
+   {
+      client->loginResponseSignal.disconnect(_login_response_connection);
+      client->createGameResponseSignal.disconnect(_create_game_response_connection);
+      client->joinGameResponseSignal.disconnect(_join_game_response_connection);
+      client->gameStartedSignal.disconnect(_game_started_connection);
+      client->playerInfoMapUpdatedSignal.disconnect(_player_info_map_updated_connection);
+      client->messageReceivedSignal.disconnect(_message_received_connection);
+   }
 }
 
 void MenuPageNavigator::onActionRequest(const std::string& page, const std::string& action)
@@ -176,11 +200,17 @@ void MenuPageNavigator::onActionRequest(const std::string& page, const std::stri
       updateLoginData();
 
       if (action == kMainMenuActionOptions)
+      {
          pageChangeRequestSignal(kOptionsVideo);
+      }
       else if (action == kMainMenuActionAbout)
+      {
          pageChangeRequestSignal(kAbout);
+      }
       else if (action == kMainMenuActionQuit)
+      {
          quitRequestSignal();
+      }
       else if (action == kMainMenuActionSingle)
       {
          // matches GameMenuWorkflow's MAINMENU_ACTION_SINGLE handler exactly: single player
@@ -198,19 +228,27 @@ void MenuPageNavigator::onActionRequest(const std::string& page, const std::stri
          const std::string host = GameSettings::getInstance()->getLoginSettings()->getHost();
 
          if (isHostLocal(host))
+         {
             BombermanClient::getInstance()->host();
+         }
 
          BombermanClient::getInstance()->loginRequest(host, GameSettings::getInstance()->getLoginSettings()->getNick());
       }
       else
+      {
          logUnhandled(page, action);
+      }
    }
    else if (page == kGameSelect)
    {
       if (action == kGameSelectActionCreate)
+      {
          pageChangeRequestSignal(kGameCreate);
+      }
       else if (action == kGameSelectActionBack)
+      {
          pageChangeRequestSignal(kMainMenu);
+      }
       else if (action == kGameSelectActionJoin)
       {
          // the real GAME_SELECT_ACTION_JOIN reads the operator-selected row out of the game
@@ -219,12 +257,18 @@ void MenuPageNavigator::onActionRequest(const std::string& page, const std::stri
          // join->lounge chain; picking a specific game is a later refinement.
          const std::vector<GameInformation>* games = BombermanClient::getInstance()->getGames();
          if (games && !games->empty())
+         {
             BombermanClient::getInstance()->joinGame(games->front().getId());
+         }
          else
+         {
             qDebug("MenuPageNavigator: JOIN clicked with no games known yet");
+         }
       }
       else
+      {
          logUnhandled(page, action);
+      }
    }
    else if (page == kGameCreate)
    {
@@ -256,42 +300,58 @@ void MenuPageNavigator::onActionRequest(const std::string& page, const std::stri
          // a plain navigate-back.
          if (page == kOptionsAudio)
          {
-            GameSettings::AudioSettings* audioSettings = GameSettings::getInstance()->getAudioSettings();
+            GameSettings::AudioSettings* audio_settings = GameSettings::getInstance()->getAudioSettings();
 
             if (action == kOptionsActionOk)
             {
-               audioSettings->setVolumeMusic(SoundManager::getInstance()->getVolumeMusic());
-               audioSettings->setVolumeSfx(SoundManager::getInstance()->getVolumeSfx());
-               audioSettings->serialize();
+               audio_settings->setVolumeMusic(SoundManager::getInstance()->getVolumeMusic());
+               audio_settings->setVolumeSfx(SoundManager::getInstance()->getVolumeSfx());
+               audio_settings->serialize();
             }
             else
             {
-               SoundManager::getInstance()->setVolumeMusic(audioSettings->getVolumeMusic());
-               SoundManager::getInstance()->setVolumeSfx(audioSettings->getVolumeSfx());
+               SoundManager::getInstance()->setVolumeMusic(audio_settings->getVolumeMusic());
+               SoundManager::getInstance()->setVolumeSfx(audio_settings->getVolumeSfx());
             }
          }
 
          pageChangeRequestSignal(kMainMenu);
       }
       else if (action == kOptionsActionVideo)
+      {
          pageChangeRequestSignal(kOptionsVideo);
+      }
       else if (action == kOptionsActionAudio)
+      {
          pageChangeRequestSignal(kOptionsAudio);
+      }
       else if (action == kOptionsActionControls)
+      {
          pageChangeRequestSignal(kOptionsControls);
+      }
       else if (action == kOptionsActionGame)
+      {
          pageChangeRequestSignal(kOptionsGame);
+      }
       else if (page == kOptionsAudio && action == kOptionsAudioActionRestoreDefaults)
+      {
          restoreAudioDefaults();
+      }
       else
+      {
          logUnhandled(page, action);
+      }
    }
    else if (page == kAbout)
    {
       if (action == kAboutActionBack)
+      {
          pageChangeRequestSignal(kMainMenu);
+      }
       else
+      {
          logUnhandled(page, action);
+      }
    }
    else if (page == kLounge)
    {
@@ -311,18 +371,18 @@ void MenuPageNavigator::onActionRequest(const std::string& page, const std::stri
          // the "finished typing, send it" path. Per-keystroke "still typing" notifications would
          // need MenuPage::actionKeyPressed() wired up too - not done here, matches the existing
          // "typing bubble never shown" simplification (see updateLoungePlayerList()).
-         MenuPage* loungePage = Menu::getInstance()->getPageByName(kLounge);
-         auto* sayItem = dynamic_cast<MenuPageTextEditItem*>(loungePage->getPageItem(kLoungeLineeditSay));
+         MenuPage* lounge_page = Menu::getInstance()->getPageByName(kLounge);
+         auto* say_item = dynamic_cast<MenuPageTextEditItem*>(lounge_page->getPageItem(kLoungeLineeditSay));
 
-         if (sayItem)
+         if (say_item)
          {
-            const std::string message = sayItem->getText();
+            const std::string message = say_item->getText();
 
             if (!StringUtils::trim(message).empty())
             {
                // lounge chat always broadcasts to everyone (receiverId -1)
                BombermanClient::getInstance()->sendMessage(message, true);
-               sayItem->setText("");
+               say_item->setText("");
             }
          }
       }
@@ -333,7 +393,9 @@ void MenuPageNavigator::onActionRequest(const std::string& page, const std::stri
          logUnhandled(page, action);
       }
       else
+      {
          logUnhandled(page, action);
+      }
    }
    else
    {
@@ -356,14 +418,18 @@ void MenuPageNavigator::onLoginResponse(bool granted)
    }
 }
 
-void MenuPageNavigator::onCreateGameResponse(bool granted, int gameId, bool owner)
+void MenuPageNavigator::onCreateGameResponse(bool granted, int game_id, bool owner)
 {
    // matches GameMenuWorkflow::createGameResponse(): the creator auto-joins the game they just
    // made; everyone else (broadcast of the same response) just sees the updated game list.
    if (granted && owner)
-      BombermanClient::getInstance()->joinGame(gameId);
+   {
+      BombermanClient::getInstance()->joinGame(game_id);
+   }
    else if (granted)
+   {
       pageChangeRequestSignal(kGameSelect);
+   }
 }
 
 void MenuPageNavigator::onJoinGameResponse(bool success)
@@ -424,23 +490,25 @@ void MenuPageNavigator::onPageChanged(const std::string& page)
    }
 }
 
-void MenuPageNavigator::onPlayerInfoMapUpdated(std::map<int, PlayerInfo*>* playerInfo)
+void MenuPageNavigator::onPlayerInfoMapUpdated(std::map<int, PlayerInfo*>* player_info)
 {
-   updateLoungePlayerList(playerInfo);
+   updateLoungePlayerList(player_info);
 }
 
-void MenuPageNavigator::updateLoungePlayerList(std::map<int, PlayerInfo*>* playerInfo)
+void MenuPageNavigator::updateLoungePlayerList(std::map<int, PlayerInfo*>* player_info)
 {
    // matches GameMenuInterfaceLounge::playerInfoMapUpdated() - only touches the UI while the
-   // lounge page is actually the one showing (mirrors the original's own currentPage == page
+   // lounge page is actually the one showing (mirrors the original's own current_page == page
    // guard, since this can also fire while some other page, e.g. main menu after leaving, is up).
-   MenuPage* currentPage = Menu::getInstance()->getCurrentPage();
+   MenuPage* current_page = Menu::getInstance()->getCurrentPage();
    MenuPage* page = Menu::getInstance()->getPageByName(kLounge);
 
-   if (currentPage != page || !playerInfo)
+   if (current_page != page || !player_info)
+   {
       return;
+   }
 
-   mPlayerIdToIndexMap.clear();
+   _player_id_to_index_map.clear();
 
    struct ScoreEntry
    {
@@ -448,150 +516,188 @@ void MenuPageNavigator::updateLoungePlayerList(std::map<int, PlayerInfo*>* playe
       int score;
    };
 
-   std::vector<ScoreEntry> scoreList;
-   for (const auto& [id, info] : *playerInfo)
-      scoreList.push_back({info, static_cast<int>(info->getOverallStats().getWins())});
+   std::vector<ScoreEntry> score_list;
+   for (const auto& [id, info] : *player_info)
+   {
+      score_list.push_back({info, static_cast<int>(info->getOverallStats().getWins())});
+   }
 
-   std::sort(scoreList.begin(), scoreList.end(), [](const ScoreEntry& a, const ScoreEntry& b) { return a.score > b.score; });
+   std::sort(score_list.begin(), score_list.end(), [](const ScoreEntry& a, const ScoreEntry& b) { return a.score > b.score; });
 
    // initially hide all rows
    for (int i = 1; i <= 10; i++)
    {
-      auto* nickItem = dynamic_cast<MenuPageLabelItem*>(currentPage->getPageItem("label_p" + (std::to_string(i))));
-      auto* activeBoxItem = currentPage->getPageItem("p" + (std::to_string(i)) + "_box_active");
-      auto* ownerItem = currentPage->getPageItem("p" + (std::to_string(i)) + "_leader_icon");
-      auto* playerItem = currentPage->getPageItem("p" + (std::to_string(i)) + "_icon");
-      auto* rankItem = currentPage->getPageItem("label_rank_" + (std::to_string(i)));
-      auto* winsItem = dynamic_cast<MenuPageLabelItem*>(currentPage->getPageItem("label_p" + (std::to_string(i)) + "_wins"));
+      auto* nick_item = dynamic_cast<MenuPageLabelItem*>(current_page->getPageItem("label_p" + std::to_string(i)));
+      auto* active_box_item = current_page->getPageItem("p" + std::to_string(i) + "_box_active");
+      auto* owner_item = current_page->getPageItem("p" + std::to_string(i) + "_leader_icon");
+      auto* player_item = current_page->getPageItem("p" + std::to_string(i) + "_icon");
+      auto* rank_item = current_page->getPageItem("label_rank_" + std::to_string(i));
+      auto* wins_item = dynamic_cast<MenuPageLabelItem*>(current_page->getPageItem("label_p" + std::to_string(i) + "_wins"));
       // matches GameMenuInterfaceLounge::initializeLoungeStates() - only ever shown by the
       // typing-indicator feature (updatePlayerTyping()/removePlayerTyping()), which isn't ported
       // (see the deferred chat handling below) - so it must be force-hidden here instead, or the
       // PSD's raw default visibility leaks through unmodified for every row.
-      auto* typingBoxItem = currentPage->getPageItem("p" + (std::to_string(i)) + "_box_type");
+      auto* typing_box_item = current_page->getPageItem("p" + std::to_string(i) + "_box_type");
 
-      if (nickItem)
-         nickItem->setText("");
-      if (activeBoxItem)
-         activeBoxItem->setVisible(false);
-      if (ownerItem)
-         ownerItem->setVisible(false);
-      if (playerItem)
-         playerItem->setVisible(false);
-      if (rankItem)
-         rankItem->setVisible(false);
-      if (winsItem)
-         winsItem->setVisible(false);
-      if (typingBoxItem)
-         typingBoxItem->setVisible(false);
+      if (nick_item)
+      {
+         nick_item->setText("");
+      }
+      if (active_box_item)
+      {
+         active_box_item->setVisible(false);
+      }
+      if (owner_item)
+      {
+         owner_item->setVisible(false);
+      }
+      if (player_item)
+      {
+         player_item->setVisible(false);
+      }
+      if (rank_item)
+      {
+         rank_item->setVisible(false);
+      }
+      if (wins_item)
+      {
+         wins_item->setVisible(false);
+      }
+      if (typing_box_item)
+      {
+         typing_box_item->setVisible(false);
+      }
    }
 
    int counter = 0;
-   for (const ScoreEntry& entry : scoreList)
+   for (const ScoreEntry& entry : score_list)
    {
       counter++;
 
       PlayerInfo* player = entry.player;
       const int color = static_cast<int>(player->getColor());
-      GameInformation* gameInfo = BombermanClient::getInstance()->getCurrentGameInformation();
-      const bool owner = gameInfo && (player->getId() == gameInfo->getCreatorId());
+      GameInformation* game_info = BombermanClient::getInstance()->getCurrentGameInformation();
+      const bool owner = game_info && (player->getId() == game_info->getCreatorId());
 
-      auto* nickItem = dynamic_cast<MenuPageLabelItem*>(currentPage->getPageItem("label_p" + (std::to_string(counter))));
-      auto* winsItem = dynamic_cast<MenuPageLabelItem*>(currentPage->getPageItem("label_p" + (std::to_string(counter)) + "_wins"));
-      auto* rankItem = currentPage->getPageItem("label_rank_" + (std::to_string(counter)));
-      auto* activeBoxItem = currentPage->getPageItem("p" + (std::to_string(counter)) + "_box_active");
-      auto* ownerItem = currentPage->getPageItem("p" + (std::to_string(counter)) + "_leader_icon");
-      auto* playerItem = currentPage->getPageItem("p" + (std::to_string(color)) + "_icon");
+      auto* nick_item = dynamic_cast<MenuPageLabelItem*>(current_page->getPageItem("label_p" + std::to_string(counter)));
+      auto* wins_item = dynamic_cast<MenuPageLabelItem*>(current_page->getPageItem("label_p" + std::to_string(counter) + "_wins"));
+      auto* rank_item = current_page->getPageItem("label_rank_" + std::to_string(counter));
+      auto* active_box_item = current_page->getPageItem("p" + std::to_string(counter) + "_box_active");
+      auto* owner_item = current_page->getPageItem("p" + std::to_string(counter) + "_leader_icon");
+      auto* player_item = current_page->getPageItem("p" + std::to_string(color) + "_icon");
 
-      // note: the original also nudges playerItem's active-layer Y to align with activeBoxItem's
-      // top (playerItem->getCurrentLayer()->setY(...)) - PSDLayer::setY() isn't ported in this
+      // note: the original also nudges player_item's active-layer Y to align with active_box_item's
+      // top (player_item->getCurrentLayer()->setY(...)) - PSDLayer::setY() isn't ported in this
       // port (only getters + setOpacity exist), so that pixel-alignment tweak is skipped; the row
       // still shows correctly, just not pixel-perfect vertically.
 
-      mPlayerIdToIndexMap[player->getId()] = counter;
+      _player_id_to_index_map[player->getId()] = counter;
 
-      if (winsItem)
+      if (wins_item)
       {
-         winsItem->setText((std::to_string(entry.score)));
-         winsItem->setColor(Color(counter <= 3 ? "#fbfe00" : "#3b7d9d"));
-         winsItem->setVisible(true);
+         wins_item->setText(std::to_string(entry.score));
+         wins_item->setColor(Color(counter <= 3 ? "#fbfe00" : "#3b7d9d"));
+         wins_item->setVisible(true);
       }
 
-      if (nickItem)
-         nickItem->setText(player->getNick());
-      if (activeBoxItem)
-         activeBoxItem->setVisible(true);
-      if (ownerItem)
-         ownerItem->setVisible(owner);
-      if (playerItem)
-         playerItem->setVisible(true);
-      if (rankItem)
-         rankItem->setVisible(true);
+      if (nick_item)
+      {
+         nick_item->setText(player->getNick());
+      }
+      if (active_box_item)
+      {
+         active_box_item->setVisible(true);
+      }
+      if (owner_item)
+      {
+         owner_item->setVisible(owner);
+      }
+      if (player_item)
+      {
+         player_item->setVisible(true);
+      }
+      if (rank_item)
+      {
+         rank_item->setVisible(true);
+      }
    }
 }
 
-void MenuPageNavigator::onMessageReceived(int senderId, const std::string& message, bool finished)
+void MenuPageNavigator::onMessageReceived(int sender_id, const std::string& message, bool finished)
 {
    // matches GameMenuWorkflow::messageReceived() - typing-in-progress notifications
    // (finished == false) would drive the "typing bubble" via updatePlayerTyping(), which isn't
    // ported (see the comment in updateLoungePlayerList()); only finished messages are displayed.
    if (finished)
    {
-      addLoungeMessage(senderId, message);
+      addLoungeMessage(sender_id, message);
    }
 }
 
-void MenuPageNavigator::addLoungeMessage(int senderId, const std::string& message)
+void MenuPageNavigator::addLoungeMessage(int sender_id, const std::string& message)
 {
    // matches GameMenuInterfaceLounge::addLoungeMessage() - only touches the UI while the lounge
    // page is actually showing.
-   MenuPage* loungePage = Menu::getInstance()->getPageByName(kLounge);
-   MenuPage* currentPage = Menu::getInstance()->getCurrentPage();
+   MenuPage* lounge_page = Menu::getInstance()->getPageByName(kLounge);
+   MenuPage* current_page = Menu::getInstance()->getCurrentPage();
 
-   if (loungePage != currentPage)
+   if (lounge_page != current_page)
+   {
       return;
+   }
 
-   auto* sayItem = dynamic_cast<MenuPageTextEditItem*>(loungePage->getPageItem(kLoungeLineeditSay));
-   auto* tableItem = dynamic_cast<MenuPageListItem*>(currentPage->getPageItem(kLoungeTableMain));
+   auto* say_item = dynamic_cast<MenuPageTextEditItem*>(lounge_page->getPageItem(kLoungeLineeditSay));
+   auto* table_item = dynamic_cast<MenuPageListItem*>(current_page->getPageItem(kLoungeTableMain));
 
-   if (!sayItem || !tableItem)
+   if (!say_item || !table_item)
+   {
       return;
+   }
 
    // the server already prepends "nick: " to the message (see Game::processPacket's MESSAGE
    // case) - split it back out here only to avoid repeating the nick on wrapped continuation
    // lines, matching the original's own formatting.
    std::string nick;
-   const size_t nickEnd = message.find(": ");
-   if (nickEnd != std::string::npos)
-      nick = message.substr(0, nickEnd);
+   const size_t nick_end = message.find(": ");
+   if (nick_end != std::string::npos)
+   {
+      nick = message.substr(0, nick_end);
+   }
 
-   const Constants::Color playerColor = BombermanClient::getInstance()->getColor(senderId);
-   Color color = GameSettings::getInstance()->getStyleSettings()->getColor(playerColor);
-   const Color outlineColor(0, 0, 0, 255);
+   const Constants::Color player_color = BombermanClient::getInstance()->getColor(sender_id);
+   Color color = GameSettings::getInstance()->getStyleSettings()->getColor(player_color);
+   const Color outline_color(0, 0, 0, 255);
 
-   if (playerColor == Constants::ColorBlack)
+   if (player_color == Constants::ColorBlack)
+   {
       color = Color(128, 128, 128, 255);
+   }
 
-   const std::vector<std::string> lines = WordWrap::wrap(message, sayItem->getFieldWidth());
+   const std::vector<std::string> lines = WordWrap::wrap(message, say_item->getFieldWidth());
 
    int i = 0;
-   for (const auto& lineStd : lines)
+   for (const std::string& line : lines)
    {
-      const std::string line = lineStd;
-
       std::string text;
       if (i == 0 || nick.empty())
+      {
          text = line;
+      }
       else
-         text = (nick) + ": " + (line);
+      {
+         text = nick + ": " + line;
+      }
 
       const std::string trimmed = StringUtils::trim(line);
-      if (trimmed != (nick) + ":" && !trimmed.empty())
-         tableItem->appendItem(text, color, true, outlineColor);
+      if (trimmed != nick + ":" && !trimmed.empty())
+      {
+         table_item->appendItem(text, color, true, outline_color);
+      }
 
       ++i;
    }
 
-   tableItem->scrollToPercentage(100.0f, false);
+   table_item->scrollToPercentage(100.0f, false);
 }
 
 void MenuPageNavigator::deserializeLoginData()
@@ -599,29 +705,37 @@ void MenuPageNavigator::deserializeLoginData()
    // matches GameMenuInterfaceMain::deserializeLoginData().
    MenuPage* page = Menu::getInstance()->getPageByName(kMainMenu);
 
-   auto* hostCombo = dynamic_cast<MenuPageEditableComboBoxItem*>(page->getPageItem("editablecombobox_host_table"));
-   auto* nickItem = dynamic_cast<MenuPageTextEditItem*>(page->getPageItem("lineedit_nick"));
+   auto* host_combo = dynamic_cast<MenuPageEditableComboBoxItem*>(page->getPageItem("editablecombobox_host_table"));
+   auto* nick_item = dynamic_cast<MenuPageTextEditItem*>(page->getPageItem("lineedit_nick"));
 
-   if (!hostCombo)
+   if (!host_combo)
+   {
       return;
+   }
 
-   hostCombo->clear();
+   host_combo->clear();
 
-   const std::string savedHost = GameSettings::getInstance()->getLoginSettings()->getHost();
+   const std::string saved_host = GameSettings::getInstance()->getLoginSettings()->getHost();
 
-   const std::vector<std::string> hosts = mHostHistory.load(savedHost);
+   const std::vector<std::string> hosts = _host_history.load(saved_host);
    for (const auto& host : hosts)
-      hostCombo->appendItem(host);
+   {
+      host_combo->appendItem(host);
+   }
 
-   if (nickItem)
-      nickItem->setText(GameSettings::getInstance()->getLoginSettings()->getNick());
+   if (nick_item)
+   {
+      nick_item->setText(GameSettings::getInstance()->getLoginSettings()->getNick());
+   }
 
    // there is no use to deserialize the saved host when there's already a valid value set up
    // (the game has been started before and a valid hostname restored) - don't overwrite whatever
    // the user already typed.
-   auto* hostTextEdit = hostCombo->getTextEditItem();
-   if (hostTextEdit && hostTextEdit->getText().empty())
-      hostTextEdit->setText(savedHost);
+   auto* host_text_edit = host_combo->getTextEditItem();
+   if (host_text_edit && host_text_edit->getText().empty())
+   {
+      host_text_edit->setText(saved_host);
+   }
 }
 
 void MenuPageNavigator::deserializeVersion()
@@ -632,7 +746,9 @@ void MenuPageNavigator::deserializeVersion()
 
    auto* version = dynamic_cast<MenuPageLabelItem*>(page->getPageItem("label_version"));
    if (!version)
+   {
       return;
+   }
 
    version->setText("version " + std::string(GAME_VERSION) + ", revision " + std::string(GAME_REVISION));
    version->setAlpha(100);
@@ -643,23 +759,27 @@ void MenuPageNavigator::updateLoginData()
    // matches GameMenuInterfaceMain::updateLoginData().
    MenuPage* page = Menu::getInstance()->getPageByName(kMainMenu);
 
-   auto* hostCombo = dynamic_cast<MenuPageEditableComboBoxItem*>(page->getPageItem("editablecombobox_host_table"));
-   auto* nickItem = dynamic_cast<MenuPageTextEditItem*>(page->getPageItem("lineedit_nick"));
+   auto* host_combo = dynamic_cast<MenuPageEditableComboBoxItem*>(page->getPageItem("editablecombobox_host_table"));
+   auto* nick_item = dynamic_cast<MenuPageTextEditItem*>(page->getPageItem("lineedit_nick"));
 
-   if (!hostCombo || !nickItem)
+   if (!host_combo || !nick_item)
+   {
       return;
+   }
 
-   auto* hostTextEdit = hostCombo->getTextEditItem();
-   if (!hostTextEdit)
+   auto* host_text_edit = host_combo->getTextEditItem();
+   if (!host_text_edit)
+   {
       return;
+   }
 
-   const std::string host = hostTextEdit->getText();
-   const std::string nick = nickItem->getText();
+   const std::string host = host_text_edit->getText();
+   const std::string nick = nick_item->getText();
 
    GameSettings::getInstance()->getLoginSettings()->setHost(host);
    GameSettings::getInstance()->getLoginSettings()->setNick(nick);
 
-   mHostHistory.add(host);
+   _host_history.add(host);
 }
 
 void MenuPageNavigator::deserializeCreateGameData()
@@ -669,9 +789,9 @@ void MenuPageNavigator::deserializeCreateGameData()
    // (which does branch on isSinglePlayer()) - this is the original's own behavior, not a typo
    // introduced by the port, so left as-is rather than "fixed" to branch.
    MenuPage* page = Menu::getInstance()->getPageByName(kGameCreate);
-   auto* gameNameItem = dynamic_cast<MenuPageTextEditItem*>(page->getPageItem("lineedit_name"));
+   auto* game_name_item = dynamic_cast<MenuPageTextEditItem*>(page->getPageItem("lineedit_name"));
 
-   gameNameItem->setText(GameSettings::getInstance()->getCreateGameSettingsSingle()->getGameName());
+   game_name_item->setText(GameSettings::getInstance()->getCreateGameSettingsSingle()->getGameName());
 }
 
 void MenuPageNavigator::initializeCreateGameOptions()
@@ -679,59 +799,67 @@ void MenuPageNavigator::initializeCreateGameOptions()
    // matches GameMenuInterfaceCreate::initializeCreateGameOptions().
    MenuPage* page = Menu::getInstance()->getPageByName(kGameCreate);
 
-   auto* timeCombo = dynamic_cast<MenuPageComboBoxItem*>(page->getPageItem("combobox_time_table"));
-   auto* maxPlayersCombo = dynamic_cast<MenuPageComboBoxItem*>(page->getPageItem("combobox_maxplayers_table"));
-   auto* botCountCombo = dynamic_cast<MenuPageComboBoxItem*>(page->getPageItem("combobox_bots_table"));
-   auto* levelCombo = dynamic_cast<MenuPageComboBoxItem*>(page->getPageItem("combobox_level_table"));
-   auto* roundsCombo = dynamic_cast<MenuPageComboBoxItem*>(page->getPageItem("combobox_rounds_table"));
+   auto* time_combo = dynamic_cast<MenuPageComboBoxItem*>(page->getPageItem("combobox_time_table"));
+   auto* max_players_combo = dynamic_cast<MenuPageComboBoxItem*>(page->getPageItem("combobox_maxplayers_table"));
+   auto* bot_count_combo = dynamic_cast<MenuPageComboBoxItem*>(page->getPageItem("combobox_bots_table"));
+   auto* level_combo = dynamic_cast<MenuPageComboBoxItem*>(page->getPageItem("combobox_level_table"));
+   auto* rounds_combo = dynamic_cast<MenuPageComboBoxItem*>(page->getPageItem("combobox_rounds_table"));
 
-   auto* bombExtrasCb = dynamic_cast<MenuPageCheckBoxItem*>(page->getPageItem("checkbox_bomb"));
-   auto* flameExtrasCb = dynamic_cast<MenuPageCheckBoxItem*>(page->getPageItem("checkbox_flame"));
-   auto* speedUpExtrasCb = dynamic_cast<MenuPageCheckBoxItem*>(page->getPageItem("checkbox_speedup"));
-   auto* kickExtrasCb = dynamic_cast<MenuPageCheckBoxItem*>(page->getPageItem("checkbox_kick"));
-   auto* skullsExtrasCb = dynamic_cast<MenuPageCheckBoxItem*>(page->getPageItem("checkbox_skull"));
+   auto* bomb_extras_checkbox = dynamic_cast<MenuPageCheckBoxItem*>(page->getPageItem("checkbox_bomb"));
+   auto* flame_extras_checkbox = dynamic_cast<MenuPageCheckBoxItem*>(page->getPageItem("checkbox_flame"));
+   auto* speed_up_extras_checkbox = dynamic_cast<MenuPageCheckBoxItem*>(page->getPageItem("checkbox_speedup"));
+   auto* kick_extras_checkbox = dynamic_cast<MenuPageCheckBoxItem*>(page->getPageItem("checkbox_kick"));
+   auto* skulls_extras_checkbox = dynamic_cast<MenuPageCheckBoxItem*>(page->getPageItem("checkbox_skull"));
 
-   if (!mCreateGamePagesInitialized.contains(page))
+   if (!_create_game_pages_initialized.contains(page))
    {
-      timeCombo->appendItem("2");
-      timeCombo->appendItem("3");
-      timeCombo->appendItem("5");
-      timeCombo->appendItem("7");
+      time_combo->appendItem("2");
+      time_combo->appendItem("3");
+      time_combo->appendItem("5");
+      time_combo->appendItem("7");
 
       for (int i = 0; i < 5; i++)
-         roundsCombo->appendItem((std::to_string(i + 1)));
+      {
+         rounds_combo->appendItem(std::to_string(i + 1));
+      }
 
       for (int i = 2; i <= 10; i++)
-         maxPlayersCombo->appendItem((std::to_string(i)));
+      {
+         max_players_combo->appendItem(std::to_string(i));
+      }
 
-      for (const std::string& name : mSortedLevelNames)
-         levelCombo->appendItem(name);
+      for (const std::string& name : _sorted_level_names)
+      {
+         level_combo->appendItem(name);
+      }
 
-      mCreateGamePagesInitialized.insert(page);
+      _create_game_pages_initialized.insert(page);
    }
 
-   GameSettings::CreateGameSettings* cgs = BombermanClient::getInstance()->isSinglePlayer()
-                                              ? GameSettings::getInstance()->getCreateGameSettingsSingle()
-                                              : GameSettings::getInstance()->getCreateGameSettingsMulti();
+   GameSettings::CreateGameSettings* create_game_settings = BombermanClient::getInstance()->isSinglePlayer()
+                                                               ? GameSettings::getInstance()->getCreateGameSettingsSingle()
+                                                               : GameSettings::getInstance()->getCreateGameSettingsMulti();
 
-   timeCombo->setValue((std::to_string(cgs->getDuration())));
-   maxPlayersCombo->setValue((std::to_string(cgs->getMaxPlayers())));
-   botCountCombo->setValue((std::to_string(cgs->getBotCount())));
+   time_combo->setValue(std::to_string(create_game_settings->getDuration()));
+   max_players_combo->setValue(std::to_string(create_game_settings->getMaxPlayers()));
+   bot_count_combo->setValue(std::to_string(create_game_settings->getBotCount()));
 
-   int levelIndex = cgs->getLevelIndex();
-   if (levelIndex >= mSortedLevelNames.size())
-      levelIndex = 0;
+   int level_index = create_game_settings->getLevelIndex();
+   if (static_cast<size_t>(level_index) >= _sorted_level_names.size())
+   {
+      level_index = 0;
+   }
 
-   levelCombo->setValue(mSortedLevelNames[levelIndex]);
-   levelCombo->setActiveElement(levelIndex);
-   levelCombo->setFocussedElement(levelIndex);
+   level_combo->setValue(_sorted_level_names[level_index]);
+   level_combo->setActiveElement(level_index);
+   level_combo->setFocussedElement(level_index);
 
-   roundsCombo->setValue((std::to_string(cgs->getRounds())));
-   bombExtrasCb->setChecked(cgs->isExtraBombsEnabled());
-   flameExtrasCb->setChecked(cgs->isExtraFlamesEnabled());
-   speedUpExtrasCb->setChecked(cgs->isExtraSpeedUpsEnabled());
-   kickExtrasCb->setChecked(cgs->isExtraKicksEnabled());
-   skullsExtrasCb->setChecked(cgs->isExtraSkullsEnabled());
+   rounds_combo->setValue(std::to_string(create_game_settings->getRounds()));
+   bomb_extras_checkbox->setChecked(create_game_settings->isExtraBombsEnabled());
+   flame_extras_checkbox->setChecked(create_game_settings->isExtraFlamesEnabled());
+   speed_up_extras_checkbox->setChecked(create_game_settings->isExtraSpeedUpsEnabled());
+   kick_extras_checkbox->setChecked(create_game_settings->isExtraKicksEnabled());
+   skulls_extras_checkbox->setChecked(create_game_settings->isExtraSkullsEnabled());
 
    updateCreateGamePlayerCounts();
    updateCreateGameLevelPreview();
@@ -742,20 +870,24 @@ void MenuPageNavigator::updateCreateGamePlayerCounts()
    // matches GameMenuInterfaceCreate::updateCreateGamePlayerCounts().
    MenuPage* page = Menu::getInstance()->getPageByName(kGameCreate);
 
-   auto* maxPlayersCombo = dynamic_cast<MenuPageComboBoxItem*>(page->getPageItem("combobox_maxplayers_table"));
-   auto* botCountCombo = dynamic_cast<MenuPageComboBoxItem*>(page->getPageItem("combobox_bots_table"));
+   auto* max_players_combo = dynamic_cast<MenuPageComboBoxItem*>(page->getPageItem("combobox_maxplayers_table"));
+   auto* bot_count_combo = dynamic_cast<MenuPageComboBoxItem*>(page->getPageItem("combobox_bots_table"));
 
-   const int maxPlayers = std::atoi(maxPlayersCombo->getValue().c_str());
-   const int botCount = std::atoi(botCountCombo->getValue().c_str());
-   const int maxBots = maxPlayers - 1;
+   const int max_players = std::atoi(max_players_combo->getValue().c_str());
+   const int bot_count = std::atoi(bot_count_combo->getValue().c_str());
+   const int max_bots = max_players - 1;
 
-   botCountCombo->clear();
+   bot_count_combo->clear();
 
-   for (int i = 0; i <= maxBots; i++)
-      botCountCombo->appendItem((std::to_string(i)));
+   for (int i = 0; i <= max_bots; i++)
+   {
+      bot_count_combo->appendItem(std::to_string(i));
+   }
 
-   if (botCount > maxBots)
-      botCountCombo->setValue((std::to_string(maxBots)));
+   if (bot_count > max_bots)
+   {
+      bot_count_combo->setValue(std::to_string(max_bots));
+   }
 }
 
 void MenuPageNavigator::updateCreateGameLevelPreview()
@@ -763,36 +895,46 @@ void MenuPageNavigator::updateCreateGameLevelPreview()
    // matches GameMenuInterfaceCreate::updateCreateGameLevelPreview().
    MenuPage* page = Menu::getInstance()->getPageByName(kGameCreate);
 
-   auto* previewCastle = dynamic_cast<MenuPagePixmapItem*>(page->getPageItem("pixmap_preview_castle"));
-   auto* previewMansion = dynamic_cast<MenuPagePixmapItem*>(page->getPageItem("pixmap_preview_mansion"));
-   auto* previewSpace = dynamic_cast<MenuPagePixmapItem*>(page->getPageItem("pixmap_preview_space"));
-   auto* levelCombo = dynamic_cast<MenuPageComboBoxItem*>(page->getPageItem("combobox_level_table"));
+   auto* preview_castle = dynamic_cast<MenuPagePixmapItem*>(page->getPageItem("pixmap_preview_castle"));
+   auto* preview_mansion = dynamic_cast<MenuPagePixmapItem*>(page->getPageItem("pixmap_preview_mansion"));
+   auto* preview_space = dynamic_cast<MenuPagePixmapItem*>(page->getPageItem("pixmap_preview_space"));
+   auto* level_combo = dynamic_cast<MenuPageComboBoxItem*>(page->getPageItem("combobox_level_table"));
 
-   previewCastle->setVisible(levelCombo->getFocussedElement() <= 0);
-   previewMansion->setVisible(levelCombo->getFocussedElement() == 1);
-   previewSpace->setVisible(levelCombo->getFocussedElement() == 2);
+   preview_castle->setVisible(level_combo->getFocussedElement() <= 0);
+   preview_mansion->setVisible(level_combo->getFocussedElement() == 1);
+   preview_space->setVisible(level_combo->getFocussedElement() == 2);
 }
 
 void MenuPageNavigator::setMonitorCreateGameOptionsEnabled(bool enabled)
 {
    // matches GameMenuInterfaceCreate::setMonitorCreateGameOptionsEnabled().
+   if (!enabled && _max_players_value_changed_connection == INVALID_CONNECTION)
+   {
+      return;
+   }
+
    MenuPage* page = Menu::getInstance()->getPageByName(kGameCreate);
 
-   auto* maxPlayersCombo = dynamic_cast<MenuPageComboBoxItem*>(page->getPageItem("combobox_maxplayers_table"));
-   auto* levelCombo = dynamic_cast<MenuPageComboBoxItem*>(page->getPageItem("combobox_level_table"));
+   auto* max_players_combo = dynamic_cast<MenuPageComboBoxItem*>(page->getPageItem("combobox_maxplayers_table"));
+   auto* level_combo = dynamic_cast<MenuPageComboBoxItem*>(page->getPageItem("combobox_level_table"));
 
    if (enabled)
    {
-      mMaxPlayersValueChangedConnection =
-         maxPlayersCombo->valueChangedSignal.connect([this](const std::string&) { updateCreateGamePlayerCounts(); });
-      mLevelValueChangedConnection = levelCombo->valueChangedSignal.connect([this](const std::string&) { updateCreateGameLevelPreview(); });
-      mLevelElementFocussedConnection = levelCombo->elementFocussedSignal.connect([this](int) { updateCreateGameLevelPreview(); });
+      _max_players_value_changed_connection =
+         max_players_combo->valueChangedSignal.connect([this](const std::string&) { updateCreateGamePlayerCounts(); });
+      _level_value_changed_connection =
+         level_combo->valueChangedSignal.connect([this](const std::string&) { updateCreateGameLevelPreview(); });
+      _level_element_focussed_connection = level_combo->elementFocussedSignal.connect([this](int) { updateCreateGameLevelPreview(); });
    }
    else
    {
-      maxPlayersCombo->valueChangedSignal.disconnect(mMaxPlayersValueChangedConnection);
-      levelCombo->valueChangedSignal.disconnect(mLevelValueChangedConnection);
-      levelCombo->elementFocussedSignal.disconnect(mLevelElementFocussedConnection);
+      max_players_combo->valueChangedSignal.disconnect(_max_players_value_changed_connection);
+      level_combo->valueChangedSignal.disconnect(_level_value_changed_connection);
+      level_combo->elementFocussedSignal.disconnect(_level_element_focussed_connection);
+
+      _max_players_value_changed_connection = INVALID_CONNECTION;
+      _level_value_changed_connection = INVALID_CONNECTION;
+      _level_element_focussed_connection = INVALID_CONNECTION;
    }
 }
 
@@ -803,33 +945,42 @@ void MenuPageNavigator::deserializeAudioSettings()
    // GameSettings at startup).
    MenuPage* page = Menu::getInstance()->getPageByName(kOptionsAudio);
 
-   auto* musicSlider = dynamic_cast<MenuPageSliderItem*>(page->getPageItem(kOptionsAudioSliderMusic));
-   auto* sfxSlider = dynamic_cast<MenuPageSliderItem*>(page->getPageItem(kOptionsAudioSliderSfx));
+   auto* music_slider = dynamic_cast<MenuPageSliderItem*>(page->getPageItem(kOptionsAudioSliderMusic));
+   auto* sfx_slider = dynamic_cast<MenuPageSliderItem*>(page->getPageItem(kOptionsAudioSliderSfx));
 
-   musicSlider->setValue(SoundManager::getInstance()->getVolumeMusic());
-   sfxSlider->setValue(SoundManager::getInstance()->getVolumeSfx());
+   music_slider->setValue(SoundManager::getInstance()->getVolumeMusic());
+   sfx_slider->setValue(SoundManager::getInstance()->getVolumeSfx());
 }
 
 void MenuPageNavigator::setMonitorAudioSettingsEnabled(bool enabled)
 {
    // matches GameMenuInterfaceOptions::setMonitorAudioSettingsEnabled() - only the sfx slider
    // gets a tick sound (audible feedback of the new sfx volume itself); the music slider doesn't.
+   if (!enabled && _music_volume_changed_connection == INVALID_CONNECTION)
+   {
+      return;
+   }
+
    MenuPage* page = Menu::getInstance()->getPageByName(kOptionsAudio);
 
-   auto* musicSlider = dynamic_cast<MenuPageSliderItem*>(page->getPageItem(kOptionsAudioSliderMusic));
-   auto* sfxSlider = dynamic_cast<MenuPageSliderItem*>(page->getPageItem(kOptionsAudioSliderSfx));
+   auto* music_slider = dynamic_cast<MenuPageSliderItem*>(page->getPageItem(kOptionsAudioSliderMusic));
+   auto* sfx_slider = dynamic_cast<MenuPageSliderItem*>(page->getPageItem(kOptionsAudioSliderSfx));
 
    if (enabled)
    {
-      mMusicVolumeChangedConnection = musicSlider->valueChangedSignal.connect([this](float value) { applyVolumeMusic(value); });
-      mSfxVolumeChangedConnection = sfxSlider->valueChangedSignal.connect([this](float value) { applyVolumeSfx(value); });
-      mSfxTickConnection = sfxSlider->valueChangedSignal.connect([](float) { SoundManager::getInstance()->playSoundTick(); });
+      _music_volume_changed_connection = music_slider->valueChangedSignal.connect([this](float value) { applyVolumeMusic(value); });
+      _sfx_volume_changed_connection = sfx_slider->valueChangedSignal.connect([this](float value) { applyVolumeSfx(value); });
+      _sfx_tick_connection = sfx_slider->valueChangedSignal.connect([](float) { SoundManager::getInstance()->playSoundTick(); });
    }
    else
    {
-      musicSlider->valueChangedSignal.disconnect(mMusicVolumeChangedConnection);
-      sfxSlider->valueChangedSignal.disconnect(mSfxVolumeChangedConnection);
-      sfxSlider->valueChangedSignal.disconnect(mSfxTickConnection);
+      music_slider->valueChangedSignal.disconnect(_music_volume_changed_connection);
+      sfx_slider->valueChangedSignal.disconnect(_sfx_volume_changed_connection);
+      sfx_slider->valueChangedSignal.disconnect(_sfx_tick_connection);
+
+      _music_volume_changed_connection = INVALID_CONNECTION;
+      _sfx_volume_changed_connection = INVALID_CONNECTION;
+      _sfx_tick_connection = INVALID_CONNECTION;
    }
 }
 
@@ -847,11 +998,11 @@ void MenuPageNavigator::restoreAudioDefaults()
 {
    // matches GameMenuInterfaceOptions::restoreAudioDefaults(): reset GameSettings, push the
    // (now-default) values into SoundManager, then re-seed the sliders' visual positions.
-   GameSettings::AudioSettings* audioSettings = GameSettings::getInstance()->getAudioSettings();
-   audioSettings->restoreDefaults();
+   GameSettings::AudioSettings* audio_settings = GameSettings::getInstance()->getAudioSettings();
+   audio_settings->restoreDefaults();
 
-   SoundManager::getInstance()->setVolumeMusic(audioSettings->getVolumeMusic());
-   SoundManager::getInstance()->setVolumeSfx(audioSettings->getVolumeSfx());
+   SoundManager::getInstance()->setVolumeMusic(audio_settings->getVolumeMusic());
+   SoundManager::getInstance()->setVolumeSfx(audio_settings->getVolumeSfx());
 
    deserializeAudioSettings();
 }
@@ -861,67 +1012,68 @@ void MenuPageNavigator::createGame()
    // matches GameMenuInterfaceCreate::createGame().
    MenuPage* page = Menu::getInstance()->getPageByName(kGameCreate);
 
-   auto* gameNameItem = dynamic_cast<MenuPageTextEditItem*>(page->getPageItem("lineedit_name"));
-   auto* timeCombo = dynamic_cast<MenuPageComboBoxItem*>(page->getPageItem("combobox_time_table"));
-   auto* maxPlayersCombo = dynamic_cast<MenuPageComboBoxItem*>(page->getPageItem("combobox_maxplayers_table"));
-   auto* botCountCombo = dynamic_cast<MenuPageComboBoxItem*>(page->getPageItem("combobox_bots_table"));
-   auto* levelCombo = dynamic_cast<MenuPageComboBoxItem*>(page->getPageItem("combobox_level_table"));
-   auto* roundsCombo = dynamic_cast<MenuPageComboBoxItem*>(page->getPageItem("combobox_rounds_table"));
+   auto* game_name_item = dynamic_cast<MenuPageTextEditItem*>(page->getPageItem("lineedit_name"));
+   auto* time_combo = dynamic_cast<MenuPageComboBoxItem*>(page->getPageItem("combobox_time_table"));
+   auto* max_players_combo = dynamic_cast<MenuPageComboBoxItem*>(page->getPageItem("combobox_maxplayers_table"));
+   auto* bot_count_combo = dynamic_cast<MenuPageComboBoxItem*>(page->getPageItem("combobox_bots_table"));
+   auto* level_combo = dynamic_cast<MenuPageComboBoxItem*>(page->getPageItem("combobox_level_table"));
+   auto* rounds_combo = dynamic_cast<MenuPageComboBoxItem*>(page->getPageItem("combobox_rounds_table"));
 
-   auto* bombExtrasCb = dynamic_cast<MenuPageCheckBoxItem*>(page->getPageItem("checkbox_bomb"));
-   auto* flameExtrasCb = dynamic_cast<MenuPageCheckBoxItem*>(page->getPageItem("checkbox_flame"));
-   auto* speedUpExtrasCb = dynamic_cast<MenuPageCheckBoxItem*>(page->getPageItem("checkbox_speedup"));
-   auto* kickExtrasCb = dynamic_cast<MenuPageCheckBoxItem*>(page->getPageItem("checkbox_kick"));
-   auto* skullsExtrasCb = dynamic_cast<MenuPageCheckBoxItem*>(page->getPageItem("checkbox_skull"));
+   auto* bomb_extras_checkbox = dynamic_cast<MenuPageCheckBoxItem*>(page->getPageItem("checkbox_bomb"));
+   auto* flame_extras_checkbox = dynamic_cast<MenuPageCheckBoxItem*>(page->getPageItem("checkbox_flame"));
+   auto* speed_up_extras_checkbox = dynamic_cast<MenuPageCheckBoxItem*>(page->getPageItem("checkbox_speedup"));
+   auto* kick_extras_checkbox = dynamic_cast<MenuPageCheckBoxItem*>(page->getPageItem("checkbox_kick"));
+   auto* skulls_extras_checkbox = dynamic_cast<MenuPageCheckBoxItem*>(page->getPageItem("checkbox_skull"));
 
-   const std::string gameName = gameNameItem->getText();
+   const std::string game_name = game_name_item->getText();
 
-   int levelIndex = levelCombo->getActiveElement();
-   std::string levelDirName = (levelIndex >= mSortedLevelDirNames.size()) ? mSortedLevelDirNames[0] : mSortedLevelDirNames[levelIndex];
+   int level_index = level_combo->getActiveElement();
+   std::string level_dir_name = (static_cast<size_t>(level_index) >= _sorted_level_dir_names.size()) ? _sorted_level_dir_names[0]
+                                                                                                     : _sorted_level_dir_names[level_index];
 
-   const int durationMinutes = std::atoi(timeCombo->getValue().c_str());
-   const int durationSeconds = durationMinutes * 60;
-   const int maxPlayers = std::atoi(maxPlayersCombo->getValue().c_str());
-   const int botCount = std::atoi(botCountCombo->getValue().c_str());
-   const int rounds = std::atoi(roundsCombo->getValue().c_str());
+   const int duration_minutes = std::atoi(time_combo->getValue().c_str());
+   const int duration_seconds = duration_minutes * 60;
+   const int max_players = std::atoi(max_players_combo->getValue().c_str());
+   const int bot_count = std::atoi(bot_count_combo->getValue().c_str());
+   const int rounds = std::atoi(rounds_combo->getValue().c_str());
 
-   const bool extraBombs = bombExtrasCb->isChecked();
-   const bool extraFlames = flameExtrasCb->isChecked();
-   const bool extraSpeedUps = speedUpExtrasCb->isChecked();
-   const bool extraKicks = kickExtrasCb->isChecked();
-   const bool extraSkulls = skullsExtrasCb->isChecked();
+   const bool extra_bombs = bomb_extras_checkbox->isChecked();
+   const bool extra_flames = flame_extras_checkbox->isChecked();
+   const bool extra_speed_ups = speed_up_extras_checkbox->isChecked();
+   const bool extra_kicks = kick_extras_checkbox->isChecked();
+   const bool extra_skulls = skulls_extras_checkbox->isChecked();
 
-   const Constants::Dimension dimension = (maxPlayers <= 5) ? Constants::Dimension13x11 : Constants::Dimension19x17;
+   const Constants::Dimension dimension = (max_players <= 5) ? Constants::Dimension13x11 : Constants::Dimension19x17;
 
-   GameSettings::CreateGameSettings* cgs = BombermanClient::getInstance()->isSinglePlayer()
-                                              ? GameSettings::getInstance()->getCreateGameSettingsSingle()
-                                              : GameSettings::getInstance()->getCreateGameSettingsMulti();
+   GameSettings::CreateGameSettings* create_game_settings = BombermanClient::getInstance()->isSinglePlayer()
+                                                               ? GameSettings::getInstance()->getCreateGameSettingsSingle()
+                                                               : GameSettings::getInstance()->getCreateGameSettingsMulti();
 
-   cgs->setGameName(gameName);
-   cgs->setLevelIndex(levelIndex);
-   cgs->setRounds(rounds);
-   cgs->setDuration(durationMinutes);
-   cgs->setMaxPlayers(maxPlayers);
-   cgs->setExtraBombsEnabled(extraBombs);
-   cgs->setExtraFlamesEnabled(extraFlames);
-   cgs->setExtraKicksEnabled(extraKicks);
-   cgs->setExtraSpeedUpsEnabled(extraSpeedUps);
-   cgs->setExtraSkullsEnabled(extraSkulls);
-   cgs->setDimensions(dimension);
-   cgs->setBotCount(botCount);
-   cgs->serialize();
+   create_game_settings->setGameName(game_name);
+   create_game_settings->setLevelIndex(level_index);
+   create_game_settings->setRounds(rounds);
+   create_game_settings->setDuration(duration_minutes);
+   create_game_settings->setMaxPlayers(max_players);
+   create_game_settings->setExtraBombsEnabled(extra_bombs);
+   create_game_settings->setExtraFlamesEnabled(extra_flames);
+   create_game_settings->setExtraKicksEnabled(extra_kicks);
+   create_game_settings->setExtraSpeedUpsEnabled(extra_speed_ups);
+   create_game_settings->setExtraSkullsEnabled(extra_skulls);
+   create_game_settings->setDimensions(dimension);
+   create_game_settings->setBotCount(bot_count);
+   create_game_settings->serialize();
 
    BombermanClient::getInstance()->createGame(
-      gameName,
-      levelDirName,
+      game_name,
+      level_dir_name,
       rounds,
-      durationSeconds,
-      maxPlayers,
-      extraBombs,
-      extraFlames,
-      extraSpeedUps,
-      extraKicks,
-      extraSkulls,
+      duration_seconds,
+      max_players,
+      extra_bombs,
+      extra_flames,
+      extra_speed_ups,
+      extra_kicks,
+      extra_skulls,
       dimension
    );
 }

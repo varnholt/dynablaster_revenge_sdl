@@ -2,14 +2,13 @@
 #include "fontpool.h"
 
 MenuPageLabelItem::MenuPageLabelItem()
-    : mFont(0), mFontXOffset(0), mFontYOffset(0), mMaxChars(255), mScale(0.0f), mAlpha(255), mCenterWidth(-1), mCenterHeight(-1)
 {
-   mPageItemType = PageItemTypeLabel;
+   _page_item_type = PageItemTypeLabel;
 }
 
 void MenuPageLabelItem::initialize()
 {
-   mFont = FontPool::Instance()->get(mFontName.c_str());
+   _font = FontPool::Instance()->get(_font_name.c_str());
 }
 
 void MenuPageLabelItem::draw()
@@ -18,79 +17,79 @@ void MenuPageLabelItem::draw()
 
    if (isVisible())
    {
-      if (mColor.isValid())
+      if (_color.isValid())
       {
-         mFont->setColor(mColor.redF(), mColor.greenF(), mColor.blueF(), mAlpha / 255.0f);
+         _font->setColor(_color.redF(), _color.greenF(), _color.blueF(), _alpha / 255.0f);
       }
       else
       {
-         mFont->setColor(1.0f, 1.0f, 1.0f, mAlpha / 255.0f);
+         _font->setColor(1.0f, 1.0f, 1.0f, _alpha / 255.0f);
       }
 
-      mFont->buildVertices(
-         mScale,
-         mText.c_str(),
-         mLayerActive->getLeft() + mFontXOffset,
-         mLayerActive->getBottom() + mFontYOffset,
-         mCenterWidth,
-         mCenterHeight
+      _font->buildVertices(
+         _scale,
+         _text.c_str(),
+         _layer_active->getLeft() + _font_x_offset,
+         _layer_active->getBottom() + _font_y_offset,
+         _center_width,
+         _center_height
       );
 
-      mFont->draw();
+      _font->draw();
    }
 }
 
-void MenuPageLabelItem::setFontXOffset(int xOffset)
+void MenuPageLabelItem::setFontXOffset(int x_offset)
 {
-   mFontXOffset = xOffset;
+   _font_x_offset = x_offset;
 }
 
-void MenuPageLabelItem::setFontYOffset(int yOffset)
+void MenuPageLabelItem::setFontYOffset(int y_offset)
 {
-   mFontYOffset = yOffset;
+   _font_y_offset = y_offset;
 }
 
-void MenuPageLabelItem::setMaxChars(int maxChars)
+void MenuPageLabelItem::setMaxChars(int max_chars)
 {
-   mMaxChars = maxChars;
+   _max_chars = max_chars;
 }
 
 void MenuPageLabelItem::setColor(const Color& color)
 {
-   mColor = color;
+   _color = color;
 }
 
 void MenuPageLabelItem::setAlpha(int alpha)
 {
-   mAlpha = alpha;
+   _alpha = alpha;
 }
 
 void MenuPageLabelItem::setCenterWidth(float width)
 {
-   mCenterWidth = width;
+   _center_width = width;
 }
 
 void MenuPageLabelItem::setCenterHeight(float height)
 {
-   mCenterHeight = height;
+   _center_height = height;
 }
 
 void MenuPageLabelItem::setScale(float scale)
 {
-   mScale = scale;
+   _scale = scale;
 }
 
 void MenuPageLabelItem::setText(const std::string& text)
 {
-   mText = text;
+   _text = text;
 }
 
 std::string MenuPageLabelItem::getText() const
 {
-   return mText;
+   return _text;
 }
 
-void MenuPageLabelItem::setFontName(const std::string& fontName)
+void MenuPageLabelItem::setFontName(const std::string& font_name)
 {
-   mFontName = fontName;
+   _font_name = font_name;
 }

@@ -1,11 +1,11 @@
 #include "menupagebuttonitem.h"
 
-// math
 #include <cmath>
-MenuPageButtonItem::MenuPageButtonItem() : mFadeValue(0.0f), mFadeOut(false)
+
+MenuPageButtonItem::MenuPageButtonItem()
 {
-   mPageItemType = PageItemTypeButton;
-   mInteractive = true;
+   _page_item_type = PageItemTypeButton;
+   _interactive = true;
 }
 
 void MenuPageButtonItem::setFocus(bool focus)
@@ -13,13 +13,12 @@ void MenuPageButtonItem::setFocus(bool focus)
    // only allow item focussing when the button is enabled
    if (isEnabled() || !focus)
    {
-      if (mFocussed && !focus)
+      if (_focussed && !focus)
       {
-         mFadeOut = true;
-         mFocusOutTime.restart();
+         _fade_out = true;
+         _focus_out_time.restart();
       }
 
-      // call base
       MenuPageItem::setFocus(focus);
    }
 }
@@ -30,31 +29,34 @@ void MenuPageButtonItem::setEnabled(bool enabled)
 
    // fade out that button if it's not enabled
    if (!enabled)
+   {
       setFocus(false);
+   }
 }
 
 void MenuPageButtonItem::draw()
 {
-   // call base
    MenuPageItem::draw();
 
    if (isVisible())
    {
-      if (mFadeOut)
+      if (_fade_out)
       {
-         PSDLayer* psdLayer = getActiveLayer();
+         PSDLayer* psd_layer = getActiveLayer();
 
-         mFadeValue = 0.0f;
+         _fade_value = 0.0f;
 
-         if (mFocusOutTime.elapsed() < 500)
-            mFadeValue = std::cos(mFocusOutTime.elapsed() * 0.005);
+         if (_focus_out_time.elapsed() < 500)
+         {
+            _fade_value = std::cos(_focus_out_time.elapsed() * 0.005);
+         }
 
-         psdLayer->render(0, 0, mFadeValue);
+         psd_layer->render(0, 0, _fade_value);
 
          // either cos drops below 0.0 or focus out time exceeds 300ms
-         if (mFadeValue < 0.1f)
+         if (_fade_value < 0.1f)
          {
-            mFadeOut = false;
+            _fade_out = false;
          }
       }
    }

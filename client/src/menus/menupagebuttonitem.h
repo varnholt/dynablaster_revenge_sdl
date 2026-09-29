@@ -9,15 +9,15 @@ class MenuPageButtonItem : public MenuPageItem
 public:
    MenuPageButtonItem();
 
-   virtual void draw();
+   void draw() override;
 
-   virtual void setFocus(bool focus);
+   void setFocus(bool focus) override;
 
-   virtual void setEnabled(bool enabled);
+   void setEnabled(bool enabled) override;
 
 private:
-   FrameTimer mFocusOutTime;
+   FrameTimer _focus_out_time;
 
-   float mFadeValue;
-   bool mFadeOut;
+   float _fade_value = 0.0f;
+   bool _fade_out = false;
 };

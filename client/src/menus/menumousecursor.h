@@ -1,13 +1,11 @@
 #pragma once
 
-// base
 #include "framework/drawable.h"
-
-// psd
-#include "image/psd.h"
-
 #include "framework/frametimer.h"
 
+#include "image/psd.h"
+
+#include <memory>
 #include <string>
 
 class PSDLayer;
@@ -22,18 +20,16 @@ public:
       Busy
    };
 
-   MenuMouseCursor(RenderDevice* dev, bool visible = false);
+   MenuMouseCursor(RenderDevice* device, bool visible = false);
+   ~MenuMouseCursor() override;
 
-   virtual ~MenuMouseCursor();
+   void initializeGL() override;
+   void paintGL() override;
+   void animate(float global_time) override;
 
-   virtual void initializeGL();
-   virtual void paintGL();
-   virtual void animate(float globalTime);
-
-   //! mouse events
-   virtual void mousePressEvent(int x, int y);
-   virtual void mouseMoveEvent(int x, int y);
-   virtual void mouseReleaseEvent();
+   void mousePressEvent(int x, int y) override;
+   void mouseMoveEvent(int x, int y) override;
+   void mouseReleaseEvent() override;
 
    void setBusy(bool);
 
@@ -48,26 +44,25 @@ protected:
    void paintCursor(PSDLayer* layer, float opacity = 1.0f);
    void paintBusyIcon();
 
-   PSD mPsd;
+   // declared before the layers, which observe its PSD::Layers
+   PSD _psd;
 
-   std::string mFilename;
+   std::string _filename = "data/cursors/cursor_small.psd";
 
-   PSDLayer* mDefaultLayer;
-   PSDLayer* mClickedLayer;
-   PSDLayer* mBusyLayer;
+   std::unique_ptr<PSDLayer> _default_layer;
+   std::unique_ptr<PSDLayer> _clicked_layer;
+   std::unique_ptr<PSDLayer> _busy_layer;
 
-   int mBusyX;
-   int mBusyY;
+   int _busy_x = 0;
+   int _busy_y = 0;
 
-   int mX;
-   int mY;
+   int _x = 0;
+   int _y = 0;
 
-   float mSizeFactor;
+   bool _busy = false;
+   bool _mouse_pressed = false;
 
-   bool mBusy;
-   bool mMousePressed;
+   FrameTimer _click_time;
 
-   FrameTimer mClickTime;
-
-   float mTime;
+   float _time = 0.0f;
 };

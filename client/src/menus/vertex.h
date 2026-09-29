@@ -3,14 +3,15 @@
 class Vertex
 {
 public:
-   Vertex();
+   Vertex() = default;
    Vertex(float x, float y, float u, float v);
-   ~Vertex();
 
-   Vertex operator+(const Vertex& v) const;
-   Vertex operator-(const Vertex& v) const;
-   Vertex operator*(const float f) const;
+   Vertex operator+(const Vertex& other) const;
+   Vertex operator-(const Vertex& other) const;
+   Vertex operator*(float f) const;
 
-   float x, y;
-   float u, v;
+   float x = 0.0f;
+   float y = 0.0f;
+   float u = 0.0f;
+   float v = 0.0f;
 };

@@ -1,4 +1,3 @@
-// header
 #include "hosthistory.h"
 
 #include "stringutils.h"
@@ -6,61 +5,43 @@
 #include <algorithm>
 #include <fstream>
 
-// defines
-#define HISTORY_FILE "history.dr"
-#define HISTORY_MAX_ENTRIES 3
-
-
-//-----------------------------------------------------------------------------
-/*!
-*/
-HostHistory::HostHistory()
+namespace
 {
-}
+constexpr const char* HISTORY_FILE = "history.dr";
+constexpr size_t HISTORY_MAX_ENTRIES = 3;
+}  // namespace
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \param host host to add to list
-*/
 void HostHistory::add(const std::string& host)
 {
-   if (!host.empty())
+   if (host.empty())
    {
-      deserialize();
-
-      std::vector<std::string> hosts;
-      hosts.push_back(host);
-
-      // add all entries from the original host list (skip duplicates,
-      // do not exceed max size)
-      for (const std::string& tmpHost : mHosts)
-      {
-         if (tmpHost != host)
-         {
-            if (hosts.size() < HISTORY_MAX_ENTRIES)
-               hosts.push_back(tmpHost);
-         }
-      }
-
-      mHosts = hosts;
-
-      // write entries to disk
-      serialize();
+      return;
    }
-}
-
-
-//-----------------------------------------------------------------------------
-/*!
-   \return list of hosts
-*/
-std::vector<std::string> HostHistory::load(const std::string& selected)
-{
-   std::vector<std::string> hosts;
 
    deserialize();
-   hosts = mHosts;
+
+   std::vector<std::string> hosts;
+   hosts.push_back(host);
+
+   // add all entries from the original host list (skip duplicates, do not exceed max size)
+   for (const std::string& previous_host : _hosts)
+   {
+      if (previous_host != host && hosts.size() < HISTORY_MAX_ENTRIES)
+      {
+         hosts.push_back(previous_host);
+      }
+   }
+
+   _hosts = hosts;
+
+   // write entries to disk
+   serialize();
+}
+
+std::vector<std::string> HostHistory::load(const std::string& selected)
+{
+   deserialize();
+   std::vector<std::string> hosts = _hosts;
 
    std::erase(hosts, selected);
    hosts.insert(hosts.begin(), selected);
@@ -68,44 +49,34 @@ std::vector<std::string> HostHistory::load(const std::string& selected)
    return hosts;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 void HostHistory::serialize()
 {
    std::ofstream file(HISTORY_FILE);
    if (file.is_open())
    {
-      for (const std::string& host : mHosts)
+      for (const std::string& host : _hosts)
       {
          file << host << "\n";
       }
    }
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 void HostHistory::deserialize()
 {
-   mHosts.clear();
+   _hosts.clear();
 
    std::ifstream file(HISTORY_FILE);
-   if (file.is_open())
+   if (!file.is_open())
    {
-      std::string line;
-      while (std::getline(file, line))
+      return;
+   }
+
+   std::string line;
+   while (std::getline(file, line))
+   {
+      if (std::ranges::find(_hosts, line) == _hosts.end() && !StringUtils::trim(line).empty() && _hosts.size() < HISTORY_MAX_ENTRIES)
       {
-          if (
-               std::find(mHosts.begin(), mHosts.end(), line) == mHosts.end()
-            && !StringUtils::trim(line).empty()
-            && mHosts.size() < HISTORY_MAX_ENTRIES
-          )
-          {
-             mHosts.push_back(line);
-          }
+         _hosts.push_back(line);
       }
    }
 }

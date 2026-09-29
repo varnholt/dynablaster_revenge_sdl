@@ -2,8 +2,10 @@
 
 #include "bitmapfont.h"
 
+#include <array>
+
 class MenuFont
 {
 public:
-   static BitmapFont::Parameter sMenuChars[129];
+   static std::array<BitmapFont::Parameter, 129> _menu_chars;
 };

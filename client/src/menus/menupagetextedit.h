@@ -1,42 +1,32 @@
 #pragma once
 
-// base
 #include "framework/frametimer.h"
 #include "menupageitem.h"
 
-// math
 #include "math/color.h"
 
-// forward declarations
+#include <cstdint>
+
 class BitmapFont;
 
-/// \brief GLES3 port of client/src/menus/menupagetextedit.cpp.
-/// drawCursor()'s highlight quad drops the mColor tint (always drawn white now) - it used to be
-/// an untextured glColor4ub'd quad, which has no direct GLES3 equivalent (every draw needs a
-/// real bound texture); see the .cpp for the replacement (a lazily-created 1x1 white texture
-/// through the shared texalphaignore shader).
-/// setRegExp()/mRegexp are dropped - QRegExp doesn't exist in Qt6 (superseded by
-/// QRegularExpression), and the field was already dead in the original: stored by the setter
-/// but never actually read anywhere in this file.
+/// \brief single-line text edit; the cursor highlight is a white quad drawn with a lazily
+/// created 1x1 white texture (GLES3 has no untextured fixed-function quads).
 class MenuPageTextEditItem : public MenuPageItem
 {
 public:
-   //! constructor
    MenuPageTextEditItem();
 
-   // main
-
    //! draw textedit
-   virtual void draw();
+   void draw() override;
 
    //! initialize textedit
-   virtual void initialize();
+   void initialize() override;
 
    //! getter for field width
    int getFieldWidth() const;
 
    //! setter for max length
-   void setMaxLength(int maxLength);
+   void setMaxLength(int max_length);
 
    //! getter for max length
    int getMaxLength() const;
@@ -51,7 +41,7 @@ public:
    const Color& getColor() const;
 
    //! check if action request on click is enabled
-   virtual bool isActionRequestOnClickEnabled() const;
+   bool isActionRequestOnClickEnabled() const override;
 
    //! setter for cursor position
    void setCursorPosition(int);
@@ -68,31 +58,30 @@ public:
 
    void setColor(const Color& color);
 
-   void setOutlineColor(const Color& outlineColor);
+   void setOutlineColor(const Color& outline_color);
 
    void setAlpha(int alpha);
 
-   void setFontName(const std::string& fontName);
+   void setFontName(const std::string& font_name);
 
-   void setFontXOffset(int xOffset);
+   void setFontXOffset(int x_offset);
 
-   void setFontYOffset(int yOffset);
+   void setFontYOffset(int y_offset);
 
-   void setFieldWidth(int fieldWidth);
+   void setFieldWidth(int field_width);
 
-   virtual void keyPressed(int key, const std::string& text);
+   void keyPressed(int key, const std::string& text) override;
 
-   virtual void activated();
+   void activated() override;
 
-   virtual void deactivated();
+   void deactivated() override;
 
-   virtual void paste(const std::string& text);
+   void paste(const std::string& text) override;
 
 protected:
    //! update the cursor's highlight
    void updateCursorHighlight();
 
-protected:
    //! getter for cursor at end state
    bool isCursorAtEnd() const;
 
@@ -111,40 +100,36 @@ protected:
    //! draw the cursor
    void drawCursor();
 
-   std::string mFontName;
+   std::string _font_name;
 
-   FrameTimer mTimer;
+   FrameTimer _timer;
 
-   FrameTimer mCursorTime;
+   FrameTimer _cursor_time;
 
-   BitmapFont* mFont;
+   // non-owning, fonts belong to the FontPool
+   BitmapFont* _font = nullptr;
 
-   std::string mText;
+   std::string _text;
 
-   int mFontXOffset;
+   int _font_x_offset = 0;
+   int _font_y_offset = 0;
+   int _field_width = 255;
+   int _max_length = -1;
 
-   int mFontYOffset;
+   float _scale = 0.0f;
 
-   int mFieldWidth;
+   bool _editing_active = false;
+   bool _cursor_visible = false;
 
-   int mMaxLength;
+   Color _color;
 
-   float mScale;
+   int _alpha = 255;
 
-   bool mEditingActive;
+   Color _outline_color;
 
-   bool mCursorVisible;
+   int _cursor_position = 0;
 
-   Color mColor;
-
-   int mAlpha;
-
-   Color mOutlineColor;
-
-   int mCursorPosition;
-
-   // lazily created 1x1 white texture + dynamic quad buffer for drawCursor() - see class
-   // comment.
-   unsigned int mCursorTexture;
-   unsigned int mCursorVertexBuffer;
+   // lazily created 1x1 white texture + dynamic quad buffer for drawCursor()
+   uint32_t _cursor_texture = 0;
+   uint32_t _cursor_vertex_buffer = 0;
 };

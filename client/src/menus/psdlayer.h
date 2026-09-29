@@ -4,35 +4,35 @@
 #include "render/texture.h"
 #include "tools/array.h"
 
-class Image;
+#include <cstdint>
 
-/// \brief GLES3 port of client/src/menus/psdlayer.cpp.
-///
-/// renderScaled(), getVertices() and setColor()/mRed/mGreen/mBlue are dropped - none of them
-/// have any real caller in menus/ (setColor() is declared and defined but never invoked, so the
-/// RGB tint it would have set is always the default white; renderScaled() and getVertices() are
-/// declared/defined but likewise never called). The fixed-function per-vertex color this used to
-/// carry (glColor4f) is now just the "alpha" uniform on the shared texalphaignore shader.
+/// \brief renders one PSD layer as a textured quad through whichever shader the caller has bound
+/// (normally the shared menu shader, see defaultshader.h); opacity goes into its "alpha" uniform.
 class PSDLayer
 {
 public:
    struct Vertex
    {
-      Vertex() : x(0.0f), y(0.0f), z(0.0f), u(0.0f), v(0.0f) {};
-      Vertex(float x, float y, float z, float u, float v) : x(x), y(y), z(z), u(u), v(v) {};
+      Vertex() = default;
+      Vertex(float x, float y, float z, float u, float v) : x(x), y(y), z(z), u(u), v(v)
+      {
+      }
 
-      float x, y, z;
-      float u, v;
+      float x = 0.0f;
+      float y = 0.0f;
+      float z = 0.0f;
+      float u = 0.0f;
+      float v = 0.0f;
    };
 
-   PSDLayer();
+   PSDLayer() = default;
    PSDLayer(PSD::Layer* layer, float z = -1.0f, bool unwrap = true);
-   virtual ~PSDLayer();
+   virtual ~PSDLayer() = default;
 
    PSD::Layer* getLayer() const;
-   unsigned int getTexture() const;
-   unsigned int getVertexBuffer() const;
-   unsigned int getIndexBuffer() const;
+   uint32_t getTexture() const;
+   uint32_t getVertexBuffer() const;
+   uint32_t getIndexBuffer() const;
    float getOpacity() const;
    void setOpacity(float opacity);
 
@@ -49,11 +49,12 @@ public:
    int getBottom() const;
 
 private:
-   PSD::Layer* mLayer;
-   Texture mTexture;
-   unsigned int mVertexBuffer;
-   unsigned int mIndexBuffer;
-   float mOpacity;
-   float mU;
-   float mV;
+   // non-owning, the layer belongs to its PSD
+   PSD::Layer* _layer = nullptr;
+   Texture _texture;
+   uint32_t _vertex_buffer = 0;
+   uint32_t _index_buffer = 0;
+   float _opacity = 0.0f;
+   float _u = 0.0f;
+   float _v = 0.0f;
 };

@@ -1,24 +1,22 @@
 #pragma once
 
-// base
 #include "menupagetextedit.h"
 
-// framework
 #include "framework/frametimer.h"
 #include "tools/array.h"
 #include "vertex.h"
+
+#include <memory>
 
 class MenuPageListItemElement : public MenuPageTextEditItem
 {
 public:
    MenuPageListItemElement();
+   ~MenuPageListItemElement() override;
 
-   virtual ~MenuPageListItemElement();
+   void initialize() override;
 
-   // main
-
-   virtual void initialize();
-
+   using MenuPageTextEditItem::draw;
    void draw(float x, float y, float opacity = 1.0f);
 
    void setIndex(int index);
@@ -53,30 +51,24 @@ public:
 
    const FrameTimer& getFocusOutTime() const;
 
-   virtual void setFocus(bool);
+   void setFocus(bool) override;
 
-   virtual void setActive(bool);
+   void setActive(bool) override;
 
 private:
-   int mIndex;
+   // placeholder layers owned by the element; the base class only observes them
+   std::unique_ptr<PSDLayer> _dummy_layer_active;
+   std::unique_ptr<PSDLayer> _dummy_layer_inactive;
 
-   int mWidth;
+   int _index = 0;
+   int _width = 0;
+   int _height = 0;
 
-   int mHeight;
+   float _x = 0.0f;
+   float _y = 0.0f;
 
-   float mX;
+   FrameTimer _focus_out_time;
+   bool _fade_out = false;
 
-   float mY;
-
-   // fading
-
-   FrameTimer mFocusOutTime;
-
-   bool mFadeOut;
-
-   float mFadeValue;
-
-   // color specific
-
-   bool mOverrideAlpha;
+   bool _override_alpha = false;
 };

@@ -1,60 +1,31 @@
 #pragma once
 
-// base
 #include "menupagelistitem.h"
 #include "signal.h"
 
+#include <cstdint>
 #include <map>
 
-// forward declarations
 class MenuPageButtonItem;
 class MenuPageLabelItem;
 
-/// \brief GLES3 port of client/src/menus/menupagecomboboxitem.cpp.
-/// drawQuad()'s immediate-mode glBegin(GL_QUADS)/glColor4ub draw becomes a small dynamic
-/// vertex buffer through the shared texalphaignore shader (already bound by MenuDrawable for
-/// the whole page-render pass) - same treatment as MenuPageBackgroundItem's animated quad.
+/// \brief dropdown list linked to a button (opens it) and a label (shows the value).
+///
+/// combobox_time_label              // finally displays value
+/// combobox_time_button_active      // clicked first
+/// combobox_time_button_inactive
+/// combobox_time_table_bg_first     // activated after button was clicked
+/// combobox_time_table_bg_last
+/// combobox_time_table_bg_default
+/// combobox_time_table_gradient
 class MenuPageComboBoxItem : public MenuPageListItem
 {
 public:
    MenuPageComboBoxItem();
 
-   /*
+   void draw() override;
 
-      combobox_time_label              // finally displays value
-
-      combobox_time_button_active      // clicked first
-      combobox_time_button_inactive    //
-
-      combobox_time_table_bg_first     // activated after button was clicked
-      combobox_time_table_bg_last      //
-      combobox_time_table_bg_default   //
-      combobox_time_table_gradient     //
-
-
-      concept
-
-      ----------------------
-      | dropdown_button \/ |     < standard menupagebuttonitem
-      ======================
-/|\    | item 1 (first)     |     | menupagelistitem  | menupagelistitemelement 1
-|     +--------------------+     |                   |
-|     | item 2             |     |                   | menupagelistitemelement 2
-height  +--------------------+     |                   |
-|     | item ...           |     |                   | menupagelistitemelement 3
-|     +--------------------+     |                   |
-\|/    | item n (last)      |     |                   | menupagelistitemelement 4 (last)
-      ----------------------
-      \--------------------/     < additional quad to terminate the selection (?)
-
-
-   */
-
-   //! extend base
-   virtual void draw();
-
-   //! extend base
-   virtual void animate(float time);
+   void animate(float time) override;
 
    //! add combobox to id/ptr-map
    static void addComboBox(const std::string&, MenuPageComboBoxItem*);
@@ -66,19 +37,17 @@ height  +--------------------+     |                   |
    static void addLabel(const std::string&, MenuPageLabelItem*);
 
    //! link combobox to related button
-   static void linkComboBoxToButton(const std::string& buttonKey, const std::string& comboBoxKey);
+   static void linkComboBoxToButton(const std::string& button_key, const std::string& combo_box_key);
 
    //! link combobox to related label
-   static void linkComboBoxToLabel(const std::string& labelKey, const std::string& comboBoxKey);
+   static void linkComboBoxToLabel(const std::string& label_key, const std::string& combo_box_key);
 
-   //! extend base
-   virtual void initialize();
+   void initialize() override;
 
-   //! extend base
-   virtual void setFocus(bool);
+   void setFocus(bool) override;
 
    //! getter for modal flag
-   virtual bool isModal() const;
+   bool isModal() const override;
 
    //! setter for button item
    virtual void setButtonItem(MenuPageButtonItem* item);
@@ -95,8 +64,7 @@ height  +--------------------+     |                   |
    //! getter for label item
    MenuPageLabelItem* getLabelItem() const;
 
-   //! extend base
-   virtual void mousePressed(int /*x*/, int y);
+   void mousePressed(int x, int y) override;
 
    //! getter for value
    std::string getValue() const;
@@ -121,29 +89,25 @@ protected:
    virtual void drawQuad(PSDLayer* layer, float x, float y, float width, float height, int opacity = 255);
 
    //! get notified on table bound changes, resize layer
-   virtual void updateTableBounds();
+   void updateTableBounds() override;
 
    //! make combobox visible
-   float mVisibleAnimationTime;
+   float _visible_animation_time = 0.0f;
 
    //! make combobox invisible again
-   float mInvisibleAnimationTime;
+   float _invisible_animation_time = 0.0f;
 
-   //! linked button item
-   MenuPageButtonItem* mButtonItem;
+   //! linked button item (non-owning)
+   MenuPageButtonItem* _button_item = nullptr;
 
-   //! linked label item
-   MenuPageLabelItem* mLabelItem;
+   //! linked label item (non-owning)
+   MenuPageLabelItem* _label_item = nullptr;
 
    //! dynamic vertex buffer reused by drawQuad() every call
-   unsigned int mQuadVertexBuffer;
+   uint32_t _quad_vertex_buffer = 0;
 
-   //! map of comboboxes by id
-   static std::map<std::string, MenuPageComboBoxItem*> sMapComboBoxes;
-
-   //! map of buttons by id
-   static std::map<std::string, MenuPageButtonItem*> sMapButtons;
-
-   //! map of labels by id
-   static std::map<std::string, MenuPageLabelItem*> sMapLabels;
+   // registries used while the pages are built, non-owning
+   static std::map<std::string, MenuPageComboBoxItem*> _map_combo_boxes;
+   static std::map<std::string, MenuPageButtonItem*> _map_buttons;
+   static std::map<std::string, MenuPageLabelItem*> _map_labels;
 };

@@ -1,103 +1,53 @@
-// header
 #include "menupagelistitem.h"
 
-// math
-#include <algorithm>
-#include <cmath>
-#include <cstring>
-#include <numbers>
-
-// menus
 #include "clipper.h"
+#include "defaultshader.h"
 #include "menupagelistitemelement.h"
 
-#include "defaultshader.h"
 #include "framework/gldevice.h"
 #include "math/matrix.h"
 
 #include "logging.h"
 
-#define SCROLL_SPEED 5.0
+#include <algorithm>
+#include <cmath>
+#include <cstring>
+#include <numbers>
 
-//-----------------------------------------------------------------------------
-/*!
- */
+namespace
+{
+constexpr float SCROLL_SPEED = 5.0f;
+}
+
 MenuPageListItem::MenuPageListItem()
-    : mClipper(0),
-      mX(0.0f),
-      mY(0.0f),
-      mWidthAllElements(0.0f),
-      mHeightAllElements(0.0f),
-      mFontXOffset(0),
-      mFontYOffset(0),
-      mFieldWidth(255),
-      mScale(0.0f),
-      mScrollValue(0.0f),
-      mVerticalSpacing(0),
-      mRowHeight(0),
-      mFocussedElement(0),
-      mActiveElement(0),
-      mScrollingActive(false),
-      mHighlightingActive(true),
-      mLayerFirstElement(0),
-      mLayerDefaultElement(0),
-      mLayerLastElement(0),
-      mLayerGradient(0),
-      mLayerSelectedElement(0),
-      mLayerFocussedElement(0),
-      mShader(0),
-      mParamTextureClamp(0),
-      mParamTextureHighlight(0),
-      mParamRowAlpha(0),
-      mRowVertexBuffer(0),
-      mBlendDuration(0.0f),
-      mYOffsetSource(0.0f),
-      mYOffsetDest(0.0f),
-      mYDest(0.0f),
-      mMouseY(0)
 {
-   mPageItemType = PageItemTypeList;
-   mInteractive = true;
-
-   mRowAlpha[0] = 15;
-   mRowAlpha[1] = 20;
+   _page_item_type = PageItemTypeList;
+   _interactive = true;
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
-MenuPageListItem::~MenuPageListItem()
+MenuPageListItem::~MenuPageListItem() = default;
+
+std::unique_ptr<MenuPageListItemElement> MenuPageListItem::itemInstance()
 {
-   delete mClipper;
+   return std::make_unique<MenuPageListItemElement>();
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
-MenuPageListItemElement* MenuPageListItem::itemInstance()
-{
-   return new MenuPageListItemElement();
-}
-
-//-----------------------------------------------------------------------------
-/*!
- */
 void MenuPageListItem::initializeItem(MenuPageListItemElement* element, int index)
 {
-   if (mLayerActive)
+   if (_layer_active)
    {
       // set element properties
       element->setIndex(index);
-      element->setHeight(mRowHeight);
-      element->setWidth(mLayerActive->getWidth());
+      element->setHeight(_row_height);
+      element->setWidth(_layer_active->getWidth());
       element->setX(0);
-      element->setY(index * mRowHeight + index * mVerticalSpacing);
+      element->setY(index * _row_height + index * _vertical_spacing);
 
       // lineedit properties
-      element->setFontXOffset(mFontXOffset);
-      element->setFontYOffset(mFontYOffset);
-      element->setFieldWidth(mFieldWidth);
-      element->setScale(mScale);
+      element->setFontXOffset(_font_x_offset);
+      element->setFontYOffset(_font_y_offset);
+      element->setFieldWidth(_field_width);
+      element->setScale(_scale);
    }
    else
    {
@@ -108,328 +58,246 @@ void MenuPageListItem::initializeItem(MenuPageListItemElement* element, int inde
    }
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void MenuPageListItem::clear()
 {
-   mElements.clear();
+   _elements.clear();
 
    // reinit table bounds
    updateTableBounds();
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void MenuPageListItem::setHighlightingEnabled(bool enabled)
 {
-   mHighlightingActive = enabled;
+   _highlighting_active = enabled;
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 bool MenuPageListItem::isHighlightingEnabled() const
 {
-   return mHighlightingActive;
+   return _highlighting_active;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param item text to add
-   \param color item's color
-   \param overrideAlpha \c true if alpha is overriden
-   \param outlineColor item's outline color
-*/
-void MenuPageListItem::appendItem(const std::string& text, const Color& color, bool overrideAlpha, const Color& outlineColor)
+void MenuPageListItem::appendItem(const std::string& text, const Color& color, bool override_alpha, const Color& outline_color)
 {
-   // get a item instance
-   MenuPageListItemElement* element = itemInstance();
+   auto element = itemInstance();
    element->setParent(this);
 
    // set text and color
-   element->setFontName(mFontName);
+   element->setFontName(_font_name);
    element->setText(text);
    element->setColor(color);
-   element->setOverrideAlpha(overrideAlpha);
+   element->setOverrideAlpha(override_alpha);
 
-   if (outlineColor.isValid())
-      element->setOutlineColor(outlineColor);
+   if (outline_color.isValid())
+   {
+      element->setOutlineColor(outline_color);
+   }
 
    // set element properties
-   initializeItem(element, mElements.size());
+   initializeItem(element.get(), static_cast<int>(_elements.size()));
 
    // generate element's vertices
    element->initialize();
 
-   // add item to list
-   mElements.push_back(element);
+   _elements.push_back(std::move(element));
 
    // reinit table bounds
    updateTableBounds();
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void MenuPageListItem::updateTableBounds()
 {
-   // init list item's bounds
-   mHeightAllElements = (mElements.size() * mRowHeight)               // pixels per element
-                        + (mElements.size() - 1) * mVerticalSpacing;  // pixels between elements
+   const int count = static_cast<int>(_elements.size());
+
+   // pixels per element + pixels between elements
+   _height_all_elements = (count * _row_height) + (count - 1) * _vertical_spacing;
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 int MenuPageListItem::getMaxTableHeight() const
 {
-   return mHeightAllElements;
+   return _height_all_elements;
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 int MenuPageListItem::getMaxTableWidth() const
 {
-   return mWidthAllElements;
+   return _width_all_elements;
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void MenuPageListItem::initialize()
 {
-   mVerticalSpacing = 3;
+   _vertical_spacing = 3;
 
-   // init clipper
-   mClipper = new Clipper(
-      mLayerActive->getLeft(),
-      mLayerActive->getTop(),
-      mLayerActive->getLeft() + mLayerActive->getWidth(),
-      mLayerActive->getTop() + mLayerActive->getHeight()
+   _clipper = std::make_unique<Clipper>(
+      static_cast<float>(_layer_active->getLeft()),
+      static_cast<float>(_layer_active->getTop()),
+      static_cast<float>(_layer_active->getLeft() + _layer_active->getWidth()),
+      static_cast<float>(_layer_active->getTop() + _layer_active->getHeight())
    );
 
-   mElapsed.start();
+   _elapsed.start();
 
-   // init shader - ShaderPool is not ported (fully superseded by GLDevice::loadShader/setShader,
-   // see project memory), so load it the same way every material in engine/materials does.
-   mShader = activeDevice->loadShader("data/shaders/listhighlight-vert.glsl", "data/shaders/listhighlight-frag.glsl");
-   mParamTextureClamp = activeDevice->getParameterIndex("textureClamp");
-   mParamTextureHighlight = activeDevice->getParameterIndex("textureHighlight");
-   mParamRowAlpha = activeDevice->getParameterIndex("rowAlpha");
+   _shader = activeDevice->loadShader("data/shaders/listhighlight-vert.glsl", "data/shaders/listhighlight-frag.glsl");
+   _param_texture_clamp = activeDevice->getParameterIndex("textureClamp");
+   _param_texture_highlight = activeDevice->getParameterIndex("textureHighlight");
+   _param_row_alpha = activeDevice->getParameterIndex("rowAlpha");
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void MenuPageListItem::updateScrollbars()
 {
-   float percent = (float)(mY) / (-mHeightAllElements + mLayerActive->getHeight());
+   const float percent = _y / (-_height_all_elements + _layer_active->getHeight());
    scrollAnimationSignal(percent);
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param y without limit
-   \return limited y
-*/
 void MenuPageListItem::limitY(float& y)
 {
    if (y > 0.0f)
    {
       y = 0.0f;
    }
-
-   else if (mHeightAllElements + y < mLayerActive->getHeight() && mHeightAllElements >= mLayerActive->getHeight())
+   else if (_height_all_elements + y < _layer_active->getHeight() && _height_all_elements >= _layer_active->getHeight())
    {
-      y = mLayerActive->getHeight() - mHeightAllElements;
+      y = _layer_active->getHeight() - _height_all_elements;
    }
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void MenuPageListItem::animate(float /*time*/)
 {
    // simple mouse-triggered scrolling animation
-   float deceleration = 1.0f + std::sin(mElapsed.elapsed() * 0.01f);
-   float scrollValueMoving = mScrollValue * SCROLL_SPEED;
-   float scrollValueStopping = (deceleration) * 0.5f * scrollValueMoving;
+   const float deceleration = 1.0f + std::sin(_elapsed.elapsed() * 0.01f);
+   const float scroll_value_moving = _scroll_value * SCROLL_SPEED;
+   const float scroll_value_stopping = deceleration * 0.5f * scroll_value_moving;
 
-   float val = mScrollingActive ? scrollValueMoving : scrollValueStopping;
+   const float value = _scrolling_active ? scroll_value_moving : scroll_value_stopping;
 
-   mY += val;
+   _y += value;
 
    // smooth scrolling animation to target position
-   float duration = getBlendDuration() * 1000.0f;
-   if (mBlendTimer.elapsed() < duration)
+   const float duration = getBlendDuration() * 1000.0f;
+   if (_blend_timer.elapsed() < duration)
    {
-      float elapsed = mBlendTimer.elapsed();
+      const float elapsed = _blend_timer.elapsed();
 
-      float a = 0.5f * (1.0f + std::cos(std::numbers::pi_v<float> * (elapsed / duration)));
-      float b = 1.0f - a;
+      const float a = 0.5f * (1.0f + std::cos(std::numbers::pi_v<float> * (elapsed / duration)));
+      const float b = 1.0f - a;
 
-      mY = a * getYOffsetSource() + b * getYOffsetDest();
+      _y = a * getYOffsetSource() + b * getYOffsetDest();
 
       updateScrollbars();
 
-      // update mouse cursor position if somewhere between the very
-      // upper and the very lower part of the table so the correct
-      // element is highlighted
-      int relY = 0;
-      relY = mMouseY - mLayerActive->getTop();
-      relY -= mYDest;
-      updateFocussedElement(relY);
+      // update the focussed element from the mouse position so the correct element is highlighted
+      int relative_y = _mouse_y - _layer_active->getTop();
+      relative_y -= _y_destination;
+      updateFocussedElement(relative_y);
    }
 
-   limitY(mY);
+   limitY(_y);
 
    // scroll animation
-   if ((val < 0.1f && val > 0) || (val > -0.1f && val < 0))
+   if ((value < 0.1f && value > 0) || (value > -0.1f && value < 0))
    {
-      mScrollValue = 0.0f;
+      _scroll_value = 0.0f;
    }
-   else if (mScrollValue != 0.0f)
+   else if (_scroll_value != 0.0f)
    {
       updateScrollbars();
    }
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   selectAlpha used to be a glColor4ub call (fixed-function per-vertex color); the row quad has
-   no other color channel that varies, so this now just computes the alpha that will go into the
-   "rowAlpha" uniform right before the row is drawn.
-*/
-void MenuPageListItem::selectAlpha(int rowToggle, MenuPageListItemElement* element)
+void MenuPageListItem::selectAlpha(int row_toggle, MenuPageListItemElement* element)
 {
-   float alpha;
+   float alpha = 0.0f;
 
-   if (mHighlightingActive)
+   if (_highlighting_active)
    {
       if (element->isFadingOut())
       {
-         alpha = (mRowAlpha[rowToggle] + 30 * element->getFadeOutValue()) / 255.0f;
+         alpha = (_row_alpha[row_toggle] + 30 * element->getFadeOutValue()) / 255.0f;
       }
       else if (element->isFocussed() || element->isActive())
       {
-         alpha = (mRowAlpha[rowToggle] + 30) / 255.0f;
+         alpha = (_row_alpha[row_toggle] + 30) / 255.0f;
       }
       else
       {
-         alpha = mRowAlpha[rowToggle] / 255.0f;
+         alpha = _row_alpha[row_toggle] / 255.0f;
       }
    }
    else
    {
-      alpha = mRowAlpha[0] / 255.0f;
+      alpha = _row_alpha[0] / 255.0f;
    }
 
-   activeDevice->setParameter(mParamRowAlpha, alpha);
+   activeDevice->setParameter(_param_row_alpha, alpha);
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 float MenuPageListItem::getYOffsetDest() const
 {
-   return mYOffsetDest;
+   return _y_offset_destination;
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void MenuPageListItem::setYOffsetDest(float value)
 {
-   mYOffsetDest = value;
+   _y_offset_destination = value;
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 float MenuPageListItem::getYOffsetSource() const
 {
-   return mYOffsetSource;
+   return _y_offset_source;
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void MenuPageListItem::setYOffsetSource(float value)
 {
-   mYOffsetSource = value;
+   _y_offset_source = value;
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 float MenuPageListItem::getBlendDuration() const
 {
-   return mBlendDuration;
+   return _blend_duration;
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void MenuPageListItem::setBlendDuration(float value)
 {
-   mBlendDuration = value;
+   _blend_duration = value;
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void MenuPageListItem::setRowAlphas(int row0, int row1)
 {
-   mRowAlpha[0] = row0;
-   mRowAlpha[1] = row1;
+   _row_alpha = {row0, row1};
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void MenuPageListItem::bindShader()
 {
    if (getLayerFirstElement() || getLayerLastElement())
    {
-      activeDevice->setShader(mShader);
+      activeDevice->setShader(_shader);
 
-      activeDevice->bindSampler(mParamTextureClamp, 0);
-      activeDevice->bindSampler(mParamTextureHighlight, 1);
+      activeDevice->bindSampler(_param_texture_clamp, 0);
+      activeDevice->bindSampler(_param_texture_highlight, 1);
    }
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void MenuPageListItem::releaseShader()
 {
    if (getLayerFirstElement() || getLayerLastElement())
    {
-      // restore the shared menu shader rather than "no shader" - see defaultshader.h and
-      // BitmapFont::draw(), which needs the same fix for the same reason.
+      // restore the shared menu shader rather than "no shader" - see defaultshader.h
       activeDevice->setShader(getDefaultMenuShader());
    }
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 PSDLayer* MenuPageListItem::bindRowTexture(int row, float& u, float& v, float& s, float& t)
 {
-   PSDLayer* layer = 0;
+   PSDLayer* layer = nullptr;
+   const int last_row = static_cast<int>(_elements.size()) - 1;
 
    if (row == 0 && getLayerFirstElement())
    {
       layer = getLayerFirstElement();
    }
-   else if (row == mElements.size() - 1 && getLayerLastElement())
+   else if (row == last_row && getLayerLastElement())
    {
       layer = getLayerLastElement();
    }
-   else if (row > 0 && row < (mElements.size() - 1) && getLayerDefaultElement())
+   else if (row > 0 && row < last_row && getLayerDefaultElement())
    {
       layer = getLayerDefaultElement();
    }
@@ -470,100 +338,94 @@ PSDLayer* MenuPageListItem::bindRowTexture(int row, float& u, float& v, float& s
    return layer;
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void MenuPageListItem::drawText()
 {
-   for (MenuPageListItemElement* element : mElements)
+   for (const auto& element : _elements)
    {
-      float opacity = (element->isFocussed() || element->isActive() || element->isOverrideAlphaActive()) ? 1.0f : 0.5882f;
+      const float opacity = (element->isFocussed() || element->isActive() || element->isOverrideAlphaActive()) ? 1.0f : 0.5882f;
 
-      Array<Vertex> bound = element->getBoundingRectVertices(mLayerActive->getLeft(), mLayerActive->getTop() + mY);
+      Array<Vertex> bound = element->getBoundingRectVertices(_layer_active->getLeft(), _layer_active->getTop() + _y);
 
-      if (mClipper->enable(bound))
+      if (_clipper->enable(bound))
       {
-         element->draw(mLayerActive->getLeft(), mLayerActive->getTop() + mY, opacity);
+         element->draw(_layer_active->getLeft(), _layer_active->getTop() + _y, opacity);
 
-         mClipper->disable();
+         _clipper->disable();
       }
    }
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   The legacy glBegin(GL_QUADS)/glMultiTexCoord2f per-row draw becomes a small dynamic vertex
-   buffer (pos + uvClamp + uvHighlight) drawn as two triangles - same treatment as
-   MenuPageBackgroundItem's animated quad. The quad's 4-vertex loop (bottom-left, bottom-right,
-   top-right, top-left - see MenuPageListItemElement::getBoundingRectVertices) is triangulated
-   as (0,1,2)/(0,2,3).
-*/
+// the bounding rect's 4-vertex loop (see MenuPageListItemElement::getBoundingRectVertices) is
+// triangulated as (0,1,2)/(0,2,3)
 void MenuPageListItem::drawRows()
 {
-   // a plain (non-combobox) list - e.g. the lounge's chat table_lounge_main - never gets first/
-   // last/default row-background layers assigned (see MenuPage::processTableMain() vs. the
-   // combobox-only setLayerFirstElement()/setLayerLastElement()/setLayerDefaultElement() calls),
-   // so bindRowTexture() would bind "no texture" (texture id 0) for every row. Under the original
-   // desktop-GL renderer this was harmless - bindShader()/releaseShader() below never bound a
-   // shader either, so the fixed-function pipeline just passed through untouched, rendering
-   // nothing extra. GLES3 has no such fallback: without an explicit early-out here, this loop
-   // would draw a fully opaque, garbage-shaded quad over every row using whatever shader was left
-   // bound by the previous draw call (BitmapFont's SDF text shader) - a real, previously-dormant
-   // bug that only ever showed up once a plain (non-combobox) list actually got real content
-   // (this port's chat feature, added later than the already-working combobox dropdown).
+   // a plain (non-combobox) list never gets first/last/default row-background layers; GLES3 has
+   // no fixed-function fallback, so drawing would put garbage-shaded quads over every row
    if (!getLayerFirstElement() && !getLayerLastElement())
+   {
       return;
+   }
 
    bindShader();
 
-   // draw rows
-   int rowToggle = 0;
-   int row = 0;
-   for (MenuPageListItemElement* element : mElements)
-   {
-      Array<Vertex> boundingRect = element->getBoundingRectVertices(mLayerActive->getLeft(), mLayerActive->getTop() + mY);
+   constexpr std::array<int, 6> order = {0, 1, 2, 0, 2, 3};
+   constexpr int floats_per_vertex = 7;
 
-      if (mClipper->enable(boundingRect))
+   int row_toggle = 0;
+   int row = 0;
+   for (const auto& element : _elements)
+   {
+      Array<Vertex> bounding_rect = element->getBoundingRectVertices(_layer_active->getLeft(), _layer_active->getTop() + _y);
+
+      if (_clipper->enable(bounding_rect))
       {
-         float u, v, s, t;
+         float u = 0.0f;
+         float v = 0.0f;
+         float s = 0.0f;
+         float t = 0.0f;
          bindRowTexture(row, u, v, s, t);
 
-         selectAlpha(rowToggle, element);
+         selectAlpha(row_toggle, element.get());
 
-         const int order[6] = {0, 1, 2, 0, 2, 3};
-         float quad[6 * 7];
+         std::array<float, order.size() * floats_per_vertex> quad{};
 
-         for (int i = 0; i < 6; i++)
+         for (size_t i = 0; i < order.size(); i++)
          {
-            const Vertex& vtx = boundingRect[order[i]];
-            float* dst = quad + i * 7;
-            dst[0] = vtx.x;
-            dst[1] = vtx.y;
-            dst[2] = 0.0f;
-            dst[3] = vtx.u * u;
-            dst[4] = vtx.v * v;
-            dst[5] = vtx.u * s;
-            dst[6] = vtx.v * t;
+            const Vertex& vertex = bounding_rect[order[i]];
+            float* destination = quad.data() + i * floats_per_vertex;
+            destination[0] = vertex.x;
+            destination[1] = vertex.y;
+            destination[2] = 0.0f;
+            destination[3] = vertex.u * u;
+            destination[4] = vertex.v * v;
+            destination[5] = vertex.u * s;
+            destination[6] = vertex.v * t;
          }
 
-         if (mRowVertexBuffer == 0)
-            mRowVertexBuffer = activeDevice->createVertexBuffer(sizeof(quad), true);
-         else
-            activeDevice->allocateVertexBuffer(mRowVertexBuffer, sizeof(quad), true);
+         const int quad_size = static_cast<int>(sizeof(float) * quad.size());
 
-         void* dst = activeDevice->lockVertexBuffer(mRowVertexBuffer, sizeof(quad));
-         std::memcpy(dst, quad, sizeof(quad));
-         activeDevice->unlockVertexBuffer(mRowVertexBuffer);
+         if (_row_vertex_buffer == 0)
+         {
+            _row_vertex_buffer = activeDevice->createVertexBuffer(quad_size, true);
+         }
+         else
+         {
+            activeDevice->allocateVertexBuffer(_row_vertex_buffer, quad_size, true);
+         }
+
+         void* buffer = activeDevice->lockVertexBuffer(_row_vertex_buffer, quad_size);
+         std::memcpy(buffer, quad.data(), quad_size);
+         activeDevice->unlockVertexBuffer(_row_vertex_buffer);
 
          activeDevice->push(Matrix());
 
-         glBindBuffer(GL_ARRAY_BUFFER, mRowVertexBuffer);
+         glBindBuffer(GL_ARRAY_BUFFER, _row_vertex_buffer);
          glEnableVertexAttribArray(0);
          glEnableVertexAttribArray(1);
          glEnableVertexAttribArray(2);
-         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 7, (GLvoid*)0);
-         glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 7, (GLvoid*)(sizeof(float) * 3));
-         glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 7, (GLvoid*)(sizeof(float) * 5));
+         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 7, nullptr);
+         glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 7, reinterpret_cast<GLvoid*>(sizeof(float) * 3));
+         glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 7, reinterpret_cast<GLvoid*>(sizeof(float) * 5));
 
          glDrawArrays(GL_TRIANGLES, 0, 6);
 
@@ -578,19 +440,16 @@ void MenuPageListItem::drawRows()
             element->stopFadeOut();
          }
 
-         mClipper->disable();
+         _clipper->disable();
       }
 
-      rowToggle ^= 1;
+      row_toggle ^= 1;
       row++;
    }
 
    releaseShader();
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void MenuPageListItem::draw()
 {
    drawText();
@@ -602,137 +461,102 @@ void MenuPageListItem::draw()
    glActiveTexture(GL_TEXTURE0);
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
-void MenuPageListItem::setFontName(const std::string& fontName)
+void MenuPageListItem::setFontName(const std::string& font_name)
 {
-   mFontName = fontName;
+   _font_name = font_name;
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
-void MenuPageListItem::setFontXOffset(int xOffset)
+void MenuPageListItem::setFontXOffset(int x_offset)
 {
-   mFontXOffset = xOffset;
+   _font_x_offset = x_offset;
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
-void MenuPageListItem::setFontYOffset(int yOffset)
+void MenuPageListItem::setFontYOffset(int y_offset)
 {
-   mFontYOffset = yOffset;
+   _font_y_offset = y_offset;
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
-void MenuPageListItem::setFieldWidth(int fieldWidth)
+void MenuPageListItem::setFieldWidth(int field_width)
 {
-   mFieldWidth = fieldWidth;
+   _field_width = field_width;
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void MenuPageListItem::setScale(float scale)
 {
-   mScale = scale;
+   _scale = scale;
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void MenuPageListItem::setRowHeight(int height)
 {
-   mRowHeight = height;
+   _row_height = height;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param index item index
-*/
-void MenuPageListItem::scrollToIndex(int index, bool /*clicked*/)
+void MenuPageListItem::scrollToIndex(int /*index*/, bool /*clicked*/)
 {
-   int count = std::max(getElementCount(), 1);
-   float percent = index / (float)count;
-
-   if (percent < 0.0f)
-      percent = 0.0f;
-   if (percent > 1.0f)
-      percent = 1.0f;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param index item index
-*/
 int MenuPageListItem::scrollSmoothToIndex(int index)
 {
    // autocorrect input
-   int elementCount = getElementCount();
+   const int element_count = getElementCount();
    if (index < 0)
+   {
       index = 0;
-   if (index > elementCount - 1)
-      index = elementCount - 1;
+   }
+   if (index > element_count - 1)
+   {
+      index = element_count - 1;
+   }
 
    // init distance and target position
-   float oneRowHeight = mRowHeight + mVerticalSpacing;
-   float tableVerticalCenter = (mLayerActive->getHeight() * 0.5f);
+   const float one_row_height = _row_height + _vertical_spacing;
+   const float table_vertical_center = _layer_active->getHeight() * 0.5f;
 
-   float dest = tableVerticalCenter - mHeightAllElements + ((elementCount - index) * oneRowHeight);
+   const float destination = table_vertical_center - _height_all_elements + ((element_count - index) * one_row_height);
 
    // init animation
-   setYOffsetSource(mY);
-   setYOffsetDest(dest);
+   setYOffsetSource(_y);
+   setYOffsetDest(destination);
 
-   float distance = std::abs(getYOffsetSource() - getYOffsetDest()) / (float)mHeightAllElements;
-   float duration = 2.0f * distance;
+   const float distance = std::abs(getYOffsetSource() - getYOffsetDest()) / _height_all_elements;
+   const float duration = 2.0f * distance;
 
    setBlendDuration(duration);
-   mBlendTimer.restart();
+   _blend_timer.restart();
 
    // compute mouse cursor position
-   mYDest = dest;
-   limitY(mYDest);
+   _y_destination = destination;
+   limitY(_y_destination);
 
-   int tableTop = mLayerActive->getTop();
-   int tableHeight = mLayerActive->getHeight();
+   const int table_top = _layer_active->getTop();
+   const int table_height = _layer_active->getHeight();
 
-   int rowHeight = oneRowHeight * index;
-   int mouseOffset = 0;
+   const int row_height = one_row_height * index;
+   int mouse_offset = 0;
 
-   // at top
-   // initialize mouse offset with the (index * row height)
-   if ((int)mYDest == 0)
+   if (static_cast<int>(_y_destination) == 0)
    {
-      mouseOffset = rowHeight;
+      // at top: initialize mouse offset with the (index * row height)
+      mouse_offset = row_height;
    }
-   // bottom reached
-   else if ((int)(mYDest) == -(int)(mHeightAllElements - tableHeight))
+   else if (static_cast<int>(_y_destination) == -static_cast<int>(_height_all_elements - table_height))
    {
-      mouseOffset = tableHeight - (mHeightAllElements - rowHeight);
+      // bottom reached
+      mouse_offset = table_height - (_height_all_elements - row_height);
    }
-   // in between
    else
    {
-      mouseOffset = tableVerticalCenter;
+      // in between
+      mouse_offset = table_vertical_center;
    }
 
-   return tableTop + mouseOffset;
+   return table_top + mouse_offset;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param percent percent to scroll to
-   \param clicked \c true if clicked
-*/
 void MenuPageListItem::scrollToPercentage(float percent, bool clicked)
 {
-   mY = -mHeightAllElements + mLayerActive->getHeight();
-   mY *= percent;
+   _y = -_height_all_elements + _layer_active->getHeight();
+   _y *= percent;
 
    if (!clicked)
    {
@@ -740,286 +564,191 @@ void MenuPageListItem::scrollToPercentage(float percent, bool clicked)
    }
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void MenuPageListItem::scrollUp()
 {
-   mScrollValue = 1.0f;
-   mScrollingActive = true;
+   _scroll_value = 1.0f;
+   _scrolling_active = true;
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void MenuPageListItem::scrollDown()
 {
-   mScrollValue = -1.0f;
-   mScrollingActive = true;
+   _scroll_value = -1.0f;
+   _scrolling_active = true;
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void MenuPageListItem::scrollStop()
 {
-   mElapsed.restart();
-   mScrollingActive = false;
+   _elapsed.restart();
+   _scrolling_active = false;
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 bool MenuPageListItem::hasNestedElements()
 {
    return true;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param relY relative y position
-*/
-void MenuPageListItem::updateFocussedElement(int relY)
+void MenuPageListItem::updateFocussedElement(int relative_y)
 {
-   int focussedElement = (float)relY / (mVerticalSpacing + mRowHeight);
+   const int focussed_element = static_cast<float>(relative_y) / (_vertical_spacing + _row_height);
 
-   if (focussedElement > -1 && mElements.size() > focussedElement)
+   if (focussed_element > -1 && static_cast<int>(_elements.size()) > focussed_element)
    {
-      mElements.at(focussedElement)->setFocus(true);
+      _elements.at(focussed_element)->setFocus(true);
 
       // only one element can have focus
-      if (focussedElement != mFocussedElement)
+      if (focussed_element != _focussed_element && static_cast<size_t>(_focussed_element) < _elements.size())
       {
-         if (mFocussedElement < mElements.size())
-         {
-            mElements.at(mFocussedElement)->setFocus(false);
-         }
+         _elements.at(_focussed_element)->setFocus(false);
       }
 
-      setFocussedElement(focussedElement);
+      setFocussedElement(focussed_element);
    }
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param x x pos
-   \param y y pos
-*/
 void MenuPageListItem::mouseMoved(int /*x*/, int y)
 {
    if (isVisible())
    {
       // store last mouse position
-      mMouseY = y;
+      _mouse_y = y;
 
-      int relY = 0;
-      relY = y - mLayerActive->getTop();
-      relY -= mY;
+      int relative_y = y - _layer_active->getTop();
+      relative_y -= _y;
 
-      updateFocussedElement(relY);
+      updateFocussedElement(relative_y);
    }
 }
 
 void MenuPageListItem::mousePressed(int /*x*/, int y)
 {
-   int relY = 0;
+   int relative_y = y - _layer_active->getTop();
+   relative_y -= _y;
 
-   relY = y - mLayerActive->getTop();
-   relY -= mY;
+   const int active_element = static_cast<float>(relative_y) / (_vertical_spacing + _row_height);
 
-   int activeElement = (float)relY / (mVerticalSpacing + mRowHeight);
-
-   if (activeElement > -1 && mElements.size() > activeElement)
+   if (active_element > -1 && static_cast<int>(_elements.size()) > active_element)
    {
-      mElements.at(activeElement)->setActive(true);
+      _elements.at(active_element)->setActive(true);
 
       // only one element can have focus
-      if (activeElement != mActiveElement)
+      if (active_element != _active_element && static_cast<size_t>(_active_element) < _elements.size())
       {
-         if (mActiveElement < mElements.size())
-            mElements.at(mActiveElement)->setActive(false);
+         _elements.at(_active_element)->setActive(false);
       }
 
-      setActiveElement(activeElement);
+      setActiveElement(active_element);
    }
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
-std::vector<MenuPageListItemElement*>* MenuPageListItem::getElements() const
-{
-   return &mElements;
-}
-
-//-----------------------------------------------------------------------------
-/*!
- */
 MenuPageListItemElement* MenuPageListItem::getElementAt(int i) const
 {
-   return mElements.at(i);
+   return _elements.at(i).get();
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 const std::string& MenuPageListItem::getElementText(int element)
 {
-   return mElements.at(element)->getText();
+   return _elements.at(element)->getText();
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 int MenuPageListItem::getElementCount()
 {
-   return mElements.size();
+   return static_cast<int>(_elements.size());
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 int MenuPageListItem::getActiveElement() const
 {
-   return mActiveElement;
+   return _active_element;
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void MenuPageListItem::setActiveElement(int element)
 {
-   mActiveElement = element;
+   _active_element = element;
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
-void MenuPageListItem::setElementActive(int activeElement, bool active)
+void MenuPageListItem::setElementActive(int element, bool active)
 {
-   if (activeElement < mElements.size())
-      mElements.at(activeElement)->setActive(active);
+   if (static_cast<size_t>(element) < _elements.size())
+   {
+      _elements.at(element)->setActive(active);
+   }
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 int MenuPageListItem::getFocussedElement() const
 {
-   return mFocussedElement;
+   return _focussed_element;
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void MenuPageListItem::setFocussedElement(int element)
 {
-   mFocussedElement = element;
+   _focussed_element = element;
 
    elementFocussedSignal(element);
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void MenuPageListItem::setElementFocussed(int element, bool focussed)
 {
-   if (element < mElements.size())
-      mElements.at(element)->setFocus(focussed);
+   if (static_cast<size_t>(element) < _elements.size())
+   {
+      _elements.at(element)->setFocus(focussed);
+   }
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void MenuPageListItem::setLayerFirstElement(PSDLayer* layer)
 {
-   mLayerFirstElement = layer;
+   _layer_first_element = layer;
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void MenuPageListItem::setLayerDefaultElement(PSDLayer* layer)
 {
-   mLayerDefaultElement = layer;
+   _layer_default_element = layer;
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void MenuPageListItem::setLayerLastElement(PSDLayer* layer)
 {
-   mLayerLastElement = layer;
+   _layer_last_element = layer;
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void MenuPageListItem::setLayerGradientElement(PSDLayer* layer)
 {
-   mLayerGradient = layer;
+   _layer_gradient = layer;
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void MenuPageListItem::setLayerSelectedElement(PSDLayer* layer)
 {
-   mLayerSelectedElement = layer;
+   _layer_selected_element = layer;
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void MenuPageListItem::setLayerFocussedElement(PSDLayer* layer)
 {
-   mLayerFocussedElement = layer;
+   _layer_focussed_element = layer;
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 PSDLayer* MenuPageListItem::getLayerFirstElement() const
 {
-   return mLayerFirstElement;
+   return _layer_first_element;
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 PSDLayer* MenuPageListItem::getLayerDefaultElement() const
 {
-   return mLayerDefaultElement;
+   return _layer_default_element;
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 PSDLayer* MenuPageListItem::getLayerLastElement() const
 {
-   return mLayerLastElement;
+   return _layer_last_element;
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 PSDLayer* MenuPageListItem::getLayerGradientElement() const
 {
-   return mLayerGradient;
+   return _layer_gradient;
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 PSDLayer* MenuPageListItem::getLayerSelectedElement() const
 {
-   return mLayerSelectedElement;
+   return _layer_selected_element;
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 PSDLayer* MenuPageListItem::getLayerFocussedElement() const
 {
-   return mLayerFocussedElement;
+   return _layer_focussed_element;
 }

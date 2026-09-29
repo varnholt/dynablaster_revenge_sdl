@@ -1,14 +1,14 @@
 #include "menupageslideritem.h"
 
-MenuPageSliderItem::MenuPageSliderItem() : mMinimum(0), mMaximum(0), mValue(0.0f), mRelativeToX(0)
+MenuPageSliderItem::MenuPageSliderItem()
 {
-   mPageItemType = PageItemTypeSlider;
-   mInteractive = true;
+   _page_item_type = PageItemTypeSlider;
+   _interactive = true;
 }
 
 void MenuPageSliderItem::mousePressed(int x, int y)
 {
-   mRelativeToX = x - mLayerActive->getLeft();
+   _relative_to_x = x - _layer_active->getLeft();
 
    setActive(true);
    MenuPageItem::mousePressed(x, y);
@@ -22,19 +22,23 @@ void MenuPageSliderItem::mouseReleased()
 
 void MenuPageSliderItem::mouseMoved(int x, int y)
 {
-   x -= mRelativeToX;
+   x -= _relative_to_x;
 
-   float width = mMaximum - mMinimum;
+   float width = _maximum - _minimum;
 
-   if (x > mMaximum - mLayerActive->getWidth())
-      x = mMaximum - mLayerActive->getWidth();
-   else if (x < mMinimum)
-      x = mMinimum;
+   if (x > _maximum - _layer_active->getWidth())
+   {
+      x = _maximum - _layer_active->getWidth();
+   }
+   else if (x < _minimum)
+   {
+      x = _minimum;
+   }
 
-   mLayerActive->getLayer()->setX(x);
+   _layer_active->getLayer()->setX(x);
 
-   mValue = (x - mMinimum) / width;
-   valueChangedSignal(mValue);
+   _value = (x - _minimum) / width;
+   valueChangedSignal(_value);
 
    MenuPageItem::mouseMoved(x, y);
 }
@@ -44,49 +48,49 @@ bool MenuPageSliderItem::isGrabbingMouseEvents()
    return true;
 }
 
-void MenuPageSliderItem::setMinimum(int min)
+void MenuPageSliderItem::setMinimum(int minimum)
 {
-   mMinimum = min;
+   _minimum = minimum;
 }
 
-void MenuPageSliderItem::setMaximum(int max)
+void MenuPageSliderItem::setMaximum(int maximum)
 {
-   mMaximum = max;
+   _maximum = maximum;
 }
 
 int MenuPageSliderItem::getMinimum() const
 {
-   return mMinimum;
+   return _minimum;
 }
 
 int MenuPageSliderItem::getMaximum() const
 {
-   return mMaximum;
+   return _maximum;
 }
 
 float MenuPageSliderItem::getValue() const
 {
-   return mValue;
+   return _value;
 }
 
 void MenuPageSliderItem::setValue(float value)
 {
    // reset mouse press relative x
-   mRelativeToX = 0;
+   _relative_to_x = 0;
 
-   // store value
-   mValue = value;
+   _value = value;
 
    // determine new x position
-   float width = mMaximum - mMinimum;
+   float width = _maximum - _minimum;
 
-   float x = mMinimum + width * mValue;
+   float x = _minimum + width * _value;
 
-   // the slider knob takes a few pixels, too
-   // => get rid of half of its width
-   x -= mLayerActive->getLayer()->getWidth() * 0.5f;
-   if (x < mMinimum)
-      x = mMinimum;
+   // the slider knob takes a few pixels, too => get rid of half of its width
+   x -= _layer_active->getLayer()->getWidth() * 0.5f;
+   if (x < _minimum)
+   {
+      x = _minimum;
+   }
 
-   mLayerActive->getLayer()->setX(x);
+   _layer_active->getLayer()->setX(x);
 }

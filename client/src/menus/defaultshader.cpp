@@ -3,43 +3,43 @@
 
 namespace
 {
-unsigned int gShader = 0;
-int gAlphaParam = -1;
+uint32_t _shader = 0;
+int _alpha_param = -1;
 
-unsigned int gBlitShader = 0;
-int gBlitAlphaParam = -1;
+uint32_t _blit_shader = 0;
+int _blit_alpha_param = -1;
 }  // namespace
 
-unsigned int getDefaultMenuShader()
+uint32_t getDefaultMenuShader()
 {
-   if (gShader == 0)
+   if (_shader == 0)
    {
-      gShader = activeDevice->loadShader("data/shaders/texalpha-vert.glsl", "data/shaders/texalpha-frag.glsl");
-      gAlphaParam = activeDevice->getParameterIndex("alpha");
+      _shader = activeDevice->loadShader("data/shaders/texalpha-vert.glsl", "data/shaders/texalpha-frag.glsl");
+      _alpha_param = activeDevice->getParameterIndex("alpha");
    }
 
-   return gShader;
+   return _shader;
 }
 
 int getDefaultMenuShaderAlphaParam()
 {
    getDefaultMenuShader();
-   return gAlphaParam;
+   return _alpha_param;
 }
 
-unsigned int getFramebufferBlitShader()
+uint32_t getFramebufferBlitShader()
 {
-   if (gBlitShader == 0)
+   if (_blit_shader == 0)
    {
-      gBlitShader = activeDevice->loadShader("data/shaders/texalphaignore-vert.glsl", "data/shaders/texalphaignore-frag.glsl");
-      gBlitAlphaParam = activeDevice->getParameterIndex("alpha");
+      _blit_shader = activeDevice->loadShader("data/shaders/texalphaignore-vert.glsl", "data/shaders/texalphaignore-frag.glsl");
+      _blit_alpha_param = activeDevice->getParameterIndex("alpha");
    }
 
-   return gBlitShader;
+   return _blit_shader;
 }
 
 int getFramebufferBlitShaderAlphaParam()
 {
    getFramebufferBlitShader();
-   return gBlitAlphaParam;
+   return _blit_alpha_param;
 }

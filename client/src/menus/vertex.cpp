@@ -1,28 +1,20 @@
 #include "vertex.h"
 
-Vertex::Vertex() : x(0.0f), y(0.0f), u(0.0f), v(0.0f)
-{
-}
-
 Vertex::Vertex(float x, float y, float u, float v) : x(x), y(y), u(u), v(v)
 {
 }
 
-Vertex::~Vertex()
+Vertex Vertex::operator+(const Vertex& other) const
 {
+   return Vertex(x + other.x, y + other.y, u + other.u, v + other.v);
 }
 
-Vertex Vertex::operator+(const Vertex& vtx) const
+Vertex Vertex::operator-(const Vertex& other) const
 {
-   return Vertex(x + vtx.x, y + vtx.y, u + vtx.u, v + vtx.v);
+   return Vertex(x - other.x, y - other.y, u - other.u, v - other.v);
 }
 
-Vertex Vertex::operator-(const Vertex& vtx) const
-{
-   return Vertex(x - vtx.x, y - vtx.y, u - vtx.u, v - vtx.v);
-}
-
-Vertex Vertex::operator*(const float f) const
+Vertex Vertex::operator*(float f) const
 {
    return Vertex(x * f, y * f, u * f, v * f);
 }

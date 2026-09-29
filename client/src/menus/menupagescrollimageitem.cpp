@@ -1,148 +1,118 @@
-// header
 #include "menupagescrollimageitem.h"
 
-// framework
 #include "clipper.h"
 #include "framework/globaltime.h"
 
-// cmath
 #include <cmath>
 #include <numbers>
 
-// defines
-#define SCROLLTIME 36.0f
-#define LIM_0 (0.0f * SCROLLTIME)
-#define LIM_1 (0.13f * SCROLLTIME)
-#define LIM_2 (0.3333333333f * SCROLLTIME)
-#define LIM_3 (0.6666666666f * SCROLLTIME)
-#define LIM_4 (0.87f * SCROLLTIME)
-#define LIM_5 (1.0f * SCROLLTIME)
-#define LIM_2_POS_OFFSET 0.0f
-#define LIM_2_POS_LENGTH 0.2f
-#define LIM_3_POS_OFFSET 0.2f
-#define LIM_3_POS_LENGTH 0.6f
-#define LIM_4_POS_OFFSET 0.8f
-#define LIM_4_POS_LENGTH 0.2f
+namespace
+{
+constexpr float SCROLLTIME = 36.0f;
+constexpr float LIM_1 = 0.13f * SCROLLTIME;
+constexpr float LIM_2 = 0.3333333333f * SCROLLTIME;
+constexpr float LIM_3 = 0.6666666666f * SCROLLTIME;
+constexpr float LIM_4 = 0.87f * SCROLLTIME;
+constexpr float LIM_5 = 1.0f * SCROLLTIME;
+constexpr float LIM_2_POS_OFFSET = 0.0f;
+constexpr float LIM_2_POS_LENGTH = 0.2f;
+constexpr float LIM_3_POS_OFFSET = 0.2f;
+constexpr float LIM_3_POS_LENGTH = 0.6f;
+constexpr float LIM_4_POS_OFFSET = 0.8f;
+constexpr float LIM_4_POS_LENGTH = 0.2f;
+}  // namespace
 
-//-----------------------------------------------------------------------------
-/*!
- */
 MenuPageScrollImageItem::MenuPageScrollImageItem()
-    : mClipper(0), mLayer(0), mY(0.0f), mStartTime(0.0f), mAnimationTime(0.0f), mMoveUp(false), mRelativeTimePrevious(0.0f)
 {
-   mPageItemType = PageItemTypeScrollImage;
+   _page_item_type = PageItemTypeScrollImage;
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
-MenuPageScrollImageItem::~MenuPageScrollImageItem()
-{
-   delete mClipper;
-}
+MenuPageScrollImageItem::~MenuPageScrollImageItem() = default;
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void MenuPageScrollImageItem::initialize()
 {
    MenuPageItem::initialize();
 
-   PSDLayer* boundingRect = getInactiveLayer();
+   PSDLayer* bounding_rect = getInactiveLayer();
 
    // use layer for clipping
-   mClipper = new Clipper(boundingRect->getLeft(), boundingRect->getTop(), boundingRect->getRight(), boundingRect->getBottom());
+   _clipper = std::make_unique<Clipper>(
+      static_cast<float>(bounding_rect->getLeft()),
+      static_cast<float>(bounding_rect->getTop()),
+      static_cast<float>(bounding_rect->getRight()),
+      static_cast<float>(bounding_rect->getBottom())
+   );
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void MenuPageScrollImageItem::draw()
 {
    PSDLayer* layer = getActiveLayer();
 
-   float offset = mY * (layer->getHeight() - mClipper->getHeight());
+   const float offset = _y * (layer->getHeight() - _clipper->getHeight());
 
    // clip image to reference layer
-   mClipper->enable();
+   _clipper->enable();
    layer->render(0.0f, -offset);  // move up to scroll down
-   mClipper->disable();
+   _clipper->disable();
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void MenuPageScrollImageItem::reset()
 {
-   mRelativeTimePrevious = 0.0f;
-   mY = 0.0f;
-   mMoveUp = false;
-   mStartTime = GlobalTime::Instance()->getTime();
+   _relative_time_previous = 0.0f;
+   _y = 0.0f;
+   _move_up = false;
+   _start_time = GlobalTime::Instance()->getTime();
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void MenuPageScrollImageItem::animate(float /*time*/)
 {
-   mAnimationTime = GlobalTime::Instance()->getTime();
+   _animation_time = GlobalTime::Instance()->getTime();
 
-   float relativeTime = std::fmod(mAnimationTime - mStartTime, LIM_5);
+   const float relative_time = std::fmod(_animation_time - _start_time, LIM_5);
 
    // flip if fmod limit reached
-   if (relativeTime < mRelativeTimePrevious)
-      mMoveUp = !mMoveUp;
-
-   mRelativeTimePrevious = relativeTime;
-
-   float pos = 0.0f;
-
-   if (relativeTime < LIM_1)
+   if (relative_time < _relative_time_previous)
    {
-      pos = 0.0f;
+      _move_up = !_move_up;
    }
-   else if (relativeTime < LIM_2)
+
+   _relative_time_previous = relative_time;
+
+   float position = 0.0f;
+
+   if (relative_time < LIM_1)
+   {
+      position = 0.0f;
+   }
+   else if (relative_time < LIM_2)
+   {
+      // normalize from 0..1, then to pi/2
+      float value = (relative_time - LIM_1) / (LIM_2 - LIM_1);
+      value *= (std::numbers::pi_v<float> / 2.0f);
+      value = 1.0f - std::cos(value);
+
+      position = value * LIM_2_POS_LENGTH + LIM_2_POS_OFFSET;
+   }
+   else if (relative_time < LIM_3)
    {
       // normalize from 0..1
-      float val = (relativeTime - LIM_1) / (LIM_2 - LIM_1);
+      const float value = (relative_time - LIM_2) / (LIM_3 - LIM_2);
 
-      // normalize to pi/2
-      val *= (std::numbers::pi_v<float> / 2.0f);
-      val = 1.0f - std::cos(val);
-
-      val *= LIM_2_POS_LENGTH;
-      val += LIM_2_POS_OFFSET;
-
-      pos = val;
+      position = value * LIM_3_POS_LENGTH + LIM_3_POS_OFFSET;
    }
-   else if (relativeTime < LIM_3)
+   else if (relative_time < LIM_4)
    {
-      // normalize from 0..1
-      float val = (relativeTime - LIM_2) / (LIM_3 - LIM_2);
+      // normalize from 0..1, then to pi/2
+      float value = (relative_time - LIM_3) / (LIM_4 - LIM_3);
+      value *= (std::numbers::pi_v<float> / 2.0f);
+      value = std::sin(value);
 
-      val *= LIM_3_POS_LENGTH;
-      val += LIM_3_POS_OFFSET;
-
-      pos = val;
-   }
-   else if (relativeTime < LIM_4)
-   {
-      // normalize from 0..1
-      float val = (relativeTime - LIM_3) / (LIM_4 - LIM_3);
-
-      // normalize to pi/2
-      val *= (std::numbers::pi_v<float> / 2.0f);
-      val = std::sin(val);
-
-      val *= LIM_4_POS_LENGTH;
-      val += LIM_4_POS_OFFSET;
-
-      pos = val;
+      position = value * LIM_4_POS_LENGTH + LIM_4_POS_OFFSET;
    }
    else
    {
-      pos = 1.0f;
+      position = 1.0f;
    }
 
-   mY = mMoveUp ? (1.0f - pos) : pos;
+   _y = _move_up ? (1.0f - position) : position;
 }

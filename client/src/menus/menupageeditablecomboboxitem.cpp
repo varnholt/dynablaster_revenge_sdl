@@ -1,124 +1,79 @@
-// header
 #include "menupageeditablecomboboxitem.h"
 
-// menus
 #include "clipper.h"
 #include "menupagebuttonitem.h"
 
-// static
-std::map<std::string, MenuPageTextEditItem*> MenuPageEditableComboBoxItem::sMapTextEdits;
+std::map<std::string, MenuPageTextEditItem*> MenuPageEditableComboBoxItem::_map_text_edits;
 
-//-----------------------------------------------------------------------------
-/*!
- */
-MenuPageEditableComboBoxItem::MenuPageEditableComboBoxItem() : mTextEditItem(0)
+MenuPageEditableComboBoxItem::MenuPageEditableComboBoxItem()
 {
-   mPageItemType = PageItemTypeEditableCombobox;
+   _page_item_type = PageItemTypeEditableCombobox;
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void MenuPageEditableComboBoxItem::updateClipperBounds()
 {
-   // the same code could be used in the usual combobox item as well
-   // void Clipper::setBounds(float left, float top, float right, float bottom)
-   mClipper->setBounds(
-      mLayerActive->getLeft(),
-      mLayerActive->getTop(),
-      mLayerActive->getLeft() + mLayerActive->getWidth() - 3,
-      mLayerActive->getTop() + (mLayerActive->getHeight() * getElementCount())
+   _clipper->setBounds(
+      _layer_active->getLeft(),
+      _layer_active->getTop(),
+      _layer_active->getLeft() + _layer_active->getWidth() - 3,
+      _layer_active->getTop() + (_layer_active->getHeight() * getElementCount())
    );
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void MenuPageEditableComboBoxItem::initialize()
 {
    MenuPageComboBoxItem::initialize();
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param item item to set
-*/
 void MenuPageEditableComboBoxItem::setTextEditItem(MenuPageTextEditItem* item)
 {
-   mTextEditItem = item;
+   _text_edit_item = item;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return textedit item
-*/
 MenuPageTextEditItem* MenuPageEditableComboBoxItem::getTextEditItem() const
 {
-   return mTextEditItem;
+   return _text_edit_item;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param visible visible flag
-*/
 void MenuPageEditableComboBoxItem::setVisible(bool visible)
 {
    if (visible != isVisible())
    {
-      // change button visibility
-      MenuPageButtonItem* button = getButtonItem();
-
-      if (button)
+      if (MenuPageButtonItem* button = getButtonItem())
+      {
          button->setVisible(!visible);
+      }
 
-      // change textedit visibility
-      MenuPageTextEditItem* textEdit = getTextEditItem();
-
-      if (textEdit)
-         textEdit->setVisible(!visible);
+      if (MenuPageTextEditItem* text_edit = getTextEditItem())
+      {
+         text_edit->setVisible(!visible);
+      }
 
       MenuPageListItem::setVisible(visible);
    }
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param key item key
-   \param item textedit item to add
-*/
 void MenuPageEditableComboBoxItem::addTextEdit(const std::string& key, MenuPageTextEditItem* item)
 {
-   sMapTextEdits[key] = item;
+   _map_text_edits[key] = item;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param item text to add
-   \param color item's color
-   \param overrideAlpha \c true if alpha is overriden
-   \param outlineColor item's outline color
-*/
-void MenuPageEditableComboBoxItem::appendItem(const std::string& item, const Color& color, bool overrideAlpha, const Color& outlineColor)
+void MenuPageEditableComboBoxItem::appendItem(const std::string& item, const Color& color, bool override_alpha, const Color& outline_color)
 {
-   MenuPageListItem::appendItem(item, color, overrideAlpha, outlineColor);
+   MenuPageListItem::appendItem(item, color, override_alpha, outline_color);
    updateClipperBounds();
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param labelKey textedit item key
-   \param comboBoxKey combobox item key
-*/
-void MenuPageEditableComboBoxItem::linkComboBoxToTextEdit(const std::string& textEditKey, const std::string& comboBoxKey)
+void MenuPageEditableComboBoxItem::linkComboBoxToTextEdit(const std::string& text_edit_key, const std::string& combo_box_key)
 {
-   if (sMapTextEdits.contains(textEditKey) && sMapComboBoxes.contains(comboBoxKey))
+   if (_map_text_edits.contains(text_edit_key) && _map_combo_boxes.contains(combo_box_key))
    {
-      MenuPageTextEditItem* textEdit = sMapTextEdits[textEditKey];
-      MenuPageComboBoxItem* comboBox = sMapComboBoxes[comboBoxKey];
-      MenuPageEditableComboBoxItem* editableCombobBox = dynamic_cast<MenuPageEditableComboBoxItem*>(comboBox);
+      MenuPageTextEditItem* text_edit = _map_text_edits[text_edit_key];
+      auto* editable_combo_box = dynamic_cast<MenuPageEditableComboBoxItem*>(_map_combo_boxes[combo_box_key]);
 
-      editableCombobBox->setTextEditItem(textEdit);
+      editable_combo_box->setTextEditItem(text_edit);
 
-      editableCombobBox->valueChangedSignal.connect([textEdit](const std::string& value) { textEdit->setText(value); });
+      // both items belong to the same MenuPage and share its lifetime
+      editable_combo_box->valueChangedSignal.connect([text_edit](const std::string& value) { text_edit->setText(value); });
    }
 }

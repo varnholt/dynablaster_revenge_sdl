@@ -1,67 +1,43 @@
 #pragma once
 
-// engine
 #include "framework/drawable.h"
 
-// shared
 #include "signal.h"
 
-// menus
 #include "image/psd.h"
 
+#include <cstdint>
 #include <memory>
 
 class Menu;
 class MenuPageFadeAnimation;
 class FrameBuffer;
 
-/// \brief GLES3 port of client/src/menus/menudrawable.cpp.
-///
-/// ShaderPool is not ported (see project memory) - the shared texalphaignore shader is loaded
-/// through GLDevice::loadShader/setShader instead, same as every other menu item.
-/// MainDrawable::getInstance()->getRenderBuffer(1) doesn't exist in this port (no MainDrawable -
-/// main.cpp drives Drawables directly), so this owns its own FrameBuffer for the page
-/// cross-fade, sized to the current page and (re)created lazily.
-/// initGlParameters()'s fixed-function glMatrixMode/glLoadIdentity/glColor4f become
-/// GLDevice::setProjectionMatrix() (2D ortho, same pattern as every screen-space menu draw) -
-/// there is no separate "reset modelview to identity" step because GLDevice::push()/pop() already
-/// replace the world transform outright per draw call (see gldevice.h), unlike the legacy
-/// glPushMatrix()/glPopMatrix() stack this used to sit on top of.
-/// drawFrameBuffer(unsigned int) is dropped - declared and defined in the original, never called
-/// anywhere (dead code even upstream).
+/// \brief draws the menu pages; each active page is composited into an own FrameBuffer (sized to
+/// the page, created lazily) and blitted to the screen for the page cross-fade.
 class MenuDrawable : public Drawable
 {
 public:
    MenuDrawable(RenderDevice*);
-
-   ~MenuDrawable();
+   ~MenuDrawable() override;
 
    Menu* getMenu();
 
-   // gl
+   void initializeGL() override;
 
-   void initializeGL();
+   void paintGL() override;
 
-   void paintGL();
+   void setVisible(bool visible) override;
 
-   virtual void setVisible(bool visible);
+   void mousePressEvent(int x, int y) override;
 
-   // event handler
+   void mouseMoveEvent(int x, int y) override;
 
-   //!
-   void mousePressEvent(int x, int y);
+   void mouseReleaseEvent() override;
 
-   //!
-   void mouseMoveEvent(int x, int y);
+   void keyPressEvent(const KeyEvent& event) override;
 
-   //!
-   void mouseReleaseEvent();
-
-   //!
-   void keyPressEvent(const KeyEvent& event);
-
-   //! overwrite animate
-   virtual void animate(float globalTime);
+   void animate(float global_time) override;
 
    //! initialization finished
    void initializationFinished();
@@ -113,45 +89,35 @@ protected:
    //! fade in menu framebuffer
    void startFadeInFrameBuffer();
 
-   // menu
+   // declared before the animations: the pages only observe them, the animations' stopped
+   // callbacks capture page pointers
+   std::unique_ptr<Menu> _menu;
 
-   std::unique_ptr<Menu> mMenu;
+   std::unique_ptr<MenuPageFadeAnimation> _fade_in_animation;
+   std::unique_ptr<MenuPageFadeAnimation> _fade_out_animation;
 
-   //
-   std::unique_ptr<MenuPageFadeAnimation> mFadeInAnimation;
+   bool _input_blocked = false;
 
-   //
-   std::unique_ptr<MenuPageFadeAnimation> mFadeOutAnimation;
+   int _mouse_x = 0;
+   int _mouse_y = 0;
 
-   //!
-   bool mInputBlocked;
-
-   //! mouse x position
-   int mMouseX;
-
-   //! mouse y position
-   int mMouseY;
-
-   //! time
-   float mTime;
+   float _time = 0.0f;
 
    //! fade out framebuffer flag
-   bool mFadeOut;
+   bool _fade_out = false;
 
    //! fade in framebuffer flag
-   bool mFadeIn;
+   bool _fade_in = false;
 
-   //! alpha
-   float mAlpha;
+   float _alpha = 0.0f;
 
    //! reset time on setVisible(true)
-   bool mResetTime;
+   bool _reset_time = false;
 
    //! alpha shader
-   unsigned int mShader;
-   int mAlphaParameter;
+   uint32_t _shader = 0;
+   int _alpha_parameter = -1;
 
-   //! page cross-fade render target - see class comment for why this port owns it directly
-   //! instead of pulling it from MainDrawable.
-   std::unique_ptr<FrameBuffer> mFrameBuffer;
+   //! page cross-fade render target
+   std::unique_ptr<FrameBuffer> _frame_buffer;
 };

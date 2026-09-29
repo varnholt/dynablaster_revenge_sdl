@@ -1,26 +1,23 @@
 #pragma once
 
-// shared
 #include "settings.h"
 #include "signal.h"
 
-// menu
 #include "menupage.h"
 
 #include <memory>
 #include <vector>
 
-// forward declarations
 class MenuWorkflow;
 
 class Menu
 {
 public:
    Menu();
-
-   Menu(const Menu&);
-
    virtual ~Menu();
+
+   Menu(const Menu&) = delete;
+   Menu& operator=(const Menu&) = delete;
 
    void initialize();
 
@@ -44,19 +41,14 @@ public:
 
    MenuPage* getPageByName(const std::string&);
 
-   const std::vector<MenuPage*>& getPages() const;
+   const std::vector<std::unique_ptr<MenuPage>>& getPages() const;
 
    MenuWorkflow* getMenuWorkflow() const;
 
-   //!
    void setMenuWorkflow(MenuWorkflow*);
-
-   // workflow
 
    //! action response
    void actionResponse(const std::string& page, const std::string& action, bool ok);
-
-   // workflow
 
    //! action request
    Signal<const std::string&, const std::string&> actionRequestSignal;
@@ -70,15 +62,15 @@ public:
    Signal<const std::string&, const std::string&> layerFocussedSignal;
 
 private:
-   std::vector<MenuPage*> mPages;
+   std::vector<std::unique_ptr<MenuPage>> _pages;
 
-   std::unique_ptr<Settings> mSettings;
+   std::unique_ptr<Settings> _settings;
 
-   MenuPage* mCurrentPage;
+   // non-owning, point into _pages
+   MenuPage* _current_page = nullptr;
+   MenuPage* _background = nullptr;
 
-   MenuPage* mBackground;
+   MenuWorkflow* _menu_workflow = nullptr;
 
-   MenuWorkflow* mMenuWorkflow;
-
-   static Menu* lInstance;
+   static Menu* _instance;
 };

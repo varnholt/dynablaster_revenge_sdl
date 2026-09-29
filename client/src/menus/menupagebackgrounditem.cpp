@@ -1,25 +1,19 @@
 #include "menupagebackgrounditem.h"
-#include <cmath>
 #include "framework/gldevice.h"
 #include "math/matrix.h"
 
-// math
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 
-// defines
-#define COLOR_CHANGE_DURATION 2000
+namespace
+{
+constexpr float COLOR_CHANGE_DURATION = 2000.0f;
+}
 
 MenuPageBackgroundItem::MenuPageBackgroundItem()
-    : mX(0.0f),
-      mY(0.0f),
-      mBackgroundColor(BackgroundColorBlue),
-      mBackgroundColorPrevious(BackgroundColorBlue),
-      mVertexBuffer(0)
 {
-   mElapsed.start();
-
-   std::memset(mBackgroundLayers, 0, (BackgroundColorBlue + 1) * sizeof(PSDLayer*));
+   _elapsed.start();
 }
 
 void MenuPageBackgroundItem::initialize()
@@ -29,81 +23,87 @@ void MenuPageBackgroundItem::initialize()
 
 void MenuPageBackgroundItem::addGradientLayer(PSDLayer* gradient, MenuPageBackgroundItem::BackgroundColor color)
 {
-   mBackgroundLayers[color] = gradient;
+   _background_layers[color] = gradient;
 }
 
 void MenuPageBackgroundItem::setBackgroundColor(MenuPageBackgroundItem::BackgroundColor color)
 {
-   if (color != mBackgroundColor)
+   if (color != _background_color)
    {
-      mBackgroundColorPrevious = mBackgroundColor;
-      mBackgroundColor = color;
-      mFlipBackgroundElapsed.restart();
+      _background_color_previous = _background_color;
+      _background_color = color;
+      _flip_background_elapsed.restart();
    }
 }
 
 void MenuPageBackgroundItem::draw()
 {
-   if (mBackgroundLayers[mBackgroundColor])
+   if (_background_layers[_background_color])
    {
-      float alpha = std::min(mFlipBackgroundElapsed.elapsed() / (float)COLOR_CHANGE_DURATION, 1.0f);
-
-      float alphaInverted = 1.0f - alpha;
+      const float alpha = std::min(_flip_background_elapsed.elapsed() / COLOR_CHANGE_DURATION, 1.0f);
+      const float alpha_inverted = 1.0f - alpha;
 
       if (alpha > 0.0f)
-         mBackgroundLayers[mBackgroundColor]->render(0.0f, 0.0f, alpha);
+      {
+         _background_layers[_background_color]->render(0.0f, 0.0f, alpha);
+      }
 
-      if (alphaInverted > 0.0f)
-         mBackgroundLayers[mBackgroundColorPrevious]->render(0.0f, 0.0f, alphaInverted);
+      if (alpha_inverted > 0.0f)
+      {
+         _background_layers[_background_color_previous]->render(0.0f, 0.0f, alpha_inverted);
+      }
    }
 
-   mX = std::sin(mElapsed.elapsed() * 0.0001f);
-   mY = std::cos(mElapsed.elapsed() * 0.0001f);
+   _x = std::sin(_elapsed.elapsed() * 0.0001f);
+   _y = std::cos(_elapsed.elapsed() * 0.0001f);
 
-   // one quad for the whole background, scrolling slowly by animating its texcoords - the
-   // legacy immediate-mode draw (glBegin(GL_QUADS), per-vertex glTexCoord2f/glVertex3f) becomes
-   // a plain attribute-array draw through the shared texalphaignore shader (already bound by
-   // MenuDrawable for the whole page-render pass), rebuilt into a small dynamic buffer every
-   // frame since the texcoords change every frame anyway.
-   PSD::Layer* psdLayer = getCurrentLayer();
+   // one quad for the whole background, scrolling slowly by animating its texcoords; rebuilt
+   // into a small dynamic buffer every frame, drawn with the shader MenuDrawable already bound
+   PSD::Layer* psd_layer = getCurrentLayer();
 
-   const float height = static_cast<float>(psdLayer->getHeight());
-   const float width = static_cast<float>(psdLayer->getWidth());
-   const float xTranslation = static_cast<float>(psdLayer->getLeft());
-   const float yTranslation = static_cast<float>(psdLayer->getTop());
+   const float height = static_cast<float>(psd_layer->getHeight());
+   const float width = static_cast<float>(psd_layer->getWidth());
+   const float x_translation = static_cast<float>(psd_layer->getLeft());
+   const float y_translation = static_cast<float>(psd_layer->getTop());
 
    glBindTexture(GL_TEXTURE_2D, getActiveLayer()->getTexture());
    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
-   const float quad[] = {
-      xTranslation,         yTranslation,          -1.0f, 0.0f + mX, 0.0f + mY,
-      xTranslation,         yTranslation + height, -1.0f, 0.0f + mX, 1.0f + mY,
-      xTranslation + width, yTranslation + height, -1.0f, 1.0f + mX, 1.0f + mY,
-      xTranslation,         yTranslation,          -1.0f, 0.0f + mX, 0.0f + mY,
-      xTranslation + width, yTranslation + height, -1.0f, 1.0f + mX, 1.0f + mY,
-      xTranslation + width, yTranslation,          -1.0f, 1.0f + mX, 0.0f + mY,
+   // clang-format off
+   const std::array<float, 30> quad = {
+      x_translation,         y_translation,          -1.0f, 0.0f + _x, 0.0f + _y,
+      x_translation,         y_translation + height, -1.0f, 0.0f + _x, 1.0f + _y,
+      x_translation + width, y_translation + height, -1.0f, 1.0f + _x, 1.0f + _y,
+      x_translation,         y_translation,          -1.0f, 0.0f + _x, 0.0f + _y,
+      x_translation + width, y_translation + height, -1.0f, 1.0f + _x, 1.0f + _y,
+      x_translation + width, y_translation,          -1.0f, 1.0f + _x, 0.0f + _y,
    };
+   // clang-format on
+   constexpr int quad_size = static_cast<int>(sizeof(float) * 30);
 
-   if (mVertexBuffer == 0)
-      mVertexBuffer = activeDevice->createVertexBuffer(sizeof(quad), true);
+   if (_vertex_buffer == 0)
+   {
+      _vertex_buffer = activeDevice->createVertexBuffer(quad_size, true);
+   }
    else
-      activeDevice->allocateVertexBuffer(mVertexBuffer, sizeof(quad), true);
+   {
+      activeDevice->allocateVertexBuffer(_vertex_buffer, quad_size, true);
+   }
 
-   void* dst = activeDevice->lockVertexBuffer(mVertexBuffer, sizeof(quad));
-   std::memcpy(dst, quad, sizeof(quad));
-   activeDevice->unlockVertexBuffer(mVertexBuffer);
+   void* destination = activeDevice->lockVertexBuffer(_vertex_buffer, quad_size);
+   std::memcpy(destination, quad.data(), quad_size);
+   activeDevice->unlockVertexBuffer(_vertex_buffer);
 
-   // positions are already baked in page-pixel space, so the world transform must be identity -
-   // reset it in case a previous item's draw call left a translation pushed.
+   // positions are already baked in page-pixel space, so the world transform must be identity
    activeDevice->push(Matrix());
    activeDevice->setParameter(activeDevice->getParameterIndex("alpha"), 1.0f);
 
-   glBindBuffer(GL_ARRAY_BUFFER, mVertexBuffer);
+   glBindBuffer(GL_ARRAY_BUFFER, _vertex_buffer);
    glEnableVertexAttribArray(0);
    glEnableVertexAttribArray(1);
-   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 5, (GLvoid*)0);
-   glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 5, (GLvoid*)(sizeof(float) * 3));
+   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 5, nullptr);
+   glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 5, reinterpret_cast<GLvoid*>(sizeof(float) * 3));
 
    glDrawArrays(GL_TRIANGLES, 0, 6);
 

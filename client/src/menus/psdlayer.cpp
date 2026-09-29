@@ -4,94 +4,82 @@
 #include "math/matrix.h"
 #include "render/texturepool.h"
 
-PSDLayer::PSDLayer() : mLayer(0), mTexture(), mVertexBuffer(0), mIndexBuffer(0), mOpacity(0.0f), mU(0.0f), mV(0.0f)
+#include <memory>
+
+PSDLayer::PSDLayer(PSD::Layer* layer, float z, bool unwrap) : _layer(layer), _opacity(layer->getOpacity() / 255.0)
 {
-}
+   const int width = layer->getWidth();
+   const int height = layer->getHeight();
 
-PSDLayer::PSDLayer(PSD::Layer* layer, float z, bool unwrap)
-    : mLayer(layer), mTexture(), mVertexBuffer(0), mIndexBuffer(0), mOpacity(layer->getOpacity() / 255.0)
-{
-   int w = layer->getWidth();
-   int h = layer->getHeight();
+   const int texture_width = width;
+   const int texture_height = height;
 
-   // the original code computed a next-power-of-two size (log2) here, then immediately
-   // overwrote it with the exact size on the next two lines - dead code even upstream, since
-   // whatever hardware constraint once required power-of-two textures is long gone. Dropped.
-   int tw = w;
-   int th = h;
-
-   Image* image = new Image(tw, th);
-   Image* src = layer->getImage();
+   auto image = std::make_unique<Image>(texture_width, texture_height);
+   Image* source = layer->getImage();
 
    if (!unwrap)
    {
-      image->scaled(*src);
+      image->scaled(*source);
    }
    else
    {
-      image->copy(0, 0, *src, true);
+      image->copy(0, 0, *source, true);
    }
 
-   mTexture = TexturePool::Instance()->getTexture(image, TexturePool::Trilinear | TexturePool::Clamp);
+   _texture = TexturePool::Instance()->getTexture(image.get(), TexturePool::Trilinear | TexturePool::Clamp);
 
-   delete image;
+   image.reset();
 
-   mU = (float)w / tw;
-   mV = (float)h / th;
+   _u = static_cast<float>(width) / texture_width;
+   _v = static_cast<float>(height) / texture_height;
 
-   // create vertexbuffer
-   mVertexBuffer = activeDevice->createVertexBuffer(4 * sizeof(Vertex));
-   Vertex* vtx = (Vertex*)activeDevice->lockVertexBuffer(mVertexBuffer);
-   *vtx++ = Vertex(0, 0, z, 0, 0);
-   *vtx++ = Vertex(0, h, z, 0, mV);
-   *vtx++ = Vertex(w, 0, z, mU, 0);
-   *vtx++ = Vertex(w, h, z, mU, mV);
-   activeDevice->unlockVertexBuffer(mVertexBuffer);
+   _vertex_buffer = activeDevice->createVertexBuffer(4 * sizeof(Vertex));
+   auto* vertex = static_cast<Vertex*>(activeDevice->lockVertexBuffer(_vertex_buffer));
+   *vertex++ = Vertex(0, 0, z, 0, 0);
+   *vertex++ = Vertex(0, height, z, 0, _v);
+   *vertex++ = Vertex(width, 0, z, _u, 0);
+   *vertex++ = Vertex(width, height, z, _u, _v);
+   activeDevice->unlockVertexBuffer(_vertex_buffer);
 
-   // create indexbuffer
-   mIndexBuffer = activeDevice->createIndexBuffer(6 * sizeof(unsigned short));
-   unsigned short* idx = (unsigned short*)activeDevice->lockIndexBuffer(mIndexBuffer);
-   *idx++ = 0;
-   *idx++ = 1;
-   *idx++ = 2;
-   *idx++ = 1;
-   *idx++ = 3;
-   *idx++ = 2;
-   activeDevice->unlockIndexBuffer(mIndexBuffer);
-}
-
-PSDLayer::~PSDLayer()
-{
+   _index_buffer = activeDevice->createIndexBuffer(6 * sizeof(uint16_t));
+   auto* index = static_cast<uint16_t*>(activeDevice->lockIndexBuffer(_index_buffer));
+   *index++ = 0;
+   *index++ = 1;
+   *index++ = 2;
+   *index++ = 1;
+   *index++ = 3;
+   *index++ = 2;
+   activeDevice->unlockIndexBuffer(_index_buffer);
 }
 
 PSD::Layer* PSDLayer::getLayer() const
 {
-   return mLayer;
+   return _layer;
 }
 
 float PSDLayer::getU() const
 {
-   return mU;
+   return _u;
 }
 
 float PSDLayer::getV() const
 {
-   return mV;
+   return _v;
 }
 
 int PSDLayer::getWidth() const
 {
-   return mLayer->getWidth();
+   return _layer->getWidth();
 }
 
 int PSDLayer::getHeight() const
 {
-   return mLayer->getHeight();
+   return _layer->getHeight();
 }
 
 int PSDLayer::getLeft() const
 {
-   return mLayer->getLeft();
+   return _layer->getLeft();
 }
 
 int PSDLayer::getRight() const
@@ -101,61 +89,57 @@ int PSDLayer::getRight() const
 
 int PSDLayer::getTop() const
 {
-   return mLayer->getTop();
+   return _layer->getTop();
 }
 
 int PSDLayer::getBottom() const
 {
-   return mLayer->getTop() + mLayer->getHeight();
+   return _layer->getTop() + _layer->getHeight();
 }
 
-unsigned int PSDLayer::getTexture() const
+uint32_t PSDLayer::getTexture() const
 {
-   return mTexture.getTexture();
+   return _texture.getTexture();
 }
 
-unsigned int PSDLayer::getVertexBuffer() const
+uint32_t PSDLayer::getVertexBuffer() const
 {
-   return mVertexBuffer;
+   return _vertex_buffer;
 }
 
-unsigned int PSDLayer::getIndexBuffer() const
+uint32_t PSDLayer::getIndexBuffer() const
 {
-   return mIndexBuffer;
+   return _index_buffer;
 }
 
 float PSDLayer::getOpacity() const
 {
-   return mOpacity;
+   return _opacity;
 }
 
 void PSDLayer::setOpacity(float opacity)
 {
-   mOpacity = opacity;
+   _opacity = opacity;
 }
 
 void PSDLayer::render(float x, float y, float alpha)
 {
-   // the legacy fixed-function draw (glPushMatrix/glTranslatef, glColor4f for opacity,
-   // glEnableClientState/glVertexPointer/glTexCoordPointer) becomes a plain attribute-array
-   // draw through the shared texalphaignore shader, with the translation folded into a world
-   // matrix uploaded the same way every other draw call in the engine uploads one.
    Matrix world;
-   world.translate(Vector(mLayer->getLeft() + x, mLayer->getTop() + y, 0.0f));
+   world.translate(Vector(_layer->getLeft() + x, _layer->getTop() + y, 0.0f));
    activeDevice->push(world);
 
-   glBindTexture(GL_TEXTURE_2D, mTexture);
+   glBindTexture(GL_TEXTURE_2D, _texture);
 
-   activeDevice->setParameter(activeDevice->getParameterIndex("alpha"), mOpacity * alpha);
+   activeDevice->setParameter(activeDevice->getParameterIndex("alpha"), _opacity * alpha);
 
-   glBindBuffer(GL_ARRAY_BUFFER, mVertexBuffer);
+   glBindBuffer(GL_ARRAY_BUFFER, _vertex_buffer);
    glEnableVertexAttribArray(0);
    glEnableVertexAttribArray(1);
-   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)0);
-   glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)(3 * sizeof(float)));
+   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), nullptr);
+   glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<GLvoid*>(3 * sizeof(float)));
 
-   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mIndexBuffer);
-   glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0);
+   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _index_buffer);
+   glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, nullptr);
 
    glDisableVertexAttribArray(0);
    glDisableVertexAttribArray(1);

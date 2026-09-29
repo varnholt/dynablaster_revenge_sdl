@@ -1,25 +1,19 @@
 #pragma once
 
-// base
 #include "menupagecomboboxitem.h"
-
-// menus
 #include "menupagetextedit.h"
 
-/// \brief GLES3 port of client/src/menus/menupageeditablecomboboxitem.cpp.
-/// No GL/fixed-function drawing of its own - draws entirely through MenuPageComboBoxItem's
-/// already-ported draw().
+/// \brief combobox whose value is shown in (and typed into) a linked text edit.
 class MenuPageEditableComboBoxItem : public MenuPageComboBoxItem
 {
 public:
-   //! constructor
    MenuPageEditableComboBoxItem();
 
    //! initialize item
-   virtual void initialize();
+   void initialize() override;
 
    //! setter for visible flag
-   void setVisible(bool visible);
+   void setVisible(bool visible) override;
 
    //! setter for textedit item
    void setTextEditItem(MenuPageTextEditItem* item);
@@ -28,26 +22,26 @@ public:
    MenuPageTextEditItem* getTextEditItem() const;
 
    //! link combobox to related textedit
-   static void linkComboBoxToTextEdit(const std::string& textEditKey, const std::string& comboBoxKey);
+   static void linkComboBoxToTextEdit(const std::string& text_edit_key, const std::string& combo_box_key);
 
-   //! add label to id/ptr-map
+   //! add textedit to id/ptr-map
    static void addTextEdit(const std::string&, MenuPageTextEditItem*);
 
    //! append an item to the list
    void appendItem(
       const std::string& item,
       const Color& color = Color("#FFFFFF"),
-      bool overrideAlpha = false,
-      const Color& outlineColor = Color()
-   );
+      bool override_alpha = false,
+      const Color& outline_color = Color()
+   ) override;
 
 protected:
    //! update clipper boundaries
    void updateClipperBounds();
 
-   //! linked textedit item
-   MenuPageTextEditItem* mTextEditItem;
+   //! linked textedit item (non-owning)
+   MenuPageTextEditItem* _text_edit_item = nullptr;
 
-   //! map of labels by id
-   static std::map<std::string, MenuPageTextEditItem*> sMapTextEdits;
+   //! registry used while the pages are built, non-owning
+   static std::map<std::string, MenuPageTextEditItem*> _map_text_edits;
 };
