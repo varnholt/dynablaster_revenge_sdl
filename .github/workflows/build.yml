@@ -57,13 +57,13 @@ jobs:
         run: cmake -S client -B client/build -DCMAKE_BUILD_TYPE=Release
 
       - name: Build client
-        run: cmake --build client/build --parallel
+        run: cmake --build client/build --parallel $(nproc)
 
       - name: Configure server
         run: cmake -S server -B server/build -DCMAKE_BUILD_TYPE=Release
 
       - name: Build server
-        run: cmake --build server/build --parallel
+        run: cmake --build server/build --parallel $(nproc)
 
       - name: Package artifact
         run: |
@@ -86,13 +86,13 @@ jobs:
         run: cmake -S client -B client/build -DCMAKE_BUILD_TYPE=Release
 
       - name: Build client
-        run: cmake --build client/build --parallel
+        run: cmake --build client/build --parallel $(sysctl -n hw.ncpu)
 
       - name: Configure server
         run: cmake -S server -B server/build -DCMAKE_BUILD_TYPE=Release
 
       - name: Build server
-        run: cmake --build server/build --parallel
+        run: cmake --build server/build --parallel $(sysctl -n hw.ncpu)
 
       - name: Package artifact
         run: |
@@ -121,7 +121,7 @@ jobs:
         run: emcmake cmake -S client -B client/build-wasm -DCMAKE_BUILD_TYPE=Release
 
       - name: Build client
-        run: cmake --build client/build-wasm --target dynablaster_revenge --parallel
+        run: cmake --build client/build-wasm --target dynablaster_revenge --parallel $(nproc)
 
       - name: Package artifact
         run: |
