@@ -4,25 +4,30 @@ ValTrack::ValTrack() : Track<ValKey>(Track::idValue)
 {
 }
 
-void ValTrack::add(int time, float val)
+void ValTrack::add(int32_t time, float value)
 {
-   ValKey key(time, val);
-   addKey(key);
+   addKey(ValKey(time, value));
 }
 
 float ValTrack::get(float time)
 {
-   int last = size() - 1;
+   const int32_t last = size() - 1;
    if (last < 0)
+   {
       return 0;
+   }
    if (time <= key(0).time())
+   {
       return key(0).value();
+   }
    if (time >= key(last).time())
+   {
       return key(last).value();
+   }
 
-   float f = interpolate(time);
+   const float f = interpolate(time);
 
-   float a = prevKey().value();
-   float b = nextKey().value();
+   const float a = prevKey().value();
+   const float b = nextKey().value();
    return a + (b - a) * f;
 }

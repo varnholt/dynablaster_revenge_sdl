@@ -25,7 +25,7 @@ ScaleTrack::ScaleTrack() : Track<ScaleKey>(Track::idScale)
 {
 }
 
-void ScaleTrack::add(int time, const Scale& scale)
+void ScaleTrack::add(int32_t time, const Scale& scale)
 {
    addKey(ScaleKey(time, scale));
 }
@@ -34,40 +34,33 @@ void ScaleTrack::load(Stream* stream)
 {
    Track<ScaleKey>::load(stream);
 
-   for (int i = 1; i < mSize; i++)
+   // orientations are stored as deltas: accumulate them
+   for (int32_t i = 1; i < size(); i++)
    {
-      const Quat& q1 = mData[i - 1].value().orientation();
-      const Quat& q2 = mData[i].value().orientation();
+      const Quat& q1 = key(i - 1).value().orientation();
+      const Quat& q2 = key(i).value().orientation();
       Quat q = q1 * q2;
       if ((q1 % q) < 0)
+      {
          q = -q;
-      Scale scale(q, mData[i].value().value());
-      mData[i].setValue(scale);
+      }
+      const Scale scale(q, key(i).value().value());
+      key(i).setValue(scale);
    }
 }
 
 void ScaleTrack::write(Stream* stream)
 {
-   // TODO: delta!
-   /*
-      for (int i=1;i<mSize;i++)
-      {
-         Quat q1= mData[i-1].orientation();
-         Quat q2= mData[i].orientation();
-         Quat q= q1*q2;
-         if ((q1 % q) < 0) q=-q;
-         mData[i].set( q );
-      }
-   */
-
+   // TODO: write orientations as deltas again
    Track<ScaleKey>::write(stream);
 }
 
 Matrix ScaleTrack::get(float time)
 {
-   Matrix rtm, stm;
+   Matrix rtm;
+   Matrix stm;
 
-   int last = size() - 1;
+   const int32_t last = size() - 1;
 
    if (last < 0)
    {
@@ -87,21 +80,20 @@ Matrix ScaleTrack::get(float time)
    }
    else
    {
-      float f = interpolate(time);
+      const float f = interpolate(time);
 
       const Vector& v1 = prevKey().value().value();
       const Vector& v2 = nextKey().value().value();
-      Vector v = v1 + (v2 - v1) * f;
+      const Vector v = v1 + (v2 - v1) * f;
 
       const Quat& q1 = prevKey().value().orientation();
       const Quat& q2 = nextKey().value().orientation();
-      Quat q = q1 + (q2 - q1) * f;
-      //      q= prevKey().orientation();
+      const Quat q = q1 + (q2 - q1) * f;
 
       rtm = Matrix(q);
       stm = Matrix(v);
    }
 
-   Matrix irm = rtm.invert();
+   const Matrix irm = rtm.invert();
    return irm * stm * rtm;
 }

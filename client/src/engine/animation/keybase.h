@@ -1,18 +1,21 @@
-// this is the base class for a key-frame and contains the non-template part of "key" (a timestamp)
+// base class for a key-frame, contains the non-template part of "key" (a timestamp)
 
+#pragma once
+
+#include <cstdint>
 #include "tools/streamable.h"
 
 class KeyBase : public Streamable
 {
 public:
-   KeyBase(int time = 0);
-   virtual ~KeyBase();
+   KeyBase(int32_t time = 0);
+   virtual ~KeyBase() = default;
 
-   int time() const;
+   int32_t time() const;
 
-   virtual void load(Stream* stream);
-   virtual void write(Stream* stream);
+   void load(Stream* stream) override;
+   void write(Stream* stream) override;
 
 protected:
-   int mTime;
+   int32_t _time = 0;
 };

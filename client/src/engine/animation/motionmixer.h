@@ -1,14 +1,17 @@
 #pragma once
 
-#include "tools/array.h"
+#include <cstdint>
+#include <memory>
+#include <vector>
+#include "math/matrix.h"
 #include "tools/string.h"
 
 class SceneGraph;
 class Node;
 class Mesh;
-class Matrix;
 
-typedef Array<Array<Matrix>*> BoneAnimPrecalc;
+// per frame: one matrix per bone
+using BoneAnimPrecalc = std::vector<std::vector<Matrix>>;
 
 class MotionMixer
 {
@@ -17,26 +20,26 @@ public:
    ~MotionMixer();
 
    static void cleanup();
-   static int addAnimation(const String& name);
+   static int32_t addAnimation(const String& name);
    static Mesh* getMesh(const String& name);
 
-   void setAnimation(int anim1, int anim2, float weight1, int anim3, float weight2);
+   void setAnimation(int32_t anim1, int32_t anim2, float weight1, int32_t anim3, float weight2);
    void animate(float frame);
-   Node* getNode(int index) const;
+   Node* getNode(int32_t index) const;
 
 private:
-   static SceneGraph* mRefAnim;
-   static Array<BoneAnimPrecalc*> mMatrixPrecalc;
+   static std::unique_ptr<SceneGraph> _reference_animation;
+   static std::vector<BoneAnimPrecalc> _matrix_precalc;
 
-   static float mFrameStep;
-   static int mBoneCount;
-   static int mAnimLength;
+   static float _frame_step;
+   static int32_t _bone_count;
+   static int32_t _animation_length;
 
-   Array<Node*> mCurrentState;
+   std::vector<std::unique_ptr<Node>> _current_state;
 
-   int mAnim1;
-   int mAnim2;
-   int mAnim3;
-   float mWeight1;
-   float mWeight2;
+   int32_t _anim1 = -1;
+   int32_t _anim2 = -1;
+   int32_t _anim3 = -1;
+   float _weight1 = 1.0f;
+   float _weight2 = 0.0f;
 };

@@ -1,23 +1,22 @@
 #include "bakedtransformation.h"
 #include <cmath>
+#include <cstdint>
 #include "nodes/node.h"
 
-BakedTransformation::BakedTransformation() : Array<Matrix>(), mStepSize(0.0f)
+BakedTransformation::BakedTransformation(Node* node, float step_size) : _step_size(1.0f / step_size)
 {
-}
-
-BakedTransformation::BakedTransformation(Node* node, float stepSize) : Array<Matrix>(), mStepSize(1.0f / stepSize)
-{
-   int maxFrame = node->getAnimationLength();
-   int keys = (int)std::ceil(maxFrame / stepSize);
+   const int32_t max_frame = node->getAnimationLength();
+   int32_t keys = static_cast<int32_t>(std::ceil(max_frame / step_size));
    if (keys == 0)
+   {
       keys = 1;
+   }
 
    this->init(keys);
 
-   for (int i = 0; i < keys; i++)
+   for (int32_t i = 0; i < keys; i++)
    {
-      node->transform(i * stepSize);
+      node->transform(i * step_size);
       this->add(node->getTransform());
    }
 }
@@ -25,26 +24,28 @@ BakedTransformation::BakedTransformation(Node* node, float stepSize) : Array<Mat
 Matrix BakedTransformation::interpolate(float frame) const
 {
    if (frame <= 0.0f)
+   {
       return this->get(0);
+   }
 
-   frame *= mStepSize;
-   int index = (int)std::floor(frame);
+   frame *= _step_size;
+   const int32_t index = static_cast<int32_t>(std::floor(frame));
 
    // make sure [index] and [index+1] exist for blending
    if (index < this->size() - 1)
    {
-      float t = 1.0f - (index + 1 - frame);
+      const float t = 1.0f - (index + 1 - frame);
       const Matrix& m1 = this->get(index);
       const Matrix& m2 = this->get(index + 1);
       return Matrix::blend(m1, m2, t);
    }
-   else
+
+   // last index
+   if (this->size() > 0)
    {
-      // last index
-      if (this->size() > 0)
-         return this->getLast();
+      return this->getLast();
    }
 
-   // none of the above paths: track is empty, so return identity matrix
+   // track is empty: identity
    return Matrix();
 }

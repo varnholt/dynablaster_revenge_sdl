@@ -11,10 +11,7 @@ class MorphTrack : public Track<MorphKey>
 public:
    MorphTrack();
 
-   void load(Stream* stream);
-   void get(List<Vector>& vtx, List<Vector>& nrm, float time);
+   void get(List<Vector>& vertices, List<Vector>& normals, float time);
 
-   void calculateNormals(const Array<unsigned short>& indices);
-
-private:
+   void calculateNormals(const Array<uint16_t>& indices);
 };

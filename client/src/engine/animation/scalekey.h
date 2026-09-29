@@ -5,4 +5,4 @@
 #include "key.h"
 #include "math/scale.h"
 
-typedef Key<Scale> ScaleKey;
+using ScaleKey = Key<Scale>;

@@ -1,289 +1,238 @@
 #include "motionmixer.h"
+#include <cmath>
+#include <cstdio>
 #include "math/matrix.h"
 #include "nodes/mesh.h"
 #include "nodes/node.h"
 #include "nodes/scenegraph.h"
 
-// cmath
-#include <cmath>
-SceneGraph* MotionMixer::mRefAnim = 0;
-Array<BoneAnimPrecalc*> MotionMixer::mMatrixPrecalc;
-float MotionMixer::mFrameStep = 50.0f;
-int MotionMixer::mBoneCount = 0;
-int MotionMixer::mAnimLength = 0;
+std::unique_ptr<SceneGraph> MotionMixer::_reference_animation;
+std::vector<BoneAnimPrecalc> MotionMixer::_matrix_precalc;
+float MotionMixer::_frame_step = 50.0f;
+int32_t MotionMixer::_bone_count = 0;
+int32_t MotionMixer::_animation_length = 0;
 
-MotionMixer::MotionMixer() : mAnim1(-1), mAnim2(-1), mAnim3(-1), mWeight1(1.0f), mWeight2(0.0f)
+MotionMixer::MotionMixer()
 {
-   for (int i = 0; i < mBoneCount; i++)
+   _current_state.reserve(_bone_count);
+   for (int32_t i = 0; i < _bone_count; i++)
    {
-      Node* node = new Node(Node::idDummy, 0);
-      mCurrentState.add(node);
+      _current_state.push_back(std::make_unique<Node>(Node::idDummy, nullptr));
    }
 }
 
-MotionMixer::~MotionMixer()
-{
-}
+MotionMixer::~MotionMixer() = default;
 
 // final cleanup of static data
 void MotionMixer::cleanup()
 {
-   if (mRefAnim)
-      delete mRefAnim;
-
-   for (int i = 0; i < mMatrixPrecalc.size(); i++)
-   {
-      BoneAnimPrecalc* precalc = mMatrixPrecalc[i];
-      for (int j = 0; j < precalc->size(); j++)
-      {
-         Array<Matrix>* list = precalc->get(j);
-         delete list;
-      }
-      delete precalc;
-   }
+   _reference_animation.reset();
+   _matrix_precalc.clear();
 }
 
-Node* matchTreeNode(Node* treeRoot, Node* source)
+// find the node in the tree below "tree_root" that has the same name path as "source"
+static Node* matchTreeNode(Node* tree_root, Node* source)
 {
-   Array<String> nameList;
+   Array<String> name_list;
    while (source)
    {
-      nameList.add(source->name());
+      name_list.add(source->name());
       source = source->parent();
    }
 
-   for (int i = nameList.size() - 2; i >= 0 && treeRoot;)
+   for (int32_t i = name_list.size() - 2; i >= 0 && tree_root;)
    {
-      const String& name = nameList[i];
-      Node* child = treeRoot->getChild(name);
+      const String& name = name_list[i];
+      Node* child = tree_root->getChild(name);
       if (child)
       {
-         treeRoot = child;
+         tree_root = child;
          i--;
       }
       else
-         treeRoot = treeRoot->getChild(0);
+      {
+         tree_root = tree_root->getChild(0);
+      }
    }
 
-   return treeRoot;
+   return tree_root;
 }
 
-int MotionMixer::addAnimation(const String& name)
+int32_t MotionMixer::addAnimation(const String& name)
 {
-   int index = mMatrixPrecalc.size();
-   SceneGraph* scene = new SceneGraph();
+   const int32_t index = static_cast<int32_t>(_matrix_precalc.size());
+
+   // the first loaded animation is kept as reference, all others are dropped after precalc
+   auto owned_scene = std::make_unique<SceneGraph>();
+   SceneGraph* scene = owned_scene.get();
    scene->load(name);
 
-   if (!mRefAnim)
-      mRefAnim = scene;
+   if (!_reference_animation)
+   {
+      _reference_animation = std::move(owned_scene);
+   }
 
    // match nodes to reference animation
-   const Array<Node*>& refNodes = mRefAnim->nodeList();
-   Array<Node*> nodeMap(refNodes.size());
-   for (int i = 0; i < refNodes.size(); i++)
+   const Array<Node*>& reference_nodes = _reference_animation->nodeList();
+   for (int32_t i = 0; i < reference_nodes.size(); i++)
    {
-      Node* node = refNodes[i];
-
-      Node* source = matchTreeNode(scene, node);
-      if (!source)
+      if (!matchTreeNode(scene, reference_nodes[i]))
       {
-         printf("node match fail!\n");
-         source = scene->getNode(node->name());
-         if (!source)
-            source = refNodes[i];
+         std::printf("node match fail!\n");
       }
-      nodeMap.add(source);
    }
 
    // find required bone nodes
-   Array<Bone*> boneList;  // bone initial transform
-   for (int i = 0; i < scene->nodeList().size(); i++)
+   Array<Bone*> bone_list;  // bone initial transform
+   for (int32_t i = 0; i < scene->nodeList().size(); i++)
    {
       Node* node = scene->getNode(i);
-      int nodeAnimLength = node->getAnimationLength();
-      if (nodeAnimLength > mAnimLength)
-         mAnimLength = nodeAnimLength;
+      const int32_t node_animation_length = node->getAnimationLength();
+      if (node_animation_length > _animation_length)
+      {
+         _animation_length = node_animation_length;
+      }
 
       if (node->id() == Node::idMesh)
       {
-         Mesh* mesh = (Mesh*)node;
-         for (int p = 0; p < mesh->getPartCount(); p++)
+         Mesh* mesh = static_cast<Mesh*>(node);
+         for (int32_t p = 0; p < mesh->getPartCount(); p++)
          {
-            Geometry* geo = mesh->getPart(p);
-            const List<Bone>& bones = geo->getBoneList();
-            for (int b = 0; b < bones.size(); b++)
+            Geometry* geometry = mesh->getPart(p);
+            const List<Bone>& bones = geometry->getBoneList();
+            for (int32_t b = 0; b < bones.size(); b++)
             {
-               Bone* bone = (Bone*)&bones[b];
-               boneList.add(bone);
+               bone_list.add(const_cast<Bone*>(&bones[b]));
             }
          }
       }
    }
 
-   int frames = (int)std::ceil(mAnimLength / mFrameStep);
+   const int32_t frames = static_cast<int32_t>(std::ceil(_animation_length / _frame_step));
 
-   if (boneList.size() > mBoneCount)
-      mBoneCount = boneList.size();
+   if (bone_list.size() > _bone_count)
+   {
+      _bone_count = bone_list.size();
+   }
 
    // adjust length of existing animations
-   for (int i = 0; i < mMatrixPrecalc.size(); i++)
+   for (BoneAnimPrecalc& precalc : _matrix_precalc)
    {
-      BoneAnimPrecalc* precalc = mMatrixPrecalc[i];
-      Array<Matrix>* nodes = precalc->get(precalc->size() - 1);
-      for (int n = precalc->size(); n < frames; n++)
+      const std::vector<Matrix> last = precalc.back();
+      while (static_cast<int32_t>(precalc.size()) < frames)
       {
-         Array<Matrix>* copy = new Array<Matrix>(boneList.size());
-         for (int j = 0; j < nodes->size(); j++)
-            copy->add(nodes->get(j));
-         precalc->add(copy);
+         precalc.push_back(last);
       }
    }
 
    // precalc animation matrices for relevant nodes
-   BoneAnimPrecalc* precalc = new BoneAnimPrecalc(frames);
+   BoneAnimPrecalc precalc;
+   precalc.reserve(frames + 1);
 
-   Matrix cam;  // identity
-   for (int fr = 0; fr <= frames; fr++)
+   for (int32_t fr = 0; fr <= frames; fr++)
    {
-      Array<Matrix>* anim = new Array<Matrix>(boneList.size());
+      std::vector<Matrix> animation;
+      animation.reserve(bone_list.size());
 
-      float frame = fr * mFrameStep;
+      const float frame = fr * _frame_step;
 
       // transform all scene nodes
-      for (int i = 0; i < scene->nodeList().size(); i++)
+      for (int32_t i = 0; i < scene->nodeList().size(); i++)
+      {
          scene->getNode(i)->transform(frame);
+      }
 
       // store relevant node matrices
-      for (int i = 0; i < boneList.size(); i++)
+      for (int32_t i = 0; i < bone_list.size(); i++)
       {
-         Bone* bone = boneList[i];
+         Bone* bone = bone_list[i];
          Node* node = scene->getNode(bone->id());
-         anim->add(bone->transform() * node->getTransform());
+         animation.push_back(bone->transform() * node->getTransform());
       }
-      precalc->add(anim);
+      precalc.push_back(std::move(animation));
    }
-   mMatrixPrecalc.add(precalc);
+   _matrix_precalc.push_back(std::move(precalc));
 
    // fix bone ids
-   for (int i = 0; i < boneList.size(); i++)
-      boneList[i]->setId(i);
-
-   if (mRefAnim != scene)
-      delete scene;
+   for (int32_t i = 0; i < bone_list.size(); i++)
+   {
+      bone_list[i]->setId(i);
+   }
 
    return index;
 }
 
-void MotionMixer::setAnimation(int anim1, int anim2, float weight1, int anim3, float weight2)
+void MotionMixer::setAnimation(int32_t anim1, int32_t anim2, float weight1, int32_t anim3, float weight2)
 {
-   mAnim1 = anim1;
-   mAnim2 = anim2;
-   mAnim3 = anim3;
-   mWeight1 = weight1;
-   mWeight2 = weight2;
+   _anim1 = anim1;
+   _anim2 = anim2;
+   _anim3 = anim3;
+   _weight1 = weight1;
+   _weight2 = weight2;
 }
 
 void MotionMixer::animate(float frame)
 {
-   Matrix m;
-
-   if (mAnim1 < 0 || mAnim2 < 0)
+   if (_anim1 < 0 || _anim2 < 0)
+   {
       return;
+   }
 
-   BoneAnimPrecalc* anim1 = mMatrixPrecalc[mAnim1];
-   BoneAnimPrecalc* anim2 = mMatrixPrecalc[mAnim2];
+   const BoneAnimPrecalc& anim1 = _matrix_precalc[_anim1];
+   const BoneAnimPrecalc& anim2 = _matrix_precalc[_anim2];
 
    frame /= 50.0f;
    if (frame < 0.0)
+   {
       frame = 0.0f;
-   int index = std::floor(frame);
-   if (index > anim1->size() - 2)
-      index = anim1->size() - 2;
-   float t = (index + 1) - frame;
-
-   Array<Matrix>* a11 = anim1->get(index);
-   Array<Matrix>* a12 = anim1->get(index + 1);
-
-   Array<Matrix>* a21 = anim2->get(index);
-   Array<Matrix>* a22 = anim2->get(index + 1);
-
-   for (int i = 0; i < mCurrentState.size(); i++)
+   }
+   int32_t index = static_cast<int32_t>(std::floor(frame));
+   const int32_t last_blendable = static_cast<int32_t>(anim1.size()) - 2;
+   if (index > last_blendable)
    {
-      Matrix m1 = Matrix::blend(a11->get(i), a12->get(i), t);
-      Matrix m2 = Matrix::blend(a21->get(i), a22->get(i), t);
-      m = Matrix::blend(m1, m2, mWeight1);
-      mCurrentState[i]->setTransform(m);
+      index = last_blendable;
+   }
+   const float t = (index + 1) - frame;
+
+   const std::vector<Matrix>& a11 = anim1[index];
+   const std::vector<Matrix>& a12 = anim1[index + 1];
+
+   const std::vector<Matrix>& a21 = anim2[index];
+   const std::vector<Matrix>& a22 = anim2[index + 1];
+
+   for (size_t i = 0; i < _current_state.size(); i++)
+   {
+      const Matrix m1 = Matrix::blend(a11[i], a12[i], t);
+      const Matrix m2 = Matrix::blend(a21[i], a22[i], t);
+      _current_state[i]->setTransform(Matrix::blend(m1, m2, _weight1));
    }
 
-   if (mWeight2 > 0.0f && mAnim3 >= 0)
+   if (_weight2 > 0.0f && _anim3 >= 0)
    {
-      BoneAnimPrecalc* anim3 = mMatrixPrecalc[mAnim3];
+      const BoneAnimPrecalc& anim3 = _matrix_precalc[_anim3];
 
-      Array<Matrix>* a31 = anim3->get(index);
-      Array<Matrix>* a32 = anim3->get(index + 1);
+      const std::vector<Matrix>& a31 = anim3[index];
+      const std::vector<Matrix>& a32 = anim3[index + 1];
 
-      for (int i = 0; i < mCurrentState.size(); i++)
+      for (size_t i = 0; i < _current_state.size(); i++)
       {
-         const Matrix& m1 = mCurrentState[i]->getTransform();
-         Matrix m3 = Matrix::blend(a31->get(i), a32->get(i), t);
-         m = Matrix::blend(m1, m3, mWeight2);
-         mCurrentState[i]->setTransform(m);
+         const Matrix& m1 = _current_state[i]->getTransform();
+         const Matrix m3 = Matrix::blend(a31[i], a32[i], t);
+         _current_state[i]->setTransform(Matrix::blend(m1, m3, _weight2));
       }
    }
-
-   /*
-      const Array<Node*>& src1= mAnimations[mAnim1]->nodeList();
-      for (int i=0; i<src1.size(); i++)
-         src1[i]->transform(frame);
-
-      const Array<Node*>& src2= mAnimations[mAnim2]->nodeList();
-      for (int i=0; i<src2.size(); i++)
-         src2[i]->transform(frame);
-
-      const Array<Node*>& src3= mAnimations[mAnim3]->nodeList();
-      for (int i=0; i<src3.size(); i++)
-         src3[i]->transform(frame);
-
-      Array<Node*>* map1= mNodeMap[mAnim1];
-      Array<Node*>* map2= mNodeMap[mAnim2];
-
-      for (int i=0; i<mCurrentState.size(); i++)
-      {
-         Node* n1= map1->get(i);
-         Node* n2= map2->get(i);
-
-   //      printf("%s %s \n", (const char*)n1->name(), (const char*)n2->name());
-         const Matrix& m1= n1->getTransform();
-         const Matrix& m2= n2->getTransform();// * Matrix::scale(0.01f, 0.01f, 0.01f);
-         m= Matrix::blend( m1, m2, mWeight1 );
-
-         mCurrentState[i]->setTransform( m );
-      }
-
-      if (mWeight2 > 0.0f)
-      {
-         Array<Node*>* map3= mNodeMap[mAnim3];
-         for (int i=0; i<mCurrentState.size(); i++)
-         {
-            Node* n3= map3->get(i);
-            const Matrix& m1= mCurrentState[i]->getTransform();// * Matrix::scale(0.01f, 0.01f, 0.01f);
-            const Matrix& m3= n3->getTransform();// * Matrix::scale(0.01f, 0.01f, 0.01f);
-            m= Matrix::blend( m1, m3, mWeight2 );
-            mCurrentState[i]->setTransform( m );
-         }
-      }
-   */
 }
 
 Mesh* MotionMixer::getMesh(const String& name)
 {
-   if (mRefAnim)
-      return (Mesh*)mRefAnim->getNode(name);
-   else
-      return 0;
+   if (_reference_animation)
+   {
+      return static_cast<Mesh*>(_reference_animation->getNode(name));
+   }
+   return nullptr;
 }
 
-Node* MotionMixer::getNode(int index) const
+Node* MotionMixer::getNode(int32_t index) const
 {
-   return mCurrentState[index];
+   return _current_state[index].get();
 }

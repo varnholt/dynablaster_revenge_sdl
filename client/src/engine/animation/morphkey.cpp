@@ -1,63 +1,62 @@
 #include "morphkey.h"
 
-MorphKey::MorphKey() : KeyBase(0)
+int32_t MorphKey::getVertexCount() const
 {
-}
-
-int MorphKey::getVertexCount() const
-{
-   return mVertices.size();
+   return _vertices.size();
 }
 
 const List<Vector>& MorphKey::getVertices() const
 {
-   return mVertices;
+   return _vertices;
 }
 
 const List<Vector>& MorphKey::getNormals() const
 {
-   return mNormals;
+   return _normals;
 }
 
 void MorphKey::load(Stream* stream)
 {
    KeyBase::load(stream);
-   mVertices << *stream;
+   _vertices << *stream;
 }
 
 void MorphKey::write(Stream* stream)
 {
    KeyBase::write(stream);
-   mVertices >> *stream;
+   _vertices >> *stream;
 }
 
-void MorphKey::calculateNormals(const Array<unsigned short>& indexBuffer)
+void MorphKey::calculateNormals(const Array<uint16_t>& index_buffer)
 {
-   int i;
-   const int vcount = mVertices.size();
-   const int icount = indexBuffer.size();
-   mNormals.init(vcount);
-   for (i = 0; i < vcount; i++)
-      mNormals[i].set(0.0f, 0.0f, 0.0f);
-
-   for (i = 0; i < icount; i += 3)
+   const int32_t vertex_count = _vertices.size();
+   const int32_t index_count = index_buffer.size();
+   _normals.init(vertex_count);
+   for (int32_t i = 0; i < vertex_count; i++)
    {
-      const int i1 = indexBuffer[i];
-      const int i2 = indexBuffer[i + 1];
-      const int i3 = indexBuffer[i + 2];
+      _normals[i].set(0.0f, 0.0f, 0.0f);
+   }
 
-      const Vector& v1 = mVertices[i1];
-      const Vector& v2 = mVertices[i2];
-      const Vector& v3 = mVertices[i3];
+   for (int32_t i = 0; i < index_count; i += 3)
+   {
+      const int32_t i1 = index_buffer[i];
+      const int32_t i2 = index_buffer[i + 1];
+      const int32_t i3 = index_buffer[i + 2];
+
+      const Vector& v1 = _vertices[i1];
+      const Vector& v2 = _vertices[i2];
+      const Vector& v3 = _vertices[i3];
 
       Vector n = (v2 - v1) % (v3 - v1);
       n.normalize();
 
-      mNormals[i1] += n;
-      mNormals[i2] += n;
-      mNormals[i3] += n;
+      _normals[i1] += n;
+      _normals[i2] += n;
+      _normals[i3] += n;
    }
 
-   for (i = 0; i < vcount; i++)
-      mNormals[i].normalize();
+   for (int32_t i = 0; i < vertex_count; i++)
+   {
+      _normals[i].normalize();
+   }
 }

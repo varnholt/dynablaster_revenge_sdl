@@ -12,5 +12,5 @@ public:
    ValTrack();
    float get(float time);
 
-   void add(int time, float val);
+   void add(int32_t time, float value);
 };

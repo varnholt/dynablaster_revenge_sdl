@@ -12,8 +12,8 @@ public:
 
    Quat get(float time);
 
-   void add(int time, const Quat& scale);
+   void add(int32_t time, const Quat& rotation);
 
-   virtual void load(Stream* stream);
-   virtual void write(Stream* stream);
+   void load(Stream* stream) override;
+   void write(Stream* stream) override;
 };
