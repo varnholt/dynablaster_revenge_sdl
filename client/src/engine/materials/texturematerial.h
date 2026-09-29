@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include "../render/renderbuffer.h"
 #include "../render/uv.h"
 #include "material.h"
@@ -9,27 +10,27 @@ class TextureMaterial : public Material
 public:
    struct Vertex
    {
-      Vector pos;
-      Vector nrm;
+      Vector position;
+      Vector normal;
       UV uv;
    };
 
    TextureMaterial(SceneGraph* scene);
-   TextureMaterial(SceneGraph* scene, const char* texmap);
+   TextureMaterial(SceneGraph* scene, const char* texture_map);
 
-   void load(Stream* stream);
-   void addGeometry(Geometry* geo);
-   void update(float frame, Node** nodelist, const Matrix& cam);
+   void load(Stream* stream) override;
+   void addGeometry(Geometry* geometry) override;
+   void update(float frame, Node** node_list, const Matrix& camera) override;
 
-   virtual void renderDiffuse();
+   void renderDiffuse() override;
 
 private:
-   void init();
-   void begin();
-   void end();
+   void init() override;
+   void begin() override;
+   void end() override;
 
-   Texture mColorMap;
-   unsigned int mShader;
+   Texture _color_map;
+   uint32_t _shader = 0;
 
-   int mParamTexture;
+   int32_t _param_texture = 0;
 };

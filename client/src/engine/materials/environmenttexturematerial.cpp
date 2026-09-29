@@ -8,122 +8,115 @@
 #include "render/uv.h"
 #include "render/vertexbuffer.h"
 #include "textureslot.h"
-#include "tools/profiling.h"
 #include "tools/stream.h"
 
-EnvironmentTextureMaterial::EnvironmentTextureMaterial(SceneGraph* scene)
-    : Material(scene, MAP_DIFFUSE | MAP_REFLECT),
-      mColorMap(0),
-      mDiffuseMap(0),
-      mSpecularMap(0),
-      mShader(0),
-      mParamSpecular(0),
-      mParamDiffuse(0),
-      mParamTexture(0),
-      mParamCamera(0)
+EnvironmentTextureMaterial::EnvironmentTextureMaterial(SceneGraph* scene) : Material(scene, MAP_DIFFUSE | MAP_REFLECT)
 {
 }
 
-EnvironmentTextureMaterial::EnvironmentTextureMaterial(SceneGraph* scene, const char* colormap, const char* envmap, const char* specmap)
+EnvironmentTextureMaterial::EnvironmentTextureMaterial(
+   SceneGraph* scene,
+   const char* color_map,
+   const char* environment_map,
+   const char* specular_map
+)
     : Material(scene, MAP_DIFFUSE | MAP_REFLECT)
 {
-   addTexture(mColorMap, colormap);
-   addTexture(mDiffuseMap, envmap);
-   addTexture(mSpecularMap, specmap, 1 | 2 | 4);
-}
-
-EnvironmentTextureMaterial::~EnvironmentTextureMaterial()
-{
+   addTexture(_color_map, color_map);
+   addTexture(_diffuse_map, environment_map);
+   addTexture(_specular_map, specular_map, 1 | 2 | 4);
 }
 
 void EnvironmentTextureMaterial::init()
 {
-   mShader = activeDevice->loadShader("environmenttexture-vert.glsl", "environmenttexture-frag.glsl");
+   _shader = activeDevice->loadShader("environmenttexture-vert.glsl", "environmenttexture-frag.glsl");
 
-   mParamSpecular = activeDevice->getParameterIndex("specularmap");
-   mParamDiffuse = activeDevice->getParameterIndex("diffusemap");
-   mParamTexture = activeDevice->getParameterIndex("texturemap");
-   mParamCamera = activeDevice->getParameterIndex("camera");
+   _param_specular = activeDevice->getParameterIndex("specularmap");
+   _param_diffuse = activeDevice->getParameterIndex("diffusemap");
+   _param_texture = activeDevice->getParameterIndex("texturemap");
+   _param_camera = activeDevice->getParameterIndex("camera");
 }
 
 void EnvironmentTextureMaterial::load(Stream* stream)
 {
    Material::load(stream);
 
-   addTexture(mColorMap, getTextureSlot(0)->name());
-   addTexture(mDiffuseMap, "diffuse_level");
-   addTexture(mSpecularMap, getTextureSlot(1)->name(), 1 | 2 | 4);
+   addTexture(_color_map, getTextureSlot(0)->name());
+   addTexture(_diffuse_map, "diffuse_level");
+   addTexture(_specular_map, getTextureSlot(1)->name(), 1 | 2 | 4);
 }
 
-void EnvironmentTextureMaterial::updateGeometry(VertexBuffer* vb)
+void EnvironmentTextureMaterial::updateGeometry(VertexBuffer* vertex_buffer)
 {
-   Geometry* geo = vb->getGeometry();
-   if (!geo)
+   Geometry* geometry = vertex_buffer->getGeometry();
+   if (!geometry)
+   {
       return;
-
-   Vector* vtx = geo->getVertices();
-   Vector* nrm = geo->getNormals();
-   UV* uv = geo->getUV(1);
-
-   Vertex* dst = (Vertex*)activeDevice->lockVertexBuffer(vb->getVertexBuffer());
-   for (int i = 0; i < geo->getVertexCount(); i++)
-   {
-      dst[i].pos.x = vtx[i].x;
-      dst[i].pos.y = vtx[i].y;
-      dst[i].pos.z = vtx[i].z;
-
-      dst[i].normal.x = nrm[i].x;
-      dst[i].normal.y = nrm[i].y;
-      dst[i].normal.z = nrm[i].z;
-
-      dst[i].uv.u = uv[i].u;
-      dst[i].uv.v = uv[i].v;
    }
-   activeDevice->unlockVertexBuffer(vb->getVertexBuffer());
+
+   const Vector* vertices = geometry->getVertices();
+   const Vector* normals = geometry->getNormals();
+   const UV* uv = geometry->getUV(1);
+
+   Vertex* destination = static_cast<Vertex*>(activeDevice->lockVertexBuffer(vertex_buffer->getVertexBuffer()));
+   for (int32_t i = 0; i < geometry->getVertexCount(); i++)
+   {
+      destination[i].position.x = vertices[i].x;
+      destination[i].position.y = vertices[i].y;
+      destination[i].position.z = vertices[i].z;
+
+      destination[i].normal.x = normals[i].x;
+      destination[i].normal.y = normals[i].y;
+      destination[i].normal.z = normals[i].z;
+
+      destination[i].uv.u = uv[i].u;
+      destination[i].uv.v = uv[i].v;
+   }
+   activeDevice->unlockVertexBuffer(vertex_buffer->getVertexBuffer());
 }
 
-void EnvironmentTextureMaterial::addGeometry(Geometry* geo)
+void EnvironmentTextureMaterial::addGeometry(Geometry* geometry)
 {
-   VertexBuffer* vb = mPool->get(geo);
-   if (!vb)
+   VertexBuffer* vertex_buffer = _pool->get(geometry);
+   if (!vertex_buffer)
    {
-      vb = mPool->add(geo);
+      vertex_buffer = _pool->add(geometry);
 
-      bool dynamic = geo->getParent()->hasSkinning();
-      activeDevice->allocateVertexBuffer(vb->getVertexBuffer(), sizeof(Vertex) * geo->getVertexCount(), dynamic);
-      updateGeometry(vb);
+      const bool dynamic = geometry->getParent()->hasSkinning();
+      activeDevice->allocateVertexBuffer(vertex_buffer->getVertexBuffer(), sizeof(Vertex) * geometry->getVertexCount(), dynamic);
+      updateGeometry(vertex_buffer);
 
-      activeDevice->allocateIndexBuffer(vb->getIndexBuffer(), geo->getIndexCount() * sizeof(unsigned short));
-      unsigned short* src = geo->getIndices();
-      volatile unsigned short* dst = (unsigned short*)activeDevice->lockIndexBuffer(vb->getIndexBuffer());
-      for (int i = 0; i < geo->getIndexCount(); i++)
-         dst[i] = src[i];
-      activeDevice->unlockIndexBuffer(vb->getIndexBuffer());
+      activeDevice->allocateIndexBuffer(vertex_buffer->getIndexBuffer(), geometry->getIndexCount() * sizeof(uint16_t));
+      const uint16_t* source = geometry->getIndices();
+      volatile uint16_t* destination = static_cast<uint16_t*>(activeDevice->lockIndexBuffer(vertex_buffer->getIndexBuffer()));
+      for (int32_t i = 0; i < geometry->getIndexCount(); i++)
+      {
+         destination[i] = source[i];
+      }
+      activeDevice->unlockIndexBuffer(vertex_buffer->getIndexBuffer());
 
-      vb->setIndexCount(geo->getIndexCount());
+      vertex_buffer->setIndexCount(geometry->getIndexCount());
    }
 
-   mVB.add(Material::Buffer(geo, vb));
+   _buffers.push_back({geometry, vertex_buffer});
 }
 
 void EnvironmentTextureMaterial::begin()
 {
    Material::begin();
 
-   // set material parameters
-   //   activeDevice->setMaterial(mAmbient, mDiffuse, mSpecular, mShininess);
-   glBindTexture(GL_TEXTURE_2D, mSpecularMap);
+   glBindTexture(GL_TEXTURE_2D, _specular_map);
 
    glActiveTexture(GL_TEXTURE1_ARB);
-   glBindTexture(GL_TEXTURE_2D, mDiffuseMap);
+   glBindTexture(GL_TEXTURE_2D, _diffuse_map);
 
    glActiveTexture(GL_TEXTURE2_ARB);
-   glBindTexture(GL_TEXTURE_2D, mColorMap);
+   glBindTexture(GL_TEXTURE_2D, _color_map);
 
-   activeDevice->setShader(mShader);
-   activeDevice->bindSampler(mParamSpecular, 0);
-   activeDevice->bindSampler(mParamDiffuse, 1);
-   activeDevice->bindSampler(mParamTexture, 2);
+   activeDevice->setShader(_shader);
+   activeDevice->bindSampler(_param_specular, 0);
+   activeDevice->bindSampler(_param_diffuse, 1);
+   activeDevice->bindSampler(_param_texture, 2);
 
    // enable required vertex arrays
    glEnableVertexAttribArray(0);  // vertex data
@@ -146,37 +139,27 @@ void EnvironmentTextureMaterial::renderDiffuse()
 {
    begin();
 
-   /*
-      Matrix projMat;
-      glGetFloatv(GL_PROJECTION_MATRIX, projMat.data());
-      projMat= projMat.invert();
-      Vector camPos= projMat.translation();
-   */
-
-   for (int i = 0; i < mVB.size(); i++)
+   for (const Buffer& buffer : _buffers)
    {
-      // get vertex buffer
-      VertexBuffer* vb = mVB[i].vb;
-      Geometry* geo = mVB[i].geo;
+      VertexBuffer* vertex_buffer = buffer.vertex_buffer;
+      Geometry* geometry = buffer.geometry;
 
-      if (geo->isVisible())
+      if (geometry->isVisible())
       {
-         Matrix invView = (geo->getTransform() * mCamera).invert();
-         Vector osCam = invView.translation();
+         const Matrix inverse_view = (geometry->getTransform() * _camera).invert();
+         const Vector object_space_camera = inverse_view.translation();
+         activeDevice->setParameter(_param_camera, object_space_camera);
 
-         //         Vector osCam= geo->getParent()->getWorld2Obj() * camPos;
-         activeDevice->setParameter(mParamCamera, osCam);
-
-         activeDevice->push(geo->getTransform());
+         activeDevice->push(geometry->getTransform());
 
          // draw mesh
-         glBindBuffer(GL_ARRAY_BUFFER, vb->getVertexBuffer());
-         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)0);
-         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)sizeof(Vector));
-         glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)(sizeof(Vector) * 2));
+         glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer->getVertexBuffer());
+         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), nullptr);
+         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const GLvoid*>(sizeof(Vector)));
+         glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const GLvoid*>(sizeof(Vector) * 2));
 
-         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vb->getIndexBuffer());
-         glDrawElements(GL_TRIANGLES, vb->getIndexCount(), GL_UNSIGNED_SHORT, 0);  // render
+         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vertex_buffer->getIndexBuffer());
+         glDrawElements(GL_TRIANGLES, vertex_buffer->getIndexCount(), GL_UNSIGNED_SHORT, nullptr);  // render
 
          activeDevice->pop();
       }
@@ -185,49 +168,7 @@ void EnvironmentTextureMaterial::renderDiffuse()
    end();
 }
 
-void EnvironmentTextureMaterial::update(float /*frame*/, Node** /* nodelist */, const Matrix& cam)
+void EnvironmentTextureMaterial::update(float /*frame*/, Node** /*node_list*/, const Matrix& camera)
 {
-   //   Material::update(frame, nodelist, cam);
-
-   mCamera = cam;
-   /*
-      for (int j=0;j<mVB.size();j++)
-      {
-         const Material::Buffer& buffer= mVB[j];
-         VertexBuffer *vb= buffer.vb;
-         Geometry *geo= buffer.geo;
-
-         if (geo->getBoneCount())
-         {
-            Mesh *mesh= (Mesh*)geo->getParent();
-            if (mesh)
-            {
-               MotionMixer *mixer= mesh->getMotionMixer();
-               if (mixer)
-               {
-                  double t1= getCpuTick();
-
-                  Vector *vtemp= geo->getSkinVertices();
-                  Vector *ntemp= geo->getSkinNormals();
-                  UV* uv= geo->getUV(1);
-                  volatile Vertex *dst= (Vertex*)activeDevice->lockVertexBuffer( vb->getVertexBuffer() );
-                  for (int i=0;i<geo->getVertexCount();i++)
-                  {
-                     dst[i].pos.x= vtemp[i].x;
-                     dst[i].pos.y= vtemp[i].y;
-                     dst[i].pos.z= vtemp[i].z;
-                     dst[i].normal.x= ntemp[i].x;
-                     dst[i].normal.y= ntemp[i].y;
-                     dst[i].normal.z= ntemp[i].z;
-                     dst[i].uv.u= uv[i].u;
-                     dst[i].uv.v= uv[i].v;
-                  }
-                  activeDevice->unlockVertexBuffer( vb->getVertexBuffer() );
-
-                  double t2= getCpuTick();
-               }
-            }
-         }
-      }
-   */
+   _camera = camera;
 }

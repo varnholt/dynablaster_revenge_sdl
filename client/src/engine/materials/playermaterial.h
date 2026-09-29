@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include "math/matrix.h"
 #include "playermaterialbase.h"
 #include "render/uv.h"
@@ -8,34 +9,38 @@ class PlayerMaterial : public PlayerMaterialBase
 {
 public:
    PlayerMaterial(SceneGraph* scene);
-   PlayerMaterial(SceneGraph* scene, const char* colormap, const char* envmap, const char* specmap, const char* aomap = 0);
-   virtual ~PlayerMaterial();
+   PlayerMaterial(
+      SceneGraph* scene,
+      const char* color_map,
+      const char* environment_map,
+      const char* specular_map,
+      const char* ambient_occlusion_map = nullptr
+   );
 
-   void exportOBJ(Stream* stream, int& indexOffset);
+   void exportOBJ(Stream* stream, int32_t& index_offset) override;
 
-   void load(Stream* stream);
-   virtual void renderDiffuse();
+   void load(Stream* stream) override;
+   void renderDiffuse() override;
 
-   //! colormap setter
-   void setColorMap(const Texture& colorMap);
+   void setColorMap(const Texture& color_map);
 
 private:
-   void init();
-   void begin();
-   void end();
+   void init() override;
+   void begin() override;
+   void end() override;
 
-   Texture mColorMap;
-   Texture mDiffuseMap;
-   Texture mSpecularMap;
-   Texture mAmbientMap;
-   unsigned int mShader;
+   Texture _color_map;
+   Texture _diffuse_map;
+   Texture _specular_map;
+   Texture _ambient_map;
+   uint32_t _shader = 0;
 
-   int mParamSpecular;
-   int mParamDiffuse;
-   int mParamTexture;
-   int mParamAmbient;
-   int mParamCamera;
-   int mParamBones;
-   int mParamFlash;
-   int mParamFade;
+   int32_t _param_specular = 0;
+   int32_t _param_diffuse = 0;
+   int32_t _param_texture = 0;
+   int32_t _param_ambient = 0;
+   int32_t _param_camera = 0;
+   int32_t _param_bones = 0;
+   int32_t _param_flash = 0;
+   int32_t _param_fade = 0;
 };

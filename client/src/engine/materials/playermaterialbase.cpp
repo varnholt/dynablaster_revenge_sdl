@@ -1,4 +1,6 @@
 #include "playermaterialbase.h"
+#include <algorithm>
+#include <iterator>
 #include "animation/motionmixer.h"
 #include "gldevice.h"
 #include "nodes/mesh.h"
@@ -8,338 +10,299 @@
 #include "render/vertexbuffer.h"
 #include "tools/stream.h"
 
-Array<PlayerMaterialBase::Cluster*> PlayerMaterialBase::mClusters;
+std::vector<std::unique_ptr<PlayerMaterialBase::Cluster>> PlayerMaterialBase::_clusters;
 
-Vector PlayerMaterialBase::getCenter2d(const Matrix& projMat) const
+Vector PlayerMaterialBase::getCenter2d(const Matrix& projection) const
 {
    Vector center(0.0f);
 
-   Geometry* geo = getGeometry(0);
-   if (geo)
+   Geometry* geometry = getGeometry(0);
+   if (geometry)
    {
-      Node* mesh = geo->getParent();
-      Matrix mat = mesh->getTransform() * projMat;
+      const Node* mesh = geometry->getParent();
+      const Matrix matrix = mesh->getTransform() * projection;
 
-      float t = 1.0f / mat.ww;
-      center.x = mat.xw * t;
-      center.y = mat.yw * t;
+      const float t = 1.0f / matrix.ww;
+      center.x = matrix.xw * t;
+      center.y = matrix.yw * t;
       center.z = 0.0f;
    }
    return center;
 }
 
-void PlayerMaterialBase::getBoundingRect(Vector& min, Vector& max, const Matrix& projMat)
+void PlayerMaterialBase::getBoundingRect(Vector& min, Vector& max, const Matrix& projection)
 {
    // realistic world space coordinates are somehwere around 0..13
    min = Vector(10000.0f, 10000.0f, 0.0f);
    max = Vector(-10000.0f, -10000.0f, 0.0f);
 
-   for (int j = 0; j < geometryCount(); j++)
+   for (int32_t j = 0; j < geometryCount(); j++)
    {
-      Geometry* geo = getGeometry(j);
-      Node* mesh = geo->getParent();
+      Geometry* geometry = getGeometry(j);
+      const Node* mesh = geometry->getParent();
 
-      Matrix mat = mesh->getTransform() * projMat;
+      const Matrix matrix = mesh->getTransform() * projection;
 
       // get bounding box
-      Array<Vector> vtx = geo->getSkinVertices();
-      const int nv = geo->getVertexCount();
-      for (int i = 0; i < nv; i++)
+      const Array<Vector> vertices = geometry->getSkinVertices();
+      const int32_t vertex_count = geometry->getVertexCount();
+      for (int32_t i = 0; i < vertex_count; i++)
       {
-         const Vector& v = vtx[i];
-         float x = mat.xx * v.x + mat.xy * v.y + mat.xz * v.z + mat.xw;
-         float y = mat.yx * v.x + mat.yy * v.y + mat.yz * v.z + mat.yw;
-         float z = mat.zx * v.x + mat.zy * v.y + mat.zz * v.z + mat.zw;
-         float w = mat.wx * v.x + mat.wy * v.y + mat.wz * v.z + mat.ww;
+         const Vector& v = vertices[i];
+         float x = matrix.xx * v.x + matrix.xy * v.y + matrix.xz * v.z + matrix.xw;
+         float y = matrix.yx * v.x + matrix.yy * v.y + matrix.yz * v.z + matrix.yw;
+         const float w = matrix.wx * v.x + matrix.wy * v.y + matrix.wz * v.z + matrix.ww;
 
-         float t = 1.0f / w;
+         const float t = 1.0f / w;
          x *= t;
          y *= t;
-         z = 0.0f;
 
-         max.maximum(Vector(x, y, z));
-         min.minimum(Vector(x, y, z));
+         max.maximum(Vector(x, y, 0.0f));
+         min.minimum(Vector(x, y, 0.0f));
       }
    }
 }
 
-void PlayerMaterialBase::Cluster::mergeBones(const Array<int>& list, Array<int>& usages)
+void PlayerMaterialBase::Cluster::mergeBones(const std::vector<int32_t>& list, std::vector<int32_t>& usages)
 {
-   const int size = list.size();
-   for (int i = 0; i < size; i++)
+   for (const int32_t bone : list)
    {
-      int idx = list[i];
-      usages[idx]--;
-      if (mBones.indexOf(idx) < 0)
-         mBones.add(idx);
+      usages[bone]--;
+      if (!containsBone(bone))
+      {
+         bones.push_back(bone);
+      }
    }
 }
 
-void PlayerMaterialBase::Cluster::addVertexIndex(int v)
+void PlayerMaterialBase::Cluster::addVertexIndex(int32_t vertex_index)
 {
-   int idx = mVertices.indexOf(v);
-   if (idx < 0)
-      idx = mVertices.add(v);
-   mIndices.add(idx);
+   const auto vertex = std::ranges::find(vertices, vertex_index);
+   int32_t index = static_cast<int32_t>(std::distance(vertices.begin(), vertex));
+   if (vertex == vertices.end())
+   {
+      vertices.push_back(vertex_index);
+   }
+   indices.push_back(static_cast<uint16_t>(index));
 }
 
-int PlayerMaterialBase::Cluster::boneCount() const
+int32_t PlayerMaterialBase::Cluster::boneCount() const
 {
-   return mBones.size();
+   return static_cast<int32_t>(bones.size());
 }
 
-bool PlayerMaterialBase::Cluster::containsBone(int id) const
+bool PlayerMaterialBase::Cluster::containsBone(int32_t id) const
 {
-   return mBones.indexOf(id) >= 0;
+   return std::ranges::find(bones, id) != bones.end();
 }
 
-PlayerMaterialBase::PlayerMaterialBase(SceneGraph* scene, int id) : Material(scene, id)
+PlayerMaterialBase::PlayerMaterialBase(SceneGraph* scene, int32_t id) : Material(scene, id)
 {
 }
 
-Array<PlayerMaterialBase::Cluster*> PlayerMaterialBase::createSkinClusters(Geometry* geo, int limit)
+std::vector<std::unique_ptr<PlayerMaterialBase::Cluster>> PlayerMaterialBase::createSkinClusters(Geometry* geometry, int32_t limit)
 {
-   Array<Cluster*> clusters;
+   std::vector<std::unique_ptr<Cluster>> clusters;
 
    FaceList faces;
-   faces.copy(geo->getIndicesList());
+   faces.copy(geometry->getIndicesList());
 
    // original data set is
-   // bone 1: [vtx1, w1], [vtx2, w2], ...
-   // bone 2: [vtx1, w1], [vtx2, w2], ...
+   // bone 1: [vertex1, w1], [vertex2, w2], ...
+   // bone 2: [vertex1, w1], [vertex2, w2], ...
 
    // create reverse order:
-   // vtx1: [bone1, w1], [bone2, w2] ...
-   // vtx2: [bone1, w1], [bone2, w2] ...
+   // vertex1: [bone1, w1], [bone2, w2] ...
+   // vertex2: [bone1, w1], [bone2, w2] ...
 
-   Array<int>* vertexBones = new Array<int>[geo->getVertexCount()];
-   Array<float>* vertexWeights = new Array<float>[geo->getVertexCount()];
-   Array<int> boneUsage(geo->getBoneCount());
-   for (int b = 0; b < geo->getBoneCount(); b++)
+   std::vector<std::vector<int32_t>> vertex_bones(geometry->getVertexCount());
+   std::vector<std::vector<float>> vertex_weights(geometry->getVertexCount());
+   std::vector<int32_t> bone_usage(geometry->getBoneCount());
+   for (int32_t b = 0; b < geometry->getBoneCount(); b++)
    {
-      const Bone& bone = geo->getBone(b);
-      Weight* weights = bone.weights();
-      boneUsage[b] = bone.count();
-      for (int v = 0; v < bone.count(); v++)
+      const Bone& bone = geometry->getBone(b);
+      const Weight* weights = bone.weights();
+      bone_usage[b] = bone.count();
+      for (int32_t v = 0; v < bone.count(); v++)
       {
-         int idx = weights[v].id();
-         vertexBones[idx].add(bone.id());
-         vertexWeights[idx].add(weights[v].weight());
+         const int32_t vertex = weights[v].id();
+         vertex_bones[vertex].push_back(bone.id());
+         vertex_weights[vertex].push_back(weights[v].weight());
       }
    }
 
-   /*
-      int maxTriWeights= 0;
-      int maxVtxWeights= 0;
-      for (int i=0; i<geo->getIndexCount(); i+=3)
-      {
-         Array<int> usedBones;
-         for (int tri=0; tri<3; tri++)
-         {
-            const Array<int>& vtxWeights= vertexBones[ mIndices[i+tri] ];
-            if (vtxWeights.size() > maxVtxWeights)
-               maxVtxWeights= vtxWeights.size();
-            for (int i=0; i<vtxWeights.size(); i++)
-            {
-               int bone= vtxWeights[i];
-               if (usedBones.indexOf(bone) < 0)
-                   usedBones.add(bone);
-            }
-         }
-         if (usedBones.size() > maxTriWeights)
-            maxTriWeights= usedBones.size();
-      }
-
-      printf("maximum number of weights on a single vertex:   %d \n", maxVtxWeights);
-      printf("maximum number of weights on a single triangle: %d \n", maxTriWeights);
-   */
-
-   Cluster* cluster = 0;
-   int tris = 0;
+   std::unique_ptr<Cluster> cluster;
    while (faces.size() > 0)
    {
       if (!cluster)
       {
-         cluster = new Cluster();
-         tris = 0;
+         cluster = std::make_unique<Cluster>();
       }
 
-      // todo: find triangle with the best match of vertex weights
-      int bestMatch = 0;  // maximize number of matching bones
-      int bestNew = 100;  // minimize number of new bones
-      int bestTri = -1;
-      int bestUse = 10000;
-      for (int i = 0; i < faces.size(); i += 3)
+      // find the triangle with the best match of vertex weights
+      int32_t best_match = 0;  // maximize number of matching bones
+      int32_t best_new = 100;  // minimize number of new bones
+      int32_t best_triangle = -1;
+      int32_t best_use = 10000;
+      for (int32_t i = 0; i < faces.size(); i += 3)
       {
-         int curMatch = 0;
-         int curNew = 0;
-         int curUse = 1000;
-         for (int tri = 0; tri < 3; tri++)
+         int32_t current_match = 0;
+         int32_t current_new = 0;
+         int32_t current_use = 1000;
+         for (int32_t corner = 0; corner < 3; corner++)
          {
-            const Array<int>& vtxWeights = vertexBones[faces[i + tri]];
-            for (int i = 0; i < vtxWeights.size(); i++)
+            for (const int32_t bone : vertex_bones[faces[i + corner]])
             {
-               int bone = vtxWeights[i];
                if (cluster->containsBone(bone))
                {
-                  curMatch++;
+                  current_match++;
                }
                else
                {
-                  curNew++;
-                  if (curUse > boneUsage[bone])
-                     curUse = boneUsage[bone];
+                  current_new++;
+                  current_use = std::min(current_use, bone_usage[bone]);
                }
             }
          }
 
-         if (curNew <= bestNew)
+         if (current_new <= best_new)
          {
-            if (curNew < bestNew || curMatch >= bestMatch || curUse < bestUse)
+            if (current_new < best_new || current_match >= best_match || current_use < best_use)
             {
-               bestTri = i;
-               bestNew = curNew;
-               bestMatch = curMatch;
-               bestUse = curUse;
+               best_triangle = i;
+               best_new = current_new;
+               best_match = current_match;
+               best_use = current_use;
             }
          }
       }
 
-      if (cluster->boneCount() + bestNew <= limit)
+      if (cluster->boneCount() + best_new <= limit)
       {
          // add triangle to cluster
-         for (int tri = 0; tri < 3; tri++)
+         for (int32_t corner = 0; corner < 3; corner++)
          {
-            int idx = faces[bestTri];
-            cluster->mergeBones(vertexBones[idx], boneUsage);
+            const int32_t vertex = faces[best_triangle];
+            cluster->mergeBones(vertex_bones[vertex], bone_usage);
 
-            cluster->addVertexIndex(idx);
-            faces.erase(bestTri);  // index "bestTri+1" becomes "bestTri"
+            cluster->addVertexIndex(vertex);
+            faces.erase(best_triangle);  // index "best_triangle+1" becomes "best_triangle"
          }
-         tris++;
       }
       else
       {
-         // no triangle was found which fits into the given maximum of bone influences
-         //         printf("cluster %d:  %d tris   %d bones \n ", clusters.size(), tris, cluster->boneCount() );
-         clusters.add(cluster);
-         cluster = 0;
-         // create new cluster in next iteration
+         // no triangle fits into the given maximum of bone influences: start a new cluster
+         clusters.push_back(std::move(cluster));
       }
    }
 
    if (cluster)
-      clusters.add(cluster);
-
-   // figure weights for remapped vertices
-   for (int c = 0; c < clusters.size(); c++)
    {
-      Cluster* cluster = clusters[c];
-
-      //      printf("cluster %d: \n", c);
-      for (int i = 0; i < cluster->mVertices.size(); i++)
-      {
-         int vtx = cluster->mVertices[i];
-         const Array<int>& vtxBones = vertexBones[vtx];
-         const Array<float>& vtxWeights = vertexWeights[vtx];
-
-         float* weights = new float[limit];
-
-         // build shared bone/weight list
-         for (int b = 0; b < cluster->mBones.size(); b++)
-         {
-            int idx = vtxBones.indexOf(cluster->mBones[b]);
-            if (idx >= 0)
-               weights[b] = vtxWeights[idx];
-            else
-               weights[b] = 0.0f;
-         }
-
-         for (int b = cluster->mBones.size(); b < limit; b++)
-            weights[b] = 0.0f;
-
-         cluster->mWeights.add(weights);
-      }
+      clusters.push_back(std::move(cluster));
    }
 
-   delete[] vertexBones;
-   delete[] vertexWeights;
+   // figure weights for remapped vertices
+   for (const auto& current : clusters)
+   {
+      for (const int32_t vertex : current->vertices)
+      {
+         const std::vector<int32_t>& bones_of_vertex = vertex_bones[vertex];
+         const std::vector<float>& weights_of_vertex = vertex_weights[vertex];
+
+         // build shared bone/weight list, unused bones get zero weight
+         std::vector<float> weights(limit, 0.0f);
+         for (int32_t b = 0; b < current->boneCount(); b++)
+         {
+            const auto bone = std::ranges::find(bones_of_vertex, current->bones[b]);
+            if (bone != bones_of_vertex.end())
+            {
+               weights[b] = weights_of_vertex[std::distance(bones_of_vertex.begin(), bone)];
+            }
+         }
+
+         current->weights.push_back(std::move(weights));
+      }
+   }
 
    return clusters;
 }
 
-void PlayerMaterialBase::addGeometry(Geometry* geo)
+void PlayerMaterialBase::addGeometry(Geometry* geometry)
 {
-   VertexBuffer* vb = mPool->get(geo);
-   if (!vb)
+   VertexBuffer* vertex_buffer = _pool->get(geometry);
+   if (!vertex_buffer)
    {
-      vb = mPool->add(geo);
+      vertex_buffer = _pool->add(geometry);
 
-      if (mClusters.size() == 0)
-         mClusters = createSkinClusters(geo, 8);
+      if (_clusters.empty())
+      {
+         _clusters = createSkinClusters(geometry, max_cluster_bones);
+      }
 
       // get total number of vertices from clusters
-      int totalVertices = 0;
-      int totalIndices = 0;
-      for (int i = 0; i < mClusters.size(); i++)
+      int32_t total_vertices = 0;
+      int32_t total_indices = 0;
+      for (const auto& cluster : _clusters)
       {
-         totalVertices += mClusters[i]->mVertices.size();
-         totalIndices += mClusters[i]->mIndices.size();
+         total_vertices += static_cast<int32_t>(cluster->vertices.size());
+         total_indices += static_cast<int32_t>(cluster->indices.size());
       }
 
-      activeDevice->allocateVertexBuffer(vb->getVertexBuffer(), sizeof(Vertex) * totalVertices);
+      activeDevice->allocateVertexBuffer(vertex_buffer->getVertexBuffer(), sizeof(Vertex) * total_vertices);
       {
-         volatile Vertex* dst = (Vertex*)activeDevice->lockVertexBuffer(vb->getVertexBuffer());
-         for (int i = 0; i < mClusters.size(); i++)
+         volatile Vertex* destination = static_cast<Vertex*>(activeDevice->lockVertexBuffer(vertex_buffer->getVertexBuffer()));
+
+         const Vector* vertices = geometry->getVertices();
+         const Vector* normals = geometry->getNormals();
+         const UV* uv = geometry->getUV(1);
+
+         for (const auto& cluster : _clusters)
          {
-            Cluster* cluster = mClusters[i];
-
-            Vector* vtx = geo->getVertices();
-            Vector* nrm = geo->getNormals();
-            UV* uv = geo->getUV(1);
-
-            for (int i = 0; i < cluster->mVertices.size(); i++)
+            for (size_t i = 0; i < cluster->vertices.size(); i++)
             {
-               int idx = cluster->mVertices[i];
-               dst->pos.x = vtx[idx].x;
-               dst->pos.y = vtx[idx].y;
-               dst->pos.z = vtx[idx].z;
+               const int32_t index = cluster->vertices[i];
+               destination->position.x = vertices[index].x;
+               destination->position.y = vertices[index].y;
+               destination->position.z = vertices[index].z;
 
-               dst->normal.x = nrm[idx].x;
-               dst->normal.y = nrm[idx].y;
-               dst->normal.z = nrm[idx].z;
+               destination->normal.x = normals[index].x;
+               destination->normal.y = normals[index].y;
+               destination->normal.z = normals[index].z;
 
-               dst->uv.u = uv[idx].u;
-               dst->uv.v = uv[idx].v;
+               destination->uv.u = uv[index].u;
+               destination->uv.v = uv[index].v;
 
-               for (int j = 0; j < 8; j++)
-                  dst->weight[j] = cluster->mWeights[i][j];
-               dst++;
+               for (int32_t j = 0; j < max_cluster_bones; j++)
+               {
+                  destination->weight[j] = cluster->weights[i][j];
+               }
+               destination++;
             }
          }
-         activeDevice->unlockVertexBuffer(vb->getVertexBuffer());
+         activeDevice->unlockVertexBuffer(vertex_buffer->getVertexBuffer());
       }
 
       {
-         activeDevice->allocateIndexBuffer(vb->getIndexBuffer(), totalIndices * sizeof(unsigned short));
-         volatile unsigned short* dst = (unsigned short*)activeDevice->lockIndexBuffer(vb->getIndexBuffer());
-         int offset = 0;
-         for (int i = 0; i < mClusters.size(); i++)
+         activeDevice->allocateIndexBuffer(vertex_buffer->getIndexBuffer(), total_indices * sizeof(uint16_t));
+         volatile uint16_t* destination = static_cast<uint16_t*>(activeDevice->lockIndexBuffer(vertex_buffer->getIndexBuffer()));
+         int32_t offset = 0;
+         for (const auto& cluster : _clusters)
          {
-            Cluster* cluster = mClusters[i];
-            for (int i = 0; i < cluster->mIndices.size(); i++)
-               *dst++ = cluster->mIndices[i] + offset;
-            offset += cluster->mVertices.size();
+            for (const uint16_t index : cluster->indices)
+            {
+               *destination++ = static_cast<uint16_t>(index + offset);
+            }
+            offset += static_cast<int32_t>(cluster->vertices.size());
          }
-         activeDevice->unlockIndexBuffer(vb->getIndexBuffer());
+         activeDevice->unlockIndexBuffer(vertex_buffer->getIndexBuffer());
       }
 
-      vb->setIndexCount(totalIndices);
+      vertex_buffer->setIndexCount(total_indices);
    }
-   mVB.add(Material::Buffer(geo, vb));
+   _buffers.push_back({geometry, vertex_buffer});
 }
 
-void PlayerMaterialBase::update(float /*frame*/, Node** /* nodelist */, const Matrix& cam)
+void PlayerMaterialBase::update(float /*frame*/, Node** /*node_list*/, const Matrix& camera)
 {
-   mCamera = cam;
+   _camera = camera;
 }

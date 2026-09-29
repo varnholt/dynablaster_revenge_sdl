@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include "material.h"
 #include "math/matrix.h"
 #include "render/uv.h"
@@ -11,7 +12,7 @@ class DestructionMaterial : public Material
 public:
    struct Vertex
    {
-      Vector pos;
+      Vector position;
       Vector normal;
       UV uv;
    };
@@ -19,35 +20,34 @@ public:
    DestructionMaterial(SceneGraph* scene);
    DestructionMaterial(
       SceneGraph* scene,
-      const char* colormap,
-      const char* envmap,
-      const char* specmap,
-      const char* shadowmap,
-      Camera* shadowCam
+      const char* color_map,
+      const char* environment_map,
+      const char* specular_map,
+      const char* shadow_map,
+      Camera* shadow_camera
    );
-   virtual ~DestructionMaterial();
 
-   void update(float frame, Node** nodelist, const Matrix& cam);
-   void load(Stream* stream);
-   void addGeometry(Geometry* geo);
-   virtual void renderDiffuse();
+   void update(float frame, Node** node_list, const Matrix& camera) override;
+   void load(Stream* stream) override;
+   void addGeometry(Geometry* geometry) override;
+   void renderDiffuse() override;
 
 private:
-   void init();
-   void begin();
-   void end();
+   void init() override;
+   void begin() override;
+   void end() override;
 
-   Texture mColorMap;
-   Texture mDiffuseMap;
-   Texture mSpecularMap;
-   Texture mShadowMap;
-   unsigned int mShader;
+   Texture _color_map;
+   Texture _diffuse_map;
+   Texture _specular_map;
+   Texture _shadow_map;
+   uint32_t _shader = 0;
 
-   int mParamSpecular;
-   int mParamDiffuse;
-   int mParamTexture;
-   int mParamShadow;
-   int mParamShadowCamera;
+   int32_t _param_specular = 0;
+   int32_t _param_diffuse = 0;
+   int32_t _param_texture = 0;
+   int32_t _param_shadow = 0;
+   int32_t _param_shadow_camera = 0;
 
-   Camera* mShadowCam;
+   Camera* _shadow_camera = nullptr;
 };

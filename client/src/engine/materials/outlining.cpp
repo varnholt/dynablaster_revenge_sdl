@@ -1,4 +1,4 @@
-// cartoon shading implementation
+// outline rendering implementation
 
 #include "outlining.h"
 #include "gldevice.h"
@@ -7,123 +7,95 @@
 #include "render/uv.h"
 #include "render/vertexbuffer.h"
 #include "renderdevice.h"
-#include "tools/profiling.h"
 #include "tools/stream.h"
 
-Outlining::Outlining(SceneGraph* scene) : Material(scene, -4), mShader(0)
-{
-}
-
-Outlining::~Outlining()
+Outlining::Outlining(SceneGraph* scene) : Material(scene, -4)
 {
 }
 
 void Outlining::init()
 {
-   mShader = activeDevice->loadShader("outlining-vert.glsl", "outlining-frag.glsl");
-   mParamColor = activeDevice->getParameterIndex("u_color");
+   _shader = activeDevice->loadShader("outlining-vert.glsl", "outlining-frag.glsl");
+   _param_color = activeDevice->getParameterIndex("u_color");
 }
 
 void Outlining::load(Stream*)
 {
 }
 
-void Outlining::add(Geometry* geo)
+void Outlining::add(Geometry* geometry)
 {
-   VertexBuffer* vb = mPool->add(geo);
+   VertexBuffer* vertex_buffer = _pool->add(geometry);
 
-   activeDevice->allocateVertexBuffer(vb->getVertexBuffer(), sizeof(Vector) * geo->getVertexCount());
-   volatile Vector* dst = (Vector*)activeDevice->lockVertexBuffer(vb->getVertexBuffer());
-   Vector* src = geo->getVertices();
-   for (int i = 0; i < geo->getVertexCount(); i++)
+   activeDevice->allocateVertexBuffer(vertex_buffer->getVertexBuffer(), sizeof(Vector) * geometry->getVertexCount());
+   volatile Vector* destination = static_cast<Vector*>(activeDevice->lockVertexBuffer(vertex_buffer->getVertexBuffer()));
+   const Vector* source = geometry->getVertices();
+   for (int32_t i = 0; i < geometry->getVertexCount(); i++)
    {
-      dst[i].x = src[i].x;
-      dst[i].y = src[i].y;
-      dst[i].z = src[i].z;
+      destination[i].x = source[i].x;
+      destination[i].y = source[i].y;
+      destination[i].z = source[i].z;
    }
-   activeDevice->unlockVertexBuffer(vb->getVertexBuffer());
+   activeDevice->unlockVertexBuffer(vertex_buffer->getVertexBuffer());
 
-   activeDevice->allocateIndexBuffer(vb->getIndexBuffer(), geo->getEdgeCount() * 2 * sizeof(unsigned short), true);
+   activeDevice->allocateIndexBuffer(vertex_buffer->getIndexBuffer(), geometry->getEdgeCount() * 2 * sizeof(uint16_t), true);
 
-   mVB.add(Material::Buffer(geo, vb));
-
-   /*
-   // pimped-up renderbuffer for cartoon shading
-   // store normals, texture-coordinates and dynamic buffer of visible siluette edges
-   class OutlineBuffer : public RenderBuffer
-   {
-   public:
-   OutlineBuffer(Geometry *geo) : RenderBuffer(geo)
-   {
-   mVertexCount= geo->getVertexCount();
-
-   mVertex= createVertexBuffer(geo->getVertices(), mVertexCount*sizeof(Vector));
-   mIndex=    createIndexBuffer(NULL, geo->getEdgeCount()*2*sizeof(unsigned short), false);
-   }
-   };
-   */
-
-   //   OutlineBuffer *vb= new OutlineBuffer(geo);
-   //   mVB.add(vb);
+   _buffers.push_back({geometry, vertex_buffer});
 }
 
-int Outlining::calcEdgeIndices(unsigned int indexbuffer, Geometry* geo, const Vector& vw)
+int32_t Outlining::calcEdgeIndices(uint32_t index_buffer, Geometry* geometry, const Vector& viewer)
 {
-   Vector n1, n2;
-   float dir1, dir2;
-   int count;
-   int num = 0;
+   int32_t num = 0;
 
-   unsigned short* idx = (unsigned short*)activeDevice->lockIndexBuffer(indexbuffer);
-   Vector* verts = geo->getVertices();
-   Edge* edge = geo->getEdges();
-   count = geo->getEdgeCount();
-   for (int j = 0; j < count; j++)
+   uint16_t* index = static_cast<uint16_t*>(activeDevice->lockIndexBuffer(index_buffer));
+   const Vector* vertices = geometry->getVertices();
+   const Edge* edge = geometry->getEdges();
+   const int32_t count = geometry->getEdgeCount();
+   for (int32_t j = 0; j < count; j++)
    {
       // vertices of two triangles with shared edge v1->v2
-      const Vector& v1 = verts[edge->i1];
-      const Vector& v2 = verts[edge->i2];
-      const Vector& v3 = verts[edge->i3];
-      const Vector& v4 = verts[edge->i4];
+      const Vector& v1 = vertices[edge->i1];
+      const Vector& v2 = vertices[edge->i2];
+      const Vector& v3 = vertices[edge->i3];
+      const Vector& v4 = vertices[edge->i4];
 
       // takes 8.5MI for 90.000 edges
-      dir1 = ((v2.y - v1.y) * (v3.z - v1.z) - (v2.z - v1.z) * (v3.y - v1.y)) * (v1.x - vw.x) +
-             ((v2.z - v1.z) * (v3.x - v1.x) - (v2.x - v1.x) * (v3.z - v1.z)) * (v1.y - vw.y) +
-             ((v2.x - v1.x) * (v3.y - v1.y) - (v2.y - v1.y) * (v3.x - v1.x)) * (v1.z - vw.z);
+      const float direction1 = ((v2.y - v1.y) * (v3.z - v1.z) - (v2.z - v1.z) * (v3.y - v1.y)) * (v1.x - viewer.x) +
+                               ((v2.z - v1.z) * (v3.x - v1.x) - (v2.x - v1.x) * (v3.z - v1.z)) * (v1.y - viewer.y) +
+                               ((v2.x - v1.x) * (v3.y - v1.y) - (v2.y - v1.y) * (v3.x - v1.x)) * (v1.z - viewer.z);
 
-      dir2 = ((v2.y - v1.y) * (v1.z - v4.z) - (v2.z - v1.z) * (v1.y - v4.y)) * (v1.x - vw.x) +
-             ((v2.z - v1.z) * (v1.x - v4.x) - (v2.x - v1.x) * (v1.z - v4.z)) * (v1.y - vw.y) +
-             ((v2.x - v1.x) * (v1.y - v4.y) - (v2.y - v1.y) * (v1.x - v4.x)) * (v1.z - vw.z);
+      const float direction2 = ((v2.y - v1.y) * (v1.z - v4.z) - (v2.z - v1.z) * (v1.y - v4.y)) * (v1.x - viewer.x) +
+                               ((v2.z - v1.z) * (v1.x - v4.x) - (v2.x - v1.x) * (v1.z - v4.z)) * (v1.y - viewer.y) +
+                               ((v2.x - v1.x) * (v1.y - v4.y) - (v2.y - v1.y) * (v1.x - v4.x)) * (v1.z - viewer.z);
 
       // draw edge if:
       // - one poly facing to viewer, one face away
       // - both polys facing to viewer and normals discontinue (precalc'd in flags)
-      if ((dir1 * dir2) < 0 || (dir1 < 0 && dir2 < 0 && edge->flags))
+      if ((direction1 * direction2) < 0 || (direction1 < 0 && direction2 < 0 && edge->flags))
       {
-         *idx++ = edge->i1;
-         *idx++ = edge->i2;
+         *index++ = edge->i1;
+         *index++ = edge->i2;
          num += 2;
       }
 
       edge++;
    }
 
-   activeDevice->unlockIndexBuffer(indexbuffer);
+   activeDevice->unlockIndexBuffer(index_buffer);
 
    return num;
 }
 
 void Outlining::update(float, Node**, const Matrix&)
 {
-   for (int i = 0; i < mVB.size(); i++)
+   for (const Buffer& buffer : _buffers)
    {
-      Geometry* geo = mVB[i].geo;
       // inverse-transform camera position to local object space
-      Matrix invView = (geo->getTransform() * mCamera).invert();
-      Vector viewer = invView.translation();
+      const Matrix inverse_view = (buffer.geometry->getTransform() * _camera).invert();
+      const Vector viewer = inverse_view.translation();
 
-      int count = calcEdgeIndices(mVB[i].vb->getIndexBuffer(), mVB[i].geo, viewer);
-      mVB[i].vb->setIndexCount(count);
+      const int32_t count = calcEdgeIndices(buffer.vertex_buffer->getIndexBuffer(), buffer.geometry, viewer);
+      buffer.vertex_buffer->setIndexCount(count);
    }
 }
 
@@ -131,16 +103,13 @@ void Outlining::begin()
 {
    Material::begin();
 
-   // set material parameters
-   //   activeDevice->setMaterial(mAmbient, mDiffuse, mSpecular, mShininess);
-
    // enable required vertex arrays
    glEnableVertexAttribArray(0);  // vertex data
 
-   activeDevice->setShader(mShader);  // just transform from object to camera
+   activeDevice->setShader(_shader);  // just transform from object to camera
 
    // pass2: render outlines
-   activeDevice->setParameter(mParamColor, Vector4(0.0f, 0.0f, 0.0f, 1.0f));  // black
+   activeDevice->setParameter(_param_color, Vector4(0.0f, 0.0f, 0.0f, 1.0f));  // black
    glEnable(GL_BLEND);
 
    glDepthMask(GL_FALSE);
@@ -162,16 +131,16 @@ void Outlining::renderDiffuse()
 {
    begin();
 
-   for (int i = 0; i < mVB.size(); i++)
+   for (const Buffer& buffer : _buffers)
    {
       // set transformation
-      activeDevice->push(mVB[i].geo->getTransform());
+      activeDevice->push(buffer.geometry->getTransform());
 
-      glBindBuffer(GL_ARRAY_BUFFER, mVB[i].vb->getVertexBuffer());
+      glBindBuffer(GL_ARRAY_BUFFER, buffer.vertex_buffer->getVertexBuffer());
       glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
 
-      glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mVB[i].vb->getIndexBuffer());                // created in precalc()
-      glDrawElements(GL_LINES, mVB[i].vb->getIndexCount(), GL_UNSIGNED_SHORT, nullptr);  // render
+      glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer.vertex_buffer->getIndexBuffer());
+      glDrawElements(GL_LINES, buffer.vertex_buffer->getIndexCount(), GL_UNSIGNED_SHORT, nullptr);  // render
 
       activeDevice->pop();
    }

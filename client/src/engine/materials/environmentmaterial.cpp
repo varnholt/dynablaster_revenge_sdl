@@ -8,76 +8,67 @@
 #include "render/uv.h"
 #include "render/vertexbuffer.h"
 #include "textureslot.h"
-#include "tools/profiling.h"
 #include "tools/stream.h"
 
-EnvironmentMaterial::EnvironmentMaterial(SceneGraph* scene)
-    : Material(scene, MAP_REFLECT), mSpecularMap(0), mShader(0), mParamSpecular(0), mParamCamera(0)
+EnvironmentMaterial::EnvironmentMaterial(SceneGraph* scene) : Material(scene, MAP_REFLECT)
 {
 }
 
-EnvironmentMaterial::EnvironmentMaterial(SceneGraph* scene, const char* specmap) : Material(scene, MAP_DIFFUSE | MAP_REFLECT)
+EnvironmentMaterial::EnvironmentMaterial(SceneGraph* scene, const char* specular_map) : Material(scene, MAP_DIFFUSE | MAP_REFLECT)
 {
-   addTexture(mSpecularMap, specmap, 1 | 2 | 4);
-}
-
-EnvironmentMaterial::~EnvironmentMaterial()
-{
+   addTexture(_specular_map, specular_map, 1 | 2 | 4);
 }
 
 void EnvironmentMaterial::init()
 {
-   mShader = activeDevice->loadShader("environment-vert.glsl", "environment-frag.glsl");
-   mParamSpecular = activeDevice->getParameterIndex("specularmap");
-   mParamCamera = activeDevice->getParameterIndex("camera");
+   _shader = activeDevice->loadShader("environment-vert.glsl", "environment-frag.glsl");
+   _param_specular = activeDevice->getParameterIndex("specularmap");
+   _param_camera = activeDevice->getParameterIndex("camera");
 }
 
 void EnvironmentMaterial::load(Stream* stream)
 {
    Material::load(stream);
-   addTexture(mSpecularMap, getTextureSlot(0)->name(), 1 | 2 | 4);
+   addTexture(_specular_map, getTextureSlot(0)->name(), 1 | 2 | 4);
 }
 
-void EnvironmentMaterial::addGeometry(Geometry* geo)
+void EnvironmentMaterial::addGeometry(Geometry* geometry)
 {
-   VertexBuffer* vb = mPool->get(geo);
-   if (!vb)
+   VertexBuffer* vertex_buffer = _pool->get(geometry);
+   if (!vertex_buffer)
    {
-      vb = mPool->add(geo);
+      vertex_buffer = _pool->add(geometry);
 
-      Vector* vtx = geo->getVertices();
-      Vector* nrm = geo->getNormals();
+      const Vector* vertices = geometry->getVertices();
+      const Vector* normals = geometry->getNormals();
 
-      activeDevice->allocateVertexBuffer(vb->getVertexBuffer(), sizeof(Vertex) * geo->getVertexCount());
-      volatile Vertex* dst = (Vertex*)activeDevice->lockVertexBuffer(vb->getVertexBuffer());
-      for (int i = 0; i < geo->getVertexCount(); i++)
+      activeDevice->allocateVertexBuffer(vertex_buffer->getVertexBuffer(), sizeof(Vertex) * geometry->getVertexCount());
+      volatile Vertex* destination = static_cast<Vertex*>(activeDevice->lockVertexBuffer(vertex_buffer->getVertexBuffer()));
+      for (int32_t i = 0; i < geometry->getVertexCount(); i++)
       {
-         dst->pos.x = vtx[i].x;
-         dst->pos.y = vtx[i].y;
-         dst->pos.z = vtx[i].z;
-         dst->normal.x = nrm[i].x;
-         dst->normal.y = nrm[i].y;
-         dst->normal.z = nrm[i].z;
-         dst++;
+         destination[i].position.x = vertices[i].x;
+         destination[i].position.y = vertices[i].y;
+         destination[i].position.z = vertices[i].z;
+         destination[i].normal.x = normals[i].x;
+         destination[i].normal.y = normals[i].y;
+         destination[i].normal.z = normals[i].z;
       }
-      activeDevice->unlockVertexBuffer(vb->getVertexBuffer());
+      activeDevice->unlockVertexBuffer(vertex_buffer->getVertexBuffer());
 
-      vb->setIndexBuffer(geo->getIndices(), geo->getIndexCount());
+      vertex_buffer->setIndexBuffer(geometry->getIndices(), geometry->getIndexCount());
    }
 
-   mVB.add(Material::Buffer(geo, vb));
+   _buffers.push_back({geometry, vertex_buffer});
 }
 
 void EnvironmentMaterial::begin()
 {
    Material::begin();
 
-   // set material parameters
-   //   activeDevice->setMaterial(mAmbient, mDiffuse, mSpecular, mShininess);
-   glBindTexture(GL_TEXTURE_2D, mSpecularMap);
+   glBindTexture(GL_TEXTURE_2D, _specular_map);
 
-   activeDevice->setShader(mShader);
-   activeDevice->bindSampler(mParamSpecular, 0);
+   activeDevice->setShader(_shader);
+   activeDevice->bindSampler(_param_specular, 0);
 
    // enable required vertex arrays
    glEnableVertexAttribArray(0);  // vertex data
@@ -96,36 +87,26 @@ void EnvironmentMaterial::renderDiffuse()
 {
    begin();
 
-   /*
-      Matrix projMat;
-      glGetFloatv(GL_PROJECTION_MATRIX, projMat.data());
-      projMat= projMat.invert();
-      Vector camPos= projMat.translation();
-   */
-
-   for (int i = 0; i < mVB.size(); i++)
+   for (const Buffer& buffer : _buffers)
    {
-      // get vertex buffer
-      VertexBuffer* vb = mVB[i].vb;
-      Geometry* geo = mVB[i].geo;
+      VertexBuffer* vertex_buffer = buffer.vertex_buffer;
+      Geometry* geometry = buffer.geometry;
 
-      if (geo->isVisible())
+      if (geometry->isVisible())
       {
-         Matrix invView = (geo->getTransform() * mCamera).invert();
-         Vector osCam = invView.translation();
-         //         Vector osCam= geo->getParent()->getWorld2Obj() * camPos;
-         activeDevice->setParameter(mParamCamera, osCam);
+         const Matrix inverse_view = (geometry->getTransform() * _camera).invert();
+         const Vector object_space_camera = inverse_view.translation();
+         activeDevice->setParameter(_param_camera, object_space_camera);
 
-         //         if (geo->getBoneCount()==0)
-         activeDevice->push(geo->getTransform());
+         activeDevice->push(geometry->getTransform());
 
          // draw mesh
-         glBindBuffer(GL_ARRAY_BUFFER, vb->getVertexBuffer());
-         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)0);
-         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)sizeof(Vector));
+         glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer->getVertexBuffer());
+         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), nullptr);
+         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const GLvoid*>(sizeof(Vector)));
 
-         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vb->getIndexBuffer());
-         glDrawElements(GL_TRIANGLES, vb->getIndexCount(), GL_UNSIGNED_SHORT, 0);  // render
+         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vertex_buffer->getIndexBuffer());
+         glDrawElements(GL_TRIANGLES, vertex_buffer->getIndexCount(), GL_UNSIGNED_SHORT, nullptr);  // render
 
          activeDevice->pop();
       }
@@ -134,7 +115,7 @@ void EnvironmentMaterial::renderDiffuse()
    end();
 }
 
-void EnvironmentMaterial::update(float /*frame*/, Node** /* nodelist */, const Matrix& cam)
+void EnvironmentMaterial::update(float /*frame*/, Node** /*node_list*/, const Matrix& camera)
 {
-   mCamera = cam;
+   _camera = camera;
 }

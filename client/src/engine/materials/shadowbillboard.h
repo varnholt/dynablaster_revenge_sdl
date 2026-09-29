@@ -1,19 +1,18 @@
-#ifndef SHADOWBILLBOARD_H
-#define SHADOWBILLBOARD_H
+#pragma once
 
+#include <cstdint>
+#include <unordered_map>
 #include "../render/renderbuffer.h"
 #include "../render/uv.h"
 #include "material.h"
 #include "math/vector2.h"
-
-#include <unordered_map>
 
 class ShadowBillboard : public Material
 {
 public:
    struct Vertex
    {
-      Vector pos;
+      Vector position;
       UV uv;
    };
 
@@ -25,26 +24,26 @@ public:
 
    ShadowBillboard(SceneGraph* scene);
    ShadowBillboard(SceneGraph* scene, const char* map);
-   void load(Stream* stream);
-   void addGeometry(Geometry* geo);
-   virtual void renderDiffuse();
-   void removeMesh(Mesh* mesh);
+   void load(Stream* stream) override;
+   void addGeometry(Geometry* geometry) override;
+   void renderDiffuse() override;
+   void removeMesh(Mesh* mesh) override;
    void setOffset(float x, float y);
 
 private:
-   void init();
-   void begin();
-   void end();
+   static constexpr int32_t max_billboards = 1000;
 
-   Texture mColorMap;
-   unsigned int mShader;
-   unsigned int mVertices;
-   unsigned int mTexcoords;
-   unsigned int mIndices;
+   void init() override;
+   void begin() override;
+   void end() override;
 
-   int mParamTexture;
-   std::unordered_map<Geometry*, Bounding> mInstances;
-   Vector2 mOffset;
+   Texture _color_map;
+   uint32_t _shader = 0;
+   uint32_t _vertices = 0;
+   uint32_t _texcoords = 0;
+   uint32_t _indices = 0;
+
+   int32_t _param_texture = 0;
+   std::unordered_map<Geometry*, Bounding> _instances;
+   Vector2 _offset{0.0f, 0.0f};
 };
-
-#endif

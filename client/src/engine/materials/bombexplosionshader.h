@@ -1,6 +1,6 @@
-#ifndef BOMBEXPLOSIONSHADER_H
-#define BOMBEXPLOSIONSHADER_H
+#pragma once
 
+#include <cstdint>
 #include "material.h"
 #include "math/matrix.h"
 #include "render/renderbuffer.h"
@@ -11,36 +11,33 @@ class BombExplosionShader : public Material
 public:
    struct Vertex
    {
-      Vector pos;
+      Vector position;
       Vector normal;
       UV uv;
    };
 
    BombExplosionShader(SceneGraph* scene);
-   BombExplosionShader(SceneGraph* scene, const char* colormap, const char* envmap, const char* specmap);
-   virtual ~BombExplosionShader();
+   BombExplosionShader(SceneGraph* scene, const char* color_map, const char* environment_map, const char* specular_map);
 
-   void update(float, Node** nodelist, const Matrix& cam);
-   void load(Stream* stream);
-   void addGeometry(Geometry* geo);
-   virtual void renderDiffuse();
+   void update(float frame, Node** node_list, const Matrix& camera) override;
+   void load(Stream* stream) override;
+   void addGeometry(Geometry* geometry) override;
+   void renderDiffuse() override;
 
 private:
-   void begin();
-   void end();
-   void init();
+   void begin() override;
+   void end() override;
+   void init() override;
 
-   Texture mColorMap;
-   Texture mDiffuseMap;
-   Texture mSpecularMap;
-   unsigned int mShader;
+   Texture _color_map;
+   Texture _diffuse_map;
+   Texture _specular_map;
+   uint32_t _shader = 0;
 
-   int mParamSpecular;
-   int mParamDiffuse;
-   int mParamTexture;
-   int mParamCamera;
+   int32_t _param_specular = 0;
+   int32_t _param_diffuse = 0;
+   int32_t _param_texture = 0;
+   int32_t _param_camera = 0;
 
-   Matrix mCamera;
+   Matrix _camera;
 };
-
-#endif

@@ -8,162 +8,85 @@
 #include "render/uv.h"
 #include "render/vertexbuffer.h"
 #include "textureslot.h"
-#include "tools/profiling.h"
 #include "tools/stream.h"
 
-ShadowBillboard::ShadowBillboard(SceneGraph* scene)
-    : Material(scene, -1), mColorMap(0), mShader(0), mVertices(0), mTexcoords(0), mIndices(0), mOffset(0.0f, 0.0f)
+ShadowBillboard::ShadowBillboard(SceneGraph* scene) : Material(scene, -1)
 {
 }
 
-ShadowBillboard::ShadowBillboard(SceneGraph* scene, const char* map)
-    : Material(scene, -1), mColorMap(0), mShader(0), mVertices(0), mTexcoords(0), mIndices(0), mOffset(0.0f, 0.0f)
+ShadowBillboard::ShadowBillboard(SceneGraph* scene, const char* map) : Material(scene, -1)
 {
-   addTexture(mColorMap, map, 1 | 2 | 4);
+   addTexture(_color_map, map, 1 | 2 | 4);
 }
 
 void ShadowBillboard::removeMesh(Mesh* mesh)
 {
-   for (int i = 0; i < mesh->getPartCount(); i++)
+   for (int32_t i = 0; i < mesh->getPartCount(); i++)
    {
-      mInstances.erase(mesh->getPart(i));
+      _instances.erase(mesh->getPart(i));
    }
 }
 
 void ShadowBillboard::init()
 {
-   mShader = activeDevice->loadShader("shadowbillboard-vert.glsl", "shadowbillboard-frag.glsl");
-   mParamTexture = activeDevice->getParameterIndex("texturemap");
+   _shader = activeDevice->loadShader("shadowbillboard-vert.glsl", "shadowbillboard-frag.glsl");
+   _param_texture = activeDevice->getParameterIndex("texturemap");
 
-   mVertices = activeDevice->createVertexBuffer(sizeof(Vector) * 4 * 1000, true);
-   mTexcoords = activeDevice->createVertexBuffer(sizeof(float) * 2 * 4 * 1000);
-   mIndices = activeDevice->createIndexBuffer(sizeof(unsigned short) * 6 * 1000);
+   _vertices = activeDevice->createVertexBuffer(sizeof(Vector) * 4 * max_billboards, true);
+   _texcoords = activeDevice->createVertexBuffer(sizeof(float) * 2 * 4 * max_billboards);
+   _indices = activeDevice->createIndexBuffer(sizeof(uint16_t) * 6 * max_billboards);
 
-   volatile float* dst = (float*)activeDevice->lockVertexBuffer(mTexcoords);
-   float minUV = 0.01f;
-   float maxUV = 0.99f;
+   volatile float* texcoord = static_cast<float*>(activeDevice->lockVertexBuffer(_texcoords));
+   const float min_uv = 0.01f;
+   const float max_uv = 0.99f;
 
-   for (int i = 0; i < 1000; i++)
+   for (int32_t i = 0; i < max_billboards; i++)
    {
-      *dst++ = minUV;
-      *dst++ = maxUV;
+      *texcoord++ = min_uv;
+      *texcoord++ = max_uv;
 
-      *dst++ = maxUV;
-      *dst++ = maxUV;
+      *texcoord++ = max_uv;
+      *texcoord++ = max_uv;
 
-      *dst++ = maxUV;
-      *dst++ = minUV;
+      *texcoord++ = max_uv;
+      *texcoord++ = min_uv;
 
-      *dst++ = minUV;
-      *dst++ = minUV;
+      *texcoord++ = min_uv;
+      *texcoord++ = min_uv;
    }
-   activeDevice->unlockVertexBuffer(mTexcoords);
+   activeDevice->unlockVertexBuffer(_texcoords);
 
-   volatile unsigned short* idx = (unsigned short*)activeDevice->lockIndexBuffer(mIndices);
-   for (int i = 0; i < 1000; i++)
+   volatile uint16_t* index = static_cast<uint16_t*>(activeDevice->lockIndexBuffer(_indices));
+   for (int32_t i = 0; i < max_billboards; i++)
    {
-      *idx++ = i * 4 + 0;
-      *idx++ = i * 4 + 1;
-      *idx++ = i * 4 + 2;
-      *idx++ = i * 4 + 0;
-      *idx++ = i * 4 + 2;
-      *idx++ = i * 4 + 3;
+      *index++ = static_cast<uint16_t>(i * 4 + 0);
+      *index++ = static_cast<uint16_t>(i * 4 + 1);
+      *index++ = static_cast<uint16_t>(i * 4 + 2);
+      *index++ = static_cast<uint16_t>(i * 4 + 0);
+      *index++ = static_cast<uint16_t>(i * 4 + 2);
+      *index++ = static_cast<uint16_t>(i * 4 + 3);
    }
-   activeDevice->unlockIndexBuffer(mIndices);
+   activeDevice->unlockIndexBuffer(_indices);
 }
 
 void ShadowBillboard::load(Stream* stream)
 {
    Material::load(stream);
 
-   addTexture(mColorMap, getTextureSlot(0)->name());
+   addTexture(_color_map, getTextureSlot(0)->name());
 }
 
 void ShadowBillboard::setOffset(float x, float y)
 {
-   mOffset.set(x, y);
+   _offset.set(x, y);
 }
 
-void ShadowBillboard::addGeometry(Geometry* geo)
+void ShadowBillboard::addGeometry(Geometry* geometry)
 {
    Bounding bound;
-   Matrix mat;  //= geo->getTransform();
-                //   mat.translate( Vector(0.0f) );
-                //   mat= mat.invert();
-   bound.min = Vector(-1.5f - mOffset.x, -1.5f - mOffset.y);
-   bound.max = Vector(1.5f - mOffset.x, 1.5f - mOffset.y);
-   mInstances[geo] = bound;
-
-   /*
-      if (!vb)
-      {
-         vb= mPool->add(geo);
-
-         {
-            Vector bmin(0.0f, 0.0f, 0.0f);
-            Vector bmax(0.0f, 0.0f, 0.0f);
-            geo->calcBoundingBox(bmin, bmax);
-
-            Vector t= bmin;
-            bmin.minimum( -bmax );
-            bmax.maximum( -t );
-
-            activeDevice->allocateVertexBuffer( vb->getVertexBuffer(), sizeof(Vertex)*geo->getVertexCount() );
-            volatile Vertex *dst= (Vertex*)activeDevice->lockVertexBuffer( vb->getVertexBuffer() );
-
-            float z= 0.2f;
-
-            float dx= bmax.x - bmin.x;
-            float dy= bmax.y - bmin.y;
-
-            bmin -= Vector(dx,dy,0.0f);
-            bmax += Vector(dx,dy,0.0f);
-
-            bmin.y -= 0.1f;
-            bmax.y -= 0.1f;
-
-
-            float minUV= 0.01f;
-            float maxUV= 0.99f;
-            dst[0].pos.x= bmin.x;
-            dst[0].pos.y= bmin.y;
-            dst[0].pos.z= z;
-            dst[0].uv.u= minUV;
-            dst[0].uv.v= maxUV;
-
-            dst[1].pos.x= bmax.x;
-            dst[1].pos.y= bmin.y;
-            dst[1].pos.z= z;
-            dst[1].uv.u= maxUV;
-            dst[1].uv.v= maxUV;
-
-            dst[2].pos.x= bmax.x;
-            dst[2].pos.y= bmax.y;
-            dst[2].pos.z= z;
-            dst[2].uv.u= maxUV;
-            dst[2].uv.v= minUV;
-
-            dst[3].pos.x= bmin.x;
-            dst[3].pos.y= bmax.y;
-            dst[3].pos.z= z;
-            dst[3].uv.u= minUV;
-            dst[3].uv.v= minUV;
-
-            activeDevice->unlockVertexBuffer( vb->getVertexBuffer() );
-         }
-
-         activeDevice->allocateIndexBuffer( vb->getIndexBuffer(), 6*sizeof(unsigned short) );
-         volatile unsigned short *idx= (unsigned short*)activeDevice->lockIndexBuffer( vb->getIndexBuffer() );
-         *idx++= 0; *idx++= 1; *idx++= 2;
-         *idx++= 0; *idx++= 2; *idx++= 3;
-         activeDevice->unlockIndexBuffer( vb->getIndexBuffer() );
-         vb->setIndexCount( 6 );
-
-
-      }
-
-      mVB.add(Material::Buffer(geo,vb));
-   */
+   bound.min = Vector(-1.5f - _offset.x, -1.5f - _offset.y);
+   bound.max = Vector(1.5f - _offset.x, 1.5f - _offset.y);
+   _instances[geometry] = bound;
 }
 
 void ShadowBillboard::begin()
@@ -175,10 +98,10 @@ void ShadowBillboard::begin()
    glBlendFunc(GL_ZERO, GL_SRC_COLOR);
 
    glActiveTexture(GL_TEXTURE0_ARB);
-   glBindTexture(GL_TEXTURE_2D, mColorMap);
+   glBindTexture(GL_TEXTURE_2D, _color_map);
 
-   activeDevice->setShader(mShader);
-   activeDevice->bindSampler(mParamTexture, 0);
+   activeDevice->setShader(_shader);
+   activeDevice->bindSampler(_param_texture, 0);
 
    // enable required vertex arrays
    glEnableVertexAttribArray(0);  // vertex data
@@ -201,14 +124,14 @@ void ShadowBillboard::renderDiffuse()
 {
    begin();
 
-   float z = 0.1f;
-   int count = 0;
+   const float z = 0.1f;
+   int32_t count = 0;
    // explicit size - lockVertexBuffer()'s size-less overload falls back to GLDevice's single
    // shared "last created buffer" size, which by this point in the frame belongs to whatever
    // other material most recently created a buffer, not this one. Silently mapped the wrong byte
    // range on every frame after the first, so this never rendered anything beyond one lucky frame.
-   Vector* dst = (Vector*)activeDevice->lockVertexBuffer(mVertices, sizeof(Vector) * 4 * 1000);
-   if (!dst)
+   Vector* destination = static_cast<Vector*>(activeDevice->lockVertexBuffer(_vertices, sizeof(Vector) * 4 * max_billboards));
+   if (!destination)
    {
       // glMapBufferRange can fail (buffer still mapped from a prior call, GL error pending,
       // etc.) - skip this frame's shadows rather than dereference a null pointer.
@@ -216,65 +139,62 @@ void ShadowBillboard::renderDiffuse()
       return;
    }
 
-   std::unordered_map<Geometry*, Bounding>::const_iterator it;
-   for (it = mInstances.begin(); it != mInstances.end(); it++)
+   for (const auto& [geometry, bound] : _instances)
    {
-      // get vertex buffer
-      Geometry* geo = it->first;
-      const Bounding& bound = it->second;
-
-      if (geo->isVisible())
+      // the mapped vertex buffer holds max_billboards quads
+      if (count >= max_billboards)
       {
-         //         Vector osCam= geo->getParent()->getCamera2Obj().translation();
-         //         activeDevice->setParameter(mParamCamera, osCam);
+         break;
+      }
 
-         Matrix obj = geo->getTransform().normalized();
+      if (geometry->isVisible())
+      {
+         const Matrix object = geometry->getTransform().normalized();
 
-         Vector bmin = bound.min + obj.translation();
-         Vector bmax = bound.max + obj.translation();
+         const Vector bound_min = bound.min + object.translation();
+         const Vector bound_max = bound.max + object.translation();
 
-         dst->x = bmin.x;
-         dst->y = bmin.y;
-         dst->z = z;
-         dst++;
+         destination->x = bound_min.x;
+         destination->y = bound_min.y;
+         destination->z = z;
+         destination++;
 
-         dst->x = bmax.x;
-         dst->y = bmin.y;
-         dst->z = z;
-         dst++;
+         destination->x = bound_max.x;
+         destination->y = bound_min.y;
+         destination->z = z;
+         destination++;
 
-         dst->x = bmax.x;
-         dst->y = bmax.y;
-         dst->z = z;
-         dst++;
+         destination->x = bound_max.x;
+         destination->y = bound_max.y;
+         destination->z = z;
+         destination++;
 
-         dst->x = bmin.x;
-         dst->y = bmax.y;
-         dst->z = z;
-         dst++;
+         destination->x = bound_min.x;
+         destination->y = bound_max.y;
+         destination->z = z;
+         destination++;
 
          count++;
       }
    }
-   activeDevice->unlockVertexBuffer(mVertices);
+   activeDevice->unlockVertexBuffer(_vertices);
 
-   glBindBuffer(GL_ARRAY_BUFFER, mVertices);
-   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vector), (GLvoid*)0);
-   glBindBuffer(GL_ARRAY_BUFFER, mTexcoords);
-   glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, (GLvoid*)0);
+   glBindBuffer(GL_ARRAY_BUFFER, _vertices);
+   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vector), nullptr);
+   glBindBuffer(GL_ARRAY_BUFFER, _texcoords);
+   glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, nullptr);
 
-   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mIndices);
+   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _indices);
 
-   // vertices above are already baked in world space (bound.min/max + obj.translation()), unlike
+   // vertices above are already baked in world space (bound.min/max + object.translation()), unlike
    // every other material here which pushes per-geometry transforms - so this is the one material
    // that needs an explicit identity push. Without it, this shader's u_modelViewProjection uniform
    // is never uploaded at all (push() is the only thing that uploads it), leaving it at GLSL's
    // zero-initialized default and collapsing every shadow vertex to the origin - invisible, even
    // though the draw call itself succeeds.
    activeDevice->push(Matrix());
-   glDrawElements(GL_TRIANGLES, count * 6, GL_UNSIGNED_SHORT, (void*)0);
+   glDrawElements(GL_TRIANGLES, count * 6, GL_UNSIGNED_SHORT, nullptr);
    activeDevice->pop();
 
    end();
-   //   printf("shadows [%d]: %f \n", mVB.size(), (t2-t1)/1000000.0);
 }

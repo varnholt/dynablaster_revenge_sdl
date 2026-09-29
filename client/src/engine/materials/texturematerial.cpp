@@ -8,16 +8,15 @@
 #include "render/uv.h"
 #include "render/vertexbuffer.h"
 #include "textureslot.h"
-#include "tools/profiling.h"
 #include "tools/stream.h"
 
-TextureMaterial::TextureMaterial(SceneGraph* scene) : Material(scene, MAP_DIFFUSE), mColorMap(0)
+TextureMaterial::TextureMaterial(SceneGraph* scene) : Material(scene, MAP_DIFFUSE)
 {
 }
 
-TextureMaterial::TextureMaterial(SceneGraph* scene, const char* texmap) : Material(scene, MAP_DIFFUSE), mColorMap(0)
+TextureMaterial::TextureMaterial(SceneGraph* scene, const char* texture_map) : Material(scene, MAP_DIFFUSE)
 {
-   addTexture(mColorMap, texmap);
+   addTexture(_color_map, texture_map);
 }
 
 void TextureMaterial::load(Stream* stream)
@@ -25,60 +24,60 @@ void TextureMaterial::load(Stream* stream)
    Material::load(stream);
 
    if (getTextureSlot(0))
-      addTexture(mColorMap, getTextureSlot(0)->name());
+   {
+      addTexture(_color_map, getTextureSlot(0)->name());
+   }
 }
 
 void TextureMaterial::init()
 {
-   mShader = activeDevice->loadShader("texturemapping-vert.glsl", "texturemapping-frag.glsl");
-   mParamTexture = activeDevice->getParameterIndex("texturemap");
+   _shader = activeDevice->loadShader("texturemapping-vert.glsl", "texturemapping-frag.glsl");
+   _param_texture = activeDevice->getParameterIndex("texturemap");
 }
 
-void TextureMaterial::addGeometry(Geometry* geo)
+void TextureMaterial::addGeometry(Geometry* geometry)
 {
-   VertexBuffer* vb = mPool->get(geo);
-   if (!vb)
+   VertexBuffer* vertex_buffer = _pool->get(geometry);
+   if (!vertex_buffer)
    {
-      vb = mPool->add(geo);
+      vertex_buffer = _pool->add(geometry);
 
-      Vector* vtx = geo->getVertices();
-      Vector* nrm = geo->getNormals();
-      UV* uv = geo->getUV(1);
+      const Vector* vertices = geometry->getVertices();
+      const Vector* normals = geometry->getNormals();
+      const UV* uv = geometry->getUV(1);
 
-      activeDevice->allocateVertexBuffer(vb->getVertexBuffer(), sizeof(Vertex) * geo->getVertexCount());
-      volatile Vertex* dst = (Vertex*)activeDevice->lockVertexBuffer(vb->getVertexBuffer());
-      for (int i = 0; i < geo->getVertexCount(); i++)
+      activeDevice->allocateVertexBuffer(vertex_buffer->getVertexBuffer(), sizeof(Vertex) * geometry->getVertexCount());
+      volatile Vertex* destination = static_cast<Vertex*>(activeDevice->lockVertexBuffer(vertex_buffer->getVertexBuffer()));
+      for (int32_t i = 0; i < geometry->getVertexCount(); i++)
       {
-         dst[i].pos.x = vtx[i].x;
-         dst[i].pos.y = vtx[i].y;
-         dst[i].pos.z = vtx[i].z;
-         dst[i].nrm.x = nrm[i].x;
-         dst[i].nrm.y = nrm[i].y;
-         dst[i].nrm.z = nrm[i].z;
+         destination[i].position.x = vertices[i].x;
+         destination[i].position.y = vertices[i].y;
+         destination[i].position.z = vertices[i].z;
+         destination[i].normal.x = normals[i].x;
+         destination[i].normal.y = normals[i].y;
+         destination[i].normal.z = normals[i].z;
          if (uv)
          {
-            dst[i].uv.u = uv[i].u;
-            dst[i].uv.v = uv[i].v;
+            destination[i].uv.u = uv[i].u;
+            destination[i].uv.v = uv[i].v;
          }
       }
-      activeDevice->unlockVertexBuffer(vb->getVertexBuffer());
+      activeDevice->unlockVertexBuffer(vertex_buffer->getVertexBuffer());
 
-      vb->setIndexBuffer(geo->getIndices(), geo->getIndexCount());
+      vertex_buffer->setIndexBuffer(geometry->getIndices(), geometry->getIndexCount());
    }
 
-   mVB.add(Material::Buffer(geo, vb));
+   _buffers.push_back({geometry, vertex_buffer});
 }
 
 void TextureMaterial::begin()
 {
    Material::begin();
 
-   // set material parameters
-   //   activeDevice->setMaterial(mAmbient, mDiffuse, mSpecular, mShininess);
-   activeDevice->setShader(mShader);
+   activeDevice->setShader(_shader);
 
-   glBindTexture(GL_TEXTURE_2D, mColorMap);
-   activeDevice->bindSampler(mParamTexture, 0);
+   glBindTexture(GL_TEXTURE_2D, _color_map);
+   activeDevice->bindSampler(_param_texture, 0);
 
    // enable required vertex attributes (0=position, 1=normal, 2=texcoord)
    glEnableVertexAttribArray(0);
@@ -97,46 +96,39 @@ void TextureMaterial::end()
 
 void TextureMaterial::renderDiffuse()
 {
-   int count = 0;
-
    begin();
 
-   for (int i = 0; i < mVB.size(); i++)
+   for (const Buffer& buffer : _buffers)
    {
-      // get vertex buffer
-      VertexBuffer* vb = mVB[i].vb;
-      Geometry* geo = mVB[i].geo;
+      VertexBuffer* vertex_buffer = buffer.vertex_buffer;
+      Geometry* geometry = buffer.geometry;
 
-      if (geo->isVisible())
+      if (geometry->isVisible())
       {
-         //         Vector osCam= geo->getParent()->getCamera2Obj().translation();
-         //         activeDevice->setParameter(mParamCamera, osCam);
-
-         if (!geo->getBoneCount())
+         if (!geometry->getBoneCount())
          {
-            const Matrix& tm = geo->getTransform();
-            activeDevice->push(tm);
+            activeDevice->push(geometry->getTransform());
          }
 
          // draw mesh
-         glBindBuffer(GL_ARRAY_BUFFER, vb->getVertexBuffer());
-         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)0);
-         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)sizeof(Vector));
-         glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)(sizeof(Vector) * 2));
+         glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer->getVertexBuffer());
+         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), nullptr);
+         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const GLvoid*>(sizeof(Vector)));
+         glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const GLvoid*>(sizeof(Vector) * 2));
 
-         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vb->getIndexBuffer());
-         glDrawElements(GL_TRIANGLES, vb->getIndexCount(), GL_UNSIGNED_SHORT, 0);  // render
+         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vertex_buffer->getIndexBuffer());
+         glDrawElements(GL_TRIANGLES, vertex_buffer->getIndexCount(), GL_UNSIGNED_SHORT, nullptr);  // render
 
-         if (!geo->getBoneCount())
+         if (!geometry->getBoneCount())
+         {
             activeDevice->pop();
-
-         count++;
+         }
       }
    }
 
    end();
 }
 
-void TextureMaterial::update(float /*frame*/, Node** /*nodelist*/, const Matrix&)
+void TextureMaterial::update(float /*frame*/, Node** /*node_list*/, const Matrix&)
 {
 }

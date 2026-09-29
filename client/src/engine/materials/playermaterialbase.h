@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstdint>
+#include <memory>
+#include <vector>
 #include "material.h"
 #include "math/matrix.h"
 #include "render/uv.h"
@@ -7,40 +10,45 @@
 class PlayerMaterialBase : public Material
 {
 public:
-   class Cluster
-   {
-   public:
-      void mergeBones(const Array<int>& list, Array<int>& usages);
-      void addVertexIndex(int vertexIndex);
-      int boneCount() const;
-      bool containsBone(int id) const;
+   // maximum number of bones influencing a single cluster (matches the shader's bone array)
+   static constexpr int32_t max_cluster_bones = 8;
 
-      Array<int> mBones;
-      Array<int> mVertices;
-      Array<unsigned short> mIndices;
-      Array<float*> mWeights;
+   // part of a skinned mesh that is influenced by at most max_cluster_bones bones
+   struct Cluster
+   {
+      void mergeBones(const std::vector<int32_t>& list, std::vector<int32_t>& usages);
+      void addVertexIndex(int32_t vertex_index);
+      int32_t boneCount() const;
+      bool containsBone(int32_t id) const;
+
+      std::vector<int32_t> bones;
+      std::vector<int32_t> vertices;
+      std::vector<uint16_t> indices;
+      std::vector<std::vector<float>> weights;  // per vertex, one weight per cluster bone
    };
 
    struct Vertex
    {
-      Vector pos;
+      Vector position;
       Vector normal;
       UV uv;
-      float weight[8];
+      float weight[max_cluster_bones];  // C array: written through a volatile mapped-buffer pointer
    };
+   static_assert(sizeof(Vertex) == sizeof(Vector) * 2 + sizeof(UV) + sizeof(float) * max_cluster_bones);
 
-   PlayerMaterialBase(SceneGraph* scene, int id);
+   PlayerMaterialBase(SceneGraph* scene, int32_t id);
 
-   void update(float frame, Node** nodelist, const Matrix& cam);
-   void addGeometry(Geometry* geo);
+   void update(float frame, Node** node_list, const Matrix& camera) override;
+   void addGeometry(Geometry* geometry) override;
 
-   virtual void getBoundingRect(Vector& min, Vector& max, const Matrix& projMat);
-   virtual Vector getCenter2d(const Matrix& projMat) const;
+   void getBoundingRect(Vector& min, Vector& max, const Matrix& projection) override;
+   Vector getCenter2d(const Matrix& projection) const override;
 
 private:
-   Array<Cluster*> createSkinClusters(Geometry* geo, int limit);
+   std::vector<std::unique_ptr<Cluster>> createSkinClusters(Geometry* geometry, int32_t limit);
 
 protected:
-   static Array<Cluster*> mClusters;
-   Matrix mCamera;
+   // shared by all player materials: every player uses the same skinned mesh
+   static std::vector<std::unique_ptr<Cluster>> _clusters;
+   Matrix _camera;
 };

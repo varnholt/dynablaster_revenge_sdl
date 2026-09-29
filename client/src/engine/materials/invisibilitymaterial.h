@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include "math/matrix.h"
 #include "playermaterialbase.h"
 #include "render/uv.h"
@@ -8,27 +9,25 @@ class InvisibilityMaterial : public PlayerMaterialBase
 {
 public:
    InvisibilityMaterial(SceneGraph* scene);
-   virtual ~InvisibilityMaterial();
 
-   void load(Stream* stream);
-   virtual void renderDiffuse();
+   void load(Stream* stream) override;
+   void renderDiffuse() override;
 
-   void setTexture(unsigned int texture);
+   void setTexture(uint32_t texture);
 
 private:
-   void init();
-   void begin();
-   void end();
+   void init() override;
+   void begin() override;
+   void end() override;
 
-   unsigned int mShader;
+   uint32_t _shader = 0;
 
-   unsigned int mTextureMap;
-   Texture mGradientMap;
+   uint32_t _texture_map = 0;
+   Texture _gradient_map;
 
-   int mParamTexture;
-   int mParamGradient;
-   int mParamFadeThreshold;
-   int mParamCamera;
-   int mParamBones;
-   int mParamFlash;
+   int32_t _param_texture = 0;
+   int32_t _param_gradient = 0;
+   int32_t _param_fade_threshold = 0;
+   int32_t _param_camera = 0;
+   int32_t _param_bones = 0;
 };

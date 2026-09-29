@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include "image/psd.h"
 #include "material.h"
 #include "math/matrix.h"
@@ -12,7 +13,7 @@ class SkullMaterial : public Material
 public:
    struct Vertex
    {
-      Vector pos;
+      Vector position;
       Vector normal;
       UV uv;
    };
@@ -20,42 +21,37 @@ public:
    SkullMaterial(SceneGraph* scene);
    SkullMaterial(
       SceneGraph* scene,
-      const char* colormap,
-      const char* diffusemap,
-      const char* specmap,
-      const char* shadowMap,
-      Camera* shadowCam
+      const char* color_map,
+      const char* diffuse_map,
+      const char* specular_map,
+      const char* shadow_map,
+      Camera* shadow_camera
    );
-   ~SkullMaterial();
 
-   void update(float frame, Node** nodelist, const Matrix& cam);
-   void load(Stream* stream);
-   void addGeometry(Geometry* geo);
-   virtual void renderDiffuse();
+   void update(float frame, Node** node_list, const Matrix& camera) override;
+   void load(Stream* stream) override;
+   void addGeometry(Geometry* geometry) override;
+   void renderDiffuse() override;
 
 private:
-   void putImage(Image& target, int posX, int posY, const Image& source);
-   void putScanline(unsigned int* dst, unsigned int* src, int width);
+   void init() override;
+   void begin() override;
+   void end() override;
 
-   void init();
-   void begin();
-   void end();
+   Texture _diffuse_map;
+   Texture _color_map;
+   Texture _shadow_map;
+   Texture _specular_map;
+   uint32_t _shader = 0;
 
-   Texture mDiffuseMap;
-   Texture mColorMap;
-   Texture mShadowMap;
-   Texture mSpecularMap;
-   unsigned int mShader;
+   int32_t _param_diffuse = 0;
+   int32_t _param_texture = 0;
+   int32_t _param_shadow = 0;
+   int32_t _param_specular = 0;
+   int32_t _param_camera = 0;
+   int32_t _param_shadow_camera = 0;
+   int32_t _param_offset = 0;
 
-   int mParamDiffuse;
-   int mParamTexture;
-   int mParamAmbient;
-   int mParamShadow;
-   int mParamSpecular;
-   int mParamCamera;
-   int mParamShadowCamera;
-   int mParamOffset;
-
-   Camera* mShadowCam;
-   Matrix mCamera;
+   Camera* _shadow_camera = nullptr;
+   Matrix _camera;
 };

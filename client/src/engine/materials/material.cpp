@@ -1,8 +1,10 @@
 // reference implementation of a dummy material
 
 #include "material.h"
+#include <array>
 #include <cstdio>
-#include <cstring>
+#include <format>
+#include <string>
 #include "gldevice.h"
 #include "image/image.h"
 #include "image/imagepool.h"
@@ -17,26 +19,30 @@
 #include "textureslot.h"
 #include "tools/stream.h"
 
-Material::Buffer::Buffer() : geo(nullptr), vb(nullptr)
+namespace
 {
+int32_t dummy_counter = 1;
+
+std::string toStdString(const String& text)
+{
+   return text.isEmpty() ? std::string() : std::string(text.data());
 }
 
-Material::Buffer::Buffer(Geometry* g, VertexBuffer* v) : geo(g), vb(v)
+void writeText(Stream* stream, std::string text)
 {
+   stream->writeData(text.data(), static_cast<int32_t>(text.size()));
 }
+}  // namespace
 
-Material::Material(SceneGraph* scene, int id) : mId(id), mInitialized(false), mPool(nullptr), mDebug(0)
+Material::Material(SceneGraph* scene, int32_t id) : _id(id), _pool(std::make_unique<VertexBufferPool>())
 {
-   mPool = new VertexBufferPool();
    if (scene)
+   {
       scene->addMaterial(this);
+   }
 }
 
-Material::~Material()
-{
-   if (mPool)
-      delete mPool;
-}
+Material::~Material() = default;
 
 void Material::getBoundingRect(Vector& min, Vector& max, const Matrix&)
 {
@@ -48,123 +54,119 @@ Vector Material::getCenter2d(const Matrix&) const
    return Vector(0.0f);
 }
 
-const Array<Material::Buffer>& Material::getBuffers() const
+const std::vector<Material::Buffer>& Material::getBuffers() const
 {
-   return mVB;
+   return _buffers;
 }
 
 //! get geometry by given index
-Geometry* Material::getGeometry(int index) const
+Geometry* Material::getGeometry(int32_t index) const
 {
-   if (index >= 0 && index < mVB.size())
-      return mVB[index].geo;
-   else
-      return nullptr;
+   if (index >= 0 && index < size())
+   {
+      return _buffers[index].geometry;
+   }
+   return nullptr;
 }
 
-int Material::getDebug() const
+int32_t Material::getDebug() const
 {
-   return mDebug;
+   return _debug;
 }
 
-void Material::setDebug(int v)
+void Material::setDebug(int32_t value)
 {
-   mDebug = v;
+   _debug = value;
 }
 
-int Material::geometryCount() const
+int32_t Material::geometryCount() const
 {
-   return mVB.size();
+   return size();
 }
 
-void Material::add(Geometry* geo)
+void Material::add(Geometry* geometry)
 {
-   mGeometryQueue.add(geo);
+   _geometry_queue.push_back(geometry);
 }
 
-int Material::size() const
+int32_t Material::size() const
 {
-   return mVB.size();
+   return static_cast<int32_t>(_buffers.size());
 }
 
-void Material::addTexture(Texture& texture, const char* filename, int flags)
+void Material::addTexture(Texture& texture, const char* filename, int32_t flags)
 {
-   //   Image* image= ImagePool::Instance()->getImage(filename);
-   Image* image = new Image(filename);
-   addTexture(texture, image, flags);
+   addTexture(texture, std::make_unique<Image>(filename), flags);
 }
 
-void Material::addTexture(Texture& texture, Image* image, int flags)
+void Material::addTexture(Texture& texture, std::unique_ptr<Image> image, int32_t flags)
 {
-   mImageQueue.add(image);
-   mImageFlagsQueue.add(flags);
-   mTextureIdQueue.add(&texture);
+   _texture_queue.push_back({std::move(image), flags, &texture});
 }
 
 void Material::prepare()
 {
-   while (mGeometryQueue.size() > 0)
+   // both queues are processed last-in first-out
+   while (!_geometry_queue.empty())
    {
-      Geometry* geo = mGeometryQueue.takeLast();
-      addGeometry(geo);
+      Geometry* geometry = _geometry_queue.back();
+      _geometry_queue.pop_back();
+      addGeometry(geometry);
    }
 
-   while (mImageQueue.size() > 0 && mTextureIdQueue.size() > 0)
+   while (!_texture_queue.empty())
    {
-      Image* image = mImageQueue.takeLast();
-      int flags = mImageFlagsQueue.takeLast();
-      Texture* texture = mTextureIdQueue.takeLast();
-      *texture = TexturePool::Instance()->getTexture(image, flags);
-      delete image;
+      PendingTexture pending = std::move(_texture_queue.back());
+      _texture_queue.pop_back();
+      *pending.texture = TexturePool::Instance()->getTexture(pending.image.get(), pending.flags);
    }
 }
 
 void Material::begin()
 {
-   if (!mInitialized)
+   if (!_initialized)
    {
       init();
-      mInitialized = true;
+      _initialized = true;
    }
 
    prepare();
 }
 
-unsigned int Material::uploadMap(const Image& image, int flags)
+uint32_t Material::uploadMap(const Image& image, int32_t flags)
 {
    return activeDevice->createTexture(image.getData(), image.getWidth(), image.getHeight(), flags);
 }
 
-void Material::updateMap(unsigned int texture, const Image& image, int flags)
+void Material::updateMap(uint32_t texture, const Image& image, int32_t flags)
 {
    glBindTexture(GL_TEXTURE_2D, texture);
 
    return activeDevice->updateTexture(image.getData(), image.getWidth(), image.getHeight(), flags);
 }
 
-unsigned int Material::uploadCubeMap(const Image& image)
+uint32_t Material::uploadCubeMap(const Image& image)
 {
-   unsigned int tex;
+   const int32_t width = image.getWidth();
+   const int32_t height = image.getHeight();
 
-   int x = image.getWidth();
-   int y = image.getHeight();
-
-   if (x / 3 != y / 4)
+   if (width / 3 != height / 4)
    {
-      printf("expected cubemap as vertical cross!\n");
+      std::printf("expected cubemap as vertical cross!\n");
       return 0;
    }
 
-   glGenTextures(1, &tex);
-   glBindTexture(GL_TEXTURE_CUBE_MAP, tex);
+   GLuint texture = 0;
+   glGenTextures(1, &texture);
+   glBindTexture(GL_TEXTURE_CUBE_MAP, texture);
    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-   int size = y >> 2;
+   const int32_t size = height >> 2;
 
-   unsigned int target[6] = {
+   constexpr std::array<GLenum, 6> targets = {
       GL_TEXTURE_CUBE_MAP_POSITIVE_X,
       GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
       GL_TEXTURE_CUBE_MAP_POSITIVE_Y,
@@ -173,277 +175,252 @@ unsigned int Material::uploadCubeMap(const Image& image)
       GL_TEXTURE_CUBE_MAP_NEGATIVE_Z
    };
 
-   unsigned char pos[6] = {0x12, 0x10, 0x01, 0x21, 0x11, 0x31};
+   // position of each face inside the vertical cross (high nibble: row, low nibble: column)
+   constexpr std::array<uint8_t, 6> positions = {0x12, 0x10, 0x01, 0x21, 0x11, 0x31};
 
-   for (int s = 0; s < 6; s++)
+   for (size_t side = 0; side < targets.size(); side++)
    {
-      int yp = (pos[s] >> 4 & 3) * size;
-      int xp = (pos[s] & 3) * size;
+      const int32_t y_position = (positions[side] >> 4 & 3) * size;
+      const int32_t x_position = (positions[side] & 3) * size;
 
-      Image temp(size, size);
+      Image face(size, size);
 
-      for (int i = 0; i < size; i++)
+      for (int32_t i = 0; i < size; i++)
       {
-         unsigned int* src = image.getScanline(yp + i) + xp;
-         unsigned int* dst;
-         if (s == 5)  // back-side must be flipped
+         const uint32_t* source = image.getScanline(y_position + i) + x_position;
+         if (side == 5)  // back-side must be flipped
          {
-            dst = temp.getScanline(size - i - 1);
-            for (int j = 0; j < size; j++)
-               dst[j] = src[size - 1 - j];
+            uint32_t* destination = face.getScanline(size - i - 1);
+            for (int32_t j = 0; j < size; j++)
+            {
+               destination[j] = source[size - 1 - j];
+            }
          }
          else
          {
-            dst = temp.getScanline(i);
-            for (int j = 0; j < size; j++)
-               dst[j] = src[j];
+            uint32_t* destination = face.getScanline(i);
+            for (int32_t j = 0; j < size; j++)
+            {
+               destination[j] = source[j];
+            }
          }
       }
 
-      int level = 0;
+      int32_t level = 0;
       do
       {
-         glTexImage2D(target[s], level, GL_RGBA, temp.getWidth(), temp.getHeight(), 0, GL_BGRA, GL_UNSIGNED_BYTE, temp.getData());
-         temp = temp.downsample();
+         glTexImage2D(targets[side], level, GL_RGBA, face.getWidth(), face.getHeight(), 0, GL_BGRA, GL_UNSIGNED_BYTE, face.getData());
+         face = face.downsample();
          level++;
-      } while (temp.getWidth() > 0 && temp.getHeight() > 0);
+      } while (face.getWidth() > 0 && face.getHeight() > 0);
    }
 
-   return static_cast<unsigned int>(tex);
+   return static_cast<uint32_t>(texture);
 }
 
 bool Material::getCulling()
 {
-   return static_cast<bool>(((mFlags & 1) == 0));
+   return (_flags & 1) == 0;
 }
 
 void Material::load(Stream* stream)
 {
-   int buffers = stream->getInt();
-   mVB.init(buffers);
-   mAmbient.load(stream);
-   mDiffuse.load(stream);
-   mSpecular.load(stream);
-   mShininess = stream->getFloat();
-   mStrength = stream->getFloat();
-   mSelfIllum = stream->getFloat();
-   mIOR = stream->getFloat();
-   mOpacity = stream->getFloat();
-   mFlags = stream->getInt();
+   const int32_t buffers = stream->getInt();
+   _buffers.clear();
+   _buffers.reserve(buffers);
+   _ambient.load(stream);
+   _diffuse.load(stream);
+   _specular.load(stream);
+   _shininess = stream->getFloat();
+   _strength = stream->getFloat();
+   _self_illumination = stream->getFloat();
+   _ior = stream->getFloat();
+   _opacity = stream->getFloat();
+   _flags = stream->getInt();
 
-   int numMaps = stream->getInt();
-   mSlots.init(numMaps);
-   for (int i = 0; i < numMaps; i++)
+   const int32_t map_count = stream->getInt();
+   _slots.clear();
+   _slots.reserve(map_count);
+   for (int32_t i = 0; i < map_count; i++)
    {
-      TextureSlot* slot = new TextureSlot(stream);
+      _slots.push_back(std::make_unique<TextureSlot>(stream));
       stream->skip(72);
-      mSlots.add(slot);
    }
 }
 
 void Material::write(Stream* stream)
 {
-   Chunk chunk(stream, mId, name());
+   Chunk chunk(stream, _id, name());
 
-   chunk.writeInt(mVB.size());
-   mAmbient.write(&chunk);
-   mDiffuse.write(&chunk);
-   mSpecular.write(&chunk);
-   chunk.writeFloat(mShininess);
-   chunk.writeFloat(mStrength);
-   chunk.writeFloat(mSelfIllum);
-   chunk.writeFloat(mIOR);
-   chunk.writeFloat(mOpacity);
-   chunk.writeInt(mFlags);
+   chunk.writeInt(size());
+   _ambient.write(&chunk);
+   _diffuse.write(&chunk);
+   _specular.write(&chunk);
+   chunk.writeFloat(_shininess);
+   chunk.writeFloat(_strength);
+   chunk.writeFloat(_self_illumination);
+   chunk.writeFloat(_ior);
+   chunk.writeFloat(_opacity);
+   chunk.writeInt(_flags);
 
-   chunk.writeInt(mSlots.size());
-   for (int i = 0; i < mSlots.size(); i++)
+   chunk.writeInt(static_cast<int32_t>(_slots.size()));
+   for (const auto& slot : _slots)
    {
-      TextureSlot* slot = mSlots[i];
       slot->write(&chunk);
    }
 }
 
-TextureSlot* Material::getTextureSlot(int index) const
+TextureSlot* Material::getTextureSlot(int32_t index) const
 {
-   if (index >= 0 && index < mSlots.size())
-      return mSlots[index];
-   else
-      return nullptr;
+   if (index >= 0 && index < static_cast<int32_t>(_slots.size()))
+   {
+      return _slots[index].get();
+   }
+   return nullptr;
 }
 
 void Material::addMesh(Mesh* mesh)
 {
    if (mesh && mesh->id() == Node::idMesh)
    {
-      for (int i = 0; i < mesh->getPartCount(); i++)
+      for (int32_t i = 0; i < mesh->getPartCount(); i++)
+      {
          add(mesh->getPart(i));
+      }
    }
 }
 
 void Material::clear()
 {
-   mGeometryQueue.clear();
-   mVB.clear();
+   _geometry_queue.clear();
+   _buffers.clear();
 }
 
 void Material::removeMesh(Mesh* mesh)
 {
-   for (int i = 0; i < mesh->getPartCount(); i++)
+   for (int32_t i = 0; i < mesh->getPartCount(); i++)
    {
-      Geometry* geo = mesh->getPart(i);
-      mGeometryQueue.remove(geo);
+      std::erase(_geometry_queue, mesh->getPart(i));
    }
 
-   for (int i = 0; i < mVB.size();)
-   {
-      //		VertexBuffer *vb= mVB[i].vb;
-      Geometry* geo = mVB[i].geo;
-      if (geo->getParent() == mesh)
-         mVB.erase(i);
-      else
-         i++;
-   }
+   std::erase_if(_buffers, [mesh](const Buffer& buffer) { return buffer.geometry->getParent() == mesh; });
 }
 
-void Material::update(float /*frame*/, Node** nodelist, const Matrix&)
+void Material::update(float /*frame*/, Node** node_list, const Matrix&)
 {
-   for (int i = 0; i < mVB.size(); i++)
-      mVB[i].vb->update(nodelist);
+   for (const Buffer& buffer : _buffers)
+   {
+      buffer.vertex_buffer->update(node_list);
+   }
 }
 
 void Material::renderDiffuse()
 {
-   for (int i = 0; i < mVB.size(); i++)
-   {
-      /*
-      VertexBuffer *vb= mVB[i];
-
-      activeDevice->push(vb->getTransform());
-      activeDevice->render(vb);
-      activeDevice->pop();
-      */
-   }
 }
-
-static int dummyCounter = 1;
 
 void Material::exportGeo(
    Stream* stream,
    const String& name,
-   const Matrix& tm,
-   Vector* vtx,
-   Vector* nrm,
+   const Matrix& transform,
+   Vector* vertices,
+   Vector* normals,
    UV* texcoords,
-   int vertexCount,
-   unsigned short* indices,
-   int indexCount,
-   int indexOffset
+   int32_t vertex_count,
+   uint16_t* indices,
+   int32_t index_count,
+   int32_t index_offset
 )
 {
-   char tmp[256];
    // write object info comment
    if (!name.isEmpty())
-      std::sprintf(tmp, "# object: %s\n", static_cast<const char*>(name));
+   {
+      writeText(stream, std::format("# object: {}\n", toStdString(name)));
+   }
    else
-      std::sprintf(tmp, "# object: dummy-%d\n", dummyCounter++);
+   {
+      writeText(stream, std::format("# object: dummy-{}\n", dummy_counter++));
+   }
 
-   stream->writeData(tmp, static_cast<int32_t>(std::strlen(tmp)));
-   std::sprintf(tmp, "# vertices: %d\n", vertexCount);
-   stream->writeData(tmp, static_cast<int32_t>(std::strlen(tmp)));
-   std::sprintf(tmp, "# triangles: %d\n", indexCount / 3);
-   stream->writeData(tmp, static_cast<int32_t>(std::strlen(tmp)));
+   writeText(stream, std::format("# vertices: {}\n", vertex_count));
+   writeText(stream, std::format("# triangles: {}\n", index_count / 3));
 
    // write vertices
    stream->writeChar('\n');
-   for (int i = 0; i < vertexCount; i++)
+   for (int32_t i = 0; i < vertex_count; i++)
    {
-      Vector v = tm * vtx[i];
-      std::sprintf(tmp, "v %.09f %.09f %.09f\n", -v.x, v.z, v.y);  // flip y/z !
-      stream->writeData(tmp, static_cast<int32_t>(std::strlen(tmp)));
+      const Vector v = transform * vertices[i];
+      writeText(stream, std::format("v {:.9f} {:.9f} {:.9f}\n", -v.x, v.z, v.y));  // flip y/z !
    }
 
    // write normals
    stream->writeChar('\n');
-   for (int i = 0; i < vertexCount; i++)
+   for (int32_t i = 0; i < vertex_count; i++)
    {
-      const Vector& n = nrm[i];
-      std::sprintf(tmp, "vn %f %f %f\n", -n.x, n.z, n.y);
-      stream->writeData(tmp, static_cast<int32_t>(std::strlen(tmp)));
+      const Vector& n = normals[i];
+      writeText(stream, std::format("vn {:.6f} {:.6f} {:.6f}\n", -n.x, n.z, n.y));
    }
 
    // write uv channel
    stream->writeChar('\n');
-   for (int i = 0; i < vertexCount; i++)
+   for (int32_t i = 0; i < vertex_count; i++)
    {
       if (texcoords)
-         std::sprintf(tmp, "vt %f %f 0.0\n", texcoords[i].u, 1.0f - texcoords[i].v);
+      {
+         writeText(stream, std::format("vt {:.6f} {:.6f} 0.0\n", texcoords[i].u, 1.0f - texcoords[i].v));
+      }
       else
-         std::sprintf(tmp, "vt 0.0 0.0 0.0\n");
-      stream->writeData(tmp, static_cast<int32_t>(std::strlen(tmp)));
+      {
+         writeText(stream, "vt 0.0 0.0 0.0\n");
+      }
    }
 
    // write triangles - indices start with 1 (not 0)
    stream->writeChar('\n');
-   std::sprintf(tmp, "g %s \n", static_cast<const char*>(name));
-   stream->writeData(tmp, static_cast<int32_t>(std::strlen(tmp)));
-   std::sprintf(tmp, "s off \n");
-   stream->writeData(tmp, static_cast<int32_t>(std::strlen(tmp)));
-   for (int i = 0; i < indexCount; i += 3)
+   writeText(stream, std::format("g {} \n", toStdString(name)));
+   writeText(stream, "s off \n");
+   for (int32_t i = 0; i < index_count; i += 3)
    {
-      bool valid = true;
-      // flip normal because of y/z-issue
-      int i1 = indices[i];
-      int i2 = indices[i + 1];
-      int i3 = indices[i + 2];
-      if (i1 < 0 || i1 >= vertexCount || i2 < 0 || i2 >= vertexCount || i3 < 0 || i3 >= vertexCount)
-         valid = false;
+      const int32_t i1 = indices[i];
+      const int32_t i2 = indices[i + 1];
+      const int32_t i3 = indices[i + 2];
+      const bool valid = i1 >= 0 && i1 < vertex_count && i2 >= 0 && i2 < vertex_count && i3 >= 0 && i3 < vertex_count;
 
       if (valid)
       {
-         std::sprintf(
-            tmp,
-            "f %d/%d/%d %d/%d/%d %d/%d/%d\n",
-            i1 + indexOffset,
-            i1 + indexOffset,
-            i1 + indexOffset,
-            i2 + indexOffset,
-            i2 + indexOffset,
-            i2 + indexOffset,
-            i3 + indexOffset,
-            i3 + indexOffset,
-            i3 + indexOffset
-         );
-         stream->writeData(tmp, static_cast<int32_t>(std::strlen(tmp)));
+         const int32_t f1 = i1 + index_offset;
+         const int32_t f2 = i2 + index_offset;
+         const int32_t f3 = i3 + index_offset;
+         writeText(stream, std::format("f {0}/{0}/{0} {1}/{1}/{1} {2}/{2}/{2}\n", f1, f2, f3));
       }
    }
    stream->writeChar('\n');
    stream->writeChar('\n');
 }
 
-void Material::exportOBJ(Stream* stream, int& indexOffset)
+void Material::exportOBJ(Stream* stream, int32_t& index_offset)
 {
-   for (int i = 0; i < mVB.size(); i++)
+   for (const Buffer& buffer : _buffers)
    {
-      // get vertex buffer
-      Geometry* geo = mVB[i].geo;
+      Geometry* geometry = buffer.geometry;
 
-      if (!geo->isVisible())
+      if (!geometry->isVisible())
+      {
          continue;
+      }
 
       exportGeo(
          stream,
-         geo->getParent()->name(),
-         geo->getTransform(),
-         geo->getVertices(),
-         geo->getNormals(),
-         geo->getUV(1),
-         geo->getVertexCount(),
-         geo->getIndices(),
-         geo->getIndexCount(),
-         indexOffset
+         geometry->getParent()->name(),
+         geometry->getTransform(),
+         geometry->getVertices(),
+         geometry->getNormals(),
+         geometry->getUV(1),
+         geometry->getVertexCount(),
+         geometry->getIndices(),
+         geometry->getIndexCount(),
+         index_offset
       );
 
-      indexOffset += geo->getVertexCount();
+      index_offset += geometry->getVertexCount();
    }
 }
