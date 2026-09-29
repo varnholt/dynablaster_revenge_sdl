@@ -101,14 +101,7 @@ set(DYNABLASTER_SERVER_SOURCES
     ../server/src/serverversion.h
 )
 
-# ../ai (repo-root sibling directory) - the real bot AI (A* pathfinding + bot behavior state
-# machine), same set client.pro already embeds. Zero GL/rendering code - a bot is its own headless
-# QTcpSocket client (BotClient) that plays like a human would, same pattern as embedding server/src
-# above. botgui.{h,cpp} is a standalone QWidget debug tool - confirmed via grep that nothing in
-# client/src/ ever references BotGui, so it's dead code even in the original, excluded here (same
-# reasoning as server/src's dummyplayer.cpp/servergui.cpp exclusion) - also avoids pulling in
-# QtWidgets for a single unused file. aimain.cpp/astarmain.cpp are separate standalone test
-# executables (ai.pro/astar.pro), not part of client.pro, excluded the same way.
+# ../ai - the bot AI (A* pathfinding + bot behaviour), headless BotClients embedded in the client.
 set(DYNABLASTER_AI_SOURCES
     ../ai/astarmap.cpp
     ../ai/astarmap.h
@@ -155,18 +148,6 @@ set(DYNABLASTER_AI_SOURCES
     ../ai/protobotmemory.cpp
     ../ai/protobotmemory.h
 )
-
-# engine/helper/chunk.{cpp,h} is a second, unrelated Chunk class that collides by name with
-# tools/chunk.{cpp,h} - a genuine pre-existing duplicate in the legacy tree. Only tools/chunk.cpp
-# is in the real client.pro SOURCES list and nothing includes the engine/helper one, so it's
-# excluded here rather than "namespaced apart".
-list(FILTER DYNABLASTER_ENGINE_SOURCES EXCLUDE REGEX "engine/helper/chunk\\.(cpp|h)$")
-
-# cartoonshading, glowring, gouraudshading, logoreflection and shadowvolume were never in the
-# legacy client.pro SOURCES list either - dead, unmaintained material classes (gouraudshading's
-# render() doesn't even compile against the current Material::Buffer, for instance). Excluded
-# here too rather than "fixed", matching the original project's own exclusion.
-list(FILTER DYNABLASTER_ENGINE_SOURCES EXCLUDE REGEX "(cartoonshading|glowring|gouraudshading|logoreflection|shadowvolume)\\.(cpp|h)$")
 
 # Everything the game and the test/diagnostic harness both need - i.e. everything except the two
 # main()s themselves (src/main.cpp - the real game, src/main_harness.cpp - --selftest/--click/

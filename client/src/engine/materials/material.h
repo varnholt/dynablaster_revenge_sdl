@@ -8,7 +8,6 @@
 #include "render/texture.h"
 #include "render/vertexbufferpool.h"
 #include "tools/array.h"
-#include "tools/map.h"
 #include "tools/objectname.h"
 #include "tools/string.h"
 
