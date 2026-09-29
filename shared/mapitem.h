@@ -4,114 +4,70 @@
 
 #include "constants.h"
 
-// forward declarations
 class MapItemCreatedPacket;
 
 class MapItem
 {
-   public:
+public:
+   enum ItemType
+   {
+      Block,
+      Bomb,
+      Extra,
+      Stone,
+      Unknown
+   };
 
-      //! item types
-      enum ItemType
-      {
-         Block,
-         Bomb,
-         Extra,
-         Stone,
-         Unknown
-      };
+   MapItem(ItemType type, int32_t appearance, bool blocking, bool destroyable, int32_t x, int32_t y);
 
-      //! construct from data
-      MapItem(
-         ItemType type,
-         int32_t id,
-         bool blocking,
-         bool destroyable,
-         int32_t posX,
-         int32_t posY
-      );
+   explicit MapItem(MapItemCreatedPacket* packet);
 
-      //! construct from packet
-      MapItem(MapItemCreatedPacket *packet);
+   virtual ~MapItem() = default;
 
-      //! destructor
-      virtual ~MapItem();
+   [[nodiscard]] ItemType getType() const;
 
-      //! getter for item type
-      [[nodiscard]] ItemType getType() const;
+   void setUniqueId(int32_t unique_id);
+   [[nodiscard]] int32_t getUniqueId() const;
 
-      //! setter for unique id
-      void setUniqueId(int32_t);
+   [[nodiscard]] bool isBlocking() const;
+   [[nodiscard]] bool isDestroyable() const;
 
-      //! getter for unique id
-      [[nodiscard]] int32_t getUniqueId() const;
+   void setX(int32_t x);
+   void setY(int32_t y);
+   [[nodiscard]] int32_t getX() const;
+   [[nodiscard]] int32_t getY() const;
 
-      //! getter for blocking flag
-      [[nodiscard]] bool isBlocking() const;
+   [[nodiscard]] int32_t getAppearance() const;
 
-      //! getter for destroyable flag
-      [[nodiscard]] bool isDestroyable() const;
+   // "being destroyed" flag, avoids double destruction
+   void setCurrentlyDestroyed(bool destroyed);
+   [[nodiscard]] bool isCurrentlyDestroyed() const;
 
-      //! setter for x position
-      void setX(int32_t x);
+   // direction from which the item was destroyed
+   [[nodiscard]] Constants::Direction getDestroyDirection() const;
+   void setDestroyDirection(Constants::Direction direction);
 
-      //! setter for y position
-      void setY(int32_t y);
+protected:
+   void initializeBlocking();
 
-      //! getter for x position
-      [[nodiscard]] int32_t getX() const;
+   ItemType _type = Unknown;
 
-      //! getter for y position
-      [[nodiscard]] int32_t getY() const;
+   // unique number to identify the item
+   int32_t _unique_id = 0;
 
-      //! getter for appearance
-      [[nodiscard]] int32_t getAppearance() const;
+   // mapping between mesh/texture and id
+   int32_t _appearance = 0;
 
-      //! setter for "being destroyed" flag
-      void setCurrentlyDestroyed(bool destroyed);
+   bool _blocking = false;
+   bool _destroyable = false;
 
-      //! getter for "being destroyed" flag
-      [[nodiscard]] bool isCurrentlyDestroyed() const;
+   // position on the map
+   int32_t _x = 0;
+   int32_t _y = 0;
 
-      //! get direction from which the item was destroyed
-      [[nodiscard]] Constants::Direction getDestroyDirection() const;
+   // continuous counter for unique ids
+   static int32_t _current_id;
 
-      //! set direction from which the item was destroyed
-      void setDestroyDirection(Constants::Direction direction);
-
-
-   protected:
-
-      //! initialize blocking flag
-      void initializeBlocking();
-
-      //! item type
-      ItemType mType;
-
-      //! unique number to identify the item
-      int32_t mUniqueId;
-
-      //! item id (mapping between mesh/texture and id)
-      int32_t mAppearance;
-
-      //! item is blocking
-      bool mBlocking;
-
-      //! item is destroyable
-      bool mDestroyable;
-
-      //! item's x position on the map
-      int32_t mX;
-
-      //! item's y position on the map
-      int32_t mY;
-
-      //! continuous counter for unique id
-      static int32_t mCurrentId;
-
-      //! mapitem is currently being destroyed (avoid "double-destruction")
-      bool mCurrentlyDestroyed;
-
-      //! direction from which the item was destroyed
-      Constants::Direction mDestroyDirection;
+   bool _currently_destroyed = false;
+   Constants::Direction _destroy_direction = Constants::DirectionUnknown;
 };

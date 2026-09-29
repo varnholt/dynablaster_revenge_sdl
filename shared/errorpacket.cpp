@@ -1,98 +1,59 @@
-// header
 #include "errorpacket.h"
 
-// Qt
 #include "logging.h"
 
-// defines
-#define PACKETNAME "Error"
-
-//-----------------------------------------------------------------------------
-/*!
-   \param errorType error type
-   \param message error message
-*/
-ErrorPacket::ErrorPacket(Constants::ErrorType errorType, const std::string& message)
-    : Packet(Packet::ERROR), mErrorType(errorType), mErrorMessage(message)
+namespace
 {
-   mPacketName = PACKETNAME;
+constexpr auto PACKETNAME = "Error";
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
-ErrorPacket::ErrorPacket() : Packet(Packet::ERROR), mErrorType(Constants::ErrorDefault)
+ErrorPacket::ErrorPacket(Constants::ErrorType error_type, const std::string& message)
+    : Packet(Packet::ERROR), _error_type(error_type), _error_message(message)
 {
-   mPacketName = PACKETNAME;
+   _packet_name = PACKETNAME;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param out datastream to write members to
-*/
+ErrorPacket::ErrorPacket() : Packet(Packet::ERROR)
+{
+   _packet_name = PACKETNAME;
+}
+
 void ErrorPacket::enqueue(BinaryWriter& out)
 {
-   // write members
-   out << mErrorType;
-   out << mErrorMessage;
+   out << static_cast<int32_t>(_error_type);
+   out << _error_message;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param in datastream read members from
-*/
 void ErrorPacket::dequeue(BinaryReader& in)
 {
-   // read members
-   int32_t errorType = 0;
-   in >> errorType;
-   in >> mErrorMessage;
+   int32_t error_type = 0;
+   in >> error_type;
+   in >> _error_message;
 
-   mErrorType = static_cast<Constants::ErrorType>(errorType);
+   _error_type = static_cast<Constants::ErrorType>(error_type);
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return error type
-*/
 Constants::ErrorType ErrorPacket::getErrorType() const
 {
-   return mErrorType;
+   return _error_type;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param errorType error type
-*/
-void ErrorPacket::setErrorType(Constants::ErrorType errorType)
+void ErrorPacket::setErrorType(Constants::ErrorType error_type)
 {
-   mErrorType = errorType;
+   _error_type = error_type;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return error message
-*/
 const std::string& ErrorPacket::getErrorMessage() const
 {
-   return mErrorMessage;
+   return _error_message;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param message error message
-*/
 void ErrorPacket::setErrorMessage(const std::string& message)
 {
-   mErrorMessage = message;
+   _error_message = message;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   debug output of members
-*/
 void ErrorPacket::debug()
 {
-   // debug output login response
-   qDebug("ErrorPacket:debug: type: %d, message: %s", mErrorType, mErrorMessage.c_str());
+   qDebug("ErrorPacket:debug: type: %d, message: %s", _error_type, _error_message.c_str());
 }

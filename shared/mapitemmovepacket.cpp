@@ -1,123 +1,70 @@
-// header
 #include "mapitemmovepacket.h"
 
-// Qt
 #include "logging.h"
 
-// defines
-#define PACKETNAME "MapItemMove"
-
-//-----------------------------------------------------------------------------
-/*!
-   write constructor
-
-   \param pId player id
-   \param xPos player x position
-   \param yPos player y position
-   \param angle optional rotation angle
-*/
-MapItemMovePacket::MapItemMovePacket(int32_t id, float speed, Constants::Direction dir, int32_t nominalX, int32_t nominalY)
-    : Packet(Packet::MAPITEMMOVE), mMapItemId(id), mSpeed(speed), mDirection(dir), mNominalX(nominalX), mNominalY(nominalY)
+namespace
 {
-   mPacketName = PACKETNAME;
+constexpr auto PACKETNAME = "MapItemMove";
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   read constructor
-*/
-MapItemMovePacket::MapItemMovePacket()
-    : Packet(Packet::MAPITEMMOVE), mMapItemId(0), mSpeed(0.0), mDirection(Constants::DirectionUnknown), mNominalX(0), mNominalY(0)
+MapItemMovePacket::MapItemMovePacket(int32_t map_item_id, float speed, Constants::Direction direction, int32_t nominal_x, int32_t nominal_y)
+    : Packet(Packet::MAPITEMMOVE),
+      _map_item_id(map_item_id),
+      _speed(speed),
+      _direction(direction),
+      _nominal_x(nominal_x),
+      _nominal_y(nominal_y)
 {
-   mPacketName = PACKETNAME;
+   _packet_name = PACKETNAME;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   destructor
-*/
-MapItemMovePacket::~MapItemMovePacket()
+MapItemMovePacket::MapItemMovePacket() : Packet(Packet::MAPITEMMOVE)
 {
+   _packet_name = PACKETNAME;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return player x position
-*/
 float MapItemMovePacket::getSpeed() const
 {
-   return mSpeed;
+   return _speed;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return mapitem direction
-*/
 Constants::Direction MapItemMovePacket::getDirection() const
 {
-   return mDirection;
+   return _direction;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return nominal x
-*/
 int32_t MapItemMovePacket::getNominalX() const
 {
-   return mNominalX;
+   return _nominal_x;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return nominal y
-*/
 int32_t MapItemMovePacket::getNominalY() const
 {
-   return mNominalY;
+   return _nominal_y;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return player id
-*/
 int32_t MapItemMovePacket::getMapItemId() const
 {
-   return mMapItemId;
+   return _map_item_id;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param out datastream to write members to
-*/
 void MapItemMovePacket::enqueue(BinaryWriter& out)
 {
-   // write player id
-   out << mMapItemId;
-   out << mSpeed;
-   out << static_cast<int8_t>(mDirection);
-   out << mNominalX;
-   out << mNominalY;
+   out << _map_item_id;
+   out << _speed;
+   out << static_cast<int8_t>(_direction);
+   out << _nominal_x;
+   out << _nominal_y;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param in datastream read members from
-*/
 void MapItemMovePacket::dequeue(BinaryReader& in)
 {
    int8_t direction = 0;
-
-   in >> mMapItemId >> mSpeed >> direction >> mNominalX >> mNominalY;
-
-   mDirection = static_cast<Constants::Direction>(direction);
+   in >> _map_item_id >> _speed >> direction >> _nominal_x >> _nominal_y;
+   _direction = static_cast<Constants::Direction>(direction);
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   debug output of members
-*/
 void MapItemMovePacket::debug()
 {
-   // output player id and x, y
-   qDebug("MapItemMovePacket: unique id: %d, speed: %f, nominal: %d, %d", mMapItemId, mSpeed, mNominalX, mNominalY);
+   qDebug("MapItemMovePacket: unique id: %d, speed: %f, nominal: %d, %d", _map_item_id, _speed, _nominal_x, _nominal_y);
 }

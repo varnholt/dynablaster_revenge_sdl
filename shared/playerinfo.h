@@ -4,131 +4,71 @@
 #include <memory>
 #include <string>
 
-// game
 #include "constants.h"
 #include "playerstats.h"
 
-// forward declarations
 class PlayerDisease;
 
 class PlayerInfo
 {
-   public:
+public:
+   PlayerInfo();
 
-      PlayerInfo();
+   // out-of-line since the unique_ptr needs PlayerDisease's complete type
+   ~PlayerInfo();
 
-      //! out-of-line since mDisease's unique_ptr needs PlayerDisease's complete type
-      ~PlayerInfo();
+   void setId(int32_t id);
+   void setColor(Constants::Color color);
+   void setNick(const std::string& nick);
 
-      void setId(int32_t);
+   [[nodiscard]] int32_t getId() const;
+   [[nodiscard]] Constants::Color getColor() const;
+   [[nodiscard]] std::string getNick() const;
 
-      void setColor(Constants::Color);
+   void setPosition(float x, float y, float angle);
+   void setPositionDelta(float delta_x, float delta_y, float delta_angle);
 
-      void setNick(const std::string&);
+   [[nodiscard]] float getX() const;
+   [[nodiscard]] float getY() const;
+   [[nodiscard]] float getAngle() const;
 
-      [[nodiscard]] int32_t getId() const;
+   void setDeltaX(float value);
+   void setDeltaY(float value);
+   void setDeltaAngle(float value);
 
-      [[nodiscard]] Constants::Color getColor() const;
+   [[nodiscard]] float getDeltaX() const;
+   [[nodiscard]] float getDeltaY() const;
+   [[nodiscard]] float getAngleDelta() const;
 
-      [[nodiscard]] std::string getNick() const;
+   void setOverallStats(const PlayerStats& stats);
+   [[nodiscard]] PlayerStats& getOverallStats();
 
-      void setPosition(float x, float y, float angle);
+   void setRoundStats(const PlayerStats& stats);
+   [[nodiscard]] PlayerStats& getRoundStats();
 
-      void setPositionDelta(float dx, float dy, float dAngle);
+   void setKilled(bool killed);
+   [[nodiscard]] bool isKilled() const;
 
-      [[nodiscard]] float getX() const;
+   void infect(std::unique_ptr<PlayerDisease> disease);
+   [[nodiscard]] bool isInfected() const;
+   [[nodiscard]] PlayerDisease* getDisease() const;
 
-      [[nodiscard]] float getY() const;
+   [[nodiscard]] int8_t getDirections() const;
+   void setDirections(int8_t directions);
 
-      [[nodiscard]] float getAngle() const;
-
-      //! setter for delta x
-      void setDeltaX(float val);
-
-      //! setter for delta y
-      void setDeltaY(float val);
-
-      //! setter for delta angle
-      void setDeltaAngle(float val);
-
-      //! getter for player's x delta
-      [[nodiscard]] float getDeltaX() const;
-
-      //! getter for player's y delta
-      [[nodiscard]] float getDeltaY() const;
-
-      //! getter for player's y delta
-      [[nodiscard]] float getAngleDelta() const;
-
-      //! setter for player stats
-      void setOverallStats(const PlayerStats&);
-
-      //! getter for player overall stats
-      [[nodiscard]] PlayerStats& getOverallStats();
-
-      //! setter for player round stats
-      void setRoundStats(const PlayerStats&);
-
-      //! getter for player stats
-      [[nodiscard]] PlayerStats& getRoundStats();
-
-      //! setter for killed flag
-      void setKilled(bool killed);
-
-      //! getter for killed flag
-      [[nodiscard]] bool isKilled() const;
-
-      //! infect player
-      void infect(std::unique_ptr<PlayerDisease> disease);
-
-      //! check if player is infected
-      [[nodiscard]] bool isInfected() const;
-
-      //! getter for disease
-      [[nodiscard]] PlayerDisease* getDisease() const;
-
-      //! getter for directions
-      [[nodiscard]] int8_t getDirections() const;
-
-      //! setter for directions
-      void setDirections(int8_t directions);
-
-
-   protected:
-
-      int32_t mId;
-
-      Constants::Color mColor;
-
-      //! overall stats
-      PlayerStats mOverallStats;
-
-      //! round stats
-      PlayerStats mRoundStats;
-
-      std::string mNick;
-
-      float mX;
-
-      float mY;
-
-      float mAngle;
-
-      //! player direction x
-      float mDeltaX;
-
-      //! player direction y
-      float mDeltaY;
-
-      //! player angle direction
-      float mDeltaAngle;
-
-      //! killed flag
-      bool mKilled;
-
-      //! player can be infected
-      std::unique_ptr<PlayerDisease> mDisease;
-
-      //! player's directions
-      int8_t mDirections;
+protected:
+   int32_t _id = -1;
+   Constants::Color _color = Constants::ColorWhite;
+   PlayerStats _overall_stats;
+   PlayerStats _round_stats;
+   std::string _nick;
+   float _x = 0.0f;
+   float _y = 0.0f;
+   float _angle = 0.0f;
+   float _delta_x = 0.0f;
+   float _delta_y = 0.0f;
+   float _delta_angle = 0.0f;
+   bool _killed = false;
+   std::unique_ptr<PlayerDisease> _disease;
+   int8_t _directions = 0;
 };

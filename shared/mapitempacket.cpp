@@ -1,64 +1,62 @@
-// header
 #include "mapitempacket.h"
+
+#include "logging.h"
 #include "mapitem.h"
 
-// Qt
-#include "logging.h"
-
-// defines
-#define PACKETNAME "MapItem"
-
-MapItemPacket::MapItemPacket(Packet::TYPE type) : Packet(type), mX(0), mY(0), mUniqueId(-1), mItemType(MapItem::Unknown)
+namespace
 {
-   mPacketName = PACKETNAME;
+constexpr auto PACKETNAME = "MapItem";
 }
 
-MapItemPacket::MapItemPacket(Packet::TYPE type, MapItem* item)
-    : Packet(type), mX(item->getX()), mY(item->getY()), mUniqueId(item->getUniqueId()), mItemType(item->getType())
+MapItemPacket::MapItemPacket(Packet::TYPE type) : Packet(type)
 {
-   mPacketName = PACKETNAME;
+   _packet_name = PACKETNAME;
+}
+
+MapItemPacket::MapItemPacket(Packet::TYPE packet_type, MapItem* item)
+    : Packet(packet_type), _x(item->getX()), _y(item->getY()), _unique_id(item->getUniqueId()), _item_type(item->getType())
+{
+   _packet_name = PACKETNAME;
 }
 
 int32_t MapItemPacket::getX() const
 {
-   return mX;
+   return _x;
 }
 
 int32_t MapItemPacket::getY() const
 {
-   return mY;
+   return _y;
 }
 
 MapItem::ItemType MapItemPacket::getItemType() const
 {
-   return mItemType;
+   return _item_type;
 }
 
 int32_t MapItemPacket::getUniqueId() const
 {
-   return mUniqueId;
+   return _unique_id;
 }
 
 void MapItemPacket::enqueue(BinaryWriter& out)
 {
-   // write members
-   out << static_cast<int32_t>(mItemType);
-   out << mX;
-   out << mY;
-   out << mUniqueId;
+   out << static_cast<int32_t>(_item_type);
+   out << _x;
+   out << _y;
+   out << _unique_id;
 }
 
 void MapItemPacket::dequeue(BinaryReader& in)
 {
-   // read members
-   int32_t itemType = 0;
-   in >> itemType;
-   mItemType = static_cast<MapItem::ItemType>(itemType);
+   int32_t item_type = 0;
+   in >> item_type;
+   _item_type = static_cast<MapItem::ItemType>(item_type);
 
-   in >> mX >> mY >> mUniqueId;
+   in >> _x >> _y >> _unique_id;
 }
 
 void MapItemPacket::debug()
 {
-   qDebug("MapItemPacketPacket: x: %d, y: %d", mX, mY);
+   qDebug("MapItemPacketPacket: x: %d, y: %d", _x, _y);
 }

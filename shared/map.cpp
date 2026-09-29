@@ -1,117 +1,68 @@
-// header
 #include "map.h"
 
-// map items
 #include "blockmapitem.h"
 #include "bombmapitem.h"
 #include "extramapitem.h"
-#include "stonemapitem.h"
-
-// shared
+#include "logging.h"
 #include "mapitemcreatedpacket.h"
 #include "mapitemremovedpacket.h"
 #include "playerdisease.h"
-
-// Qt
-#include "logging.h"
 #include "random.h"
+#include "stonemapitem.h"
 
 #include <cstdlib>
 #include <memory>
 #include <unordered_set>
 
-//-----------------------------------------------------------------------------
-/*!
-   constructor
-*/
-Map::Map(int32_t w, int32_t h)
-   : mWidth(w),
-     mHeight(h),
-     mMap(static_cast<size_t>(mWidth) * static_cast<size_t>(mHeight), nullptr)
+Map::Map(int32_t width, int32_t height)
+    : _width(width), _height(height), _map(static_cast<size_t>(width) * static_cast<size_t>(height), nullptr)
 {
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   destructor
-*/
 Map::~Map()
 {
-   // a stone's extra (if any) is now owned by the stone itself (unique_ptr) and cleans
-   // itself up automatically - no separate delete needed here
-   for (MapItem* item : mMap)
+   // a stone's extra is owned by the stone itself
+   for (MapItem* item : _map)
    {
       delete item;
    }
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \return pointer to mapitem
-   \param x x position
-   \param y y position
-*/
 MapItem* Map::getItem(int32_t x, int32_t y) const
 {
-   return mMap[static_cast<size_t>(y) * static_cast<size_t>(mWidth) + static_cast<size_t>(x)];
+   return _map[static_cast<size_t>(y) * static_cast<size_t>(_width) + static_cast<size_t>(x)];
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \param x x position
-   \param y y position
-   \param mapitem
-*/
 void Map::setItem(int32_t x, int32_t y, MapItem* item)
 {
-   mMap[static_cast<size_t>(y) * static_cast<size_t>(mWidth) + static_cast<size_t>(x)] = item;
+   _map[static_cast<size_t>(y) * static_cast<size_t>(_width) + static_cast<size_t>(x)] = item;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \return \c true if a hidden extra is available
-*/
 bool Map::isHiddenExtraAvailable() const
 {
-   // init
    bool available = false;
-   bool block = false;
-   MapItem* item = 0;
-   StoneMapItem* stone = 0;
 
-   for (int x = 0; x < mWidth; x++)
+   for (int32_t x = 0; x < _width; x++)
    {
-      for (int y = 0; y < mHeight; y++)
+      for (int32_t y = 0; y < _height; y++)
       {
          // skip blocks, they don't need to be investigated any further
-         block = (x % 2 && y % 2);
+         const bool block = (x % 2 && y % 2);
 
          if (!block)
          {
-            // analyze item
-            item = getItem(x, y);
+            MapItem* item = getItem(x, y);
 
-            if (
-                  item
-               && item->getType() == MapItem::Stone
-            )
+            if (item && item->getType() == MapItem::Stone)
             {
-               stone = dynamic_cast<StoneMapItem*>(item);
+               auto* stone = dynamic_cast<StoneMapItem*>(item);
 
-               if (stone)
+               if (stone && stone->getExtraMapItem())
                {
-                  if (stone->getExtraMapItem())
-                  {
-                     available = true;
-                     break;
-                  }
+                  available = true;
+                  break;
                }
             }
-
          }
       }
    }
@@ -119,58 +70,48 @@ bool Map::isHiddenExtraAvailable() const
    return available;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 void Map::initialize()
 {
-   for (int x = 0; x < mWidth; x++)
-      for (int y = 0; y < mHeight; y++)
+   for (int32_t x = 0; x < _width; x++)
+   {
+      for (int32_t y = 0; y < _height; y++)
+      {
          if (x % 2 && y % 2)
+         {
             setItem(x, y, new BlockMapItem(-1, x, y));
+         }
+      }
+   }
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 void Map::initializeTestMap()
 {
-   std::vector<Point> startPositions{Point(0, 0), Point(12, 10), Point(12, 0), Point(0, 10), Point(6, 5)};
+   const std::vector<Point> start_positions{Point(0, 0), Point(12, 10), Point(12, 0), Point(0, 10), Point(6, 5)};
 
-   setStartPositions(startPositions);
+   setStartPositions(start_positions);
 
-   MapItem* item = 0;
-   Point playerPosition;
-
-   for (int x = 0; x < mWidth; x++)
+   for (int32_t x = 0; x < _width; x++)
    {
-      for (int y = 0; y < mHeight; y++)
+      for (int32_t y = 0; y < _height; y++)
       {
-         item = getItem(x,y);
+         MapItem* item = getItem(x, y);
 
          // if there's a free position..
          if (!item)
          {
             // ..eventually place a stone
-            if ((Random::bounded(100)) > 75)
+            if (Random::bounded(100) > 75)
             {
                // but keep some space around the players' start positions
-               for (int p = 0; p < startPositions.size(); p++)
+               for (const Point& player_position : start_positions)
                {
-                  playerPosition = startPositions.at(p);
-
                   // check the same position, right, left, bottom, top
-                  if (
-                        (x   != playerPosition.x() && y   != playerPosition.y())
-                     && (x+1 != playerPosition.x() && y   != playerPosition.y())
-                     && (x-1 != playerPosition.x() && y   != playerPosition.y())
-                     && (x   != playerPosition.x() && y+1 != playerPosition.y())
-                     && (x   != playerPosition.x() && y-1 != playerPosition.y())
-                  )
+                  if ((x != player_position.x() && y != player_position.y()) &&
+                      (x + 1 != player_position.x() && y != player_position.y()) &&
+                      (x - 1 != player_position.x() && y != player_position.y()) &&
+                      (x != player_position.x() && y + 1 != player_position.y()) &&
+                      (x != player_position.x() && y - 1 != player_position.y()))
                   {
-                     // finally set a stone item
                      setItem(x, y, new StoneMapItem(-1, x, y));
                   }
                }
@@ -180,179 +121,102 @@ void Map::initializeTestMap()
    }
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \return map width
-*/
 int32_t Map::getWidth() const
 {
-   return mWidth;
+   return _width;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \return map height
-*/
 int32_t Map::getHeight() const
 {
-   return mHeight;
+   return _height;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \param max maximum player count
-*/
 int32_t Map::getMaxPlayers() const
 {
-   return static_cast<int32_t>(mStartPositions.size());
+   return static_cast<int32_t>(_start_positions.size());
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \param player start positions
-*/
 void Map::setStartPositions(const std::vector<Point>& positions)
 {
-   mStartPositions = positions;
+   _start_positions = positions;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \return player's start position
-*/
-Point Map::getStartPosition(int32_t playerNumber) const
+Point Map::getStartPosition(int32_t player_number) const
 {
-   return mStartPositions.at(static_cast<size_t>(playerNumber));
+   return _start_positions.at(static_cast<size_t>(player_number));
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \return a new map generated with the given data
-*/
 Map* Map::generateMap(
    int32_t width,
    int32_t height,
-   int32_t stoneCount,
-   int32_t extraBombCount,
-   int32_t extraFlameCount,
-   int32_t extraSpeedUpCount,
-   int32_t extraKickCount,
-   int32_t extraSkullCount,
-   const std::vector<Point>& startPositions
+   int32_t stone_count,
+   int32_t extra_bomb_count,
+   int32_t extra_flame_count,
+   int32_t extra_speed_up_count,
+   int32_t extra_kick_count,
+   int32_t extra_skull_count,
+   const std::vector<Point>& start_positions
 )
 {
-   Map* map = 0;
+   Map* map = nullptr;
 
-   // check if the map is actually capable of storing the given
-   // number of stones and extras
-   int extraSum =
-         extraBombCount
-       + extraFlameCount
-       + extraKickCount
-       + extraSpeedUpCount
-       + extraSkullCount;
+   // check if the map is actually capable of storing the given number of stones and extras
+   const int32_t extra_sum = extra_bomb_count + extra_flame_count + extra_kick_count + extra_speed_up_count + extra_skull_count;
 
    // number of fields to leave out for the players' start positions
-   int freeStonesForStartPositions = 0;
-   for (int p = 0; p < startPositions.size(); p++)
+   int32_t free_stones_for_start_positions = 0;
+   for (const Point& player_position : start_positions)
    {
-      Point playerPosition = startPositions.at(p);
-
       // center
-      freeStonesForStartPositions++;
+      free_stones_for_start_positions++;
 
       // up
-      if (
-            playerPosition.x() >= 0
-         && playerPosition.y() -1 >= 0
-         && playerPosition.x() < width
-         && playerPosition.y()- 1 < height
-      )
+      if (player_position.x() >= 0 && player_position.y() - 1 >= 0 && player_position.x() < width && player_position.y() - 1 < height)
       {
-         freeStonesForStartPositions++;
+         free_stones_for_start_positions++;
       }
 
       // down
-      if (
-            playerPosition.x() >= 0
-         && playerPosition.y() +1 >= 0
-         && playerPosition.x() < width
-         && playerPosition.y()+ 1 < height
-      )
+      if (player_position.x() >= 0 && player_position.y() + 1 >= 0 && player_position.x() < width && player_position.y() + 1 < height)
       {
-         freeStonesForStartPositions++;
+         free_stones_for_start_positions++;
       }
 
       // left
-      if (
-            playerPosition.x() - 1 >= 0
-         && playerPosition.y() >= 0
-         && playerPosition.x() - 1 < width
-         && playerPosition.y() < height
-      )
+      if (player_position.x() - 1 >= 0 && player_position.y() >= 0 && player_position.x() - 1 < width && player_position.y() < height)
       {
-         freeStonesForStartPositions++;
+         free_stones_for_start_positions++;
       }
 
       // right
-      if (
-            playerPosition.x() + 1 >= 0
-         && playerPosition.y() >= 0
-         && playerPosition.x() + 1 < width
-         && playerPosition.y() < height
-      )
+      if (player_position.x() + 1 >= 0 && player_position.y() >= 0 && player_position.x() + 1 < width && player_position.y() < height)
       {
-         freeStonesForStartPositions++;
+         free_stones_for_start_positions++;
       }
    }
 
-   // the allowed number of stones equals the  number of
-   // fields without the blocks and the fields to leave out
-   // for the players' start positions
-   int allowedStoneCount =
-        width * height
-      - (width - 1)/2 + (height -1)/2
-      - freeStonesForStartPositions;
+   // the allowed number of stones equals the number of fields without the blocks and the fields
+   // to leave out for the players' start positions
+   const int32_t allowed_stone_count = width * height - (width - 1) / 2 + (height - 1) / 2 - free_stones_for_start_positions;
 
-   if (
-         (stoneCount <= allowedStoneCount)
-      && (extraSum <= allowedStoneCount)
-      && (extraSum <= stoneCount)
-   )
+   if ((stone_count <= allowed_stone_count) && (extra_sum <= allowed_stone_count) && (extra_sum <= stone_count))
    {
-
-      // create a new map
       map = new Map(width, height);
 
       // initialize that map with blocking items
       map->initialize();
+      map->setStartPositions(start_positions);
 
-      // init the player start positions
-      map->setStartPositions(startPositions);
-
-      MapItem* item = 0;
-      Point playerPosition;
-
-      int stonesPlaced = 0;
-      int extraBombPlaced = 0;
-      int extraFlamePlaced = 0;
-      int extraKickPlaced = 0;
-      int extraSpeedUpPlaced = 0;
-      int extraSkullPlaced = 0;
-
-      int randX = 0;
-      int randY = 0;
-      bool blocksStartPosition = false;
+      int32_t stones_placed = 0;
+      int32_t extra_bomb_placed = 0;
+      int32_t extra_flame_placed = 0;
+      int32_t extra_kick_placed = 0;
+      int32_t extra_speed_up_placed = 0;
+      int32_t extra_skull_placed = 0;
 
       // initiate blocked positions for those players that begin between 2 blocks
-      std::unordered_set<Point> blockedPositions;
-      for (const Point& p : startPositions)
+      std::unordered_set<Point> blocked_positions;
+      for (const Point& p : start_positions)
       {
          // uneven y positions are located between 2 fixed blocks
          if (p.y() % 2 == 1)
@@ -367,178 +231,98 @@ Map* Map::generateMap(
                +---+---+---+
             */
 
-            Point topLeft(    p.x() - 1, p.y() - 1);
-            Point topRight(   p.x() + 1, p.y() - 1);
-            Point bottomLeft( p.x() - 1, p.y() + 1);
-            Point bottomRight(p.x() + 1, p.y() + 1);
+            const Point top_left(p.x() - 1, p.y() - 1);
+            const Point top_right(p.x() + 1, p.y() - 1);
+            const Point bottom_left(p.x() - 1, p.y() + 1);
+            const Point bottom_right(p.x() + 1, p.y() + 1);
 
-            std::vector<Point> openPositions{topLeft, topRight, bottomLeft, bottomRight};
+            const std::vector<Point> open_positions{top_left, top_right, bottom_left, bottom_right};
 
             // i want 2 ways definitely open at maximum
-            for (int i = 0; i < 2; i++)
+            for (int32_t i = 0; i < 2; i++)
             {
-               int randIndex = Random::bounded(4);
-
-               blockedPositions.insert(openPositions.at(randIndex));
+               const int32_t random_index = Random::bounded(4);
+               blocked_positions.insert(open_positions.at(static_cast<size_t>(random_index)));
             }
          }
       }
 
-      while (stonesPlaced < stoneCount)
+      while (stones_placed < stone_count)
       {
-         randX = Random::bounded(width);
-         randY = Random::bounded(height);
+         const int32_t random_x = Random::bounded(width);
+         const int32_t random_y = Random::bounded(height);
 
-         item = map->getItem(randX, randY);
+         MapItem* item = map->getItem(random_x, random_y);
 
          // if there's a free position..
          if (!item)
          {
             // but keep some space around the players' start positions
-            blocksStartPosition = false;
+            bool blocks_start_position = false;
 
-            for (int p = 0; p < startPositions.size(); p++)
+            for (const Point& player_position : start_positions)
             {
-               playerPosition = startPositions.at(p);
-
                // check the same position, right, left, bottom, top
-               if (
-                     (randX   == playerPosition.x() && randY   == playerPosition.y())
-
-                  || (randX+1 == playerPosition.x() && randY   == playerPosition.y())
-                  || (randX-1 == playerPosition.x() && randY   == playerPosition.y())
-                  || (randX   == playerPosition.x() && randY+1 == playerPosition.y())
-                  || (randX   == playerPosition.x() && randY-1 == playerPosition.y())
-
-                  /*
-                  || (randX+1 == playerPosition.x() && randY-1 == playerPosition.y())
-                  || (randX-1 == playerPosition.x() && randY-1 == playerPosition.y())
-                  || (randX+1 == playerPosition.x() && randY+1 == playerPosition.y())
-                  || (randX-1 == playerPosition.x() && randY+1 == playerPosition.y())
-                  */
-
-                  || blockedPositions.contains(Point(randX, randY))
-               )
+               if ((random_x == player_position.x() && random_y == player_position.y()) ||
+                   (random_x + 1 == player_position.x() && random_y == player_position.y()) ||
+                   (random_x - 1 == player_position.x() && random_y == player_position.y()) ||
+                   (random_x == player_position.x() && random_y + 1 == player_position.y()) ||
+                   (random_x == player_position.x() && random_y - 1 == player_position.y()) ||
+                   blocked_positions.contains(Point(random_x, random_y)))
                {
-                  blocksStartPosition = true;
+                  blocks_start_position = true;
                }
             }
 
-            if (!blocksStartPosition)
+            if (!blocks_start_position)
             {
-               // finally set a stone item
-               map->setItem(
-                  randX,
-                  randY,
-                  new StoneMapItem(
-                     -1,
-                     randX,
-                     randY
-                  )
-               );
-
-               stonesPlaced++;
+               map->setItem(random_x, random_y, new StoneMapItem(-1, random_x, random_y));
+               stones_placed++;
             }
          }
       }
 
       // place extras
-      while (
-            (extraBombPlaced    < extraBombCount)
-         || (extraFlamePlaced   < extraFlameCount)
-         || (extraSpeedUpPlaced < extraSpeedUpCount)
-         || (extraKickPlaced    < extraKickCount)
-         || (extraSkullPlaced   < extraSkullCount)
-      )
+      while ((extra_bomb_placed < extra_bomb_count) || (extra_flame_placed < extra_flame_count) ||
+             (extra_speed_up_placed < extra_speed_up_count) || (extra_kick_placed < extra_kick_count) ||
+             (extra_skull_placed < extra_skull_count))
       {
-         randX = Random::bounded(width);
-         randY = Random::bounded(height);
+         const int32_t random_x = Random::bounded(width);
+         const int32_t random_y = Random::bounded(height);
 
-         item = map->getItem(randX, randY);
+         MapItem* item = map->getItem(random_x, random_y);
 
          // if there's a stone that does not contain an extra yet
-         if (
-               item
-            && item->getType() == MapItem::Stone
-            && !(static_cast<StoneMapItem*>(item))->getExtraMapItem()
-         )
+         if (item && item->getType() == MapItem::Stone && !(static_cast<StoneMapItem*>(item))->getExtraMapItem())
          {
-            // create bomb extras
-            if (extraBombPlaced < extraBombCount)
-            {
-               (static_cast<StoneMapItem*>(item))->setExtraMapItem(
-                  std::make_unique<ExtraMapItem>(
-                     -1,
-                     Constants::ExtraBomb,
-                     randX,
-                     randY
-                  )
-               );
+            auto* stone = static_cast<StoneMapItem*>(item);
 
-               extraBombPlaced++;
+            if (extra_bomb_placed < extra_bomb_count)
+            {
+               stone->setExtraMapItem(std::make_unique<ExtraMapItem>(-1, Constants::ExtraBomb, random_x, random_y));
+               extra_bomb_placed++;
             }
-
-            // create flame extras
-            else if (extraFlamePlaced < extraFlameCount)
+            else if (extra_flame_placed < extra_flame_count)
             {
-               (static_cast<StoneMapItem*>(item))->setExtraMapItem(
-                  std::make_unique<ExtraMapItem>(
-                     -1,
-                     Constants::ExtraFlame,
-                     randX,
-                     randY
-                  )
-               );
-
-               extraFlamePlaced++;
+               stone->setExtraMapItem(std::make_unique<ExtraMapItem>(-1, Constants::ExtraFlame, random_x, random_y));
+               extra_flame_placed++;
             }
-
-            // create speedup extras
-            else if (extraSpeedUpPlaced < extraSpeedUpCount)
+            else if (extra_speed_up_placed < extra_speed_up_count)
             {
-               (static_cast<StoneMapItem*>(item))->setExtraMapItem(
-                  std::make_unique<ExtraMapItem>(
-                     -1,
-                     Constants::ExtraSpeedup,
-                     randX,
-                     randY
-                  )
-               );
-
-               extraSpeedUpPlaced++;
+               stone->setExtraMapItem(std::make_unique<ExtraMapItem>(-1, Constants::ExtraSpeedup, random_x, random_y));
+               extra_speed_up_placed++;
             }
-
-            // create kick extras
-            else if (extraKickPlaced < extraKickCount)
+            else if (extra_kick_placed < extra_kick_count)
             {
-               (static_cast<StoneMapItem*>(item))->setExtraMapItem(
-                  std::make_unique<ExtraMapItem>(
-                     -1,
-                     Constants::ExtraKick,
-                     randX,
-                     randY
-                  )
-               );
-
-               extraKickPlaced++;
+               stone->setExtraMapItem(std::make_unique<ExtraMapItem>(-1, Constants::ExtraKick, random_x, random_y));
+               extra_kick_placed++;
             }
-
-            // create skull extras
-            else if (extraSkullPlaced < extraSkullCount)
+            else if (extra_skull_placed < extra_skull_count)
             {
-               auto extra = std::make_unique<ExtraMapItem>(
-                  -1,
-                  Constants::ExtraSkull,
-                  randX,
-                  randY
-               );
-
-               // generate skull faces and init start time
+               auto extra = std::make_unique<ExtraMapItem>(-1, Constants::ExtraSkull, random_x, random_y);
                extra->setSkullFaces(PlayerDisease::generateSkullFaces());
-
-               (static_cast<StoneMapItem*>(item))->setExtraMapItem(std::move(extra));
-
-               extraSkullPlaced++;
+               stone->setExtraMapItem(std::move(extra));
+               extra_skull_placed++;
             }
          }
       }
@@ -551,22 +335,15 @@ Map* Map::generateMap(
    return map;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \param socket socket to send map to
-*/
 std::vector<std::unique_ptr<MapItemCreatedPacket>> Map::getMapItemCreatedPackets()
 {
    std::vector<std::unique_ptr<MapItemCreatedPacket>> packets;
 
-   MapItem* item = 0;
-
-   for (int x = 0; x < mWidth; x++)
+   for (int32_t x = 0; x < _width; x++)
    {
-      for (int y = 0; y < mHeight; y++)
+      for (int32_t y = 0; y < _height; y++)
       {
-         item = getItem(x, y);
+         MapItem* item = getItem(x, y);
 
          if (item)
          {
@@ -578,22 +355,15 @@ std::vector<std::unique_ptr<MapItemCreatedPacket>> Map::getMapItemCreatedPackets
    return packets;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \param socket socket to send map to
-*/
 std::vector<std::unique_ptr<MapItemRemovedPacket>> Map::getMapItemRemovedPackets()
 {
    std::vector<std::unique_ptr<MapItemRemovedPacket>> packets;
 
-   MapItem* item = 0;
-
-   for (int x = 0; x < mWidth; x++)
+   for (int32_t x = 0; x < _width; x++)
    {
-      for (int y = 0; y < mHeight; y++)
+      for (int32_t y = 0; y < _height; y++)
       {
-         item = getItem(x, y);
+         MapItem* item = getItem(x, y);
 
          if (item)
          {
@@ -602,7 +372,7 @@ std::vector<std::unique_ptr<MapItemRemovedPacket>> Map::getMapItemRemovedPackets
             // map items may contain shadowed items
             if (item->getType() == MapItem::Bomb)
             {
-               BombMapItem* bomb = static_cast<BombMapItem*>(item);
+               auto* bomb = static_cast<BombMapItem*>(item);
 
                if (bomb->getShadowedItem())
                {
@@ -616,77 +386,45 @@ std::vector<std::unique_ptr<MapItemRemovedPacket>> Map::getMapItemRemovedPackets
    return packets;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 void Map::stopBombs()
 {
-   MapItem* item = 0;
-
-   for (int x = 0; x < mWidth; x++)
+   for (int32_t x = 0; x < _width; x++)
    {
-      for (int y = 0; y < mHeight; y++)
+      for (int32_t y = 0; y < _height; y++)
       {
-         item = getItem(x, y);
+         MapItem* item = getItem(x, y);
 
-         if (item)
+         if (item && item->getType() == MapItem::Bomb)
          {
-            if (item->getType() == MapItem::Bomb)
-            {
-               static_cast<BombMapItem*>(item)->stopTimer();
-            }
+            static_cast<BombMapItem*>(item)->stopTimer();
          }
       }
    }
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \param x1 point a x
-   \param y1 point a y
-   \param x2 point b x
-   \param y2 point b y
-   \return manhattan length between point a and b
-*/
 int32_t Map::getManhattanLength(int32_t x1, int32_t y1, int32_t x2, int32_t y2)
 {
    return std::abs(std::abs(x1) - std::abs(x2)) + std::abs(std::abs(y1) - std::abs(y2));
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \param pos start pos
-   \param points points to check
-   \param manhattanLength maximum manhattan length
-   \return filtered list of points
-*/
 std::vector<Point> Map::getManhattanFiltered(
-   const Point &pos,
+   const Point& position,
    const std::vector<Point>& points,
-   int32_t manhattanLengthMax,
-   int32_t manhattanLengthMin
+   int32_t manhattan_length_max,
+   int32_t manhattan_length_min
 )
 {
    std::vector<Point> filtered;
 
-   Point diff;
-   for (const Point& p : points)
+   for (const Point& point : points)
    {
-      diff = p - pos;
+      const auto length = (point - position).manhattanLength();
 
-      if (
-            diff.manhattanLength() <= manhattanLengthMax
-         && diff.manhattanLength() >= manhattanLengthMin
-      )
+      if (length <= manhattan_length_max && length >= manhattan_length_min)
       {
-         filtered.push_back(p);
+         filtered.push_back(point);
       }
    }
 
    return filtered;
 }
-
-

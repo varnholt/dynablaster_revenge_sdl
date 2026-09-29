@@ -4,28 +4,21 @@
 
 class GameRound
 {
-   public:
+public:
+   GameRound() = default;
 
-      GameRound();
+   void reset();
+   void next();
 
-      void reset();
+   [[nodiscard]] bool isFinished() const;
 
-      void next();
+   [[nodiscard]] int32_t getCurrent() const;
+   [[nodiscard]] int32_t getCount() const;
 
-      [[nodiscard]] bool isFinished() const;
+   void setCurrent(int32_t current);
+   void setCount(int32_t count);
 
-      [[nodiscard]] int32_t getCurrent() const;
-
-      [[nodiscard]] int32_t getCount() const;
-
-      void setCurrent(int32_t current);
-
-      void setCount(int32_t count);
-
-
-   protected:
-
-      int32_t _current;
-
-      int32_t _count;
+protected:
+   int32_t _current = 0;
+   int32_t _count = 0;
 };

@@ -1,84 +1,43 @@
-// header
 #include "startgameresponsepacket.h"
 
-// Qt
 #include "logging.h"
 
-// defines
-#define PACKETNAME "StartGameResponse"
-
-//-----------------------------------------------------------------------------
-/*!
-   write constructor
-
-   \param name game's name
-*/
-StartGameResponsePacket::StartGameResponsePacket(int32_t id, bool started) : Packet(Packet::STARTGAMERESPONSE), mId(id), mStarted(started)
+namespace
 {
-   mPacketName = PACKETNAME;
+constexpr auto PACKETNAME = "StartGameResponse";
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   read constructor
-*/
-StartGameResponsePacket::StartGameResponsePacket() : Packet(Packet::STARTGAMERESPONSE), mId(-1), mStarted(false)
+StartGameResponsePacket::StartGameResponsePacket(int32_t id, bool started) : Packet(Packet::STARTGAMERESPONSE), _id(id), _started(started)
 {
-   mPacketName = PACKETNAME;
+   _packet_name = PACKETNAME;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   destructor
-*/
-StartGameResponsePacket::~StartGameResponsePacket()
+StartGameResponsePacket::StartGameResponsePacket() : Packet(Packet::STARTGAMERESPONSE)
 {
+   _packet_name = PACKETNAME;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return game's id
-*/
 int32_t StartGameResponsePacket::getId() const
 {
-   return mId;
+   return _id;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return game's id
-*/
 bool StartGameResponsePacket::isStarted() const
 {
-   return mStarted;
+   return _started;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param out datastream to write members to
-*/
 void StartGameResponsePacket::enqueue(BinaryWriter& out)
 {
-   // write members
-   out << mId << mStarted;
+   out << _id << _started;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param in datastream read members from
-*/
 void StartGameResponsePacket::dequeue(BinaryReader& in)
 {
-   // read members
-   in >> mId >> mStarted;
+   in >> _id >> _started;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   debug output of members
-*/
 void StartGameResponsePacket::debug()
 {
-   // debug output login response
-   qDebug("StartGameResponsePacket:debug: id: %d, started: %d", mId, mStarted);
+   qDebug("StartGameResponsePacket:debug: id: %d, started: %d", _id, _started);
 }

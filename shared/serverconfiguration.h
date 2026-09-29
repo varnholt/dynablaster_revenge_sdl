@@ -8,18 +8,13 @@ class BinaryReader;
 class ServerConfiguration
 {
 public:
-   //! constructor
-   ServerConfiguration();
+   ServerConfiguration() = default;
 
-   //! setter for bomb tick time
    void setBombTickTime(int32_t time);
-
-   //! getter for bomb tick time
    [[nodiscard]] int32_t getBombTickTime() const;
 
 protected:
-   //! bomb tick time
-   int32_t _bomb_tick_time;
+   int32_t _bomb_tick_time = 0;
 };
 
 BinaryWriter& operator<<(BinaryWriter& out, const ServerConfiguration& config);

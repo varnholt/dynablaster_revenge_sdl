@@ -1,81 +1,45 @@
-// header
 #include "playersynchronizepacket.h"
 
-// Qt
 #include "logging.h"
 
-// defines
-#define PACKETNAME "PlayerSynchronize"
-
-//-----------------------------------------------------------------------------
-/*!
-   \param process process to sync
-*/
-PlayerSynchronizePacket::PlayerSynchronizePacket() : Packet(Packet::PLAYERSYNCHRONIZEPACKET), mSynchronizeProcess(Invalid)
+namespace
 {
-   mPacketName = PACKETNAME;
+constexpr auto PACKETNAME = "PlayerSynchronize";
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param process process to sync
-*/
+PlayerSynchronizePacket::PlayerSynchronizePacket() : Packet(Packet::PLAYERSYNCHRONIZEPACKET)
+{
+   _packet_name = PACKETNAME;
+}
+
 PlayerSynchronizePacket::PlayerSynchronizePacket(PlayerSynchronizePacket::SynchronizeProcess process)
-    : Packet(Packet::PLAYERSYNCHRONIZEPACKET), mSynchronizeProcess(process)
+    : Packet(Packet::PLAYERSYNCHRONIZEPACKET), _synchronize_process(process)
 {
-   mPacketName = PACKETNAME;
+   _packet_name = PACKETNAME;
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
-PlayerSynchronizePacket::~PlayerSynchronizePacket()
-{
-}
-
-//-----------------------------------------------------------------------------
-/*!
-   \param process synchronize process
-*/
 void PlayerSynchronizePacket::setSynchronizeProcess(PlayerSynchronizePacket::SynchronizeProcess process)
 {
-   mSynchronizeProcess = process;
+   _synchronize_process = process;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return synchronize process
-*/
 PlayerSynchronizePacket::SynchronizeProcess PlayerSynchronizePacket::getSynchronizeProcess() const
 {
-   return mSynchronizeProcess;
+   return _synchronize_process;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param out datastream to write members to
-*/
 void PlayerSynchronizePacket::enqueue(BinaryWriter& out)
 {
    out << static_cast<uint8_t>(getSynchronizeProcess());
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param in datastream read members from
-*/
 void PlayerSynchronizePacket::dequeue(BinaryReader& in)
 {
    uint8_t process = 0;
-
    in >> process;
-
    setSynchronizeProcess(static_cast<SynchronizeProcess>(process));
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void PlayerSynchronizePacket::debug()
 {
    qDebug("PlayerSynchronizePacket::debug(): process: %d", getSynchronizeProcess());

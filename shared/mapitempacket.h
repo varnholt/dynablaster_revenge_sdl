@@ -8,36 +8,23 @@
 class MapItemPacket : public Packet
 {
 public:
-   //! constructor
-   MapItemPacket(Packet::TYPE type);
+   explicit MapItemPacket(Packet::TYPE type);
 
-   //! alternative constructor - item is only read from, not owned by this packet
-   MapItemPacket(Packet::TYPE packetType, MapItem* item);
+   // item is only read from, not owned by this packet
+   MapItemPacket(Packet::TYPE packet_type, MapItem* item);
 
-   //! debug packet
-   void debug();
+   void debug() override;
+   void enqueue(BinaryWriter& out) override;
+   void dequeue(BinaryReader& in) override;
 
-   //! enqueue packet
-   virtual void enqueue(BinaryWriter&);
-
-   //! dequeue packet
-   virtual void dequeue(BinaryReader&);
-
-   //! getter for item's x pos
    [[nodiscard]] int32_t getX() const;
-
-   //! getter for item's y pos
    [[nodiscard]] int32_t getY() const;
-
-   //! getter for item type
    [[nodiscard]] MapItem::ItemType getItemType() const;
-
-   //! getter for item's unique id
    [[nodiscard]] int32_t getUniqueId() const;
 
 private:
-   int32_t mX;
-   int32_t mY;
-   int32_t mUniqueId;
-   MapItem::ItemType mItemType;
+   int32_t _x = 0;
+   int32_t _y = 0;
+   int32_t _unique_id = -1;
+   MapItem::ItemType _item_type = MapItem::Unknown;
 };

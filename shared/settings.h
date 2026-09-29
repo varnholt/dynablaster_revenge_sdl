@@ -14,8 +14,7 @@ public:
    SettingsValue() = default;
    explicit SettingsValue(const std::string& text);
 
-   // raw-pointer out-param mirrors QVariant::toInt(bool*)'s shape; wide external usage
-   // (client gamesettings.cpp) makes this a client-subsystem-pass concern, not shared/'s
+   // optional out-param reports whether the conversion succeeded
    int32_t toInt(bool* ok = nullptr) const;
    float toFloat(bool* ok = nullptr) const;
    bool toBool() const;

@@ -1,204 +1,123 @@
-// header
 #include "positionpacket.h"
 
-// Qt
 #include "logging.h"
 
-// defines
-#define PACKETNAME "Position"
+namespace
+{
+constexpr auto PACKETNAME = "Position";
+}
 
-/*!----------------------------------------------------------------------------
-   write constructor
-
-   \param pId player id
-   \param xPos player x position
-   \param yPos player y position
-*/
-PositionPacket::
-   PositionPacket(int8_t pId, int8_t dirs, float xPos, float yPos, float angle, float xDelta, float yDelta, float angleDelta, float speed)
+PositionPacket::PositionPacket(
+   int8_t player_id,
+   int8_t directions,
+   float x,
+   float y,
+   float angle,
+   float delta_x,
+   float delta_y,
+   float angle_delta,
+   float speed
+)
     : Packet(Packet::POSITION),
-      mPlayerId(pId),
-      mDirections(dirs),
-      mX(xPos),
-      mY(yPos),
-      mDx(xDelta),
-      mDy(yDelta),
-      mAngle(angle),
-      mAngleDelta(angleDelta),
-      mSpeed(speed)
+      _player_id(player_id),
+      _directions(directions),
+      _x(x),
+      _y(y),
+      _dx(delta_x),
+      _dy(delta_y),
+      _angle(angle),
+      _angle_delta(angle_delta),
+      _speed(speed)
 {
-   mPacketName = PACKETNAME;
+   _packet_name = PACKETNAME;
 }
 
-/*!----------------------------------------------------------------------------
-   read constructor
-*/
-PositionPacket::PositionPacket()
-    : Packet(Packet::POSITION),
-      mPlayerId(0),
-      mDirections(0),
-      mX(0.0f),
-      mY(0.0f),
-      mDx(0.0f),
-      mDy(0.0f),
-      mAngle(0.0f),
-      mAngleDelta(0.0f),
-      mSpeed(0.0f)
+PositionPacket::PositionPacket() : Packet(Packet::POSITION)
 {
-   mPacketName = PACKETNAME;
+   _packet_name = PACKETNAME;
 }
 
-/*!----------------------------------------------------------------------------
-   destructor
-*/
-PositionPacket::~PositionPacket()
-{
-}
-
-//-----------------------------------------------------------------------------
-/*!
-   \return player x position
-*/
 float PositionPacket::getX() const
 {
-   return mX;
+   return _x;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return player delta x
-*/
 float PositionPacket::getDeltaX() const
 {
-   return mDx;
+   return _dx;
 }
 
-//-----------------------------------------------------------------------------
-//! set player's x delta
-void PositionPacket::setDeltaX(float deltax)
+void PositionPacket::setDeltaX(float delta_x)
 {
-   mDx = deltax;
+   _dx = delta_x;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return player y position
-*/
 float PositionPacket::getY() const
 {
-   return mY;
+   return _y;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return player delta y
-*/
 float PositionPacket::getDeltaY() const
 {
-   return mDy;
+   return _dy;
 }
 
-//-----------------------------------------------------------------------------
-//! set player's y delta
-void PositionPacket::setDeltaY(float deltay)
+void PositionPacket::setDeltaY(float delta_y)
 {
-   mDy = deltay;
+   _dy = delta_y;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return player angle
-*/
 float PositionPacket::getAngle() const
 {
-   return mAngle;
+   return _angle;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return player angle delta
-*/
 float PositionPacket::getAngleDelta() const
 {
-   return mAngleDelta;
+   return _angle_delta;
 }
 
-//-----------------------------------------------------------------------------
-//! set player's rotation delta
-void PositionPacket::setAngleDelta(float angleDelta)
+void PositionPacket::setAngleDelta(float angle_delta)
 {
-   mAngleDelta = angleDelta;
+   _angle_delta = angle_delta;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return player speed
-*/
 float PositionPacket::getSpeed() const
 {
-   return mSpeed;
+   return _speed;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return player directions
-*/
 int8_t PositionPacket::getDirections() const
 {
-   return mDirections;
+   return _directions;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return player id
-*/
 int8_t PositionPacket::getPlayerId() const
 {
-   return mPlayerId;
+   return _player_id;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param out datastream to write members to
-*/
 void PositionPacket::enqueue(BinaryWriter& out)
 {
-   // write player id
-   out << mPlayerId;
+   out << _player_id;
+   out << _directions;
 
-   // write directions
-   out << mDirections;
+   out << _x;
+   out << _y;
+   out << _angle;
 
-   // write positions
-   out << mX;
-   out << mY;
-   out << mAngle;
-
-   // write deltas and speed
-   out << mDx;
-   out << mDy;
-   out << mAngleDelta;
-   out << mSpeed;
-
-   // debug();
+   out << _dx;
+   out << _dy;
+   out << _angle_delta;
+   out << _speed;
 }
 
-/*!----------------------------------------------------------------------------
-   \param in datastream read members from
-*/
 void PositionPacket::dequeue(BinaryReader& in)
 {
-   // read player id, x, y
-   in >> mPlayerId >> mDirections >> mX >> mY >> mAngle >> mDx >> mDy >> mAngleDelta >> mSpeed;
-
-   // debug();
+   in >> _player_id >> _directions >> _x >> _y >> _angle >> _dx >> _dy >> _angle_delta >> _speed;
 }
 
-/*!----------------------------------------------------------------------------
-   debug output of members
-*/
 void PositionPacket::debug()
 {
-   // output player id and x, y
-   qDebug("PositionPacket: player id: %d, position: (%f, %f, %f)  dir: (%f,%f,%f)", mPlayerId, mX, mY, mAngle, mDx, mDy, mAngleDelta);
+   qDebug("PositionPacket: player id: %d, position: (%f, %f, %f)  dir: (%f,%f,%f)", _player_id, _x, _y, _angle, _dx, _dy, _angle_delta);
 }

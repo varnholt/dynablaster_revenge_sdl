@@ -53,132 +53,72 @@ int32_t currentMsecsSinceMidnight()
 }
 }  // namespace
 
-//-----------------------------------------------------------------------------
-/*!
-   read constructor
-*/
-Packet::Packet() : mPacketSize(0), mPacketType(INVALID), mPacketName("INVALID")
-{
-   mTimestamp = currentMsecsSinceMidnight();
-}
-
-//-----------------------------------------------------------------------------
-/*!
-   write constructor
-*/
-Packet::Packet(TYPE type) : mPacketSize(0), mPacketType(type)
-{
-   mTimestamp = currentMsecsSinceMidnight();
-}
-
-//-----------------------------------------------------------------------------
-/*!
-   destructor
-*/
-Packet::~Packet()
+Packet::Packet() : _timestamp(currentMsecsSinceMidnight()), _packet_name("INVALID")
 {
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return packet size
-*/
+Packet::Packet(TYPE packet_type) : _packet_type(packet_type), _timestamp(currentMsecsSinceMidnight())
+{
+}
+
 int16_t Packet::getSize()
 {
-   return mPacketSize;
+   return _packet_size;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return packet type
-*/
 Packet::TYPE Packet::getType()
 {
-   return mPacketType;
+   return _packet_type;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return packet timestamp
-*/
 int32_t Packet::getTimestamp() const
 {
-   return mTimestamp;
+   return _timestamp;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param time new timestamp
-*/
 void Packet::setTimeStamp(int32_t time)
 {
-   mTimestamp = time;
+   _timestamp = time;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return packet name
-*/
 const std::string& Packet::getPacketName() const
 {
-   return mPacketName;
+   return _packet_name;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return raw pointer to the serialized packet bytes
-*/
 const char* Packet::constData() const
 {
    return reinterpret_cast<const char*>(data());
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   serialize a packet
-*/
 void Packet::serialize()
 {
-   // Packet is itself the byte buffer (derives from std::vector<uint8_t>) and BinaryWriter only
-   // ever appends - clear it first so calling serialize() more than once on the same instance
-   // re-produces the same bytes instead of duplicating the payload onto itself.
+   // BinaryWriter only appends - clear first so repeated serialize() calls produce the same bytes
    clear();
 
    BinaryWriter out(*this);
 
-   const auto sizeOffset = out.pos();
+   const auto size_offset = out.pos();
 
    // reserve 16 bits for the packet size
    out << static_cast<uint16_t>(0);
-
-   // write packet packetType
-   out << static_cast<uint8_t>(mPacketType);
-
-   // write timestamp to packet
-   out << mTimestamp;
+   out << static_cast<uint8_t>(_packet_type);
+   out << _timestamp;
 
    enqueue(out);
 
-   // patch in the blocksize now that the payload's length is known
-   out.patchUint16(sizeOffset, static_cast<uint16_t>(size() - sizeOffset - sizeof(uint16_t)));
+   // patch in the block size now that the payload's length is known
+   out.patchUint16(size_offset, static_cast<uint16_t>(size() - size_offset - sizeof(uint16_t)));
 }
 
-/*!----------------------------------------------------------------------------
-   deserialize a packet
-
-   \param in input reader, positioned right after the packet's size prefix
-   \return a packet of the correct type with all member variables filled
-*/
 std::unique_ptr<Packet> Packet::deserialize(BinaryReader& in)
 {
-   int8_t pType;
-
-   // read the serialized data
-   in >> pType;
+   int8_t packet_type = 0;
+   in >> packet_type;
 
    std::unique_ptr<Packet> packet;
 
-   switch (pType)
+   switch (packet_type)
    {
       case Packet::BOMB:
          packet = std::make_unique<BombPacket>();
@@ -294,10 +234,7 @@ std::unique_ptr<Packet> Packet::deserialize(BinaryReader& in)
 
    if (packet)
    {
-      // read timestamp
-      in >> packet->mTimestamp;
-
-      // dequeue members
+      in >> packet->_timestamp;
       packet->dequeue(in);
    }
    else

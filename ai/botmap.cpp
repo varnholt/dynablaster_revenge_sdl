@@ -29,7 +29,7 @@ BotMap::BotMap()
    : Map(13, 11)
 {
    initDirections();
-   mTraversedPositions = new bool[mWidth * mHeight];
+   mTraversedPositions = new bool[_width * _height];
    resetTraversedMap();
 }
 
@@ -43,7 +43,7 @@ BotMap::BotMap(int width, int height)
   : Map(width, height)
 {
    initDirections();
-   mTraversedPositions = new bool[mWidth * mHeight];
+   mTraversedPositions = new bool[_width * _height];
    resetTraversedMap();
 }
 
@@ -333,7 +333,7 @@ void BotMap::removeMapItem(MapItem *removeItem)
 */
 bool BotMap::isTraversed(int x, int y) const
 {
-   return mTraversedPositions[y * mWidth + x];
+   return mTraversedPositions[y * _width + x];
 }
 
 
@@ -345,7 +345,7 @@ bool BotMap::isTraversed(int x, int y) const
 */
 void BotMap::setTraversed(int x, int y, bool traversed)
 {
-   mTraversedPositions[y * mWidth + x] = traversed;
+   mTraversedPositions[y * _width + x] = traversed;
 }
 
 
@@ -484,7 +484,7 @@ void BotMap::updateReachablePositions(int x, int y, int iteration)
       }
    }
 
-   if (mReachablePositions.size() == static_cast<size_t>(mWidth * mHeight))
+   if (mReachablePositions.size() == static_cast<size_t>(_width * _height))
    {
       qDebug("we're fucked");
       mReachablePositions.clear();
@@ -583,7 +583,7 @@ void BotMap::updateReachablePositionsRandomized(int x, int y, int iteration)
       }
    }
 
-   if (mReachablePositions.size() == static_cast<size_t>(mWidth * mHeight))
+   if (mReachablePositions.size() == static_cast<size_t>(_width * _height))
    {
       qDebug("we're fucked");
       mReachablePositions.clear();

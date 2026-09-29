@@ -1,83 +1,44 @@
-// header
 #include "stonedroppacket.h"
 
-// Qt
 #include "logging.h"
 
-// defines
-#define PACKETNAME "StoneDrop"
-
-//-----------------------------------------------------------------------------
-/*!
-   write constructor
-
-   \param x stone x position
-   \param x stone y position
-*/
-StoneDropPacket::StoneDropPacket(int8_t x, int8_t y) : Packet(Packet::STONEDROP), mX(x), mY(y)
+namespace
 {
-   mPacketName = PACKETNAME;
+constexpr auto PACKETNAME = "StoneDrop";
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   read constructor
-*/
-StoneDropPacket::StoneDropPacket() : Packet(Packet::STONEDROP), mX(0), mY(0)
+StoneDropPacket::StoneDropPacket(int8_t x, int8_t y) : Packet(Packet::STONEDROP), _x(x), _y(y)
 {
-   mPacketName = PACKETNAME;
+   _packet_name = PACKETNAME;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   destructor
-*/
-StoneDropPacket::~StoneDropPacket()
+StoneDropPacket::StoneDropPacket() : Packet(Packet::STONEDROP)
 {
+   _packet_name = PACKETNAME;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return stone x position
-*/
 int8_t StoneDropPacket::getX() const
 {
-   return mX;
+   return _x;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return stone y position
-*/
 int8_t StoneDropPacket::getY() const
 {
-   return mY;
+   return _y;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param out datastream to write members to
-*/
 void StoneDropPacket::enqueue(BinaryWriter& out)
 {
-   out << mX;
-   out << mY;
+   out << _x;
+   out << _y;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param in datastream read members from
-*/
 void StoneDropPacket::dequeue(BinaryReader& in)
 {
-   in >> mX >> mY;
+   in >> _x >> _y;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   debug output of members
-*/
 void StoneDropPacket::debug()
 {
-   qDebug("StoneDropPacket: x: %d, y: %d", mX, mY);
+   qDebug("StoneDropPacket: x: %d, y: %d", _x, _y);
 }

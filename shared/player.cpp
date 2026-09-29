@@ -1,628 +1,347 @@
-// header
 #include "player.h"
 
-// shared
 #include "playerdisease.h"
 #include "playerstats.h"
 
-
-//----------------------------------------------------------------------------
-/*!
-  constructor
-*/
-Player::Player(int32_t id)
-   : mId(id),
-     mLoggedIn(false),
-     mX(0.5),
-     mY(0.5),
-     mBombCount(SERVER_DEFAULT_BOMBCOUNT),
-     mFlameCount(SERVER_DEFAULT_FLAMECOUNT),
-     mSpeed(SERVER_DEFAULT_SPEED),
-     mKeysPressed(0),
-     mKeysPreviouslyPressed(0),
-     mBombsDroppedCount(0),
-     mBombKeyLocked(false),
-     mKilled(false),
-     mKickEnabled(false),
-     mPositionSkippedCounter(0),
-     mColor(Constants::ColorWhite),
-     mLoadingSynchronized(false),
-     mBot(false),
-     mDisease(nullptr)
+Player::Player(int32_t id) : _id(static_cast<int8_t>(id))
 {
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   destuctor
-*/
 Player::~Player() = default;
 
-
-//----------------------------------------------------------------------------
-/*!
-*/
 void Player::reset()
 {
-   mKilled = false;
-   mBombsDroppedCount = 0;
-   mBombCount = SERVER_DEFAULT_BOMBCOUNT;
-   mFlameCount = SERVER_DEFAULT_FLAMECOUNT;
-   mSpeed = SERVER_DEFAULT_SPEED;
-   mKickEnabled= false;
-   mPlayerRotation.reset();
-   mDisease.reset();
+   _killed = false;
+   _bombs_dropped_count = 0;
+   _bomb_count = SERVER_DEFAULT_BOMBCOUNT;
+   _flame_count = SERVER_DEFAULT_FLAMECOUNT;
+   _speed = SERVER_DEFAULT_SPEED;
+   _kick_enabled = false;
+   _player_rotation.reset();
+   _disease.reset();
 
    // reset key flags
-   mKeysPressed = 0;
-   mKeysPreviouslyPressed = 0;
-   mPositionSkippedCounter = 0;
-   mBombKeyLocked = false;
+   _keys_pressed = 0;
+   _keys_previously_pressed = 0;
+   _position_skipped_counter = 0;
+   _bomb_key_locked = false;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \param loggedIn logged in flag
-*/
-void Player::setLoggedIn(bool loggedIn)
+void Player::setLoggedIn(bool logged_in)
 {
-   mLoggedIn = loggedIn;
+   _logged_in = logged_in;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \return \c true if logged in
-*/
 bool Player::isLoggedIn() const
 {
-   return mLoggedIn;
+   return _logged_in;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \return keys currently pressed
-*/
 int32_t Player::getKeysPressed() const
 {
-   return mKeysPressed;
+   return _keys_pressed;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \return keys previously pressed
-*/
 int32_t Player::getKeysPressedPreviously() const
 {
-   return mKeysPreviouslyPressed;
+   return _keys_previously_pressed;
 }
 
-//----------------------------------------------------------------------------
-/*!
-   \param x x position
-*/
 void Player::setX(float x)
 {
-   mX = x;
+   _x = x;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \param y y position
-*/
 void Player::setY(float y)
 {
-   mY = y;
+   _y = y;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \return x position
-*/
 float Player::getX() const
 {
-   return mX;
+   return _x;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \return y position
-*/
 float Player::getY() const
 {
-   return mY;
+   return _y;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \param speed new player speed
-*/
 void Player::setSpeed(float speed)
 {
-   mSpeed = speed;
+   _speed = speed;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \return speed
-*/
 float Player::getSpeed() const
 {
-   float speed = mSpeed;
+   float speed = _speed;
 
    if (isInfected())
    {
       if (getDisease()->getType() == Constants::SkullSlow)
+      {
          speed = SERVER_SKULL_SPEED_MIN;
+      }
       else if (getDisease()->getType() == Constants::SkullFast)
+      {
          speed = SERVER_SKULL_SPEED_MAX;
+      }
    }
 
    return speed;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \return id
-*/
 int8_t Player::getId() const
 {
-   return mId;
+   return _id;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \param keys keys pressed
-*/
 void Player::setKeysPressed(int32_t keys)
 {
-   mKeysPreviouslyPressed = mKeysPressed;
-   mKeysPressed = keys;
+   _keys_previously_pressed = _keys_pressed;
+   _keys_pressed = keys;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \return the player's rotation
-*/
 PlayerRotation* Player::getPlayerRotation()
 {
-   return &mPlayerRotation;
+   return &_player_rotation;
 }
 
-
-
-//----------------------------------------------------------------------------
-/*!
-   \param nick player's nick
-*/
 void Player::setNick(const std::string& nick)
 {
-   mNick = nick;
+   _nick = nick;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \return the player's rotation
-*/
 const std::string& Player::getNick() const
 {
-   return mNick;
+   return _nick;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \param count bomb count
-*/
 void Player::setBombCount(int8_t count)
 {
-   mBombCount = count;
+   _bomb_count = count;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \return bombs count
-*/
 int8_t Player::getBombCount() const
 {
-   int8_t bombCount = mBombCount;
+   auto bomb_count = static_cast<int8_t>(_bomb_count);
 
    if (isInfected())
    {
-      Constants::SkullType skullType = getDisease()->getType();
+      const Constants::SkullType skull_type = getDisease()->getType();
 
-      if (skullType == Constants::SkullNoBomb)
-         bombCount = 0;
-      else if (skullType == Constants::SkullMinimumBomb)
-         bombCount = 1;
-      else if (skullType == Constants::SkullMaximumBomb)
-         bombCount = 10;
+      if (skull_type == Constants::SkullNoBomb)
+      {
+         bomb_count = 0;
+      }
+      else if (skull_type == Constants::SkullMinimumBomb)
+      {
+         bomb_count = 1;
+      }
+      else if (skull_type == Constants::SkullMaximumBomb)
+      {
+         bomb_count = 10;
+      }
    }
 
-   return bombCount;
+   return bomb_count;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \param count flame count
-*/
 void Player::setFlameCount(int8_t count)
 {
-   mFlameCount = count;
+   _flame_count = count;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \return flame count
-*/
 int8_t Player::getFlameCount() const
 {
-   int8_t flameCount = mFlameCount;
+   auto flame_count = static_cast<int8_t>(_flame_count);
 
    if (isInfected())
    {
-      Constants::SkullType skullType = getDisease()->getType();
+      const Constants::SkullType skull_type = getDisease()->getType();
 
-      if (skullType == Constants::SkullMinimumBomb)
-         flameCount = 1;
-      else if (skullType == Constants::SkullMaximumBomb)
-         flameCount = 10;
+      if (skull_type == Constants::SkullMinimumBomb)
+      {
+         flame_count = 1;
+      }
+      else if (skull_type == Constants::SkullMaximumBomb)
+      {
+         flame_count = 10;
+      }
    }
 
-   return flameCount;
+   return flame_count;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \param count bombs dropped
-*/
 void Player::setBombsDroppedCount(int8_t count)
 {
-   mBombsDroppedCount = count;
+   _bombs_dropped_count = count;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \return bombs dropped count
-*/
 int8_t Player::getBombsDroppedCount() const
 {
-   return mBombsDroppedCount;
+   return static_cast<int8_t>(_bombs_dropped_count);
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \param killed player is killed
-*/
 void Player::setKilled(bool killed)
 {
-   mKilled = killed;
+   _killed = killed;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \return true if player is killed
-*/
 bool Player::isKilled() const
 {
-   return mKilled;
+   return _killed;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \return bomb count default
-*/
 int8_t Player::getBombCountDefault()
 {
    return SERVER_DEFAULT_BOMBCOUNT;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \return flame count default
-*/
 int8_t Player::getFlameCountDefault()
 {
    return SERVER_DEFAULT_FLAMECOUNT;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \param enabled kick is enabled
-*/
 void Player::setKickEnabled(bool enabled)
 {
-   mKickEnabled = enabled;
+   _kick_enabled = enabled;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \return true if player is able to kick
-*/
 bool Player::isKickEnabled() const
 {
-   return mKickEnabled;
+   return _kick_enabled;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \return number of skipped position packets
-*/
 int32_t Player::getPositionSkipCounter() const
 {
-   return mPositionSkippedCounter;
+   return _position_skipped_counter;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \param count set number of skipped position packets
-*/
 void Player::setPositionSkipCounter(int32_t count)
 {
-   mPositionSkippedCounter= count;
+   _position_skipped_counter = count;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \return player overall stats
-*/
 PlayerStats* Player::getOverallStats()
 {
-   return &mOverallStats;
+   return &_overall_stats;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \return player round stats
-*/
 PlayerStats* Player::getRoundStats()
 {
-   return &mRoundStats;
+   return &_round_stats;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \param color player color
-*/
 void Player::setColor(Constants::Color color)
 {
-   mColor = color;
+   _color = color;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \return player color
-*/
 Constants::Color Player::getColor() const
 {
-   return mColor;
+   return _color;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \param synchronized loading has been synchronized
-*/
 void Player::setLoadingSynchronized(bool synchronized)
 {
-   mLoadingSynchronized = synchronized;
+   _loading_synchronized = synchronized;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \return \c true if loading has been synchronized
-*/
 bool Player::isLoadingSynchronized() const
 {
-   return mLoadingSynchronized;
+   return _loading_synchronized;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \pram bot bot flag
-*/
 void Player::setBot(bool bot)
 {
-   mBot = bot;
+   _bot = bot;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \return \c true if player is a bot
-*/
 bool Player::isBot() const
 {
-   return mBot;
+   return _bot;
 }
 
-//----------------------------------------------------------------------------
-/*!
-   \param disease disease to infect player with
-*/
 void Player::infect(std::unique_ptr<PlayerDisease> disease)
 {
-   if (mDisease)
+   if (_disease)
    {
-      mDisease->abort();
+      _disease->abort();
    }
 
-   // assignment destroys whatever mDisease previously owned
-   mDisease = std::move(disease);
+   // assignment destroys whatever was previously owned
+   _disease = std::move(disease);
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \return \c true if player is infected
-*/
 bool Player::isInfected() const
 {
-   return (mDisease != nullptr);
+   return _disease != nullptr;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \return \c true if player is invincible
-*/
 bool Player::isInvincible() const
 {
-   bool invincible = false;
-
-   PlayerDisease* disease = getDisease();
-
-   if (disease)
-   {
-      if (disease->getType() == Constants::SkullInvincible)
-      {
-         invincible = true;
-      }
-   }
-
-   return invincible;
+   const PlayerDisease* disease = getDisease();
+   return disease && disease->getType() == Constants::SkullInvincible;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \return player disease
-*/
-PlayerDisease *Player::getDisease() const
+PlayerDisease* Player::getDisease() const
 {
-   return mDisease.get();
+   return _disease.get();
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-*/
 void Player::increaseKills()
 {
    getOverallStats()->increaseKills();
    getRoundStats()->increaseKills();
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-*/
 void Player::increaseDeaths()
 {
    getOverallStats()->increaseDeaths();
    getRoundStats()->increaseDeaths();
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-*/
 void Player::increaseWins()
 {
    getOverallStats()->increaseWins();
    getRoundStats()->increaseWins();
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \param survivalTime player survival time
-*/
-void Player::increaseSurvivalTime(uint32_t survivalTime)
+void Player::increaseSurvivalTime(uint32_t survival_time)
 {
-   getOverallStats()->increaseSurvivalTime(survivalTime);
-   getRoundStats()->increaseSurvivalTime(survivalTime);
+   getOverallStats()->increaseSurvivalTime(survival_time);
+   getRoundStats()->increaseSurvivalTime(survival_time);
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-*/
 void Player::increaseExtrasCollected()
 {
    getOverallStats()->increaseExtrasCollected();
    getRoundStats()->increaseExtrasCollected();
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-*/
 void Player::resetStats()
 {
    getOverallStats()->reset();
    getRoundStats()->reset();
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-*/
 void Player::increaseFlameCount()
 {
-   mFlameCount++;
+   _flame_count++;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-*/
 void Player::increaseBombCount()
 {
-   mBombCount++;
+   _bomb_count++;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \return \c true if bomb key is processed
-*/
 bool Player::isBombKeyLocked() const
 {
-   return mBombKeyLocked;
+   return _bomb_key_locked;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \param processed bomb key procesed
-*/
 void Player::setBombKeyLocked(bool processed)
 {
-   mBombKeyLocked = processed;
+   _bomb_key_locked = processed;
 }
-
-
-

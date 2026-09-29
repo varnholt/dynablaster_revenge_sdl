@@ -1,63 +1,36 @@
 #pragma once
 
-// base
-#include "packet.h"
-
-// constants
 #include "constants.h"
+#include "packet.h"
 
 class PlayerInfectedPacket : public Packet
 {
 public:
-   //! constructor
+   // read constructor
    PlayerInfectedPacket();
 
-   //! write constructor
-   PlayerInfectedPacket(int32_t playerId, Constants::SkullType type);
+   // write constructor
+   PlayerInfectedPacket(int32_t player_id, Constants::SkullType type);
 
-   //! debugs the member variables
-   void debug();
+   void debug() override;
+   void enqueue(BinaryWriter& out) override;
+   void dequeue(BinaryReader& in) override;
 
-   //! enqueues the member variables to datastream
-   void enqueue(BinaryWriter&);
-
-   //! dequeues the member variables from datastream
-   void dequeue(BinaryReader&);
-
-   //! getter for player id
    [[nodiscard]] int32_t getPlayerId() const;
-
-   //! getter for skull type
    [[nodiscard]] Constants::SkullType getSkullType() const;
 
-   //! getter for infector id
    [[nodiscard]] int32_t getInfectorId() const;
-
-   //! setter for infector id
    void setInfectorId(int32_t value);
 
-   //! setter for extra position
+   // position where the extra has been picked up
    void setExtraPos(uint8_t x, uint8_t y);
-
-   //! getter for extra position x
    [[nodiscard]] uint8_t getExtraPosX() const;
-
-   //! getter for extra position y
    [[nodiscard]] uint8_t getExtraPosY() const;
 
 private:
-   //! player id
-   int32_t mPlayerId;
-
-   //! skull type
-   Constants::SkullType mSkullType;
-
-   //! player id of infector
-   int32_t mInfectorId;
-
-   //! x position where extra has been picked up
-   uint8_t mExtraPosX;
-
-   //! x position where extra has been picked up
-   uint8_t mExtraPosY;
+   int32_t _player_id = 0;
+   Constants::SkullType _skull_type = Constants::SkullAutofire;
+   int32_t _infector_id = -1;
+   uint8_t _extra_pos_x = 0;
+   uint8_t _extra_pos_y = 0;
 };

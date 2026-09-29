@@ -2,33 +2,22 @@
 
 #include "packet.h"
 
-// Qt
-
 class StopGameRequestPacket : public Packet
 {
 public:
-   //! write constructor, -1 if not accepted
-   StopGameRequestPacket(int32_t id);
+   // write constructor
+   explicit StopGameRequestPacket(int32_t id);
 
-   //! read constructor
+   // read constructor
    StopGameRequestPacket();
 
-   //! destructor
-   virtual ~StopGameRequestPacket();
+   void debug() override;
+   void enqueue(BinaryWriter& out) override;
+   void dequeue(BinaryReader& in) override;
 
-   //! debugs the member variables
-   void debug();
-
-   //! enqueues the member variables to datastream
-   void enqueue(BinaryWriter&);
-
-   //! dequeues the member variables from datastream
-   void dequeue(BinaryReader&);
-
-   //! getter for game id
+   // game id
    [[nodiscard]] int32_t getId() const;
 
 private:
-   //! game id
-   int32_t mId;
+   int32_t _id = 0;
 };

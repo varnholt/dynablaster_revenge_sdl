@@ -1,94 +1,38 @@
-
-// header
 #include "extramapitem.h"
 
-// shared
 #include "extramapitemcreatedpacket.h"
 
-//-----------------------------------------------------------------------------
-/*!
-  constructor
-*/
-ExtraMapItem::ExtraMapItem(
-   int32_t id,
-   Constants::ExtraType type,
-   int32_t x,
-   int32_t y
-)
-   : MapItem(Extra, id, false, true, x, y),
-     mExtraType(type)
+ExtraMapItem::ExtraMapItem(int32_t id, Constants::ExtraType type, int32_t x, int32_t y)
+    : MapItem(Extra, id, false, true, x, y), _extra_type(type)
 {
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \param packet packet to construct extramapitem from
-*/
 ExtraMapItem::ExtraMapItem(ExtraMapItemCreatedPacket* packet)
- : MapItem(packet),
-   mExtraType(static_cast<Constants::ExtraType>(packet->getExtraType()))
+    : MapItem(packet), _extra_type(static_cast<Constants::ExtraType>(packet->getExtraType()))
 {
 }
 
-
-
-//-----------------------------------------------------------------------------
-/*!
-*/
-ExtraMapItem::~ExtraMapItem()
-{
-}
-
-
-//-----------------------------------------------------------------------------
-/*!
-   \return the extra's type
-*/
 Constants::ExtraType ExtraMapItem::getExtraType() const
 {
-   return mExtraType;
+   return _extra_type;
 }
 
-
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 void ExtraMapItem::initializeStartTime()
 {
-   mStartTime.start();
+   _start_time.start();
 }
 
-
-
-//-----------------------------------------------------------------------------
-/*!
-   \return elapsed time
-*/
 float ExtraMapItem::getElapsedTime() const
 {
-   return mStartTime.elapsed() * 0.001f;
+   return static_cast<float>(_start_time.elapsed()) * 0.001f;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \param faces skull faces
-*/
 void ExtraMapItem::setSkullFaces(const std::vector<Constants::SkullType>& faces)
 {
-   mSkullFaces = faces;
+   _skull_faces = faces;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \return skull faces
-*/
 std::vector<Constants::SkullType> ExtraMapItem::getSkullFaces() const
 {
-   return mSkullFaces;
+   return _skull_faces;
 }
-
-

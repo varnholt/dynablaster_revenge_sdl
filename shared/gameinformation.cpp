@@ -1,332 +1,190 @@
-// header
 #include "gameinformation.h"
 
-// shared
 #include "binaryreader.h"
 #include "binarywriter.h"
 
-//-----------------------------------------------------------------------------
-/*!
- */
-GameInformation::GameInformation()
-    : mId(-1),
-      mPlayerCount(0),
-      mMaximumPlayerCount(0),
-      mCreatorId(-1),
-      mDimensions(Constants::DimensionInvalid),
-      mExtras(0),
-      mDuration(0),
-      mGamesPlayed(0),
-      mCurrentRound(0),
-      mRoundCount(0),
-      mSpawnExtras(false)
-{
-}
-
-//-----------------------------------------------------------------------------
-/*!
-   \param id game id
-   \param playerCount players in this game
-   \param playerMaximum count maximum players for this game
-   \param gameName this game's name
-   \param levelName the level for this game
-   \param creatorId id of the game creator
-   \param dimensions playfield dimensions
-   \param extras extra enums combined
-   \param duration round duration
-   \param roundsPlayer rounds played
-   \param currentRound current round
-   \param roundCount number of rounds to be played
-   \param spawnExtras spawn extras
-*/
 GameInformation::GameInformation(
    int32_t id,
-   int32_t playerCount,
-   int32_t playerMaximumCount,
-   const std::string& gameName,
-   const std::string& levelName,
-   int32_t creatorId,
+   int32_t player_count,
+   int32_t player_maximum_count,
+   const std::string& game_name,
+   const std::string& level_name,
+   int32_t creator_id,
    Constants::Dimension dimensions,
    int32_t extras,
    int32_t duration,
-   int32_t roundsPlayed,
-   int32_t currentRound,
-   int32_t roundCount,
-   bool spawnExtras
+   int32_t rounds_played,
+   int32_t current_round,
+   int32_t round_count,
+   bool spawn_extras
 )
-    : mId(id),
-      mPlayerCount(playerCount),
-      mMaximumPlayerCount(playerMaximumCount),
-      mGameName(gameName),
-      mLevelName(levelName),
-      mCreatorId(creatorId),
-      mDimensions(dimensions),
-      mExtras(extras),
-      mDuration(duration),
-      mGamesPlayed(roundsPlayed),
-      mCurrentRound(currentRound),
-      mRoundCount(roundCount),
-      mSpawnExtras(spawnExtras)
+    : _id(id),
+      _player_count(player_count),
+      _maximum_player_count(player_maximum_count),
+      _game_name(game_name),
+      _level_name(level_name),
+      _creator_id(creator_id),
+      _dimensions(dimensions),
+      _extras(extras),
+      _duration(duration),
+      _games_played(rounds_played),
+      _current_round(current_round),
+      _round_count(round_count),
+      _spawn_extras(spawn_extras)
 {
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return game id
-*/
 int32_t GameInformation::getId() const
 {
-   return mId;
+   return _id;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return player count
-*/
 int32_t GameInformation::getPlayerCount() const
 {
-   return mPlayerCount;
+   return _player_count;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return player maximum count
-*/
 int32_t GameInformation::getPlayerMaximumCount() const
 {
-   return mMaximumPlayerCount;
+   return _maximum_player_count;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return game name
-*/
 std::string GameInformation::getGameName() const
 {
-   return mGameName;
+   return _game_name;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return level name
-*/
 std::string GameInformation::getLevelName() const
 {
-   return mLevelName;
+   return _level_name;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return game creator id
-*/
 int32_t GameInformation::getCreatorId() const
 {
-   return mCreatorId;
+   return _creator_id;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return map dimension enum
-*/
 Constants::Dimension GameInformation::getMapDimensions() const
 {
-   return mDimensions;
+   return _dimensions;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param extras extras for this game
-*/
 void GameInformation::setExtras(int32_t extras)
 {
-   mExtras = extras;
+   _extras = extras;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return extras for this game
-*/
 int32_t GameInformation::getExtras() const
 {
-   return mExtras;
+   return _extras;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param duration game duration
-*/
 void GameInformation::setDuration(int32_t duration)
 {
-   mDuration = duration;
+   _duration = duration;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return game duration
-*/
 int32_t GameInformation::getDuration() const
 {
-   return mDuration;
+   return _duration;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param roundsPlayed number of gamesPlayed
-*/
-void GameInformation::setGamesPlayed(int32_t roundsPlayed)
+void GameInformation::setGamesPlayed(int32_t games_played)
 {
-   mGamesPlayed = roundsPlayed;
+   _games_played = games_played;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return games played
-*/
 int32_t GameInformation::getGamesPlayed() const
 {
-   return mGamesPlayed;
+   return _games_played;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return map x scale
-*/
 float GameInformation::getMapScaleX() const
 {
-   float scale = 1.0f;
-
    switch (getMapDimensions())
    {
-      case Constants::Dimension13x11:
-         scale = 1.0f;
-         break;
-
       case Constants::Dimension19x17:
-         scale = 19.0f / 13.0f;
-         break;
+         return 19.0f / 13.0f;
 
       case Constants::Dimension25x21:
-         scale = 25.0f / 13.0f;
-         break;
+         return 25.0f / 13.0f;
 
       default:
-         break;
+         return 1.0f;
    }
-
-   return scale;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return map y scale
-*/
 float GameInformation::getMapScaleY() const
 {
-   float scale = 1.0f;
-
    switch (getMapDimensions())
    {
-      case Constants::Dimension13x11:
-         scale = 1.0f;
-         break;
-
       case Constants::Dimension19x17:
-         scale = 17.0f / 11.0f;
-         break;
+         return 17.0f / 11.0f;
 
       case Constants::Dimension25x21:
-         scale = 21.0f / 11.0f;
-         break;
+         return 21.0f / 11.0f;
 
       default:
-         break;
+         return 1.0f;
    }
-
-   return scale;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return current round
-*/
 int32_t GameInformation::getCurrentRound() const
 {
-   return mCurrentRound;
+   return _current_round;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return round count
-*/
 int32_t GameInformation::getRoundCount() const
 {
-   return mRoundCount;
+   return _round_count;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return \c true if extra spawning is enabled
-*/
 bool GameInformation::isSpawnExtrasEnabled() const
 {
-   return mSpawnExtras;
+   return _spawn_extras;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param value extra spawn enabled
-*/
 void GameInformation::setSpawnExtrasEnabled(bool value)
 {
-   mSpawnExtras = value;
+   _spawn_extras = value;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param out datastream out
-   \param info gameinfo object to stream
-*/
 BinaryWriter& operator<<(BinaryWriter& out, const GameInformation& info)
 {
-   out << info.mId;
-   out << info.mPlayerCount;
-   out << info.mMaximumPlayerCount;
-   out << info.mGameName;
-   out << info.mLevelName;
-   out << info.mCreatorId;
-   out << static_cast<int32_t>(info.mDimensions);
-   out << info.mExtras;
-   out << info.mDuration;
-   out << info.mGamesPlayed;
-   out << info.mCurrentRound;
-   out << info.mRoundCount;
+   out << info._id;
+   out << info._player_count;
+   out << info._maximum_player_count;
+   out << info._game_name;
+   out << info._level_name;
+   out << info._creator_id;
+   out << static_cast<int32_t>(info._dimensions);
+   out << info._extras;
+   out << info._duration;
+   out << info._games_played;
+   out << info._current_round;
+   out << info._round_count;
 
    return out;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param in datastream in
-   \param info gameinfo object to stream
-*/
 BinaryReader& operator>>(BinaryReader& in, GameInformation& info)
 {
    int32_t dimensions = -1;
 
-   in >> info.mId;
-   in >> info.mPlayerCount;
-   in >> info.mMaximumPlayerCount;
-   in >> info.mGameName;
-   in >> info.mLevelName;
-   in >> info.mCreatorId;
+   in >> info._id;
+   in >> info._player_count;
+   in >> info._maximum_player_count;
+   in >> info._game_name;
+   in >> info._level_name;
+   in >> info._creator_id;
    in >> dimensions;
-   in >> info.mExtras;
-   in >> info.mDuration;
-   in >> info.mGamesPlayed;
-   in >> info.mCurrentRound;
-   in >> info.mRoundCount;
+   in >> info._extras;
+   in >> info._duration;
+   in >> info._games_played;
+   in >> info._current_round;
+   in >> info._round_count;
 
-   info.mDimensions = static_cast<Constants::Dimension>(dimensions);
+   info._dimensions = static_cast<Constants::Dimension>(dimensions);
 
    return in;
 }

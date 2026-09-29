@@ -2,47 +2,23 @@
 
 #include "packet.h"
 
-// Qt
-
 class LeaveGameRequestPacket : public Packet
 {
 public:
-   //! constructor
    LeaveGameRequestPacket();
+   LeaveGameRequestPacket(int32_t game_id, int32_t player_id);
 
-   //! constructor
-   LeaveGameRequestPacket(int32_t gameId, int32_t playerId);
+   void debug() override;
+   void enqueue(BinaryWriter& out) override;
+   void dequeue(BinaryReader& in) override;
 
-   //! destructor
-   virtual ~LeaveGameRequestPacket();
-
-   //! debugs the member variables
-   void debug();
-
-   //! enqueues the member variables to datastream
-   void enqueue(BinaryWriter&);
-
-   //! dequeues the member variables from datastream
-   void dequeue(BinaryReader&);
-
-   // getters and setters
-
-   //! setter for the game id
    void setGameId(int32_t id);
-
-   //! getter for the game id
    [[nodiscard]] int32_t getGameId() const;
 
-   //! setter for the player id
    void setPlayerId(int32_t id);
-
-   //! getter for the player id
    [[nodiscard]] int32_t getPlayerId() const;
 
 protected:
-   //! game's id
-   int32_t mGameId;
-
-   //! player's
-   int32_t mPlayerId;
+   int32_t _game_id = -1;
+   int32_t _player_id = -1;
 };

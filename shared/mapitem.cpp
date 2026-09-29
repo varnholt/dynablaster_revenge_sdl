@@ -1,90 +1,40 @@
-// header
 #include "mapitem.h"
 
-// shared
 #include "mapitemcreatedpacket.h"
 
+int32_t MapItem::_current_id = 0;
 
-//! mapitem id
-int32_t MapItem::mCurrentId = 0;
-
-
-//-----------------------------------------------------------------------------
-/*!
-   \param type mapitem type
-   \param appearance mapitem appearance
-   \param blocking blocking flag
-   \param destroyable destroyable flag
-   \param x x position
-   \param y y position
-*/
-MapItem::MapItem(
-   ItemType type,
-   int32_t appearance,
-   bool blocking,
-   bool destroyable,
-   int32_t x,
-   int32_t y
-)
- : mType(type),
-   mUniqueId(mCurrentId++),
-   mAppearance(appearance),
-   mBlocking(blocking),
-   mDestroyable(destroyable),
-   mX(x),
-   mY(y),
-   mCurrentlyDestroyed(false),
-   mDestroyDirection(Constants::DirectionUnknown)
+MapItem::MapItem(ItemType type, int32_t appearance, bool blocking, bool destroyable, int32_t x, int32_t y)
+    : _type(type), _unique_id(_current_id++), _appearance(appearance), _blocking(blocking), _destroyable(destroyable), _x(x), _y(y)
 {
    initializeBlocking();
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \param packet packet to construct mapitem from
-*/
-MapItem::MapItem(MapItemCreatedPacket *pack)
- : mType(pack->getItemType()),
-   mUniqueId(pack->getUniqueId()),
-   mAppearance(pack->getAppearance()),
-   mBlocking(false),
-   mDestroyable(false),
-   mX(pack->getX()),
-   mY(pack->getY()),
-   mCurrentlyDestroyed(false),
-   mDestroyDirection(Constants::DirectionUnknown)
+MapItem::MapItem(MapItemCreatedPacket* packet)
+    : _type(packet->getItemType()),
+      _unique_id(packet->getUniqueId()),
+      _appearance(packet->getAppearance()),
+      _x(packet->getX()),
+      _y(packet->getY())
 {
    initializeBlocking();
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
-MapItem::~MapItem()
-{
-}
-
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 void MapItem::initializeBlocking()
 {
-   switch (mType)
+   switch (_type)
    {
       case Block:
-         mBlocking = true;
+         _blocking = true;
          break;
 
       case Bomb:
-         mBlocking = true;
+         _blocking = true;
          break;
 
       case Stone:
-         mBlocking = true;
-         mDestroyable = true;
+         _blocking = true;
+         _destroyable = true;
          break;
 
       // extras are non-blocking
@@ -93,143 +43,72 @@ void MapItem::initializeBlocking()
    }
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \return item type
-*/
 MapItem::ItemType MapItem::getType() const
 {
-   return mType;
+   return _type;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \param uniqueId item's unique id
-*/
-void MapItem::setUniqueId(int32_t uniqueId)
+void MapItem::setUniqueId(int32_t unique_id)
 {
-   mUniqueId = uniqueId;
+   _unique_id = unique_id;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \return item appearance
-*/
 int32_t MapItem::getAppearance() const
 {
-   return mAppearance;
+   return _appearance;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \return true if item is blocking
-*/
 bool MapItem::isBlocking() const
 {
-   return mBlocking;
+   return _blocking;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \return true if item is destroyable
-*/
 bool MapItem::isDestroyable() const
 {
-   return mDestroyable;
+   return _destroyable;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \param x x position
-*/
 void MapItem::setX(int32_t x)
 {
-   mX = x;
+   _x = x;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \param y y position
-*/
 void MapItem::setY(int32_t y)
 {
-   mY = y;
+   _y = y;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \return x position
-*/
 int32_t MapItem::getX() const
 {
-   return mX;
+   return _x;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \return y position
-*/
 int32_t MapItem::getY() const
 {
-   return mY;
+   return _y;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \return unique mapitem id
-*/
 int32_t MapItem::getUniqueId() const
 {
-   return mUniqueId;
+   return _unique_id;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-  \param destroyed true if item is currently being destroyed
-*/
 void MapItem::setCurrentlyDestroyed(bool destroyed)
 {
-   mCurrentlyDestroyed = destroyed;
+   _currently_destroyed = destroyed;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \return true if mapitem is currently being destroyed
-*/
 bool MapItem::isCurrentlyDestroyed() const
 {
-   return mCurrentlyDestroyed;
+   return _currently_destroyed;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \return direction from which the item was destroyed
-*/
 Constants::Direction MapItem::getDestroyDirection() const
 {
-   return mDestroyDirection;
+   return _destroy_direction;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \param direction direction from which the item was destroyed
-*/
 void MapItem::setDestroyDirection(Constants::Direction direction)
 {
-   mDestroyDirection= direction;
+   _destroy_direction = direction;
 }
-

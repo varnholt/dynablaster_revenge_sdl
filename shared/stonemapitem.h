@@ -1,41 +1,28 @@
 #pragma once
 
-// base
 #include "mapitem.h"
 
 #include <memory>
 
-// forward declarations
 class ExtraMapItem;
 
 class StoneMapItem : public MapItem
 {
-   public:
+public:
+   StoneMapItem(int32_t id, int32_t x, int32_t y);
 
-      //! constructor
-      StoneMapItem(
-         int32_t id,
-         int32_t x,
-         int32_t y
-      );
+   // out-of-line since the unique_ptr needs ExtraMapItem's complete type
+   ~StoneMapItem() override;
 
-      //! destructor - out-of-line since mExtraMapItem's unique_ptr needs ExtraMapItem's
-      //! complete type, which is only forward-declared in this header
-      ~StoneMapItem() override;
+   // takes ownership
+   void setExtraMapItem(std::unique_ptr<ExtraMapItem> item);
 
-      //! setter for extra map item - takes ownership
-      void setExtraMapItem(std::unique_ptr<ExtraMapItem>);
+   // non-owning observer
+   [[nodiscard]] ExtraMapItem* getExtraMapItem() const;
 
-      //! getter for extra map item (non-owning observer)
-      [[nodiscard]] ExtraMapItem* getExtraMapItem() const;
+   // releases ownership (e.g. when the extra is revealed and becomes its own map item), nullptr if none
+   [[nodiscard]] std::unique_ptr<ExtraMapItem> releaseExtraMapItem();
 
-      //! release ownership of the extra map item (e.g. when it's revealed and becomes its
-      //! own independent map item) - returns nullptr if there is none
-      [[nodiscard]] std::unique_ptr<ExtraMapItem> releaseExtraMapItem();
-
-
-   private:
-
-      //! extra map item
-      std::unique_ptr<ExtraMapItem> mExtraMapItem;
+private:
+   std::unique_ptr<ExtraMapItem> _extra_map_item;
 };

@@ -3,49 +3,26 @@
 #include <cstdint>
 #include <string>
 
-// shared
 #include "constants.h"
 
 class CreateGameData
-{    
-   public:
+{
+public:
+   CreateGameData() = default;
+   virtual ~CreateGameData() = default;
 
-      //! constructor
-      CreateGameData();
+   std::string mName;
+   std::string mLevel;
+   int32_t mRounds = 0;
 
-      //! destructor
-      virtual ~CreateGameData();
+   // game duration (s)
+   int32_t mDuration = 0;
 
-      //! game's name
-      std::string mName;
-
-      //! game level name
-      std::string mLevel;
-
-      //! number of rounds
-      int32_t mRounds;
-
-      //! game duration (s)
-      int32_t mDuration;
-
-      //! maximum player count
-      int32_t mMaxPlayers;
-
-      //! bomb extra enabled
-      bool mExtraBombEnabled;
-
-      //! flame extra enabled
-      bool mExtraFlameEnabled;
-
-      //! speedup extra enabled
-      bool mExtraSpeedupEnabled;
-
-      //! kick extra enabled
-      bool mExtraKickEnabled;
-
-      //! skulls enabled
-      bool mExtraSkullsEnabled;
-
-      //! playfield dimension
-      Constants::Dimension mDimension;
+   int32_t mMaxPlayers = 0;
+   bool mExtraBombEnabled = false;
+   bool mExtraFlameEnabled = false;
+   bool mExtraSpeedupEnabled = false;
+   bool mExtraKickEnabled = false;
+   bool mExtraSkullsEnabled = false;
+   Constants::Dimension mDimension = Constants::Dimension13x11;
 };

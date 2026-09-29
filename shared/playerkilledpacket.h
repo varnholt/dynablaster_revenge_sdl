@@ -1,42 +1,30 @@
 #pragma once
 
-// base
-#include "packet.h"
-
-// constants
 #include "constants.h"
+#include "packet.h"
 
 class PlayerKilledPacket : public Packet
 {
 public:
-   //! read constructor
+   // read constructor
    PlayerKilledPacket();
 
-   //! write constructor
-   PlayerKilledPacket(int32_t playerId, int32_t playerKilledById, Constants::Direction direction, float intensity);
+   // write constructor
+   PlayerKilledPacket(int32_t player_id, int32_t player_killed_by_id, Constants::Direction direction, float intensity);
 
-   //! debugs the member variables
-   void debug();
+   void debug() override;
+   void enqueue(BinaryWriter& out) override;
+   void dequeue(BinaryReader& in) override;
 
-   //! enqueues the member variables to datastream
-   void enqueue(BinaryWriter&);
-
-   //! dequeues the member variables from datastream
-   void dequeue(BinaryReader&);
-
-   //! getter for player id
    [[nodiscard]] int32_t getPlayerId() const;
 
 private:
-   //! player id
-   int32_t mPlayerId;
+   int32_t _player_id = 0;
+   int32_t _player_killed_by_id = 0;
 
-   //! killed by id
-   int32_t mPlayerKilledById;
+   // direction the player was killed from
+   Constants::Direction _direction = Constants::DirectionUp;
 
-   //! direction the player was killed from
-   Constants::Direction mDirection;
-
-   //! intensity the player was killed with
-   float mIntensity;
+   // intensity the player was killed with
+   float _intensity = 0.0f;
 };

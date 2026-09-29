@@ -1,144 +1,84 @@
-// header
 #include "joingameresponsepacket.h"
 
-// Qt
 #include "logging.h"
 
-// defines
-#define PACKETNAME "JoinGameResponse"
-
-//-----------------------------------------------------------------------------
-/*!
-   write constructor
-
-   \param nickName player's nick
-*/
-JoinGameResponsePacket::JoinGameResponsePacket(bool success, int32_t gameId, int32_t playerId, const std::string& nick, Constants::Color color)
-    : Packet(Packet::JOINGAMERESPONSE), mSuccess(success), mGameId(gameId), mPlayerId(playerId), mNick(nick), mColor(color)
+namespace
 {
-   mPacketName = PACKETNAME;
+constexpr auto PACKETNAME = "JoinGameResponse";
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   read constructor
-*/
-JoinGameResponsePacket::JoinGameResponsePacket()
-    : Packet(Packet::JOINGAMERESPONSE), mSuccess(false), mGameId(-1), mPlayerId(-1), mColor(Constants::ColorWhite)
+JoinGameResponsePacket::JoinGameResponsePacket(
+   bool success,
+   int32_t game_id,
+   int32_t player_id,
+   const std::string& nick,
+   Constants::Color color
+)
+    : Packet(Packet::JOINGAMERESPONSE), _success(success), _game_id(game_id), _player_id(player_id), _nick(nick), _color(color)
 {
-   mPacketName = PACKETNAME;
+   _packet_name = PACKETNAME;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   destructor
-*/
-JoinGameResponsePacket::~JoinGameResponsePacket()
+JoinGameResponsePacket::JoinGameResponsePacket() : Packet(Packet::JOINGAMERESPONSE)
 {
+   _packet_name = PACKETNAME;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param id player id to set
-*/
-void JoinGameResponsePacket::setPlayerId(int32_t tmpId)
+void JoinGameResponsePacket::setPlayerId(int32_t id)
 {
-   mPlayerId = tmpId;
+   _player_id = id;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return player's id
-*/
 int32_t JoinGameResponsePacket::getPlayerId() const
 {
-   return mPlayerId;
+   return _player_id;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param id game id to set
-*/
 void JoinGameResponsePacket::setGameId(int32_t id)
 {
-   mGameId = id;
+   _game_id = id;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return game's id
-*/
 int32_t JoinGameResponsePacket::getGameId() const
 {
-   return mGameId;
+   return _game_id;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param out datastream to write members to
-*/
 void JoinGameResponsePacket::enqueue(BinaryWriter& out)
 {
-   // write player data
-   out << mSuccess << mGameId << mPlayerId << mNick << static_cast<int32_t>(mColor);
+   out << _success << _game_id << _player_id << _nick << static_cast<int32_t>(_color);
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param in datastream read members from
-*/
 void JoinGameResponsePacket::dequeue(BinaryReader& in)
 {
    int32_t color = 0;
 
-   // read player data
-   in >> mSuccess >> mGameId >> mPlayerId >> mNick >> color;
+   in >> _success >> _game_id >> _player_id >> _nick >> color;
 
-   mColor = static_cast<Constants::Color>(color);
+   _color = static_cast<Constants::Color>(color);
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   debug output of members
-*/
 void JoinGameResponsePacket::debug()
 {
-   // debug output login response
-   qDebug("JoinGameResponsePacket:loginresponse: game: %d, player: %d (%s)", mGameId, mPlayerId, (mSuccess) ? "accepted" : "denied");
+   qDebug("JoinGameResponsePacket:loginresponse: game: %d, player: %d (%s)", _game_id, _player_id, _success ? "accepted" : "denied");
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return player's nickname
-*/
 const std::string& JoinGameResponsePacket::getNick() const
 {
-   return mNick;
+   return _nick;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return success flag
-*/
 bool JoinGameResponsePacket::isSuccessful() const
 {
-   return mSuccess;
+   return _success;
 }
 
-//----------------------------------------------------------------------------
-/*!
-   \param color player color
-*/
 void JoinGameResponsePacket::setColor(Constants::Color color)
 {
-   mColor = color;
+   _color = color;
 }
 
-//----------------------------------------------------------------------------
-/*!
-   \return player color
-*/
 Constants::Color JoinGameResponsePacket::getColor() const
 {
-   return mColor;
+   return _color;
 }

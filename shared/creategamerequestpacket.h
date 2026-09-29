@@ -1,55 +1,40 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 
-// base
-#include "packet.h"
-
-// shared
 #include "constants.h"
 #include "creategamedata.h"
-
-#include <string>
+#include "packet.h"
 
 class CreateGameRequestPacket : public Packet
 {
 public:
-   //! write constructor
+   // write constructor
    CreateGameRequestPacket(
       const std::string& name,
       const std::string& level,
       int32_t rounds,
       int32_t duration,
-      int32_t maxPlayers,
-      bool extraBombEnabled,
-      bool extraFlameEnabled,
-      bool extraSpeedupEnabled,
-      bool extraKickEnabled,
-      bool extraSkullsEnabled,
+      int32_t max_players,
+      bool extra_bomb_enabled,
+      bool extra_flame_enabled,
+      bool extra_speedup_enabled,
+      bool extra_kick_enabled,
+      bool extra_skulls_enabled,
       Constants::Dimension dimension
    );
 
-   //! read constructor
+   // read constructor
    CreateGameRequestPacket();
 
-   //! destructor
-   virtual ~CreateGameRequestPacket();
+   void debug() override;
+   void enqueue(BinaryWriter& out) override;
+   void dequeue(BinaryReader& in) override;
 
-   //! debugs the member variables
-   void debug();
-
-   //! enqueues the member variables to datastream
-   void enqueue(BinaryWriter&);
-
-   //! dequeues the member variables from datastream
-   void dequeue(BinaryReader&);
-
-   //! getter for game name
    [[nodiscard]] std::string getName() const;
-
-   //! getter for create game data
    [[nodiscard]] CreateGameData getData() const;
 
 private:
-   CreateGameData mData;
+   CreateGameData _data;
 };

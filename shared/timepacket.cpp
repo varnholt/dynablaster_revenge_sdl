@@ -1,64 +1,38 @@
-// header
 #include "timepacket.h"
 
-// Qt
 #include "logging.h"
 
-// defines
-#define PACKETNAME "Time"
-
-//-----------------------------------------------------------------------------
-/*!
- */
-TimePacket::TimePacket(int32_t left) : Packet(Packet::TIME), mTimeLeft(left)
+namespace
 {
-   mPacketName = PACKETNAME;
+constexpr auto PACKETNAME = "Time";
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   read constructor
-*/
+TimePacket::TimePacket(int32_t time_left) : Packet(Packet::TIME), _time_left(time_left)
+{
+   _packet_name = PACKETNAME;
+}
+
 TimePacket::TimePacket() : Packet(Packet::TIME)
 {
-   mPacketName = PACKETNAME;
+   _packet_name = PACKETNAME;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return server time
-*/
 int32_t TimePacket::getTimeLeft() const
 {
-   return mTimeLeft;
+   return _time_left;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param out datastream to write members to
-*/
 void TimePacket::enqueue(BinaryWriter& out)
 {
-   // write members
-   out << mTimeLeft;
+   out << _time_left;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param in datastream read members from
-*/
 void TimePacket::dequeue(BinaryReader& in)
 {
-   // read members
-   in >> mTimeLeft;
+   in >> _time_left;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   debug output of members
-*/
 void TimePacket::debug()
 {
-   // output packet members
-   qDebug("TimePacket: game time left: %d", mTimeLeft);
+   qDebug("TimePacket: game time left: %d", _time_left);
 }

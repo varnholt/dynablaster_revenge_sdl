@@ -1,73 +1,48 @@
-// header
 #include "playerkilledpacket.h"
 
-// Qt
 #include "logging.h"
 
-// defines
-#define PACKETNAME "PlayerKilled"
-
-//-----------------------------------------------------------------------------
-/*!
- */
-PlayerKilledPacket::PlayerKilledPacket(int32_t playerId, int32_t playerKilledById, Constants::Direction direction, float intensity)
-    : Packet(Packet::PLAYERKILLED), mPlayerId(playerId), mPlayerKilledById(playerKilledById), mDirection(direction), mIntensity(intensity)
+namespace
 {
-   mPacketName = PACKETNAME;
+constexpr auto PACKETNAME = "PlayerKilled";
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   read constructor
-*/
-PlayerKilledPacket::PlayerKilledPacket()
-    : Packet(Packet::PLAYERKILLED), mPlayerId(0), mPlayerKilledById(0), mDirection(Constants::DirectionUp), mIntensity(0.0f)
+PlayerKilledPacket::PlayerKilledPacket(int32_t player_id, int32_t player_killed_by_id, Constants::Direction direction, float intensity)
+    : Packet(Packet::PLAYERKILLED),
+      _player_id(player_id),
+      _player_killed_by_id(player_killed_by_id),
+      _direction(direction),
+      _intensity(intensity)
 {
-   mPacketName = PACKETNAME;
+   _packet_name = PACKETNAME;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param out datastream to write members to
-*/
+PlayerKilledPacket::PlayerKilledPacket() : Packet(Packet::PLAYERKILLED)
+{
+   _packet_name = PACKETNAME;
+}
+
 int32_t PlayerKilledPacket::getPlayerId() const
 {
-   return mPlayerId;
+   return _player_id;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param out datastream to write members to
-*/
 void PlayerKilledPacket::enqueue(BinaryWriter& out)
 {
-   // write members
-   out << mPlayerId;
-   out << mPlayerKilledById;
-   out << mDirection;
-   out << mIntensity;
+   out << _player_id;
+   out << _player_killed_by_id;
+   out << static_cast<int32_t>(_direction);
+   out << _intensity;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param in datastream read members from
-*/
 void PlayerKilledPacket::dequeue(BinaryReader& in)
 {
    int32_t direction = 0;
-
-   // read members
-   in >> mPlayerId >> mPlayerKilledById >> direction >> mIntensity;
-
-   mDirection = static_cast<Constants::Direction>(direction);
+   in >> _player_id >> _player_killed_by_id >> direction >> _intensity;
+   _direction = static_cast<Constants::Direction>(direction);
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   debug output of members
-*/
 void PlayerKilledPacket::debug()
 {
-   // output packet members
-   qDebug("PlayerKilledPacket: player: %d, killed by: %d, intensity: %f", mPlayerId, mPlayerKilledById, mIntensity);
+   qDebug("PlayerKilledPacket: player: %d, killed by: %d, intensity: %f", _player_id, _player_killed_by_id, _intensity);
 }

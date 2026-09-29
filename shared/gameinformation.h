@@ -3,9 +3,6 @@
 #include <cstdint>
 #include <string>
 
-// Qt
-
-// shared
 #include "constants.h"
 
 class BinaryWriter;
@@ -14,122 +11,72 @@ class BinaryReader;
 class GameInformation
 {
 public:
-   //! constructor for reading
-   GameInformation();
+   // constructor for reading
+   GameInformation() = default;
 
-   //! constructor for writing
+   // constructor for writing
    GameInformation(
       int32_t id,
-      int32_t playerCount,
-      int32_t playerMaximumCount,
-      const std::string& gameName,
-      const std::string& levelName,
-      int32_t creatorId,
+      int32_t player_count,
+      int32_t player_maximum_count,
+      const std::string& game_name,
+      const std::string& level_name,
+      int32_t creator_id,
       Constants::Dimension dimensions,
       int32_t extras,
       int32_t duration,
-      int32_t roundsPlayed,
-      int32_t currentRound,
-      int32_t roundCount,
-      bool spawnExtras
+      int32_t rounds_played,
+      int32_t current_round,
+      int32_t round_count,
+      bool spawn_extras
    );
 
-   //! getter for game id
    [[nodiscard]] int32_t getId() const;
-
-   //! getter for player count
    [[nodiscard]] int32_t getPlayerCount() const;
-
-   //! getter for the player maximum count
    [[nodiscard]] int32_t getPlayerMaximumCount() const;
-
-   //! getter for the game name
    [[nodiscard]] std::string getGameName() const;
-
-   //! getter for the level name
    [[nodiscard]] std::string getLevelName() const;
-
-   //! getter for the game creator id
    [[nodiscard]] int32_t getCreatorId() const;
-
-   //! getter for the map dimension enum
    [[nodiscard]] Constants::Dimension getMapDimensions() const;
 
-   //! setter for the extra enum combination
-   void setExtras(int32_t extra);
-
-   //! getter for the extra enum combination
+   // extra enum combination
+   void setExtras(int32_t extras);
    [[nodiscard]] int32_t getExtras() const;
 
-   //! setter for the game duration
    void setDuration(int32_t duration);
-
-   //! getter for the game duration
    [[nodiscard]] int32_t getDuration() const;
 
-   //! setter for the number of games played
-   void setGamesPlayed(int32_t gamesPlayed);
-
-   //! getter for the number of games played
+   void setGamesPlayed(int32_t games_played);
    [[nodiscard]] int32_t getGamesPlayed() const;
 
-   //! getter for x map scale
    [[nodiscard]] float getMapScaleX() const;
-
-   //! getter for y map scale
    [[nodiscard]] float getMapScaleY() const;
 
-   //! getter for current round count
    [[nodiscard]] int32_t getCurrentRound() const;
-
-   //! getter for round count
    [[nodiscard]] int32_t getRoundCount() const;
 
-   //! getter for spawn extras flag
    [[nodiscard]] bool isSpawnExtrasEnabled() const;
-
-   //! setter for spawn extras flag
    void setSpawnExtrasEnabled(bool value);
 
-public:
-   //! game id
-   int32_t mId;
+private:
+   friend BinaryWriter& operator<<(BinaryWriter& out, const GameInformation& info);
+   friend BinaryReader& operator>>(BinaryReader& in, GameInformation& info);
 
-   //! player count
-   int32_t mPlayerCount;
+   int32_t _id = -1;
+   int32_t _player_count = 0;
+   int32_t _maximum_player_count = 0;
+   std::string _game_name;
+   std::string _level_name;
+   int32_t _creator_id = -1;
+   Constants::Dimension _dimensions = Constants::DimensionInvalid;
+   int32_t _extras = 0;
+   int32_t _duration = 0;
+   int32_t _games_played = 0;
+   int32_t _current_round = 0;
+   int32_t _round_count = 0;
 
-   //! maximum player count
-   int32_t mMaximumPlayerCount;
-
-   //! game name
-   std::string mGameName;
-
-   //! level name
-   std::string mLevelName;
-
-   //! creator id
-   int32_t mCreatorId;
-
-   //! game dimensions
-   Constants::Dimension mDimensions;
-
-   //! extras
-   int32_t mExtras;
-
-   //! game duration
-   int32_t mDuration;
-
-   //! number of games played
-   int32_t mGamesPlayed;
-
-   //! current round
-   int32_t mCurrentRound;
-
-   //! number of rounds
-   int32_t mRoundCount;
-
-   //! spawn extra flag
-   bool mSpawnExtras;
+   // not serialized
+   bool _spawn_extras = false;
 };
 
 BinaryWriter& operator<<(BinaryWriter& out, const GameInformation& info);

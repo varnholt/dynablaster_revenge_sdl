@@ -1,75 +1,38 @@
-// header
 #include "joingamerequestpacket.h"
 
-// Qt
 #include "logging.h"
 
-// defines
-#define PACKETNAME "JoinGameRequest"
-
-//-----------------------------------------------------------------------------
-/*!
-   write constructor
-
-   \param name game's name
-*/
-JoinGameRequestPacket::JoinGameRequestPacket(int32_t id) : Packet(Packet::JOINGAMEREQUEST), mId(id)
+namespace
 {
-   mPacketName = PACKETNAME;
+constexpr auto PACKETNAME = "JoinGameRequest";
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   read constructor
-*/
+JoinGameRequestPacket::JoinGameRequestPacket(int32_t id) : Packet(Packet::JOINGAMEREQUEST), _id(id)
+{
+   _packet_name = PACKETNAME;
+}
+
 JoinGameRequestPacket::JoinGameRequestPacket() : Packet(Packet::JOINGAMEREQUEST)
 {
-   mPacketName = PACKETNAME;
+   _packet_name = PACKETNAME;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   destructor
-*/
-JoinGameRequestPacket::~JoinGameRequestPacket()
-{
-}
-
-//-----------------------------------------------------------------------------
-/*!
-   \return game's id
-*/
 int32_t JoinGameRequestPacket::getId() const
 {
-   return mId;
+   return _id;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param out datastream to write members to
-*/
 void JoinGameRequestPacket::enqueue(BinaryWriter& out)
 {
-   // write members
-   out << mId;
+   out << _id;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param in datastream read members from
-*/
 void JoinGameRequestPacket::dequeue(BinaryReader& in)
 {
-   // read members
-   in >> mId;
+   in >> _id;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   debug output of members
-*/
 void JoinGameRequestPacket::debug()
 {
-   // debug output login response
-   qDebug("JoinGameRequestPacket:debug: id: %d", mId);
+   qDebug("JoinGameRequestPacket:debug: id: %d", _id);
 }

@@ -7,46 +7,24 @@
 class MessagePacket : public Packet
 {
 public:
-   //! write constructor
-   MessagePacket(int8_t senderId, const std::string& message, bool finishedTyping, int8_t receiverId = -1);
+   // write constructor
+   MessagePacket(int8_t sender_id, const std::string& message, bool finished_typing, int8_t receiver_id = -1);
 
-   //! read constructor
+   // read constructor
    MessagePacket();
 
-   //! destructor
-   virtual ~MessagePacket();
+   void debug() override;
+   void enqueue(BinaryWriter& out) override;
+   void dequeue(BinaryReader& in) override;
 
-   //! debugs the member variables
-   void debug();
-
-   //! enqueues the member variables to datastream
-   void enqueue(BinaryWriter&);
-
-   //! dequeues the member variables from datastream
-   void dequeue(BinaryReader&);
-
-   //! getter for sender id
    [[nodiscard]] int8_t getSenderId() const;
-
-   //! getter for the message
    [[nodiscard]] std::string getMessage() const;
-
-   //! getter for the receiver's id
    [[nodiscard]] int8_t getReceiverId() const;
-
-   //! getter for finished-typing flag
    [[nodiscard]] bool isTypingFinished() const;
 
 private:
-   //! sender id
-   int8_t mSenderId;
-
-   //! message to send
-   std::string mMessage;
-
-   //! receiver id
-   int8_t mReceiverId;
-
-   //! player finished typing
-   bool mFinishedTyping;
+   int8_t _sender_id = 0;
+   std::string _message;
+   int8_t _receiver_id = -1;
+   bool _finished_typing = true;
 };

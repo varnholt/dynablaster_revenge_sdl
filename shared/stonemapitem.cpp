@@ -1,59 +1,24 @@
-
-// header
 #include "stonemapitem.h"
 
-// shared
 #include "extramapitem.h"
 
-
-//-----------------------------------------------------------------------------
-/*!
-  constructor
-*/
-StoneMapItem::StoneMapItem(
-   int32_t id,
-   int32_t x,
-   int32_t y
-)
-   : MapItem(Stone, id, true, true, x, y),
-     mExtraMapItem(nullptr)
+StoneMapItem::StoneMapItem(int32_t id, int32_t x, int32_t y) : MapItem(Stone, id, true, true, x, y)
 {
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   destructor
-*/
 StoneMapItem::~StoneMapItem() = default;
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \param item extra map item, ownership transfers to this stone
-*/
 void StoneMapItem::setExtraMapItem(std::unique_ptr<ExtraMapItem> item)
 {
-   mExtraMapItem = std::move(item);
+   _extra_map_item = std::move(item);
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \return extra map item
-*/
 ExtraMapItem* StoneMapItem::getExtraMapItem() const
 {
-   return mExtraMapItem.get();
+   return _extra_map_item.get();
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \return extra map item, ownership transfers to the caller
-*/
 std::unique_ptr<ExtraMapItem> StoneMapItem::releaseExtraMapItem()
 {
-   return std::move(mExtraMapItem);
+   return std::move(_extra_map_item);
 }
-

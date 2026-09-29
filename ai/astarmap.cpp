@@ -38,9 +38,9 @@ AStarMap::AStarMap(BotMap* map) : BotMap()
    // init map
    initMap();
 
-   for (int x = 0; x < mWidth; x++)
+   for (int x = 0; x < _width; x++)
    {
-      for (int y = 0; y < mHeight; y++)
+      for (int y = 0; y < _height; y++)
       {
          setItem(x, y, map->getItem(x, y));
       }
@@ -56,9 +56,9 @@ AStarMap::AStarMap(AStarMap* map)
    // init map
    initMap();
 
-   for (int x = 0; x < mWidth; x++)
+   for (int x = 0; x < _width; x++)
    {
-      for (int y = 0; y < mHeight; y++)
+      for (int y = 0; y < _height; y++)
       {
          setItem(x, y, map->getItem(x, y));
       }
@@ -77,8 +77,8 @@ AStarMap::~AStarMap()
  */
 void AStarMap::initMap()
 {
-   mNodeMap = new AStarNode*[mWidth * mHeight];
-   std::memset(mNodeMap, 0, mWidth * mHeight * sizeof(AStarNode*));
+   mNodeMap = new AStarNode*[_width * _height];
+   std::memset(mNodeMap, 0, _width * _height * sizeof(AStarNode*));
 }
 
 //-----------------------------------------------------------------------------
@@ -87,8 +87,8 @@ void AStarMap::initMap()
 */
 void AStarMap::setBotMap(BotMap* map)
 {
-   for (int x = 0; x < mWidth; x++)
-      for (int y = 0; y < mHeight; y++)
+   for (int x = 0; x < _width; x++)
+      for (int y = 0; y < _height; y++)
          setItem(x, y, map->getItem(x, y));
 }
 
@@ -97,9 +97,9 @@ void AStarMap::setBotMap(BotMap* map)
  */
 void AStarMap::buildNodes()
 {
-   for (int x = 0; x < mWidth; x++)
+   for (int x = 0; x < _width; x++)
    {
-      for (int y = 0; y < mHeight; y++)
+      for (int y = 0; y < _height; y++)
       {
          // init node
          AStarNode* node = new AStarNode();
@@ -107,7 +107,7 @@ void AStarMap::buildNodes()
          node->setY(y);
 
          // add node to map
-         mNodeMap[y * mWidth + x] = node;
+         mNodeMap[y * _width + x] = node;
 
          // add node to node list
          mNodes.push_back(node);
@@ -120,12 +120,12 @@ void AStarMap::buildNodes()
  */
 void AStarMap::clearNodes()
 {
-   for (int x = 0; x < mWidth; x++)
+   for (int x = 0; x < _width; x++)
    {
-      for (int y = 0; y < mHeight; y++)
+      for (int y = 0; y < _height; y++)
       {
-         delete mNodeMap[y * mWidth + x];
-         mNodeMap[y * mWidth + x] = 0;
+         delete mNodeMap[y * _width + x];
+         mNodeMap[y * _width + x] = 0;
       }
    }
 
@@ -208,7 +208,7 @@ bool AStarMap::isTraversable(const Point& point, bool regardStones)
 */
 AStarNode* AStarMap::getNode(int x, int y) const
 {
-   return mNodeMap[y * mWidth + x];
+   return mNodeMap[y * _width + x];
 }
 
 //-----------------------------------------------------------------------------
@@ -219,7 +219,7 @@ AStarNode* AStarMap::getNode(int x, int y) const
 */
 void AStarMap::setNode(int x, int y, AStarNode* item)
 {
-   mNodeMap[y * mWidth + x] = item;
+   mNodeMap[y * _width + x] = item;
 }
 
 //-----------------------------------------------------------------------------
@@ -228,12 +228,12 @@ void AStarMap::setNode(int x, int y, AStarNode* item)
 */
 void AStarMap::debugPath(const std::vector<AStarNode*>& path)
 {
-   AStarNode** map = new AStarNode*[mWidth * mHeight];
+   AStarNode** map = new AStarNode*[_width * _height];
 
-   std::memset(map, 0, mWidth * mHeight * sizeof(AStarNode*));
+   std::memset(map, 0, _width * _height * sizeof(AStarNode*));
 
    for (AStarNode* node : path)
-      map[node->getY() * mWidth + node->getX()] = node;
+      map[node->getY() * _width + node->getX()] = node;
 
    std::vector<std::string> lines;
    MapItem* item = 0;
@@ -245,7 +245,7 @@ void AStarMap::debugPath(const std::vector<AStarNode*>& path)
 
       for (int xi = 0; xi < getWidth(); xi++)
       {
-         if (map[yi * mWidth + xi])
+         if (map[yi * _width + xi])
          {
             c = 'x';
          }

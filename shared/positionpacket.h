@@ -5,94 +5,55 @@
 class PositionPacket : public Packet
 {
 public:
-   //! write constructor
+   // write constructor
    PositionPacket(
-      int8_t playerId,
+      int8_t player_id,
       int8_t directions,
       float x,
       float y,
       float angle = 0.0f,
-      float xDelta = 0.0f,
-      float yDelta = 0.0f,
-      float angleDelta = 0.0f,
+      float delta_x = 0.0f,
+      float delta_y = 0.0f,
+      float angle_delta = 0.0f,
       float speed = 0.0f
    );
 
-   //! read constructor
+   // read constructor
    PositionPacket();
 
-   //! destructor
-   virtual ~PositionPacket();
+   void debug() override;
+   void enqueue(BinaryWriter& out) override;
+   void dequeue(BinaryReader& in) override;
 
-   //! debugs the member variables
-   void debug();
-
-   //! enqueues the member variables to datastream
-   void enqueue(BinaryWriter&);
-
-   //! dequeues the member variables from datastream
-   void dequeue(BinaryReader&);
-
-   //! getter for player id
    [[nodiscard]] int8_t getPlayerId() const;
-
-   //! getter for player x position
    [[nodiscard]] float getX() const;
-
-   //! getter for player y position
    [[nodiscard]] float getY() const;
 
-   //! getter for player orientation angle
+   // player orientation angle
    [[nodiscard]] float getAngle() const;
 
-   //! getter for the player's directions
    [[nodiscard]] int8_t getDirections() const;
 
-   //! getter for player's x delta
    [[nodiscard]] float getDeltaX() const;
+   void setDeltaX(float delta_x);
 
-   //! set player's x delta
-   void setDeltaX(float deltax);
-
-   //! getter for player's y delta
    [[nodiscard]] float getDeltaY() const;
+   void setDeltaY(float delta_y);
 
-   //! set player's y delta
-   void setDeltaY(float deltay);
-
-   //! getter for player's rotation delta
+   // rotation delta
    [[nodiscard]] float getAngleDelta() const;
+   void setAngleDelta(float angle_delta);
 
-   //! getter for player speed
    [[nodiscard]] float getSpeed() const;
-   //! set player's rotation delta
-   void setAngleDelta(float angleDelta);
 
 private:
-   //! player id
-   int8_t mPlayerId;
-
-   //! player's directions
-   int8_t mDirections;
-
-   //! player x position
-   float mX;
-
-   //! player y position
-   float mY;
-
-   //! player direction x
-   float mDx;
-
-   //! player direction y
-   float mDy;
-
-   //! player orientation
-   float mAngle;
-
-   //! player angle direction
-   float mAngleDelta;
-
-   //! player speed
-   float mSpeed;
+   int8_t _player_id = 0;
+   int8_t _directions = 0;
+   float _x = 0.0f;
+   float _y = 0.0f;
+   float _dx = 0.0f;
+   float _dy = 0.0f;
+   float _angle = 0.0f;
+   float _angle_delta = 0.0f;
+   float _speed = 0.0f;
 };

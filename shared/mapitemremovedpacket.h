@@ -7,20 +7,13 @@ class MapItem;
 class MapItemRemovedPacket : public MapItemPacket
 {
 public:
-   //! write constructor
-   MapItemRemovedPacket(MapItem* item);
+   // write constructor
+   explicit MapItemRemovedPacket(MapItem* item);
 
-   //! read constructor
+   // read constructor
    MapItemRemovedPacket();
 
-   //! debugs the member variables
-   virtual void debug();
-
-   //! enqueues the member variables to datastream
-   virtual void enqueue(BinaryWriter&);
-
-   //! dequeues the member variables from datastream
-   virtual void dequeue(BinaryReader&);
-
-protected:
+   void debug() override;
+   void enqueue(BinaryWriter& out) override;
+   void dequeue(BinaryReader& in) override;
 };

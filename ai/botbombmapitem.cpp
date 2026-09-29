@@ -46,7 +46,7 @@ std::chrono::steady_clock::time_point BotBombMapItem::getDropTime() const
 */
 void BotBombMapItem::setFlameCount(int flames)
 {
-   mFlames = flames;
+   _flames = flames;
 }
 
 

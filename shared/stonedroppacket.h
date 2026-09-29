@@ -5,34 +5,21 @@
 class StoneDropPacket : public Packet
 {
 public:
-   //! write constructor
+   // write constructor
    StoneDropPacket(int8_t x, int8_t y);
 
-   //! read constructor
+   // read constructor
    StoneDropPacket();
 
-   //! destructor
-   virtual ~StoneDropPacket();
+   void debug() override;
+   void enqueue(BinaryWriter& out) override;
+   void dequeue(BinaryReader& in) override;
 
-   //! debugs the member variables
-   void debug();
-
-   //! enqueues the member variables to datastream
-   void enqueue(BinaryWriter&);
-
-   //! dequeues the member variables from datastream
-   void dequeue(BinaryReader&);
-
-   //! getter for stone x position
+   // stone position
    [[nodiscard]] int8_t getX() const;
-
-   //! getter for stone y position
    [[nodiscard]] int8_t getY() const;
 
 private:
-   //! x position
-   int8_t mX;
-
-   //! y position
-   int8_t mY;
+   int8_t _x = 0;
+   int8_t _y = 0;
 };

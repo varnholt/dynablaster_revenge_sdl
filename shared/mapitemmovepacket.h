@@ -2,61 +2,32 @@
 
 #include <cstdint>
 
-// base
-#include "packet.h"
-
-// shared
 #include "constants.h"
+#include "packet.h"
 
 class MapItemMovePacket : public Packet
 {
 public:
-   //! write constructor
-   MapItemMovePacket(int32_t mapItemId, float speed, Constants::Direction direction, int32_t nominalX = -1, int32_t nominalY = -1);
+   // write constructor
+   MapItemMovePacket(int32_t map_item_id, float speed, Constants::Direction direction, int32_t nominal_x = -1, int32_t nominal_y = -1);
 
-   //! read constructor
+   // read constructor
    MapItemMovePacket();
 
-   //! destructor
-   virtual ~MapItemMovePacket();
+   void debug() override;
+   void enqueue(BinaryWriter& out) override;
+   void dequeue(BinaryReader& in) override;
 
-   //! debugs the member variables
-   void debug();
-
-   //! enqueues the member variables to datastream
-   void enqueue(BinaryWriter&);
-
-   //! dequeues the member variables from datastream
-   void dequeue(BinaryReader&);
-
-   //! getter for object id
    [[nodiscard]] int32_t getMapItemId() const;
-
-   //! getter mapitem speed
    [[nodiscard]] float getSpeed() const;
-
-   //! getter for mapitem direction
    [[nodiscard]] Constants::Direction getDirection() const;
-
-   //! getter for nominal x position
    [[nodiscard]] int32_t getNominalX() const;
-
-   //! getter for nominal y position
    [[nodiscard]] int32_t getNominalY() const;
 
 private:
-   //! unique mapitem id
-   int32_t mMapItemId;
-
-   //! mapitem speed
-   float mSpeed;
-
-   //! mapitem direction
-   Constants::Direction mDirection;
-
-   //! nominal x
-   int32_t mNominalX;
-
-   //! nominal y
-   int32_t mNominalY;
+   int32_t _map_item_id = 0;
+   float _speed = 0.0f;
+   Constants::Direction _direction = Constants::DirectionUnknown;
+   int32_t _nominal_x = 0;
+   int32_t _nominal_y = 0;
 };

@@ -51,7 +51,7 @@ bool Point::isNull() const
    return _x == 0 && _y == 0;
 }
 
-int Point::manhattanLength() const
+int32_t Point::manhattanLength() const
 {
    return std::abs(_x) + std::abs(_y);
 }

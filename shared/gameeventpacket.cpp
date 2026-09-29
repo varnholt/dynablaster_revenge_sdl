@@ -1,137 +1,80 @@
-// header
 #include "gameeventpacket.h"
 
-// Qt
 #include "logging.h"
 
-// defines
-#define PACKETNAME "GameEvent"
+namespace
+{
+constexpr auto PACKETNAME = "GameEvent";
+}
 
-//-----------------------------------------------------------------------------
-/*!
-   \param event game event
-   \param intensity event intensity
-*/
 GameEventPacket::GameEventPacket(GameEvent event, float intensity, int32_t x, int32_t y)
-    : Packet(Packet::GAMEEVENT), mEvent(event), mIntensity(intensity), mPlayerId(-1), mExtraType(Constants::ExtraBomb), mX(x), mY(y)
+    : Packet(Packet::GAMEEVENT), _event(event), _intensity(intensity), _x(x), _y(y)
 {
-   mPacketName = PACKETNAME;
+   _packet_name = PACKETNAME;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   read constructor
-*/
-GameEventPacket::GameEventPacket()
-    : Packet(Packet::GAMEEVENT), mEvent(Invalid), mIntensity(1.0f), mPlayerId(-1), mExtraType(Constants::ExtraBomb), mX(-1), mY(-1)
+GameEventPacket::GameEventPacket() : Packet(Packet::GAMEEVENT)
 {
-   mPacketName = PACKETNAME;
+   _packet_name = PACKETNAME;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return game event intensity
-*/
 float GameEventPacket::getIntensity() const
 {
-   return mIntensity;
+   return _intensity;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return game event type
-*/
 GameEventPacket::GameEvent GameEventPacket::getGameEvent() const
 {
-   return mEvent;
+   return _event;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param out datastream to write members to
-*/
 void GameEventPacket::enqueue(BinaryWriter& out)
 {
-   // write members
-   out << mEvent << mIntensity << mPlayerId << mExtraType << mX << mY;
+   out << static_cast<int32_t>(_event) << _intensity << _player_id << static_cast<int32_t>(_extra_type) << _x << _y;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param in datastream read members from
-*/
 void GameEventPacket::dequeue(BinaryReader& in)
 {
    int32_t event = 0;
    int32_t extra = 0;
 
-   // read members
-   in >> event >> mIntensity >> mPlayerId >> extra >> mX >> mY;
+   in >> event >> _intensity >> _player_id >> extra >> _x >> _y;
 
-   mEvent = static_cast<GameEvent>(event);
-   mExtraType = static_cast<Constants::ExtraType>(extra);
+   _event = static_cast<GameEvent>(event);
+   _extra_type = static_cast<Constants::ExtraType>(extra);
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   debug output of members
-*/
 void GameEventPacket::debug()
 {
-   // output packet members
-   qDebug("GameEventPacket: type: %d, intensity: %f", mEvent, mIntensity);
+   qDebug("GameEventPacket: type: %d, intensity: %f", _event, _intensity);
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param id player id
-*/
-void GameEventPacket::setPlayerId(int32_t id)
+void GameEventPacket::setPlayerId(int32_t player_id)
 {
-   mPlayerId = id;
+   _player_id = player_id;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param extra extra type
-*/
-void GameEventPacket::setExtraType(Constants::ExtraType extra)
+void GameEventPacket::setExtraType(Constants::ExtraType extra_type)
 {
-   mExtraType = extra;
+   _extra_type = extra_type;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return player id
-*/
 int32_t GameEventPacket::getPlayerId() const
 {
-   return mPlayerId;
+   return _player_id;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return extra type
-*/
 Constants::ExtraType GameEventPacket::getExtraType() const
 {
-   return mExtraType;
+   return _extra_type;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return x position of event
-*/
 int32_t GameEventPacket::getX() const
 {
-   return mX;
+   return _x;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return y position of event
-*/
 int32_t GameEventPacket::getY() const
 {
-   return mY;
+   return _y;
 }
