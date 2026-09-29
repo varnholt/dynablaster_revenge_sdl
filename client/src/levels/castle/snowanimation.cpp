@@ -76,8 +76,8 @@ void SnowAnimation::reset()
 
 void SnowAnimation::updateWind(float elapsed_ms)
 {
-   const float val = elapsed_ms * 0.0001f;
-   _wind_direction = Vector(0.5f + std::sin(val) * 0.004f, std::cos(val) * 0.004f, -1.0f);
+   const float value = elapsed_ms * 0.0001f;
+   _wind_direction = Vector(0.5f + std::sin(value) * 0.004f, std::cos(value) * 0.004f, -1.0f);
 }
 
 void SnowAnimation::animate(float dt)
@@ -148,7 +148,7 @@ void SnowAnimation::draw(const Matrix& transform)
    glBindBuffer(GL_ARRAY_BUFFER, _vertex_buffer);
    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * vertices.size(), vertices.data(), GL_DYNAMIC_DRAW);
    glEnableVertexAttribArray(0);
-   glVertexAttribPointer(0, FLOATS_PER_PARTICLE, GL_FLOAT, GL_FALSE, sizeof(float) * FLOATS_PER_PARTICLE, (GLvoid*)0);
+   glVertexAttribPointer(0, FLOATS_PER_PARTICLE, GL_FLOAT, GL_FALSE, sizeof(float) * FLOATS_PER_PARTICLE, nullptr);
 
    glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(vertices.size() / FLOATS_PER_PARTICLE));
 

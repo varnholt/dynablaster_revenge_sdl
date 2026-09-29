@@ -46,8 +46,8 @@ LensFlareFactory::~LensFlareFactory() = default;
 
 bool LensFlareFactory::activate(const std::string& key)
 {
-   const auto it = _lens_flares.find(key);
-   _active = (it != _lens_flares.end()) ? it->second.get() : nullptr;
+   const auto flare = _lens_flares.find(key);
+   _active = (flare != _lens_flares.end()) ? flare->second.get() : nullptr;
    return _active != nullptr;
 }
 

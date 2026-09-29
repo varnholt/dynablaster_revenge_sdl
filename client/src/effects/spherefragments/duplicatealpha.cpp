@@ -2,22 +2,22 @@
 #include "gldevice.h"
 #include "math/vector4.h"
 
-DuplicateAlpha::DuplicateAlpha() : mShader(0), mColorParam(-1)
+DuplicateAlpha::DuplicateAlpha()
 {
-   mShader = activeDevice->loadShader("duplicatealpha-vert.glsl", "duplicatealpha-frag.glsl");
+   _shader = activeDevice->loadShader("duplicatealpha-vert.glsl", "duplicatealpha-frag.glsl");
 
-   mColorParam = activeDevice->getParameterIndex("color");
+   _color_param = activeDevice->getParameterIndex("color");
 }
 
-void DuplicateAlpha::process(unsigned int texture, const Vector4& color)
+void DuplicateAlpha::process(uint32_t texture, const Vector4& color)
 {
-   activeDevice->setShader(mShader);
+   activeDevice->setShader(_shader);
    glDisable(GL_DEPTH_TEST);
    glDepthMask(GL_FALSE);
-   activeDevice->setParameter(mColorParam, color);
+   activeDevice->setParameter(_color_param, color);
    glBindTexture(GL_TEXTURE_2D, texture);
 
-   mQuad.drawUnit();
+   _quad.drawUnit();
 
    activeDevice->setShader(0);
    glDepthMask(GL_TRUE);

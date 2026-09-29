@@ -126,11 +126,7 @@ void GameDrawable::deleteLevelData()
    clear();
    _destructions.clear();
 
-   if (_level)
-   {
-      delete _level;
-      _level= nullptr;
-   }
+   _level.reset();
 
    _playfield= nullptr;
    _level_scene_graph= nullptr;
@@ -340,10 +336,10 @@ void GameDrawable::loadLevel(const std::string& level_path)
 
    _level_path = "data/" + level_path;
 
-   Level* level = LevelFactory::getLevelInstance(_level_path);
+   auto level = LevelFactory::getLevelInstance(_level_path);
    level->load();
 
-   _level = level;
+   _level = std::move(level);
 
    _level_scene_graph= _level->getLevel();
    _playfield= _level->getScene();

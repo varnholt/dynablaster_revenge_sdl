@@ -27,7 +27,7 @@ private:
    std::map<std::string, std::unique_ptr<LensFlare>> _lens_flares;
    LensFlare* _active = nullptr;
 
-   unsigned int _shader = 0;
+   uint32_t _shader = 0;
    int32_t _time_param = -1;
    int32_t _sun_param = -1;
    int32_t _length_param = -1;

@@ -3,54 +3,45 @@
 // engine
 #include "math/vector.h"
 #include "render/texture.h"
-#include "tools/array.h"
 
-// forwards
+#include <cstdint>
+#include <memory>
+#include <vector>
+
 class SphereFragment;
 class Node;
 
 class SphereFragmentContainer
 {
 public:
-   SphereFragmentContainer(Node* scene);
+   explicit SphereFragmentContainer(Node* root);
    virtual ~SphereFragmentContainer();
 
    void animate(float time);
 
    //! draw fragments
-   void drawFragments(const Vector& camPos);
+   void drawFragments(const Vector& camera_position);
 
    void begin();
    void end();
 
 protected:
-   Array<SphereFragment*> mFragments;
+   std::vector<std::unique_ptr<SphereFragment>> _fragments;
 
-   // textures
+   Texture _earth_texture{0};
+   Texture _normal_map_texture{0};
+   Texture _lava_map_texture{0};
 
-   Texture mEarthTexture;
-   Texture mNormalMapTexture;
-   Texture mLavaMapTexture;
+   uint32_t _shader = 0;
 
-   // shader
-
-   //! shader
-   unsigned int mShader;
-
-   //! intensity uniform
-   int mSizeParam;
-
-   int mProjectMatrixParam;
-   int mModelMatrixParam;
-   int mFresnelParam;
-
-   //! light
-   int mLightParam;
-   int mCameraParam;
-
-   //! mapping parameters
-   int mTextureMapParam;
-   int mNormalMapParam;
-   int mSpecularMapParam;
-   int mLavaMapParam;
+   int32_t _size_param = -1;
+   int32_t _project_matrix_param = -1;
+   int32_t _model_matrix_param = -1;
+   int32_t _fresnel_param = -1;
+   int32_t _light_param = -1;
+   int32_t _camera_param = -1;
+   int32_t _texture_map_param = -1;
+   int32_t _normal_map_param = -1;
+   int32_t _specular_map_param = -1;
+   int32_t _lava_map_param = -1;
 };

@@ -185,7 +185,7 @@ private:
    void deleteLevelData();
    void deleteMesh(Mesh *mesh);
 
-   Level* _level;
+   std::unique_ptr<Level> _level;
    SceneGraph* _playfield;
    SceneGraph* _level_scene_graph;
    SceneGraph* _players;

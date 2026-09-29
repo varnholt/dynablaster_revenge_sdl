@@ -4,10 +4,10 @@
 
 void SdlGlobalTime::update()
 {
-   mTime = static_cast<float>(SDL_GetTicks()) / 1000.0f;
+   _time = static_cast<float>(SDL_GetTicks()) / 1000.0f;
 }
 
 float SdlGlobalTime::getTime() const
 {
-   return mTime;
+   return _time;
 }

@@ -1,4 +1,3 @@
-// header
 #include "level.h"
 #include "framework/gldevice.h"
 #include "materials/destructionmaterial.h"
@@ -10,431 +9,238 @@
 #include <array>
 #include <numbers>
 
-// defines
-#define LEVEL_CASTLE  "level-castle"
-#define LEVEL_MANSION "level-mansion"
-#define LEVEL_SPACE   "level-space"
-#define LEVEL_DUMMY   "level-dummy"
+namespace
+{
+constexpr auto LEVEL_CASTLE = "level-castle";
+constexpr auto LEVEL_MANSION = "level-mansion";
+constexpr auto LEVEL_SPACE = "level-space";
+constexpr auto LEVEL_DUMMY = "level-dummy";
+}  // namespace
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
-Level::Level(LevelType levelType)
-  : mLevelType(levelType),
-    mAborted(false),
-    mScene(0),
-    mLevel(0),
-    mPlayers(0),
-    mCamInterp(0),
-    mStones(0),
-    mBlocks(0),
-    mSkulls(0),
-    mDestruction(0),
-    mExtraFlame(0),
-    mExtraBomb(0),
-    mExtraSpeedup(0),
-    mExtraKick(0),
-    mExtraSkull(0),
-    mOutlines(0),
-    mBombs(0),
-    mShadowBillboards(0),
-    mShadowBlocks(0)
+Level::Level(LevelType level_type) : _level_type(level_type)
 {
 }
 
+Level::~Level() = default;
 
-//-----------------------------------------------------------------------------
-/*!
-*/
-Level::~Level()
-{
-   delete mLevel;
-   delete mScene;
-   delete mPlayers;
-}
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 void Level::abort()
 {
-   mAborted = true;
+   _aborted = true;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \return \c true if thread is aborted
-*/
+//! \return \c true if thread is aborted
 bool Level::isAborted() const
 {
-   return mAborted;
+   return _aborted;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 void Level::load()
 {
-   std::string levelPath = "data/" + path();
+   const std::string level_path = "data/" + path();
 
-   FileStream::addPath( levelPath.c_str() );
+   FileStream::addPath(level_path.c_str());
 
    loadData();
 
-   FileStream::removePath( levelPath.c_str() );
+   FileStream::removePath(level_path.c_str());
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 void Level::loadData()
 {
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 std::string Level::getLensFlareKey() const
 {
    return {};
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 void Level::initialize()
 {
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 void Level::draw()
 {
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 void Level::drawBackground()
 {
    activeDevice->clear();
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 void Level::animate(float /*dt*/)
 {
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 void Level::reset()
 {
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 std::string Level::path() const
 {
-   return getLevelDirectoryName( mLevelType );
+   return getLevelDirectoryName(_level_type);
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 void Level::resetPlayerPositions()
 {
-   if (mCamInterp)
-      mCamInterp->resetPlayerPositions();
+   if (_camera_interpolation)
+   {
+      _camera_interpolation->resetPlayerPositions();
+   }
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 void Level::startPositionUpdate(float width, float height, float dt)
 {
-   if (mCamInterp)
-      mCamInterp->startPositionUpdate(width, height, dt);
+   if (_camera_interpolation)
+   {
+      _camera_interpolation->startPositionUpdate(width, height, dt);
+   }
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
-void Level::addPlayerPosition( PlayerInfo* player )
+void Level::addPlayerPosition(PlayerInfo* player)
 {
-   if (mCamInterp)
-      mCamInterp->addPlayerPosition( player );
+   if (_camera_interpolation)
+   {
+      _camera_interpolation->addPlayerPosition(player);
+   }
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 void Level::endPlayerPositionUpdate()
 {
-   if (mCamInterp)
-      mCamInterp->endPlayerPositionUpdate();
+   if (_camera_interpolation)
+   {
+      _camera_interpolation->endPlayerPositionUpdate();
+   }
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 bool Level::isPlayerMapEmpty() const
 {
-   bool empty = false;
-
-   if (mCamInterp)
-      empty = mCamInterp->isPlayerMapEmpty();
-
-   return empty;
+   return _camera_interpolation ? _camera_interpolation->isPlayerMapEmpty() : false;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 Matrix Level::getCameraMatrix(float time, float scale)
 {
-   if (mCamInterp)
-      return mCamInterp->getCameraMatrix(time, scale);
-   else
-      return Matrix();
-}
-
-/*
-void Level::setPlayerPosition()
-{
-
-}
-*/
-
-
-//-----------------------------------------------------------------------------
-/*!
-*/
-std::string Level::getLevelDirectoryName(Level::LevelType levelType)
-{
-   std::string dir;
-
-   switch (levelType)
+   if (_camera_interpolation)
    {
-      case LevelMansion:
-         dir = LEVEL_MANSION;
-         break;
-      case LevelSpace:
-         dir = LEVEL_SPACE;
-         break;
-      case LevelDummy:
-         dir = LEVEL_DUMMY;
-         break;
-
-      default:
-         dir = LEVEL_CASTLE;
-         break;
+      return _camera_interpolation->getCameraMatrix(time, scale);
    }
 
-   return dir;
+   return Matrix();
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
-std::string Level::getLevelName(Level::LevelType levelType)
+std::string Level::getLevelDirectoryName(Level::LevelType level_type)
 {
-   std::string name;
-
-   switch (levelType)
+   switch (level_type)
    {
       case LevelMansion:
-         name = "the mansion";
-         break;
+         return LEVEL_MANSION;
       case LevelSpace:
-         name = "space";
-         break;
+         return LEVEL_SPACE;
       case LevelDummy:
-         name = "dummy";
-         break;
-
+         return LEVEL_DUMMY;
       default:
-         name = "the castle";
-         break;
+         return LEVEL_CASTLE;
    }
-
-   return name;
 }
 
+std::string Level::getLevelName(Level::LevelType level_type)
+{
+   switch (level_type)
+   {
+      case LevelMansion:
+         return "the mansion";
+      case LevelSpace:
+         return "space";
+      case LevelDummy:
+         return "dummy";
+      default:
+         return "the castle";
+   }
+}
 
-//-----------------------------------------------------------------------------
-/*!
-*/
 Material* Level::getFlameExtra() const
 {
-   return mExtraFlame;
+   return _extra_flame;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 Material* Level::getBombExtra() const
 {
-   return mExtraBomb;
+   return _extra_bomb;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 Material* Level::getSpeedupExtra() const
 {
-   return mExtraSpeedup;
+   return _extra_speedup;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 Material* Level::getKickExtra() const
 {
-   return mExtraKick;
+   return _extra_kick;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 Material* Level::getSkullExtra() const
 {
-   return mExtraSkull;
+   return _extra_skull;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 SceneGraph* Level::getLevel() const
 {
-   return mLevel;
+   return _level.get();
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 SceneGraph* Level::getScene() const
 {
-   return mScene;
+   return _scene.get();
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 SceneGraph* Level::getPlayers() const
 {
-   return mPlayers;
+   return _players.get();
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 const Array<Node*>& Level::getDestructions() const
 {
-   return mDestructAnim;
+   return _destruct_anim;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 Material* Level::getShadowBillboard() const
 {
-   return mShadowBillboards;
+   return _shadow_billboards;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 Material* Level::getShadowBlockBillboard() const
 {
-   return mShadowBlocks;
+   return _shadow_blocks;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 Material* Level::getBombMaterial() const
 {
-   return mBombs;
+   return _bombs;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 Material* Level::getSkullMaterial() const
 {
-   return mSkulls;
+   return _skulls;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 Material* Level::getStoneMaterial() const
 {
-   return mStones;
+   return _stones;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 Material* Level::getBlockMaterial() const
 {
-   return mBlocks;
+   return _blocks;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 Material* Level::getDestructionMaterial() const
 {
-   return mDestruction;
+   return _destruction;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   loads the four block destruction animations, each as four copies rotated by 90 degrees
-*/
+// loads the four block destruction animations, each as four copies rotated by 90 degrees
 void Level::loadDestructions(Camera* shadow_camera)
 {
-   mDestruction = new DestructionMaterial(mScene, "stone-unwrap", "diffuse_level", "specular_level", "shadow-cookie", shadow_camera);
+   _destruction = new DestructionMaterial(_scene.get(), "stone-unwrap", "diffuse_level", "specular_level", "shadow-cookie", shadow_camera);
 
    constexpr std::array<const char*, 4> destructions = {
       "block-destruct0.hjb",
@@ -445,6 +251,7 @@ void Level::loadDestructions(Camera* shadow_camera)
 
    for (const auto* destruction : destructions)
    {
+      // never deleted, the mesh copies below keep pointers to its baked animation and motion mixer
       auto* scene = new SceneGraph();
       if (!scene->load(destruction))
       {
@@ -480,10 +287,10 @@ void Level::loadDestructions(Camera* shadow_camera)
             mesh->transform(0.0f);
             mesh->createBoxMapping(true, Vector(-0.5f, -0.5f, 0.0f), Vector(0.5f, 0.5f, 1.0f), transform);
             mesh->setFrame(0.0f);
-            mDestruction->addMesh(mesh);
+            _destruction->addMesh(mesh);
          }
       }
 
-      mDestructAnim.add(node);
+      _destruct_anim.add(node);
    }
 }

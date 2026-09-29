@@ -22,6 +22,6 @@ Material* DemoMaterialFactory::createMaterial(SceneGraph* scene, int materialId)
       case (MAP_DIFFUSE | MAP_DISPLACE):
          return new DisplacementMaterial(scene);
       default:
-         return 0;
+         return nullptr;
    }
 }

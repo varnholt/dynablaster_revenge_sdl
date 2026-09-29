@@ -10,9 +10,7 @@ class SnowAnimation;
 
 class LevelCastle : public Level, public MaterialFactory
 {
-
 public:
-
    LevelCastle();
    ~LevelCastle() override;
 

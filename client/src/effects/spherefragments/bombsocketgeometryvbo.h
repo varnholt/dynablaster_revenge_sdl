@@ -1,10 +1,10 @@
 #pragma once
 
-// base
 #include "geometryvbo.h"
 
-// engine
 #include "render/texture.h"
+
+#include <cstdint>
 
 class Geometry;
 class Vector4;
@@ -12,9 +12,9 @@ class Vector4;
 class BombSocketGeometryVbo : public GeometryVbo
 {
 public:
-   BombSocketGeometryVbo(Geometry* geo);
+   explicit BombSocketGeometryVbo(Geometry* geometry);
 
-   virtual void initialize();
+   void initialize() override;
 
    void draw(const Vector4& color);
 
@@ -23,11 +23,9 @@ public:
    void cleanupGlParameter();
 
 protected:
-   //! sphere texture
-   Texture mTexture;
+   Texture _texture;
 
-   //! shader
-   unsigned int mShader;
-   int mFresnel;
-   int mColorParam;
+   uint32_t _shader = 0;
+   int32_t _fresnel = -1;
+   int32_t _color_param = -1;
 };

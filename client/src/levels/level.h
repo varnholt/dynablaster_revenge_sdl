@@ -1,25 +1,23 @@
 #pragma once
 
-class Camera;
-
-#include "tools/array.h"
-#include "math/matrix.h"
 #include "camerainterpolation.h"
+#include "math/matrix.h"
+#include "tools/array.h"
 
+#include <cstdint>
+#include <memory>
 #include <string>
 
-// forward declarations
+class Camera;
 class SceneGraph;
 class Material;
 class Node;
 
-#define MAX_PLAYERS 10
-
+constexpr int32_t MAX_PLAYERS = 10;
 
 class Level
 {
 public:
-
    enum LevelType
    {
       LevelCastle,
@@ -28,11 +26,11 @@ public:
       LevelDummy
    };
 
-   Level(LevelType levelType);
+   explicit Level(LevelType level_type);
    virtual ~Level();
 
-   static std::string getLevelDirectoryName(LevelType levelType);
-   static std::string getLevelName(LevelType levelType);
+   static std::string getLevelDirectoryName(LevelType level_type);
+   static std::string getLevelName(LevelType level_type);
 
    void abort();
    bool isAborted() const;
@@ -47,12 +45,6 @@ public:
 
    //! key of this level's lens flare in flares.ini, empty for none
    virtual std::string getLensFlareKey() const;
-
-protected:
-   //! creates mDestruction and fills mDestructAnim
-   void loadDestructions(Camera* shadow_camera);
-
-public:
 
    std::string path() const;
    SceneGraph* getScene() const;
@@ -76,31 +68,38 @@ public:
    bool isPlayerMapEmpty() const;
    void resetPlayerPositions();
    void startPositionUpdate(float width, float height, float dt);
-   void addPlayerPosition( PlayerInfo* player );
+   void addPlayerPosition(PlayerInfo* player);
    void endPlayerPositionUpdate();
-   Matrix getCameraMatrix(float time, float scale= 1.0f);
+   Matrix getCameraMatrix(float time, float scale = 1.0f);
 
 protected:
-   LevelType    mLevelType;
-   bool         mAborted;
+   //! creates _destruction and fills _destruct_anim
+   void loadDestructions(Camera* shadow_camera);
 
-   SceneGraph*  mScene;
-   SceneGraph*  mLevel;
-   SceneGraph*  mPlayers;
-   CameraInterpolation* mCamInterp;
-   Array<Node*> mDestructAnim;
+   LevelType _level_type;
+   bool _aborted = false;
 
-   Material*    mStones;
-   Material*    mBlocks;
-   Material*    mSkulls;
-   Material*    mDestruction;
-   Material*    mExtraFlame;
-   Material*    mExtraBomb;
-   Material*    mExtraSpeedup;
-   Material*    mExtraKick;
-   Material*    mExtraSkull;
-   Material*    mOutlines;
-   Material*    mBombs;
-   Material*    mShadowBillboards;
-   Material*    mShadowBlocks;
+   // declared in reverse destruction order: level, scene, players
+   std::unique_ptr<SceneGraph> _players;
+   std::unique_ptr<SceneGraph> _scene;
+   std::unique_ptr<SceneGraph> _level;
+   std::unique_ptr<CameraInterpolation> _camera_interpolation;
+
+   // the nodes are deleted by whoever takes getDestructions()
+   Array<Node*> _destruct_anim;
+
+   // materials are owned by the scene graph they were created for
+   Material* _stones = nullptr;
+   Material* _blocks = nullptr;
+   Material* _skulls = nullptr;
+   Material* _destruction = nullptr;
+   Material* _extra_flame = nullptr;
+   Material* _extra_bomb = nullptr;
+   Material* _extra_speedup = nullptr;
+   Material* _extra_kick = nullptr;
+   Material* _extra_skull = nullptr;
+   Material* _outlines = nullptr;
+   Material* _bombs = nullptr;
+   Material* _shadow_billboards = nullptr;
+   Material* _shadow_blocks = nullptr;
 };

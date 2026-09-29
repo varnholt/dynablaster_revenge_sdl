@@ -3,15 +3,14 @@
 // base
 #include "framework/drawable.h"
 
-//
 #include "framework/globaltime.h"
-#include "spherefragment.h"
+#include "math/vector.h"
+
+#include <memory>
 
 class BombFuzeGeometryVbo;
 class BombSocketGeometryVbo;
 class BlurFilter;
-class Geometry;
-class Mesh;
 class RenderDevice;
 class SceneGraph;
 class SphereFragmentContainer;
@@ -23,13 +22,11 @@ class FrameBuffer;
 class SphereFragmentsDrawable : public Drawable
 {
 public:
-   SphereFragmentsDrawable(RenderDevice* dev, bool visible = false);
+   explicit SphereFragmentsDrawable(RenderDevice* device, bool visible = false);
+   ~SphereFragmentsDrawable() override;
 
-   virtual ~SphereFragmentsDrawable();
-
-   virtual void initializeGL();
-
-   virtual void paintGL();
+   void initializeGL() override;
+   void paintGL() override;
 
    void removeFragments();
 
@@ -40,50 +37,29 @@ protected:
    //! draw bomb parts
    void drawBombParts();
 
-   //! scene graph for earth
-   SceneGraph* mSceneGraphEarth;
+   std::unique_ptr<SceneGraph> _scene_graph_earth;
+   std::unique_ptr<SceneGraph> _scene_graph_bomb;
 
-   //! scene graph for bomb parts
-   SceneGraph* mSceneGraphBomb;
+   // the vbos reference geometry owned by the scene graphs above
+   std::unique_ptr<SphereGeometryVbo> _bomb;
+   std::unique_ptr<BombFuzeGeometryVbo> _fuze;
+   std::unique_ptr<BombSocketGeometryVbo> _socket;
 
-   //! bomb vbo
-   SphereGeometryVbo* mBomb;
+   std::unique_ptr<SphereFragmentContainer> _fragment_container;
+   std::unique_ptr<BlurFilter> _blur;
+   std::unique_ptr<DuplicateAlpha> _alpha_duplicate;
+   std::unique_ptr<BlendQuad> _blend_quad;
 
-   //! fuze vbo
-   BombFuzeGeometryVbo* mFuze;
-
-   //! socket vbo
-   BombSocketGeometryVbo* mSocket;
-
-   //! sphere fragment container
-   SphereFragmentContainer* mFragmentContainer;
-
-   //! blur filter
-   BlurFilter* mBlur;
-
-   //! alpha to color duplication
-   DuplicateAlpha* mAlphaDuplicate;
-
-   //! blend quads
-   BlendQuad* mBlendQuad;
-
-   //! camera vector
-   Vector mCamera;
+   Vector _camera;
 
    //! fading
-   float mAlpha;
+   float _alpha = 1.0f;
 
-   //! position offset
-   Vector mPositionOffset;
+   Vector _position_offset;
+   float _scale = 0.65f;
 
-   //! scale
-   float mScale;
-
-   // the legacy version pulled these three render targets from MainDrawable::getInstance()->
-   // getRenderBuffer(N) - a shared pool owned by the QGLWidget hosting the game. This port has no
-   // MainDrawable, so SphereFragmentsDrawable owns its own trio instead, sized to match the main
-   // viewport lazily on first use (see paintGL()).
-   FrameBuffer* mEarthFb;
-   FrameBuffer* mAuraFb;
-   FrameBuffer* mBombFb;
+   // render targets, sized to the main viewport lazily in paintGL()
+   std::unique_ptr<FrameBuffer> _earth_fb;
+   std::unique_ptr<FrameBuffer> _aura_fb;
+   std::unique_ptr<FrameBuffer> _bomb_fb;
 };

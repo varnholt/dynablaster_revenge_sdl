@@ -24,40 +24,29 @@
 // postproduction
 #include "postproduction/blurfilter.h"
 
-SphereFragmentsDrawable::SphereFragmentsDrawable(RenderDevice* dev, bool visible)
-    : Drawable(dev, visible),
-      mSceneGraphEarth(0),
-      mSceneGraphBomb(0),
-      mBomb(0),
-      mFuze(0),
-      mSocket(0),
-      mFragmentContainer(0),
-      mBlur(0),
-      mAlphaDuplicate(0),
-      mBlendQuad(0),
-      mAlpha(1.0f),
-      mScale(0.65f),
-      mEarthFb(0),
-      mAuraFb(0),
-      mBombFb(0)
+#include <cstdint>
+
+namespace
+{
+// creates the render target on first use, follows the viewport size afterwards
+void updateFrameBuffer(std::unique_ptr<FrameBuffer>& frame_buffer, int32_t width, int32_t height)
+{
+   if (!frame_buffer)
+   {
+      frame_buffer = std::make_unique<FrameBuffer>(width, height);
+   }
+   else
+   {
+      frame_buffer->setResolution(width, height);
+   }
+}
+}  // namespace
+
+SphereFragmentsDrawable::SphereFragmentsDrawable(RenderDevice* device, bool visible) : Drawable(device, visible)
 {
 }
 
-SphereFragmentsDrawable::~SphereFragmentsDrawable()
-{
-   delete mAlphaDuplicate;
-   delete mBlendQuad;
-   delete mSceneGraphEarth;
-   delete mSceneGraphBomb;
-   delete mBomb;
-   delete mFuze;
-   delete mSocket;
-   delete mBlur;
-   delete mFragmentContainer;
-   delete mEarthFb;
-   delete mAuraFb;
-   delete mBombFb;
-}
+SphereFragmentsDrawable::~SphereFragmentsDrawable() = default;
 
 void SphereFragmentsDrawable::initializeGL()
 {
@@ -66,85 +55,65 @@ void SphereFragmentsDrawable::initializeGL()
    FileStream::addPath("data/effects/spherefragments/meshes");
    FileStream::addPath("data/effects/spherefragments/images");
 
-   mAlphaDuplicate = new DuplicateAlpha();
-   mBlendQuad = new BlendQuad();
+   _alpha_duplicate = std::make_unique<DuplicateAlpha>();
+   _blend_quad = std::make_unique<BlendQuad>();
 
    // earth
-   mSceneGraphEarth = new SceneGraph();
-   mSceneGraphEarth->load("voronoisphere.hjb");
-   Mesh* sphere = (Mesh*)mSceneGraphEarth->getNode("inner_sphere");
-   mBomb = new SphereGeometryVbo(sphere->getPart(0));
-   mBomb->initialize();
+   _scene_graph_earth = std::make_unique<SceneGraph>();
+   _scene_graph_earth->load("voronoisphere.hjb");
+   auto* sphere = static_cast<Mesh*>(_scene_graph_earth->getNode("inner_sphere"));
+   _bomb = std::make_unique<SphereGeometryVbo>(sphere->getPart(0));
+   _bomb->initialize();
 
    // bomb socket and fuze
-   mSceneGraphBomb = new SceneGraph();
-   mSceneGraphBomb->load("fuze_socket.hjb");
+   _scene_graph_bomb = std::make_unique<SceneGraph>();
+   _scene_graph_bomb->load("fuze_socket.hjb");
 
-   Mesh* socket = (Mesh*)mSceneGraphBomb->getNode("bomb_socket");
-   Geometry* socketGeometry = socket->getPart(0);
-   mSocket = new BombSocketGeometryVbo(socketGeometry);
-   mSocket->initialize();
+   auto* socket = static_cast<Mesh*>(_scene_graph_bomb->getNode("bomb_socket"));
+   _socket = std::make_unique<BombSocketGeometryVbo>(socket->getPart(0));
+   _socket->initialize();
 
-   Mesh* fuze = (Mesh*)mSceneGraphBomb->getNode("bomb_fuze");
-   Geometry* fuzeGeometry = fuze->getPart(0);
-   mFuze = new BombFuzeGeometryVbo(fuzeGeometry);
-   mFuze->initialize();
+   auto* fuze = static_cast<Mesh*>(_scene_graph_bomb->getNode("bomb_fuze"));
+   _fuze = std::make_unique<BombFuzeGeometryVbo>(fuze->getPart(0));
+   _fuze->initialize();
 
    removeFragments();
 
-   mCamera = Vector(0.0f, 0.0f, 2.6f);
-   mPositionOffset = Vector(0.0f, 0.0f, 0.0f);
+   _camera = Vector(0.0f, 0.0f, 2.6f);
 
-   // the legacy version read spherefragments_offset_{x,y,z}/spherefragments_scale from
-   // GameSettings::StyleSettings - this effect isn't wired to that subsystem, so it uses the
-   // same fallback values GameSettings itself falls back to when no override exists, i.e. the
-   // real default appearance of a freshly-installed game.
-   mPositionOffset.x = 0.0f;
-   mPositionOffset.y = 0.35f;
-   mPositionOffset.z = 0.0f;
-   mScale = 0.65f;
+   // default spherefragments_offset/scale style settings
+   _position_offset = Vector(0.0f, 0.35f, 0.0f);
+   _scale = 0.65f;
 
-   // init blur filter
-   mBlur = new BlurFilter();
-   mBlur->init();
+   _blur = std::make_unique<BlurFilter>();
+   _blur->init();
 
-   mFragmentContainer = new SphereFragmentContainer(mSceneGraphEarth);
+   _fragment_container = std::make_unique<SphereFragmentContainer>(_scene_graph_earth.get());
 
    FileStream::removePath("data/effects/spherefragments/images");
 }
 
 void SphereFragmentsDrawable::projectionSetup()
 {
-   float aspect = 9.0f / 16.0f;
+   const float aspect = 9.0f / 16.0f;
 
-   Matrix proj = Matrix::scale(mScale, mScale, mScale);
-   proj = proj * Matrix::position(-mCamera);
-   proj = proj * Matrix::frustum(-1.0f, 1.0f, -aspect, aspect, 1.0f, 500.0f);
+   Matrix projection = Matrix::scale(_scale, _scale, _scale);
+   projection = projection * Matrix::position(-_camera);
+   projection = projection * Matrix::frustum(-1.0f, 1.0f, -aspect, aspect, 1.0f, 500.0f);
 
-   static_cast<GLDevice*>(activeDevice)->setProjectionMatrix(proj);
+   static_cast<GLDevice*>(activeDevice)->setProjectionMatrix(projection);
 }
 
 void SphereFragmentsDrawable::paintGL()
 {
-   mFragmentContainer->animate(GlobalTime::Instance()->getTime());
+   _fragment_container->animate(GlobalTime::Instance()->getTime());
 
-   const int width = activeDevice->getWidth();
-   const int height = activeDevice->getHeight();
+   const auto width = static_cast<int32_t>(activeDevice->getWidth());
+   const auto height = static_cast<int32_t>(activeDevice->getHeight());
 
-   if (!mEarthFb)
-      mEarthFb = new FrameBuffer(width, height);
-   else
-      mEarthFb->setResolution(width, height);
-
-   if (!mAuraFb)
-      mAuraFb = new FrameBuffer(width, height);
-   else
-      mAuraFb->setResolution(width, height);
-
-   if (!mBombFb)
-      mBombFb = new FrameBuffer(width, height);
-   else
-      mBombFb->setResolution(width, height);
+   updateFrameBuffer(_earth_fb, width, height);
+   updateFrameBuffer(_aura_fb, width, height);
+   updateFrameBuffer(_bomb_fb, width, height);
 
    FrameBuffer::push();
 
@@ -152,59 +121,54 @@ void SphereFragmentsDrawable::paintGL()
 
    // lighting pass 1
 
-   // draw earth fragments once into a framebuffer, reuse later. Clears to alpha=0 (not the
-   // device's default opaque clear color) - this buffer's own alpha channel is later used by
-   // mBlendQuad's alpha-blend composite onto the menu (see below), so it must start fully
-   // transparent, or the blend replaces the whole full-screen quad with this buffer's flat clear
-   // color instead of just the drawn earth/fragments/bomb pixels.
-   mEarthFb->bind();
+   // draw earth fragments once into a framebuffer, reuse later. clears to alpha=0: the alpha
+   // channel drives the blend composite onto the menu below, so it must start fully transparent
+   _earth_fb->bind();
    static_cast<GLDevice*>(mDevice)->clear(0.0f, 0.0f, 0.0f, 0.0f);
 
    // put bomb into zbuffer to black backside fragments
-   mBomb->draw(Vector4(1, 1, 1, 0));
-   mSocket->draw(Vector4(1, 1, 1, 1));
+   _bomb->draw(Vector4(1, 1, 1, 0));
+   _socket->draw(Vector4(1, 1, 1, 1));
 
-   mFragmentContainer->drawFragments(mCamera);
-   mEarthFb->unbind();
+   _fragment_container->drawFragments(_camera);
+   _earth_fb->unbind();
 
    // atmosphere pass
 
-   // create white mask from alpha channel. alpha=0 clear - same reasoning as mEarthFb above.
-   mAuraFb->bind();
+   // create white mask from alpha channel
+   _aura_fb->bind();
    static_cast<GLDevice*>(mDevice)->clear(0.0f, 0.0f, 0.0f, 0.0f);
-   mAlphaDuplicate->process(mEarthFb->texture(), Vector4(1.0f, 1.0f, 1.0f, 1.0f));
+   _alpha_duplicate->process(_earth_fb->texture(), Vector4(1.0f, 1.0f, 1.0f, 1.0f));
 
    // blur white mask
-   mBlur->setRadius(30.0f * mAuraFb->width() / 1920.0f);
-   mBlur->process(mAuraFb->texture());
-   mAuraFb->unbind();
+   _blur->setRadius(30.0f * _aura_fb->width() / 1920.0f);
+   _blur->process(_aura_fb->texture());
+   _aura_fb->unbind();
 
    // lava glow pass
-   // draw the bomb... alpha=0 clear - same reasoning as mEarthFb above.
-   mBombFb->bind();
+   _bomb_fb->bind();
    static_cast<GLDevice*>(mDevice)->clear(0.0f, 0.0f, 0.0f, 0.0f);
-   mBomb->draw(Vector4(1, 1, 1, 1));
+   _bomb->draw(Vector4(1, 1, 1, 1));
 
    // draw black fragments
    glEnable(GL_BLEND);
-   mAlphaDuplicate->process(mEarthFb->texture(), Vector4(0.0f, 0.0f, 0.0f, 1.0f));
+   _alpha_duplicate->process(_earth_fb->texture(), Vector4(0.0f, 0.0f, 0.0f, 1.0f));
    glDisable(GL_BLEND);
 
    // blur
-   mBlur->setRadius(40.0f * mBombFb->width() / 1920.0f);
-   mBlur->process(mBombFb->texture());
-   mBombFb->unbind();
+   _blur->setRadius(40.0f * _bomb_fb->width() / 1920.0f);
+   _blur->process(_bomb_fb->texture());
+   _bomb_fb->unbind();
 
    // lighting pass 2
 
    // draw bomb into fragment fb
-   mEarthFb->bind();
-   mBomb->draw(Vector4(1, 1, 1, 1));
+   _earth_fb->bind();
+   _bomb->draw(Vector4(1, 1, 1, 1));
 
-   // draw bomb parts
    drawBombParts();
 
-   mEarthFb->unbind();
+   _earth_fb->unbind();
 
    FrameBuffer::pop();
 
@@ -215,19 +179,19 @@ void SphereFragmentsDrawable::paintGL()
 
    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
-   Vector4 colorAtmosphere = Vector4(0.7f, 0.9f, 1.5f, 0.5f) * mAlpha;
-   Vector4 colorFragments = Vector4(1.0f, 1.0f, 1.0f, 1.0f) * mAlpha;
-   Vector4 colorGlow = Vector4(4.0f, 4.0f, 4.0f, 1.0f) * mAlpha;
+   const Vector4 color_atmosphere = Vector4(0.7f, 0.9f, 1.5f, 0.5f) * _alpha;
+   const Vector4 color_fragments = Vector4(1.0f, 1.0f, 1.0f, 1.0f) * _alpha;
+   const Vector4 color_glow = Vector4(4.0f, 4.0f, 4.0f, 1.0f) * _alpha;
 
    // atmosphere
-   mBlendQuad->process(mAuraFb->texture(), colorAtmosphere, 1.0f, mPositionOffset);
+   _blend_quad->process(_aura_fb->texture(), color_atmosphere, 1.0f, _position_offset);
 
    // fragments and inner sphere
-   mBlendQuad->process(mEarthFb->texture(), colorFragments, 1.0f, mPositionOffset);
+   _blend_quad->process(_earth_fb->texture(), color_fragments, 1.0f, _position_offset);
 
    // add glow
    glBlendFunc(GL_ONE, GL_ONE);
-   mBlendQuad->process(mBombFb->texture(), colorGlow, 1.0f, mPositionOffset);
+   _blend_quad->process(_bomb_fb->texture(), color_glow, 1.0f, _position_offset);
 
    // cleanup
    glDisable(GL_BLEND);
@@ -237,27 +201,28 @@ void SphereFragmentsDrawable::paintGL()
 
 void SphereFragmentsDrawable::drawBombParts()
 {
-   mSocket->draw(Vector4(1, 1, 1, 1));
-   mFuze->draw(Vector4(1, 1, 1, 1));
+   _socket->draw(Vector4(1, 1, 1, 1));
+   _fuze->draw(Vector4(1, 1, 1, 1));
 }
 
 void SphereFragmentsDrawable::removeFragments()
 {
-   for (int i = 0; i < mSceneGraphBomb->getChildCount(); i++)
+   for (int32_t i = 0; i < _scene_graph_bomb->getChildCount(); i++)
    {
-      Node* node = mSceneGraphBomb->getChild(i);
+      Node* node = _scene_graph_bomb->getChild(i);
       String name = node->name();
-      int index = name.indexOf("_");
-      if (index >= 0)
+      const int32_t index = name.indexOf("_");
+      if (index < 0)
       {
-         name = name.mid(0, index);
+         continue;
+      }
 
-         Node* frag = mSceneGraphEarth->getChild(name);
-         if (frag && frag->id() == Node::idMesh)
-         {
-            Mesh* mesh = (Mesh*)frag;
-            mesh->setVisible(false);
-         }
+      name = name.mid(0, index);
+
+      Node* fragment = _scene_graph_earth->getChild(name);
+      if (fragment && fragment->id() == Node::idMesh)
+      {
+         static_cast<Mesh*>(fragment)->setVisible(false);
       }
    }
 }

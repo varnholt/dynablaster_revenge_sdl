@@ -36,11 +36,11 @@ private:
    std::vector<Ribbon> _ribbons;
 
    Texture _texture;
-   unsigned int _vertex_buffer = 0;
-   unsigned int _index_buffer = 0;
+   uint32_t _vertex_buffer = 0;
+   uint32_t _index_buffer = 0;
    int32_t _index_count = 0;
 
-   unsigned int _shader = 0;
+   uint32_t _shader = 0;
    int32_t _time_param = -1;
    int32_t _field_position_param = -1;
    int32_t _circle_offset_param = -1;

@@ -6,9 +6,9 @@
 GLuint Shader::compile(GLenum type, const std::string& source)
 {
    const GLuint shader = glCreateShader(type);
-   const char* src = source.c_str();
+   const char* source_data = source.c_str();
    const GLint length = static_cast<GLint>(source.size());
-   glShaderSource(shader, 1, &src, &length);
+   glShaderSource(shader, 1, &source_data, &length);
    glCompileShader(shader);
 
    GLint status = GL_FALSE;
@@ -31,7 +31,9 @@ bool Shader::load(const std::string& vertex_source, const std::string& fragment_
 {
    const GLuint vertex_shader = compile(GL_VERTEX_SHADER, vertex_source);
    if (vertex_shader == 0)
+   {
       return false;
+   }
 
    const GLuint fragment_shader = compile(GL_FRAGMENT_SHADER, fragment_source);
    if (fragment_shader == 0)
@@ -68,7 +70,9 @@ bool Shader::load(const std::string& vertex_source, const std::string& fragment_
 Shader::~Shader()
 {
    if (_program != 0)
+   {
       glDeleteProgram(_program);
+   }
 }
 
 void Shader::use() const

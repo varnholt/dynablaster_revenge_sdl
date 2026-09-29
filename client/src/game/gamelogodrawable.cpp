@@ -58,15 +58,15 @@ void GameLogoDrawable::paintGL()
 {
    updateFadeAlpha();
 
-   if (mAlpha > 0.0f)
+   if (_alpha > 0.0f)
    {
       SphereFragmentsDrawable::paintGL();
 
       initOrthoGlParameters();
 
-      _layer_dynablaster->render(20.0f * std::cos(_time * 0.03f), 30.0f + 15.0f * std::sin(_time * 0.04f), mAlpha);
+      _layer_dynablaster->render(20.0f * std::cos(_time * 0.03f), 30.0f + 15.0f * std::sin(_time * 0.04f), _alpha);
 
-      _layer_revenge->render(30.0f * std::cos(_time * 0.03f), 30.0f + 25.0f * std::sin(_time * 0.04f), mAlpha);
+      _layer_revenge->render(30.0f * std::cos(_time * 0.03f), 30.0f + 25.0f * std::sin(_time * 0.04f), _alpha);
 
       initPointSpriteGlParameters();
       drawSparks();
@@ -186,7 +186,7 @@ void GameLogoDrawable::updateFadeAlpha()
       alpha = (_fade_out_end - _time) / FADE_OUT_LENGTH;
    }
 
-   mAlpha = alpha;
+   _alpha = alpha;
 }
 
 void GameLogoDrawable::initOrthoGlParameters()

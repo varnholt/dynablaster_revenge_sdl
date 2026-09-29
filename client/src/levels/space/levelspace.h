@@ -21,5 +21,6 @@ public:
 
    Material* createMaterial(SceneGraph* scene, int id) const override;
 
+private:
    std::unique_ptr<SpaceBackground> _background;
 };
