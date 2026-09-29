@@ -1,8 +1,8 @@
 // draws outlines
 
-#ifndef OUTLINING_H
-#define OUTLINING_H
+#pragma once
 
+#include <cstdint>
 #include "material.h"
 #include "math/matrix.h"
 #include "math/vector4.h"
@@ -11,22 +11,19 @@ class Outlining : public Material
 {
 public:
    Outlining(SceneGraph* scene);
-   virtual ~Outlining();
-   void load(Stream* stream);
-   void add(Geometry* geo);
-   void update(float, Node** nodes, const Matrix& cam);
-   void renderDiffuse();
+   void load(Stream* stream) override;
+   void add(Geometry* geometry);
+   void update(float frame, Node** nodes, const Matrix& camera) override;
+   void renderDiffuse() override;
 
 private:
-   void init();
-   void begin();
-   void end();
-   int calcEdgeIndices(unsigned int indexbuffer, Geometry* geo, const Vector& viewer);
+   void init() override;
+   void begin() override;
+   void end() override;
+   int32_t calcEdgeIndices(uint32_t index_buffer, Geometry* geometry, const Vector& viewer);
 
-   unsigned int mShader;
-   int mParamColor = -1;
+   uint32_t _shader = 0;
+   int32_t _param_color = -1;
 
-   Matrix mCamera;
+   Matrix _camera;
 };
-
-#endif

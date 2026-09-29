@@ -40,7 +40,7 @@ void GlowRing::load(Stream* stream)
    /*
    loadtga("map", &temp, &x, &y);
    mColorMap= activeDevice->uploadTexture(temp, x,y, 1);
-   free(temp);
+   delete[] static_cast<uint32_t*>(temp);
 
    mShader= activeDevice->loadShader("logoreflection.vsh", "logoreflection.psh");
    */

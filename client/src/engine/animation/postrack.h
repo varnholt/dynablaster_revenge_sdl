@@ -10,7 +10,7 @@ class PosTrack : public Track<PosKey>
 public:
    PosTrack();
 
-   void add(int time, const Vector& pos);
+   void add(int32_t time, const Vector& position);
 
    Vector get(float time);
 };

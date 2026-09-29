@@ -1,6 +1,6 @@
-#ifndef EXTRAMAPPING_H
-#define EXTRAMAPPING_H
+#pragma once
 
+#include <cstdint>
 #include "../render/renderbuffer.h"
 #include "../render/uv.h"
 #include "material.h"
@@ -11,28 +11,26 @@ class ExtraMapping : public Material
 public:
    struct Vertex
    {
-      Vector pos;
+      Vector position;
       UV uv;
    };
 
    ExtraMapping(SceneGraph* scene);
    ExtraMapping(SceneGraph* scene, const char* map);
-   void load(Stream* stream);
-   void addGeometry(Geometry* geo);
-   void update(float frame, Node** nodelist, const Matrix& cam);
-   virtual void renderDiffuse();
+   void load(Stream* stream) override;
+   void addGeometry(Geometry* geometry) override;
+   void update(float frame, Node** node_list, const Matrix& camera) override;
+   void renderDiffuse() override;
 
 private:
-   void init();
-   void begin();
-   void end();
+   void init() override;
+   void begin() override;
+   void end() override;
 
-   Texture mColorMap;
-   unsigned int mShader;
+   Texture _color_map;
+   uint32_t _shader = 0;
 
-   int mParamTexture;
+   int32_t _param_texture = 0;
 
-   Matrix mCamera;
+   Matrix _camera;
 };
-
-#endif

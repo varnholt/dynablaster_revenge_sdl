@@ -3,6 +3,9 @@
 
 #pragma once
 
+#include <cstdint>
+#include <memory>
+#include <vector>
 #include "node.h"
 #include "tools/list.h"
 
@@ -14,50 +17,47 @@ public:
    class PolyLine
    {
    public:
-      PolyLine() : mFlags(0)
+      bool closed() const
       {
-      }
-
-      bool closed()
-      {
-         return (mFlags & 1);
+         return (_flags & 1);
       }
 
       void load(Stream* stream)
       {
-         mFlags = stream->getInt();
+         _flags = stream->getInt();
 
-         int count = stream->getInt();
+         // vertex types are not used
+         int32_t count = stream->getInt();
          while (count--)
+         {
             stream->getInt();
+         }
 
-         mVertices.load(stream);
+         _vertices.load(stream);
       }
 
-      int getVertexCount() const
+      int32_t getVertexCount() const
       {
-         return mVertices.size();
+         return _vertices.size();
       }
 
-      const Vector& getVertex(int index) const
+      const Vector& getVertex(int32_t index) const
       {
-         return mVertices[index];
+         return _vertices[index];
       }
 
    private:
-      int mFlags;
-      Array<int> mTypes;
-      List<Vector> mVertices;
+      int32_t _flags = 0;
+      List<Vector> _vertices;
    };
 
-   Shape(Node* parent = 0);
-   virtual ~Shape();
-   void load(Stream* stream);
-   void write(Stream* stream);
+   Shape(Node* parent = nullptr);
+   void load(Stream* stream) override;
+   void write(Stream* stream) override;
 
-   int getPolyCount() const;
-   PolyLine* getPoly(int count) const;
+   int32_t getPolyCount() const;
+   PolyLine* getPoly(int32_t index) const;
 
 private:
-   Array<PolyLine*> mPolys;
+   std::vector<std::unique_ptr<PolyLine>> _polys;
 };

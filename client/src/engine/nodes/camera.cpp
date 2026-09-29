@@ -1,11 +1,7 @@
 #include "camera.h"
 #include "tools/stream.h"
 
-Camera::Camera(Node* parent) : Node(Node::idCamera, parent), mFov(1.0f), mNear(1.0f), mFar(1000.0f), mPerspectiveMode(true)
-{
-}
-
-Camera::~Camera()
+Camera::Camera(Node* parent) : Node(Node::idCamera, parent)
 {
 }
 
@@ -14,84 +10,82 @@ void Camera::load(Stream* stream)
    Node::load(stream);
 
    // read tracks
-   Chunk anim(stream);
-   mFovTrack.load(&anim);
-   //   mNearTrack.load(&anim);
-   //   mFarTrack.load(&anim);
-   mPosTrack.load(&anim);
-   mRotTrack.load(&anim);
-   mScaleTrack.load(&anim);
-   mVisTrack.load(&anim);
-   mFlipTrack.load(&anim);
-   anim.skip();
+   Chunk animation(stream);
+   _fov_track.load(&animation);
+   _position_track.load(&animation);
+   _rotation_track.load(&animation);
+   _scale_track.load(&animation);
+   _visibility_track.load(&animation);
+   _flip_track.load(&animation);
+   animation.skip();
 }
 
 void Camera::write(Stream* stream)
 {
    Node::write(stream);
 
-   // read tracks
-   Chunk anim(stream, 2000, "Animation");
-   mFovTrack.write(&anim);
-   //   mNearTrack.write(&anim);
-   //   mFarTrack.write(&anim);
-
-   mPosTrack.write(&anim);
-   mRotTrack.write(&anim);
-   mScaleTrack.write(&anim);
-   mVisTrack.write(&anim);
-   mFlipTrack.write(&anim);
+   // write tracks
+   Chunk animation(stream, 2000, "Animation");
+   _fov_track.write(&animation);
+   _position_track.write(&animation);
+   _rotation_track.write(&animation);
+   _scale_track.write(&animation);
+   _visibility_track.write(&animation);
+   _flip_track.write(&animation);
 }
 
 void Camera::transform(float time)
 {
    Node::transform(time);
-   if (!mUserTransform)
-      mFov = mFovTrack.get(time);
-
-   //   mFov= mFovTrack.get(time);
-   //   mNear= mNearTrack.get(time);
-   //   mFar= mFarTrack.get(time);
+   if (!_user_transform)
+   {
+      _fov = _fov_track.get(time);
+   }
 }
 
 float Camera::getFOV() const
 {
-   return mFov;
+   return _fov;
+}
+
+void Camera::setFOV(float fov)
+{
+   _fov = fov;
 }
 
 float Camera::getNear() const
 {
-   return mNear;
+   return _near;
 }
 
-void Camera::setNear(float znear)
+void Camera::setNear(float z_near)
 {
-   mNear = znear;
+   _near = z_near;
 }
 
 float Camera::getFar() const
 {
-   return mFar;
+   return _far;
 }
 
-void Camera::setFar(float zfar)
+void Camera::setFar(float z_far)
 {
-   mFar = zfar;
+   _far = z_far;
 }
 
 void Camera::setPerspectiveMode(bool mode)
 {
-   mPerspectiveMode = mode;
+   _perspective_mode = mode;
 }
 
 bool Camera::getPerspectiveMode() const
 {
-   return mPerspectiveMode;
+   return _perspective_mode;
 }
 
-void Camera::lookAt(const Vector& pos, const Vector& target, const Vector& up)
+void Camera::lookAt(const Vector& position, const Vector& target, const Vector& up)
 {
-   Matrix mat = Matrix::lookAt(pos, target, up);
+   const Matrix matrix = Matrix::lookAt(position, target, up);
 
-   setTransform(mat.invert());
+   setTransform(matrix.invert());
 }

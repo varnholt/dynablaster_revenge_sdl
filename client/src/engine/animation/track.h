@@ -3,7 +3,8 @@
 
 #pragma once
 
-#include <stdio.h>
+#include <cstdint>
+#include <cstdio>
 #include "tools/chunk.h"
 #include "tools/list.h"
 #include "tools/stream.h"
@@ -23,42 +24,36 @@ public:
       idVertexMorph = 2010
    };
 
-   Track(Type type, const String& name = String()) : List<KeyClass>(), mType(type), mName(name), mCurKey(0)
+   Track(Type type, const String& name = String()) : _type(type), _name(name)
    {
-      if (mName.isEmpty())
+      if (_name.isEmpty())
       {
-         switch (mType)
+         switch (_type)
          {
-            case idUndefined:
-               mName = "Undefined";
-               break;
             case idValue:
-               mName = "Value";
+               _name = "Value";
                break;
             case idPosition:
-               mName = "Position";
+               _name = "Position";
                break;
             case idRotation:
-               mName = "Rotation";
+               _name = "Rotation";
                break;
             case idScale:
-               mName = "Scale";
+               _name = "Scale";
                break;
             case idVisibility:
-               mName = "Visible";
+               _name = "Visible";
                break;
             case idVertexMorph:
-               mName = "VertexMorph";
+               _name = "VertexMorph";
                break;
+            case idUndefined:
             default:
-               mName = "Undefined";
+               _name = "Undefined";
                break;
          }
       }
-   }
-
-   virtual ~Track()
-   {
    }
 
    void addKey(const KeyClass& key)
@@ -66,75 +61,73 @@ public:
       this->add(key);
    }
 
-   int getAnimationLength() const
+   int32_t getAnimationLength() const
    {
-      int count = this->size();
+      const int32_t count = this->size();
       if (count > 0)
-         return this->mData[count - 1].time();
-      else
-         return 0;
+      {
+         return key(count - 1).time();
+      }
+      return 0;
    }
 
-   virtual void load(Stream* stream)
+   void load(Stream* stream) override
    {
       Chunk track(stream);
 
-      if (track.id() == mType)
+      if (track.id() == _type)
       {
          List<KeyClass>::load(&track);
       }
       else
       {
-         printf("wrong track!\n");
+         std::printf("wrong track!\n");
       }
 
       track.skip();
    }
 
-   String trackName(int id)
+   void write(Stream* stream) override
    {
-      return 0;
-   }
-
-   virtual void write(Stream* stream)
-   {
-      Chunk track(stream, mType, mName);
+      Chunk track(stream, _type, _name);
 
       List<KeyClass>::write(&track);
    }
 
    float interpolate(float time)
    {
-      while (mCurKey > 0 && time < key(mCurKey).time())
-         mCurKey--;
-      while (mCurKey < Array<KeyClass>::size() - 1 && time >= key(mCurKey + 1).time())
-         mCurKey++;
+      while (_current_key > 0 && time < key(_current_key).time())
+      {
+         _current_key--;
+      }
+      while (_current_key < this->size() - 1 && time >= key(_current_key + 1).time())
+      {
+         _current_key++;
+      }
 
-      int len = nextKey().time() - prevKey().time();
-      float prog = time - prevKey().time();
+      const int32_t length = nextKey().time() - prevKey().time();
+      const float progress = time - prevKey().time();
 
-      float frac = prog / len;
-
-      return frac;
+      return progress / length;
    }
 
    KeyClass& prevKey() const
    {
-      return Array<KeyClass>::mData[mCurKey];
+      return key(_current_key);
    }
 
    KeyClass& nextKey() const
    {
-      return Array<KeyClass>::mData[mCurKey + 1];
+      return key(_current_key + 1);
    }
 
-   KeyClass& key(int index) const
+   KeyClass& key(int32_t index) const
    {
-      return Array<KeyClass>::mData[index];
+      return (*this)[index];
    }
 
 protected:
-   Type mType;
-   String mName;
-   int mCurKey;
+   Type _type;
+   String _name;
+   int32_t _current_key = 0;
 };

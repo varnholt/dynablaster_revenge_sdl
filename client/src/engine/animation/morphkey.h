@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include "key.h"
 #include "math/vector.h"
 #include "tools/list.h"
@@ -9,19 +10,19 @@
 class MorphKey : public KeyBase
 {
 public:
-   MorphKey();
+   MorphKey() = default;
 
    const List<Vector>& getVertices() const;
    const List<Vector>& getNormals() const;
 
-   int getVertexCount() const;
+   int32_t getVertexCount() const;
 
-   virtual void load(Stream* stream);
-   virtual void write(Stream* stream);
+   void load(Stream* stream) override;
+   void write(Stream* stream) override;
 
-   void calculateNormals(const Array<unsigned short>& indexBuffer);
+   void calculateNormals(const Array<uint16_t>& index_buffer);
 
 protected:
-   List<Vector> mVertices;
-   List<Vector> mNormals;
+   List<Vector> _vertices;
+   List<Vector> _normals;
 };

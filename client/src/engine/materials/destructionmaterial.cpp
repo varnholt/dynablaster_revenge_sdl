@@ -1,4 +1,5 @@
 #include "destructionmaterial.h"
+#include <cmath>
 #include "animation/motionmixer.h"
 #include "framework/gldevice.h"
 #include "image/image.h"
@@ -9,154 +10,127 @@
 #include "render/uv.h"
 #include "render/vertexbuffer.h"
 #include "textureslot.h"
-#include "tools/profiling.h"
 #include "tools/stream.h"
 
-#include <cmath>
-DestructionMaterial::DestructionMaterial(SceneGraph* scene)
-    : Material(scene, MAP_DIFFUSE | MAP_REFLECT),
-      mColorMap(0),
-      mDiffuseMap(0),
-      mSpecularMap(0),
-      mShader(0),
-      mParamSpecular(0),
-      mParamDiffuse(0),
-      mParamTexture(0),
-      mParamShadow(0),
-      mShadowCam(0)
+DestructionMaterial::DestructionMaterial(SceneGraph* scene) : Material(scene, MAP_DIFFUSE | MAP_REFLECT)
 {
 }
 
 DestructionMaterial::DestructionMaterial(
    SceneGraph* scene,
-   const char* colormap,
-   const char* envmap,
-   const char* specmap,
-   const char* shadowmap,
-   Camera* shadowCam
+   const char* color_map,
+   const char* environment_map,
+   const char* specular_map,
+   const char* shadow_map,
+   Camera* shadow_camera
 )
-    : Material(scene, MAP_DIFFUSE | MAP_REFLECT),
-      mColorMap(0),
-      mDiffuseMap(0),
-      mSpecularMap(0),
-      mShader(0),
-      mParamSpecular(0),
-      mParamDiffuse(0),
-      mParamTexture(0),
-      mParamShadow(0),
-      mShadowCam(shadowCam)
+    : Material(scene, MAP_DIFFUSE | MAP_REFLECT), _shadow_camera(shadow_camera)
 {
-   addTexture(mColorMap, colormap);
-   addTexture(mDiffuseMap, envmap);
-   addTexture(mSpecularMap, specmap);
-   addTexture(mShadowMap, shadowmap);
-}
-
-DestructionMaterial::~DestructionMaterial()
-{
+   addTexture(_color_map, color_map);
+   addTexture(_diffuse_map, environment_map);
+   addTexture(_specular_map, specular_map);
+   addTexture(_shadow_map, shadow_map);
 }
 
 void DestructionMaterial::init()
 {
-   mShader = activeDevice->loadShader("destruction-vert.glsl", "destruction-frag.glsl");
+   _shader = activeDevice->loadShader("destruction-vert.glsl", "destruction-frag.glsl");
 
-   mParamSpecular = activeDevice->getParameterIndex("specularmap");
-   mParamDiffuse = activeDevice->getParameterIndex("diffusemap");
-   mParamTexture = activeDevice->getParameterIndex("texturemap");
-   mParamShadow = activeDevice->getParameterIndex("shadowmap");
-   mParamShadowCamera = activeDevice->getParameterIndex("shadowCamera");
+   _param_specular = activeDevice->getParameterIndex("specularmap");
+   _param_diffuse = activeDevice->getParameterIndex("diffusemap");
+   _param_texture = activeDevice->getParameterIndex("texturemap");
+   _param_shadow = activeDevice->getParameterIndex("shadowmap");
+   _param_shadow_camera = activeDevice->getParameterIndex("shadowCamera");
 }
 
 void DestructionMaterial::load(Stream* stream)
 {
    Material::load(stream);
 
-   addTexture(mColorMap, getTextureSlot(0)->name());
-   addTexture(mDiffuseMap, "diffuse_level");
-   addTexture(mSpecularMap, getTextureSlot(1)->name());
+   addTexture(_color_map, getTextureSlot(0)->name());
+   addTexture(_diffuse_map, "diffuse_level");
+   addTexture(_specular_map, getTextureSlot(1)->name());
 }
 
-void DestructionMaterial::addGeometry(Geometry* geo)
+void DestructionMaterial::addGeometry(Geometry* geometry)
 {
-   VertexBuffer* vb = mPool->get(geo);
-   if (!vb)
+   VertexBuffer* vertex_buffer = _pool->get(geometry);
+   if (!vertex_buffer)
    {
-      vb = mPool->add(geo);
+      vertex_buffer = _pool->add(geometry);
 
-      Vector* vtx = geo->getVertices();
-      Vector* nrm = geo->getNormals();
-      UV* uv = geo->getUV(1);
+      const Vector* vertices = geometry->getVertices();
+      const Vector* normals = geometry->getNormals();
+      const UV* uv = geometry->getUV(1);
 
-      activeDevice->allocateVertexBuffer(vb->getVertexBuffer(), sizeof(Vertex) * geo->getVertexCount());
-      volatile Vertex* dst = (Vertex*)activeDevice->lockVertexBuffer(vb->getVertexBuffer());
-      for (int i = 0; i < geo->getVertexCount(); i++)
+      activeDevice->allocateVertexBuffer(vertex_buffer->getVertexBuffer(), sizeof(Vertex) * geometry->getVertexCount());
+      volatile Vertex* destination = static_cast<Vertex*>(activeDevice->lockVertexBuffer(vertex_buffer->getVertexBuffer()));
+      for (int32_t i = 0; i < geometry->getVertexCount(); i++)
       {
-         dst[i].pos.x = vtx[i].x;
-         dst[i].pos.y = vtx[i].y;
-         dst[i].pos.z = vtx[i].z;
+         destination[i].position.x = vertices[i].x;
+         destination[i].position.y = vertices[i].y;
+         destination[i].position.z = vertices[i].z;
 
-         dst[i].normal.x = nrm[i].x;
-         dst[i].normal.y = nrm[i].y;
-         dst[i].normal.z = nrm[i].z;
+         destination[i].normal.x = normals[i].x;
+         destination[i].normal.y = normals[i].y;
+         destination[i].normal.z = normals[i].z;
 
-         dst[i].uv.u = uv[i].u;
-         dst[i].uv.v = uv[i].v;
+         destination[i].uv.u = uv[i].u;
+         destination[i].uv.v = uv[i].v;
       }
-      activeDevice->unlockVertexBuffer(vb->getVertexBuffer());
+      activeDevice->unlockVertexBuffer(vertex_buffer->getVertexBuffer());
 
-      vb->setIndexBuffer(geo->getIndices(), geo->getIndexCount());
+      vertex_buffer->setIndexBuffer(geometry->getIndices(), geometry->getIndexCount());
    }
 
-   mVB.add(Material::Buffer(geo, vb));
+   _buffers.push_back({geometry, vertex_buffer});
 }
 
 void DestructionMaterial::begin()
 {
    Material::begin();
 
-   // set material parameters
-   //   activeDevice->setMaterial(mAmbient, mDiffuse, mSpecular, mShininess);
-   glBindTexture(GL_TEXTURE_2D, mSpecularMap);
+   glBindTexture(GL_TEXTURE_2D, _specular_map);
 
    glActiveTexture(GL_TEXTURE1_ARB);
-   glBindTexture(GL_TEXTURE_2D, mDiffuseMap);
+   glBindTexture(GL_TEXTURE_2D, _diffuse_map);
 
    glActiveTexture(GL_TEXTURE2_ARB);
-   glBindTexture(GL_TEXTURE_2D, mColorMap);
+   glBindTexture(GL_TEXTURE_2D, _color_map);
 
    glActiveTexture(GL_TEXTURE3_ARB);
-   glBindTexture(GL_TEXTURE_2D, mShadowMap);
+   glBindTexture(GL_TEXTURE_2D, _shadow_map);
 
-   activeDevice->setShader(mShader);
-   activeDevice->bindSampler(mParamSpecular, 0);
-   activeDevice->bindSampler(mParamDiffuse, 1);
-   activeDevice->bindSampler(mParamTexture, 2);
-   activeDevice->bindSampler(mParamShadow, 3);
+   activeDevice->setShader(_shader);
+   activeDevice->bindSampler(_param_specular, 0);
+   activeDevice->bindSampler(_param_diffuse, 1);
+   activeDevice->bindSampler(_param_texture, 2);
+   activeDevice->bindSampler(_param_shadow, 3);
 
    // enable required vertex arrays
    glEnableVertexAttribArray(0);  // vertex data
    glEnableVertexAttribArray(1);
    glEnableVertexAttribArray(2);
 
-   Matrix cam;
-   if (mShadowCam)
+   Matrix camera;
+   if (_shadow_camera)
    {
       GLDevice* device = static_cast<GLDevice*>(activeDevice);
       device->pushProjection();
 
-      cam = mShadowCam->getTransform().getView();
-      float fov = mShadowCam->getFOV();
+      camera = _shadow_camera->getTransform().getView();
+      float fov = _shadow_camera->getFOV();
       fov = std::tan(fov * 0.5) * 0.75;
-      float zNear = mShadowCam->getNear();
-      float zFar = mShadowCam->getFar();
+      const float z_near = _shadow_camera->getNear();
+      const float z_far = _shadow_camera->getFar();
 
-      activeDevice->setCamera(cam, fov, zNear, zFar, mShadowCam->getPerspectiveMode());
+      activeDevice->setCamera(camera, fov, z_near, z_far, _shadow_camera->getPerspectiveMode());
 
-      cam = device->getProjectionMatrix();
-      cam.normalizeZ();
+      camera = device->getProjectionMatrix();
+      camera.normalizeZ();
       device->popProjection();
    }
-   activeDevice->setParameter(mParamShadowCamera, cam);
+   activeDevice->setParameter(_param_shadow_camera, camera);
 }
 
 void DestructionMaterial::end()
@@ -176,36 +150,23 @@ void DestructionMaterial::renderDiffuse()
 {
    begin();
 
-   /*
-      Matrix projMat;
-      glGetFloatv(GL_PROJECTION_MATRIX, projMat.data());
-      projMat= projMat.invert();
-      Vector camPos= projMat.translation();
-   */
-
-   for (int i = 0; i < mVB.size(); i++)
+   for (const Buffer& buffer : _buffers)
    {
-      // get vertex buffer
-      VertexBuffer* vb = mVB[i].vb;
-      Geometry* geo = mVB[i].geo;
+      VertexBuffer* vertex_buffer = buffer.vertex_buffer;
+      Geometry* geometry = buffer.geometry;
 
-      if (geo->isVisible())
+      if (geometry->isVisible())
       {
-         //         Matrix invView= (geo->getTransform() * mCamera).invert();
-         //         Vector osCam;//= invView.translation();
-
-         //         Vector osCam= geo->getParent()->getWorld2Obj() * camPos;
-
-         activeDevice->push(geo->getTransform());
+         activeDevice->push(geometry->getTransform());
 
          // draw mesh
-         glBindBuffer(GL_ARRAY_BUFFER, vb->getVertexBuffer());
-         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)0);
-         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)sizeof(Vector));
-         glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)(sizeof(Vector) * 2));
+         glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer->getVertexBuffer());
+         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), nullptr);
+         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const GLvoid*>(sizeof(Vector)));
+         glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const GLvoid*>(sizeof(Vector) * 2));
 
-         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vb->getIndexBuffer());
-         glDrawElements(GL_TRIANGLES, vb->getIndexCount(), GL_UNSIGNED_SHORT, 0);  // render
+         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vertex_buffer->getIndexBuffer());
+         glDrawElements(GL_TRIANGLES, vertex_buffer->getIndexCount(), GL_UNSIGNED_SHORT, nullptr);  // render
 
          activeDevice->pop();
       }
@@ -214,6 +175,6 @@ void DestructionMaterial::renderDiffuse()
    end();
 }
 
-void DestructionMaterial::update(float /*frame*/, Node** /* nodelist */, const Matrix&)
+void DestructionMaterial::update(float /*frame*/, Node** /*node_list*/, const Matrix&)
 {
 }

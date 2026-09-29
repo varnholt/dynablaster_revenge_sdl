@@ -1,25 +1,21 @@
 #include "keybase.h"
 #include "tools/stream.h"
 
-KeyBase::KeyBase(int time) : mTime(time)
+KeyBase::KeyBase(int32_t time) : _time(time)
 {
 }
 
-KeyBase::~KeyBase()
+int32_t KeyBase::time() const
 {
-}
-
-int KeyBase::time() const
-{
-   return mTime;
+   return _time;
 }
 
 void KeyBase::load(Stream* stream)
 {
-   mTime = stream->getInt();
+   _time = stream->getInt();
 }
 
 void KeyBase::write(Stream* stream)
 {
-   stream->writeInt(mTime);
+   stream->writeInt(_time);
 }

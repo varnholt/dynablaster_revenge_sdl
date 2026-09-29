@@ -8,117 +8,95 @@
 #include "render/uv.h"
 #include "render/vertexbuffer.h"
 #include "textureslot.h"
-#include "tools/profiling.h"
 #include "tools/stream.h"
 
 EnvironmentAmbientDiffuseMaterial::EnvironmentAmbientDiffuseMaterial(SceneGraph* scene)
-    : Material(scene, MAP_AMBIENT | MAP_DIFFUSE | MAP_REFLECT),
-      mSpecularMap(),
-      mAmbientMap(),
-      mDiffuseMap(),
-      mShader(0),
-      mParamSpecular(0),
-      mParamAmbient(0),
-      mParamDiffuse(0),
-      mParamCamera(0)
+    : Material(scene, MAP_AMBIENT | MAP_DIFFUSE | MAP_REFLECT)
 {
 }
 
 EnvironmentAmbientDiffuseMaterial::EnvironmentAmbientDiffuseMaterial(
    SceneGraph* scene,
-   const char* ambientmap,
-   const char* diffusemap,
-   const char* specmap
+   const char* ambient_map,
+   const char* diffuse_map,
+   const char* specular_map
 )
-    : Material(scene, MAP_AMBIENT | MAP_DIFFUSE | MAP_REFLECT),
-      mShader(0),
-      mParamSpecular(0),
-      mParamAmbient(0),
-      mParamDiffuse(0),
-      mParamCamera(0)
+    : Material(scene, MAP_AMBIENT | MAP_DIFFUSE | MAP_REFLECT)
 {
-   addTexture(mAmbientMap, ambientmap);
-   addTexture(mDiffuseMap, diffusemap);
-   addTexture(mSpecularMap, specmap);
-}
-
-EnvironmentAmbientDiffuseMaterial::~EnvironmentAmbientDiffuseMaterial()
-{
+   addTexture(_ambient_map, ambient_map);
+   addTexture(_diffuse_map, diffuse_map);
+   addTexture(_specular_map, specular_map);
 }
 
 void EnvironmentAmbientDiffuseMaterial::init()
 {
-   mShader = activeDevice->loadShader("environmentambientdiffuse-vert.glsl", "environmentambientdiffuse-frag.glsl");
+   _shader = activeDevice->loadShader("environmentambientdiffuse-vert.glsl", "environmentambientdiffuse-frag.glsl");
 
-   mParamSpecular = activeDevice->getParameterIndex("specularmap");
-   mParamAmbient = activeDevice->getParameterIndex("ambientmap");
-   mParamDiffuse = activeDevice->getParameterIndex("diffusemap");
-   mParamCamera = activeDevice->getParameterIndex("camera");
+   _param_specular = activeDevice->getParameterIndex("specularmap");
+   _param_ambient = activeDevice->getParameterIndex("ambientmap");
+   _param_diffuse = activeDevice->getParameterIndex("diffusemap");
+   _param_camera = activeDevice->getParameterIndex("camera");
 }
 
 void EnvironmentAmbientDiffuseMaterial::load(Stream* stream)
 {
    Material::load(stream);
 
-   addTexture(mAmbientMap, getTextureSlot(0)->name());
-   addTexture(mDiffuseMap, getTextureSlot(1)->name());
-   addTexture(mSpecularMap, getTextureSlot(2)->name());
+   addTexture(_ambient_map, getTextureSlot(0)->name());
+   addTexture(_diffuse_map, getTextureSlot(1)->name());
+   addTexture(_specular_map, getTextureSlot(2)->name());
 }
 
-void EnvironmentAmbientDiffuseMaterial::addGeometry(Geometry* geo)
+void EnvironmentAmbientDiffuseMaterial::addGeometry(Geometry* geometry)
 {
-   VertexBuffer* vb = mPool->get(geo);
-   if (!vb)
+   VertexBuffer* vertex_buffer = _pool->get(geometry);
+   if (!vertex_buffer)
    {
-      vb = mPool->add(geo);
+      vertex_buffer = _pool->add(geometry);
 
+      const Vector* vertices = geometry->getVertices();
+      const Vector* normals = geometry->getNormals();
+      const UV* uv = geometry->getUV(1);
+
+      activeDevice->allocateVertexBuffer(vertex_buffer->getVertexBuffer(), sizeof(Vertex) * geometry->getVertexCount());
+      volatile Vertex* destination = static_cast<Vertex*>(activeDevice->lockVertexBuffer(vertex_buffer->getVertexBuffer()));
+      for (int32_t i = 0; i < geometry->getVertexCount(); i++)
       {
-         Vector* vtx = geo->getVertices();
-         Vector* nrm = geo->getNormals();
-         UV* uv = geo->getUV(1);
+         destination[i].position.x = vertices[i].x;
+         destination[i].position.y = vertices[i].y;
+         destination[i].position.z = vertices[i].z;
 
-         activeDevice->allocateVertexBuffer(vb->getVertexBuffer(), sizeof(Vertex) * geo->getVertexCount());
-         volatile Vertex* dst = (Vertex*)activeDevice->lockVertexBuffer(vb->getVertexBuffer());
-         for (int i = 0; i < geo->getVertexCount(); i++)
-         {
-            dst[i].pos.x = vtx[i].x;
-            dst[i].pos.y = vtx[i].y;
-            dst[i].pos.z = vtx[i].z;
+         destination[i].normal.x = normals[i].x;
+         destination[i].normal.y = normals[i].y;
+         destination[i].normal.z = normals[i].z;
 
-            dst[i].normal.x = nrm[i].x;
-            dst[i].normal.y = nrm[i].y;
-            dst[i].normal.z = nrm[i].z;
-
-            dst[i].uv.u = uv[i].u;
-            dst[i].uv.v = uv[i].v;
-         }
-         activeDevice->unlockVertexBuffer(vb->getVertexBuffer());
+         destination[i].uv.u = uv[i].u;
+         destination[i].uv.v = uv[i].v;
       }
+      activeDevice->unlockVertexBuffer(vertex_buffer->getVertexBuffer());
 
-      vb->setIndexBuffer(geo->getIndices(), geo->getIndexCount());
+      vertex_buffer->setIndexBuffer(geometry->getIndices(), geometry->getIndexCount());
    }
 
-   mVB.add(Material::Buffer(geo, vb));
+   _buffers.push_back({geometry, vertex_buffer});
 }
 
 void EnvironmentAmbientDiffuseMaterial::begin()
 {
    Material::begin();
 
-   // set material parameters
-   //   activeDevice->setMaterial(mAmbient, mDiffuse, mSpecular, mShininess);
-   glBindTexture(GL_TEXTURE_2D, mAmbientMap);
+   glBindTexture(GL_TEXTURE_2D, _ambient_map);
 
    glActiveTexture(GL_TEXTURE1_ARB);
-   glBindTexture(GL_TEXTURE_2D, mDiffuseMap);
+   glBindTexture(GL_TEXTURE_2D, _diffuse_map);
 
    glActiveTexture(GL_TEXTURE2_ARB);
-   glBindTexture(GL_TEXTURE_2D, mSpecularMap);
+   glBindTexture(GL_TEXTURE_2D, _specular_map);
 
-   activeDevice->setShader(mShader);
-   activeDevice->bindSampler(mParamAmbient, 0);
-   activeDevice->bindSampler(mParamDiffuse, 1);
-   activeDevice->bindSampler(mParamSpecular, 2);
+   activeDevice->setShader(_shader);
+   activeDevice->bindSampler(_param_ambient, 0);
+   activeDevice->bindSampler(_param_diffuse, 1);
+   activeDevice->bindSampler(_param_specular, 2);
 
    // enable required vertex arrays
    glEnableVertexAttribArray(0);  // vertex data
@@ -141,37 +119,27 @@ void EnvironmentAmbientDiffuseMaterial::renderDiffuse()
 {
    begin();
 
-   /*
-      Matrix projMat;
-      glGetFloatv(GL_PROJECTION_MATRIX, projMat.data());
-      projMat= projMat.invert();
-      Vector camPos= projMat.translation();
-   */
-
-   for (int i = 0; i < mVB.size(); i++)
+   for (const Buffer& buffer : _buffers)
    {
-      // get vertex buffer
-      VertexBuffer* vb = mVB[i].vb;
-      Geometry* geo = mVB[i].geo;
+      VertexBuffer* vertex_buffer = buffer.vertex_buffer;
+      Geometry* geometry = buffer.geometry;
 
-      if (geo->isVisible())
+      if (geometry->isVisible())
       {
-         Matrix invView = (geo->getTransform() * mCamera).invert();
-         Vector osCam = invView.translation();
-         //         Vector osCam= geo->getParent()->getWorld2Obj() * camPos;
-         activeDevice->setParameter(mParamCamera, osCam);
+         const Matrix inverse_view = (geometry->getTransform() * _camera).invert();
+         const Vector object_space_camera = inverse_view.translation();
+         activeDevice->setParameter(_param_camera, object_space_camera);
 
-         //         if (geo->getBoneCount()==0)
-         activeDevice->push(geo->getTransform());
+         activeDevice->push(geometry->getTransform());
 
          // draw mesh
-         glBindBuffer(GL_ARRAY_BUFFER, vb->getVertexBuffer());
-         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)0);
-         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)sizeof(Vector));
-         glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)(sizeof(Vector) * 2));
+         glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer->getVertexBuffer());
+         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), nullptr);
+         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const GLvoid*>(sizeof(Vector)));
+         glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const GLvoid*>(sizeof(Vector) * 2));
 
-         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vb->getIndexBuffer());
-         glDrawElements(GL_TRIANGLES, vb->getIndexCount(), GL_UNSIGNED_SHORT, 0);  // render
+         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vertex_buffer->getIndexBuffer());
+         glDrawElements(GL_TRIANGLES, vertex_buffer->getIndexCount(), GL_UNSIGNED_SHORT, nullptr);  // render
 
          activeDevice->pop();
       }
@@ -180,7 +148,7 @@ void EnvironmentAmbientDiffuseMaterial::renderDiffuse()
    end();
 }
 
-void EnvironmentAmbientDiffuseMaterial::update(float /*frame*/, Node** /* nodelist */, const Matrix& cam)
+void EnvironmentAmbientDiffuseMaterial::update(float /*frame*/, Node** /*node_list*/, const Matrix& camera)
 {
-   mCamera = cam;
+   _camera = camera;
 }

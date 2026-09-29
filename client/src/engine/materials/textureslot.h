@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include "tools/objectname.h"
 #include "tools/string.h"
 
@@ -8,16 +9,16 @@ class Stream;
 class TextureSlot : public ObjectName
 {
 public:
-   TextureSlot();
+   TextureSlot() = default;
    TextureSlot(Stream* stream);
 
    void load(Stream* stream);
    void write(Stream* stream);
 
    float amount() const;
-   int channel() const;
+   int32_t channel() const;
 
 private:
-   float mAmount;
-   int mChannel;
+   float _amount = 0.0f;
+   int32_t _channel = 0;
 };

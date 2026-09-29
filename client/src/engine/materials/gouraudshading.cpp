@@ -3,6 +3,8 @@
 // there is no texture, just color information
 
 #include "gouraudshading.h"
+#include <cstdint>
+#include <memory>
 #include "gldevice.h"
 #include "image/tga.h"
 #include "nodes/mesh.h"
@@ -38,14 +40,14 @@ private:
 void GouraudShading::load(Stream* stream)
 {
    int x, y;
-   unsigned char* temp;
+   void* temp = nullptr;
 
    //   printf(" - gouraud shading\n");
    loadDefault(stream);
 
    loadtga("map", &temp, &x, &y);
-   mTexture = activeDevice->createTexture(temp, x, y);
-   free(temp);
+   const std::unique_ptr<uint32_t[]> pixels(static_cast<uint32_t*>(temp));  // loadtga allocates with new[]
+   mTexture = activeDevice->createTexture(pixels.get(), x, y);
 }
 
 void GouraudShading::add(Geometry* geo)

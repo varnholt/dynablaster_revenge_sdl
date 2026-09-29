@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include "material.h"
 #include "math/matrix.h"
 #include "render/uv.h"
@@ -9,35 +10,34 @@ class EnvironmentTextureMaterial : public Material
 public:
    struct Vertex
    {
-      Vector pos;
+      Vector position;
       Vector normal;
       UV uv;
    };
 
    EnvironmentTextureMaterial(SceneGraph* scene);
-   EnvironmentTextureMaterial(SceneGraph* scene, const char* colormap, const char* envmap, const char* specmap);
-   virtual ~EnvironmentTextureMaterial();
+   EnvironmentTextureMaterial(SceneGraph* scene, const char* color_map, const char* environment_map, const char* specular_map);
 
-   void updateGeometry(VertexBuffer* vb);
-   void update(float frame, Node** nodelist, const Matrix& cam);
-   void load(Stream* stream);
-   void addGeometry(Geometry* geo);
-   virtual void renderDiffuse();
+   void updateGeometry(VertexBuffer* vertex_buffer);
+   void update(float frame, Node** node_list, const Matrix& camera) override;
+   void load(Stream* stream) override;
+   void addGeometry(Geometry* geometry) override;
+   void renderDiffuse() override;
 
 private:
-   void init();
-   void begin();
-   void end();
+   void init() override;
+   void begin() override;
+   void end() override;
 
-   Texture mColorMap;
-   Texture mDiffuseMap;
-   Texture mSpecularMap;
-   unsigned int mShader;
+   Texture _color_map;
+   Texture _diffuse_map;
+   Texture _specular_map;
+   uint32_t _shader = 0;
 
-   int mParamSpecular;
-   int mParamDiffuse;
-   int mParamTexture;
-   int mParamCamera;
+   int32_t _param_specular = 0;
+   int32_t _param_diffuse = 0;
+   int32_t _param_texture = 0;
+   int32_t _param_camera = 0;
 
-   Matrix mCamera;
+   Matrix _camera;
 };

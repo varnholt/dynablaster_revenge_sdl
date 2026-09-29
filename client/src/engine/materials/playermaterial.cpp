@@ -1,4 +1,5 @@
 #include "playermaterial.h"
+#include <array>
 #include "animation/motionmixer.h"
 #include "gldevice.h"
 #include "image/image.h"
@@ -8,83 +9,70 @@
 #include "render/uv.h"
 #include "render/vertexbuffer.h"
 #include "textureslot.h"
-#include "tools/profiling.h"
 #include "tools/stream.h"
 
-PlayerMaterial::PlayerMaterial(SceneGraph* scene)
-    : PlayerMaterialBase(scene, MAP_DIFFUSE | MAP_REFLECT),
-      mColorMap(0),
-      mDiffuseMap(0),
-      mSpecularMap(0),
-      mShader(0),
-      mParamSpecular(0),
-      mParamDiffuse(0),
-      mParamTexture(0),
-      mParamCamera(0),
-      mParamBones(0),
-      mParamFlash(0),
-      mParamFade(0)
+PlayerMaterial::PlayerMaterial(SceneGraph* scene) : PlayerMaterialBase(scene, MAP_DIFFUSE | MAP_REFLECT)
 {
 }
 
-PlayerMaterial::PlayerMaterial(SceneGraph* scene, const char* colormap, const char* envmap, const char* specmap, const char* aomap)
+PlayerMaterial::PlayerMaterial(
+   SceneGraph* scene,
+   const char* color_map,
+   const char* environment_map,
+   const char* specular_map,
+   const char* ambient_occlusion_map
+)
     : PlayerMaterialBase(scene, MAP_DIFFUSE | MAP_REFLECT)
 {
-   addTexture(mColorMap, colormap);
-   addTexture(mDiffuseMap, envmap);
-   addTexture(mSpecularMap, specmap, 1 | 2 | 4);
-   addTexture(mAmbientMap, aomap);
-}
-
-PlayerMaterial::~PlayerMaterial()
-{
+   addTexture(_color_map, color_map);
+   addTexture(_diffuse_map, environment_map);
+   addTexture(_specular_map, specular_map, 1 | 2 | 4);
+   addTexture(_ambient_map, ambient_occlusion_map);
 }
 
 void PlayerMaterial::init()
 {
-   mShader = activeDevice->loadShader("playermaterial-vert.glsl", "playermaterial-frag.glsl");
+   _shader = activeDevice->loadShader("playermaterial-vert.glsl", "playermaterial-frag.glsl");
 
-   mParamSpecular = activeDevice->getParameterIndex("specularmap");
-   mParamDiffuse = activeDevice->getParameterIndex("diffusemap");
-   mParamTexture = activeDevice->getParameterIndex("texturemap");
-   mParamAmbient = activeDevice->getParameterIndex("ambientmap");
-   mParamCamera = activeDevice->getParameterIndex("camera");
-   mParamBones = activeDevice->getParameterIndex("bones");
-   mParamFlash = activeDevice->getParameterIndex("flash");
-   mParamFade = activeDevice->getParameterIndex("fade");
+   _param_specular = activeDevice->getParameterIndex("specularmap");
+   _param_diffuse = activeDevice->getParameterIndex("diffusemap");
+   _param_texture = activeDevice->getParameterIndex("texturemap");
+   _param_ambient = activeDevice->getParameterIndex("ambientmap");
+   _param_camera = activeDevice->getParameterIndex("camera");
+   _param_bones = activeDevice->getParameterIndex("bones");
+   _param_flash = activeDevice->getParameterIndex("flash");
+   _param_fade = activeDevice->getParameterIndex("fade");
 }
 
 void PlayerMaterial::load(Stream* stream)
 {
    Material::load(stream);
 
-   addTexture(mColorMap, getTextureSlot(0)->name());
-   addTexture(mDiffuseMap, "diffuse_level");
-   addTexture(mSpecularMap, getTextureSlot(1)->name(), 1 | 2 | 4);
+   addTexture(_color_map, getTextureSlot(0)->name());
+   addTexture(_diffuse_map, "diffuse_level");
+   addTexture(_specular_map, getTextureSlot(1)->name(), 1 | 2 | 4);
 }
 
 void PlayerMaterial::begin()
 {
    Material::begin();
 
-   // set material parameters
-   //   activeDevice->setMaterial(mAmbient, mDiffuse, mSpecular, mShininess);
-   glBindTexture(GL_TEXTURE_2D, mSpecularMap);
+   glBindTexture(GL_TEXTURE_2D, _specular_map);
 
    glActiveTexture(GL_TEXTURE1_ARB);
-   glBindTexture(GL_TEXTURE_2D, mDiffuseMap);
+   glBindTexture(GL_TEXTURE_2D, _diffuse_map);
 
    glActiveTexture(GL_TEXTURE2_ARB);
-   glBindTexture(GL_TEXTURE_2D, mColorMap);
+   glBindTexture(GL_TEXTURE_2D, _color_map);
 
    glActiveTexture(GL_TEXTURE3_ARB);
-   glBindTexture(GL_TEXTURE_2D, mAmbientMap);
+   glBindTexture(GL_TEXTURE_2D, _ambient_map);
 
-   activeDevice->setShader(mShader);
-   activeDevice->bindSampler(mParamSpecular, 0);
-   activeDevice->bindSampler(mParamDiffuse, 1);
-   activeDevice->bindSampler(mParamTexture, 2);
-   activeDevice->bindSampler(mParamAmbient, 3);
+   activeDevice->setShader(_shader);
+   activeDevice->bindSampler(_param_specular, 0);
+   activeDevice->bindSampler(_param_diffuse, 1);
+   activeDevice->bindSampler(_param_texture, 2);
+   activeDevice->bindSampler(_param_ambient, 3);
 
    // enable required vertex arrays
    glEnableVertexAttribArray(0);  // vertex data
@@ -114,70 +102,68 @@ void PlayerMaterial::renderDiffuse()
 {
    begin();
 
-   /*
-      Matrix projMat;
-      glGetFloatv(GL_PROJECTION_MATRIX, projMat.data());
-      projMat= projMat.invert();
-      Vector camPos= projMat.translation();
-   */
-
-   Matrix bones[8];
-   for (int i = 0; i < mVB.size(); i++)
+   std::array<Matrix, max_cluster_bones> bones;
+   for (const Buffer& buffer : _buffers)
    {
-      // get vertex buffer
-      VertexBuffer* vb = mVB[i].vb;
-      Geometry* geo = mVB[i].geo;
+      VertexBuffer* vertex_buffer = buffer.vertex_buffer;
+      Geometry* geometry = buffer.geometry;
 
-      if (geo->isVisible())
+      if (geometry->isVisible())
       {
-         Mesh* mesh = (Mesh*)geo->getParent();
-         MotionMixer* mixer = mesh->getMotionMixer();
+         const Mesh* mesh = static_cast<const Mesh*>(geometry->getParent());
+         const MotionMixer* mixer = mesh->getMotionMixer();
 
-         float flash = mesh->getRenderParameter(0);
-         float fade = mesh->getRenderParameter(2);
+         const float flash = mesh->getRenderParameter(0);
+         const float fade = mesh->getRenderParameter(2);
 
-         Matrix invView = (geo->getTransform() * mCamera).invert();
-         Vector osCam = invView.translation();
+         const Matrix inverse_view = (geometry->getTransform() * _camera).invert();
+         const Vector object_space_camera = inverse_view.translation();
 
-         //         Vector osCam= geo->getParent()->getWorld2Obj() * camPos;
-         activeDevice->setParameter(mParamFlash, flash);
-         activeDevice->setParameter(mParamFade, fade);
-         activeDevice->setParameter(mParamCamera, osCam);
+         activeDevice->setParameter(_param_flash, flash);
+         activeDevice->setParameter(_param_fade, fade);
+         activeDevice->setParameter(_param_camera, object_space_camera);
 
-         activeDevice->push(geo->getTransform());
+         activeDevice->push(geometry->getTransform());
 
          // draw mesh
-         glBindBuffer(GL_ARRAY_BUFFER, vb->getVertexBuffer());
-         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)0);
-         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)sizeof(Vector));
+         glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer->getVertexBuffer());
+         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), nullptr);
+         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const GLvoid*>(sizeof(Vector)));
 
-         glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)(sizeof(Vector) * 2));
-         glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)(sizeof(Vector) * 2 + 2 * 4));
-         glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)(sizeof(Vector) * 2 + 6 * 4));
+         glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const GLvoid*>(sizeof(Vector) * 2));
+         glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const GLvoid*>(sizeof(Vector) * 2 + 2 * 4));
+         glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const GLvoid*>(sizeof(Vector) * 2 + 6 * 4));
 
-         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vb->getIndexBuffer());
+         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vertex_buffer->getIndexBuffer());
 
          // render all clusters from the same vertex buffer
-         unsigned short* offset = 0;
-         int end = 0;
-         for (int c = 0; c < mClusters.size(); c++)
+         size_t index_offset = 0;
+         int32_t end_vertex = 0;
+         for (const auto& cluster : _clusters)
          {
-            Cluster* cluster = mClusters[c];
-
-            for (int i = 0; i < cluster->mBones.size(); i++)
+            const int32_t bone_count = cluster->boneCount();
+            for (int32_t i = 0; i < bone_count; i++)
             {
-               int idx = cluster->mBones[i];
-               Node* node = mixer->getNode(idx);
-               bones[i] = node->getTransform();
+               bones[i] = mixer->getNode(cluster->bones[i])->getTransform();
             }
-            for (int i = cluster->mBones.size(); i < 8; i++)
+            for (int32_t i = bone_count; i < max_cluster_bones; i++)
+            {
                bones[i] = Matrix();
-            glUniformMatrix4fv(mParamBones, 8, false, (float*)bones);
+            }
+            glUniformMatrix4fv(_param_bones, max_cluster_bones, false, reinterpret_cast<const float*>(bones.data()));
 
-            int start = end;
-            end += cluster->mVertices.size();
-            glDrawRangeElements(GL_TRIANGLES, start, end, cluster->mIndices.size(), GL_UNSIGNED_SHORT, (void*)offset);  // render
-            offset += cluster->mIndices.size();
+            [[maybe_unused]] const int32_t start_vertex = end_vertex;  // unused on GLES (see gles3.h)
+            end_vertex += static_cast<int32_t>(cluster->vertices.size());
+            const auto index_count = static_cast<GLsizei>(cluster->indices.size());
+            glDrawRangeElements(
+               GL_TRIANGLES,
+               start_vertex,
+               end_vertex,
+               index_count,
+               GL_UNSIGNED_SHORT,
+               reinterpret_cast<const void*>(index_offset * sizeof(uint16_t))
+            );  // render
+            index_offset += cluster->indices.size();
          }
 
          activeDevice->pop();
@@ -185,43 +171,39 @@ void PlayerMaterial::renderDiffuse()
    }
 
    end();
-
-   /*
-      if (mVB.size()>0)
-         printf("players: %f \n", (t2-t1)/1000000.0);
-   */
 }
 
-void PlayerMaterial::setColorMap(const Texture& colorMap)
+void PlayerMaterial::setColorMap(const Texture& color_map)
 {
-   mColorMap = colorMap;
+   _color_map = color_map;
 }
 
-void PlayerMaterial::exportOBJ(Stream* stream, int& indexOffset)
+void PlayerMaterial::exportOBJ(Stream* stream, int32_t& index_offset)
 {
-   for (int i = 0; i < mVB.size(); i++)
+   for (const Buffer& buffer : _buffers)
    {
-      // get vertex buffer
-      Geometry* geo = mVB[i].geo;
+      Geometry* geometry = buffer.geometry;
 
-      if (!geo->isVisible())
+      if (!geometry->isVisible())
+      {
          continue;
+      }
 
-      Array<Vector> vtx = geo->getSkinVertices();
+      Array<Vector> vertices = geometry->getSkinVertices();
 
       exportGeo(
          stream,
-         geo->getParent()->name(),
-         geo->getTransform(),
-         vtx.data(),
-         geo->getNormals(),
-         geo->getUV(1),
-         geo->getVertexCount(),
-         geo->getIndices(),
-         geo->getIndexCount(),
-         indexOffset
+         geometry->getParent()->name(),
+         geometry->getTransform(),
+         vertices.data(),
+         geometry->getNormals(),
+         geometry->getUV(1),
+         geometry->getVertexCount(),
+         geometry->getIndices(),
+         geometry->getIndexCount(),
+         index_offset
       );
 
-      indexOffset += geo->getVertexCount();
+      index_offset += geometry->getVertexCount();
    }
 }

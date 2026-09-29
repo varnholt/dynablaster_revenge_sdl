@@ -8,11 +8,11 @@ class Node;
 class BakedTransformation : public Array<Matrix>
 {
 public:
-   BakedTransformation();
-   BakedTransformation(Node* node, float stepSize);
+   BakedTransformation() = default;
+   BakedTransformation(Node* node, float step_size);
 
    Matrix interpolate(float frame) const;
 
 private:
-   float mStepSize;
+   float _step_size = 0.0f;
 };

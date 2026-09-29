@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include "material.h"
 #include "math/matrix.h"
 #include "render/uv.h"
@@ -9,28 +10,27 @@ class EnvironmentMaterial : public Material
 public:
    struct Vertex
    {
-      Vector pos;
+      Vector position;
       Vector normal;
    };
 
    EnvironmentMaterial(SceneGraph* scene);
-   EnvironmentMaterial(SceneGraph* scene, const char* specmap);
-   ~EnvironmentMaterial();
+   EnvironmentMaterial(SceneGraph* scene, const char* specular_map);
 
-   void init();
-   void update(float frame, Node** nodelist, const Matrix& cam);
-   void load(Stream* stream);
-   void addGeometry(Geometry* geo);
-   void begin();
-   void end();
-   virtual void renderDiffuse();
+   void init() override;
+   void update(float frame, Node** node_list, const Matrix& camera) override;
+   void load(Stream* stream) override;
+   void addGeometry(Geometry* geometry) override;
+   void begin() override;
+   void end() override;
+   void renderDiffuse() override;
 
 private:
-   Texture mSpecularMap;
-   unsigned int mShader;
+   Texture _specular_map;
+   uint32_t _shader = 0;
 
-   int mParamSpecular;
-   int mParamCamera;
+   int32_t _param_specular = 0;
+   int32_t _param_camera = 0;
 
-   Matrix mCamera;
+   Matrix _camera;
 };

@@ -1,4 +1,6 @@
 #include "logoreflection.h"
+#include <cstdint>
+#include <memory>
 #include "gldevice.h"
 #include "image/tga.h"
 #include "nodes/mesh.h"
@@ -33,11 +35,11 @@ unsigned int LogoReflection::Buffer::getTexcoordBuffer()
 LogoReflection::LogoReflection(const char* map) : mAmount(0)
 {
    int x, y;
-   unsigned char* temp;
+   void* temp = nullptr;
 
    loadtga(map, &temp, &x, &y);
-   mColorMap = activeDevice->createTexture(temp, x, y, 1);
-   free(temp);
+   const std::unique_ptr<uint32_t[]> pixels(static_cast<uint32_t*>(temp));  // loadtga allocates with new[]
+   mColorMap = activeDevice->createTexture(pixels.get(), x, y, 1);
 
    mShader = activeDevice->loadShader("logoreflection.vsh", "logoreflection.psh");
 }
@@ -52,9 +54,9 @@ void LogoReflection::load(Stream* stream)
    /*
       loadtga("map", &temp, &x, &y);
       mColorMap= activeDevice->createTexture(temp, x,y, 1);
-      free(temp);
+      delete[] static_cast<uint32_t*>(temp);
 
-      mShader= activeDevice->loadShader("logoreflection.vsh", "logoreflection.psh");
+      mShader=activeDevice->loadShader("logoreflection.vsh", "logoreflection.psh");
    */
 }
 

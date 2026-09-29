@@ -1,5 +1,7 @@
 #include "blockmaterial.h"
+#include <array>
 #include <cmath>
+#include <memory>
 #include "animation/motionmixer.h"
 #include "gldevice.h"
 #include "image/image.h"
@@ -13,11 +15,10 @@
 #include "render/uv.h"
 #include "render/vertexbuffer.h"
 #include "textureslot.h"
-#include "tools/profiling.h"
 #include "tools/stream.h"
 
 /*
- expected block neighbouring information (in mesh::mRenderFlags)
+ expected block neighbouring information (in Mesh render flags)
 
  top left      1
  top center    2   * top
@@ -32,284 +33,234 @@
  the main directions make up 2^4=16 possible combinations stored as a 4x4 matrix in the texture
 */
 
-static PSD* matrixLayers = 0;
+namespace
+{
+// shared ambient occlusion source layers, loaded on first use
+std::unique_ptr<PSD> matrix_layers;
+}  // namespace
 
-BlockMaterial::BlockMaterial(SceneGraph* scene)
-    : Material(scene, MAP_DIFFUSE | MAP_REFLECT),
-      mDiffuseMap(0),
-      mColorMap(0),
-      mAmbientMap(0),
-      mShadowMap(0),
-      mSpecularMap(0),
-      mShader(0),
-      mParamDiffuse(0),
-      mParamTexture(0),
-      mParamAmbient(0),
-      mParamShadow(0),
-      mParamSpecular(0),
-      mParamCamera(0),
-      mParamShadowCamera(0),
-      mParamOffset(0),
-      mShadowCam(0)
+BlockMaterial::BlockMaterial(SceneGraph* scene) : Material(scene, MAP_DIFFUSE | MAP_REFLECT)
 {
 }
 
 BlockMaterial::BlockMaterial(
    SceneGraph* scene,
-   const char* colormap,
-   const char* envmap,
-   const char* specmap,
-   const char* shadowMap,
-   Camera* shadowCam,
+   const char* color_map,
+   const char* diffuse_map,
+   const char* specular_map,
+   const char* shadow_map,
+   Camera* shadow_camera,
    bool ambient
 )
-    : Material(scene, MAP_DIFFUSE | MAP_REFLECT),
-      mDiffuseMap(0),
-      mColorMap(0),
-      mAmbientMap(0),
-      mShadowMap(0),
-      mSpecularMap(0),
-      mShader(0),
-      mParamDiffuse(0),
-      mParamTexture(0),
-      mParamAmbient(0),
-      mParamShadow(0),
-      mParamSpecular(0),
-      mParamCamera(0),
-      mParamShadowCamera(0),
-      mParamOffset(0),
-      mShadowCam(shadowCam)
+    : Material(scene, MAP_DIFFUSE | MAP_REFLECT), _shadow_camera(shadow_camera)
 {
-   addTexture(mSpecularMap, specmap);
-   addTexture(mDiffuseMap, envmap);
-   addTexture(mColorMap, colormap);
-   addTexture(mShadowMap, shadowMap);
-   //   mAmbientMap= TexturePool::Instance()->getTexture(aomap);
+   addTexture(_specular_map, specular_map);
+   addTexture(_diffuse_map, diffuse_map);
+   addTexture(_color_map, color_map);
+   addTexture(_shadow_map, shadow_map);
 
    // create ambient occlusion 4x4 matrix texture
-
-   Image* matrix = 0;
+   std::unique_ptr<Image> matrix;
 
    if (ambient)
    {
-      matrix = new Image(1024, 2048);  // psd.getWidth()*4, psd.getHeight()*4 );
+      matrix = std::make_unique<Image>(1024, 2048);
       matrix->clear(0xffff0000);
 
-      if (!matrixLayers)
+      if (!matrix_layers)
       {
-         matrixLayers = new PSD();
-         matrixLayers->load("block-shadow.psd");
+         matrix_layers = std::make_unique<PSD>();
+         matrix_layers->load("block-shadow.psd");
       }
-      Image* source[5];
 
-      source[0] = matrixLayers->getLayer("back 3")->getImage();
-      source[1] = matrixLayers->getLayer("left 3")->getImage();
-      source[2] = matrixLayers->getLayer("right 3")->getImage();
-      source[3] = matrixLayers->getLayer("front 3")->getImage();
-      source[4] = matrixLayers->getLayer("none")->getImage();
+      const std::array<Image*, 5> sources = {
+         matrix_layers->getLayer("back 3")->getImage(),
+         matrix_layers->getLayer("left 3")->getImage(),
+         matrix_layers->getLayer("right 3")->getImage(),
+         matrix_layers->getLayer("front 3")->getImage(),
+         matrix_layers->getLayer("none")->getImage()
+      };
 
-      int w = matrixLayers->getWidth();
-      int h = matrixLayers->getHeight();
-      for (int y = 0; y < 4; y++)
+      const int32_t width = matrix_layers->getWidth();
+      const int32_t height = matrix_layers->getHeight();
+      for (int32_t y = 0; y < 4; y++)
       {
-         for (int x = 0; x < 4; x++)
+         for (int32_t x = 0; x < 4; x++)
          {
-            int flags = (y << 2) | x;
+            const int32_t flags = (y << 2) | x;
 
-            Image image(source[4]->getWidth(), source[4]->getHeight());
-            image.copy(0, 0, *source[4]);
-            for (int test = 0; test < 4; test++)
+            Image image(sources[4]->getWidth(), sources[4]->getHeight());
+            image.copy(0, 0, *sources[4]);
+            for (int32_t test = 0; test < 4; test++)
             {
                if (flags & (1 << test))
-                  image.minimum(*source[test]);
+               {
+                  image.minimum(*sources[test]);
+               }
             }
 
             // texture is bottom->up
-            putImage(*matrix, x * (w + 4), y * (h + 4), image);
+            putImage(*matrix, x * (width + 4), y * (height + 4), image);
          }
       }
    }
    else
    {
-      matrix = new Image(1, 1);  // psd.getWidth()*4, psd.getHeight()*4 );
+      matrix = std::make_unique<Image>(1, 1);
       matrix->clear(0xffffffff);
    }
 
-   addTexture(mAmbientMap, matrix);
-
-   //   temp= new Image( 1024, 1024 );
-   //   temp->scaled( matrix );
-
-   // TODO: delete when texture is created
-
-   //   matrix->save("f:\\blockmat-dump.tga");
+   addTexture(_ambient_map, std::move(matrix));
 }
 
-BlockMaterial::~BlockMaterial()
-{
-}
-
-void BlockMaterial::putScanline(unsigned int* dst, unsigned int* src, int width)
+void BlockMaterial::putScanline(uint32_t* destination, const uint32_t* source, int32_t width)
 {
    // replicate first and last pixel
-   dst[0] = src[0];
-   for (int x = 0; x < width; x++)
+   destination[0] = source[0];
+   for (int32_t x = 0; x < width; x++)
    {
-      dst[x + 1] = src[x];
+      destination[x + 1] = source[x];
    }
-   dst[width + 1] = src[width - 1];
+   destination[width + 1] = source[width - 1];
 }
 
-void BlockMaterial::putImage(Image& target, int posX, int posY, const Image& source)
+void BlockMaterial::putImage(Image& target, int32_t x_position, int32_t y_position, const Image& source)
 {
-   int width = source.getWidth();
-   int height = source.getHeight();
+   const int32_t width = source.getWidth();
+   const int32_t height = source.getHeight();
 
-   unsigned int* dst;
-   unsigned int* src;
+   putScanline(target.getScanline(y_position) + x_position, source.getScanline(0), width);
 
-   dst = target.getScanline(posY) + posX;
-   src = source.getScanline(0);
-
-   putScanline(dst, src, width);
-
-   for (int y = 0; y < height; y++)
+   for (int32_t y = 0; y < height; y++)
    {
-      dst = target.getScanline(y + posY + 1) + posX;
-      src = source.getScanline(y);
-      putScanline(dst, src, width);
+      putScanline(target.getScanline(y + y_position + 1) + x_position, source.getScanline(y), width);
    }
 
-   dst = target.getScanline(posY + height + 1) + posX;
-   src = source.getScanline(height - 1);
-   putScanline(dst, src, width);
+   putScanline(target.getScanline(y_position + height + 1) + x_position, source.getScanline(height - 1), width);
 }
 
 void BlockMaterial::load(Stream* stream)
 {
    Material::load(stream);
 
-   addTexture(mColorMap, getTextureSlot(0)->name());
-   addTexture(mSpecularMap, getTextureSlot(1)->name());
+   addTexture(_color_map, getTextureSlot(0)->name());
+   addTexture(_specular_map, getTextureSlot(1)->name());
 
    init();
 }
 
 void BlockMaterial::init()
 {
-   mShader = activeDevice->loadShader("blockmaterial-vert.glsl", "blockmaterial-frag.glsl");
+   _shader = activeDevice->loadShader("blockmaterial-vert.glsl", "blockmaterial-frag.glsl");
 
-   mParamSpecular = activeDevice->getParameterIndex("specularmap");
-   mParamDiffuse = activeDevice->getParameterIndex("diffusemap");
-   mParamShadow = activeDevice->getParameterIndex("shadowmap");
-   mParamTexture = activeDevice->getParameterIndex("texturemap");
-   mParamAmbient = activeDevice->getParameterIndex("ambientmap");
+   _param_specular = activeDevice->getParameterIndex("specularmap");
+   _param_diffuse = activeDevice->getParameterIndex("diffusemap");
+   _param_shadow = activeDevice->getParameterIndex("shadowmap");
+   _param_texture = activeDevice->getParameterIndex("texturemap");
+   _param_ambient = activeDevice->getParameterIndex("ambientmap");
 
-   mParamCamera = activeDevice->getParameterIndex("camera");
-   mParamShadowCamera = activeDevice->getParameterIndex("shadowCamera");
-   mParamOffset = activeDevice->getParameterIndex("uvOffset");
+   _param_camera = activeDevice->getParameterIndex("camera");
+   _param_shadow_camera = activeDevice->getParameterIndex("shadowCamera");
+   _param_offset = activeDevice->getParameterIndex("uvOffset");
 }
 
-void BlockMaterial::addGeometry(Geometry* geo)
+void BlockMaterial::addGeometry(Geometry* geometry)
 {
-   VertexBuffer* vb = mPool->get(geo);
-   if (!vb)
+   VertexBuffer* vertex_buffer = _pool->get(geometry);
+   if (!vertex_buffer)
    {
-      vb = mPool->add(geo);
+      vertex_buffer = _pool->add(geometry);
 
+      const Vector* vertices = geometry->getVertices();
+      const Vector* normals = geometry->getNormals();
+      const UV* uv = geometry->getUV(1);
+
+      activeDevice->allocateVertexBuffer(vertex_buffer->getVertexBuffer(), sizeof(Vertex) * geometry->getVertexCount());
+      volatile Vertex* destination = static_cast<Vertex*>(activeDevice->lockVertexBuffer(vertex_buffer->getVertexBuffer()));
+      for (int32_t i = 0; i < geometry->getVertexCount(); i++)
       {
-         Vector* vtx = geo->getVertices();
-         Vector* nrm = geo->getNormals();
-         UV* uv = geo->getUV(1);
+         destination[i].position.x = vertices[i].x;
+         destination[i].position.y = vertices[i].y;
+         destination[i].position.z = vertices[i].z;
 
-         activeDevice->allocateVertexBuffer(vb->getVertexBuffer(), sizeof(Vertex) * geo->getVertexCount());
-         volatile Vertex* dst = (Vertex*)activeDevice->lockVertexBuffer(vb->getVertexBuffer());
-         for (int i = 0; i < geo->getVertexCount(); i++)
-         {
-            dst[i].pos.x = vtx[i].x;
-            dst[i].pos.y = vtx[i].y;
-            dst[i].pos.z = vtx[i].z;
+         destination[i].normal.x = normals[i].x;
+         destination[i].normal.y = normals[i].y;
+         destination[i].normal.z = normals[i].z;
 
-            dst[i].normal.x = nrm[i].x;
-            dst[i].normal.y = nrm[i].y;
-            dst[i].normal.z = nrm[i].z;
-
-            dst[i].uv.u = uv[i].u;
-            dst[i].uv.v = uv[i].v;
-         }
-         activeDevice->unlockVertexBuffer(vb->getVertexBuffer());
+         destination[i].uv.u = uv[i].u;
+         destination[i].uv.v = uv[i].v;
       }
+      activeDevice->unlockVertexBuffer(vertex_buffer->getVertexBuffer());
 
-      vb->setIndexBuffer(geo->getIndices(), geo->getIndexCount());
+      vertex_buffer->setIndexBuffer(geometry->getIndices(), geometry->getIndexCount());
    }
 
-   mVB.add(Material::Buffer(geo, vb));
+   _buffers.push_back({geometry, vertex_buffer});
 }
 
 void BlockMaterial::begin()
 {
    Material::begin();
 
-   // set material parameters
-   //   activeDevice->setMaterial(mAmbient, mDiffuse, mSpecular, mShininess);
-   glBindTexture(GL_TEXTURE_2D, mDiffuseMap);
+   glBindTexture(GL_TEXTURE_2D, _diffuse_map);
 
    glActiveTexture(GL_TEXTURE1_ARB);
-   glBindTexture(GL_TEXTURE_2D, mColorMap);
+   glBindTexture(GL_TEXTURE_2D, _color_map);
 
    glActiveTexture(GL_TEXTURE2_ARB);
-   glBindTexture(GL_TEXTURE_2D, mShadowMap);
+   glBindTexture(GL_TEXTURE_2D, _shadow_map);
 
    glActiveTexture(GL_TEXTURE3_ARB);
-   glBindTexture(GL_TEXTURE_2D, mAmbientMap);
+   glBindTexture(GL_TEXTURE_2D, _ambient_map);
 
    glActiveTexture(GL_TEXTURE4_ARB);
-   glBindTexture(GL_TEXTURE_2D, mSpecularMap);
+   glBindTexture(GL_TEXTURE_2D, _specular_map);
 
-   activeDevice->setShader(mShader);
-   activeDevice->bindSampler(mParamDiffuse, 0);
-   activeDevice->bindSampler(mParamTexture, 1);
-   activeDevice->bindSampler(mParamShadow, 2);
-   activeDevice->bindSampler(mParamAmbient, 3);
-   activeDevice->bindSampler(mParamSpecular, 4);
+   activeDevice->setShader(_shader);
+   activeDevice->bindSampler(_param_diffuse, 0);
+   activeDevice->bindSampler(_param_texture, 1);
+   activeDevice->bindSampler(_param_shadow, 2);
+   activeDevice->bindSampler(_param_ambient, 3);
+   activeDevice->bindSampler(_param_specular, 4);
 
    // enable required vertex arrays
    glEnableVertexAttribArray(0);  // vertex data
    glEnableVertexAttribArray(1);
    glEnableVertexAttribArray(2);
 
-   Matrix cam;
-   if (mShadowCam)
+   Matrix camera;
+   if (_shadow_camera)
    {
       GLDevice* device = static_cast<GLDevice*>(activeDevice);
       device->pushProjection();
 
-      cam = mShadowCam->getTransform().getView();
-      float fov = mShadowCam->getFOV();
+      camera = _shadow_camera->getTransform().getView();
+      float fov = _shadow_camera->getFOV();
       fov = std::tan(fov * 0.5) * 0.75;
-      float zNear = mShadowCam->getNear();
-      float zFar = mShadowCam->getFar();
+      const float z_near = _shadow_camera->getNear();
+      const float z_far = _shadow_camera->getFar();
 
-      //! get geometry by given index
-      Geometry* geoRef = getGeometry(0);
-      if (geoRef)
+      Geometry* reference = getGeometry(0);
+      if (reference)
       {
-         Node* parent = geoRef->getParent();
+         Node* parent = reference->getParent();
          if (parent)
          {
             SceneGraph* scene = parent->getRoot();
             if (scene)
-               cam = scene->getGlobalTransform() * cam;
+            {
+               camera = scene->getGlobalTransform() * camera;
+            }
          }
       }
 
-      activeDevice->setCamera(cam, fov, zNear, zFar, mShadowCam->getPerspectiveMode());
+      activeDevice->setCamera(camera, fov, z_near, z_far, _shadow_camera->getPerspectiveMode());
 
-      cam = device->getProjectionMatrix();
-      cam.normalizeZ();
+      camera = device->getProjectionMatrix();
+      camera.normalizeZ();
       device->popProjection();
    }
-   activeDevice->setParameter(mParamShadowCamera, cam);
+   activeDevice->setParameter(_param_shadow_camera, camera);
 }
 
 void BlockMaterial::end()
@@ -327,52 +278,47 @@ void BlockMaterial::renderDiffuse()
 {
    begin();
 
-   for (int i = 0; i < mVB.size(); i++)
+   for (const Buffer& buffer : _buffers)
    {
-      // get vertex buffer
-      VertexBuffer* vb = mVB[i].vb;
-      Geometry* geo = mVB[i].geo;
+      VertexBuffer* vertex_buffer = buffer.vertex_buffer;
+      Geometry* geometry = buffer.geometry;
 
-      if (geo->isVisible())
+      if (geometry->isVisible())
       {
-         Mesh* mesh = (Mesh*)geo->getParent();
+         const Mesh* mesh = static_cast<const Mesh*>(geometry->getParent());
 
-         int top = mesh->getRenderFlags() >> 1 & 1;
-         int left = mesh->getRenderFlags() >> 3 & 1;
-         int right = mesh->getRenderFlags() >> 5 & 1;
-         int bottom = mesh->getRenderFlags() >> 7 & 1;
-         int flags = (top) | (left << 1) | (right << 2) | (bottom << 3);
-         int x = flags & 3;
-         int y = (flags >> 2) & 3;
+         const int32_t top = mesh->getRenderFlags() >> 1 & 1;
+         const int32_t left = mesh->getRenderFlags() >> 3 & 1;
+         const int32_t right = mesh->getRenderFlags() >> 5 & 1;
+         const int32_t bottom = mesh->getRenderFlags() >> 7 & 1;
+         const int32_t flags = (top) | (left << 1) | (right << 2) | (bottom << 3);
+         const int32_t x = flags & 3;
+         const int32_t y = (flags >> 2) & 3;
 
-         Matrix invView = (geo->getTransform() * mCamera).invert();
-         Vector osCam = invView.translation();
-         //         Vector osCam= geo->getParent()->getWorld2Obj() * camPos;
-         activeDevice->setParameter(mParamCamera, osCam);
-         activeDevice->setParameter(mParamOffset, Vector(x, y));
+         const Matrix inverse_view = (geometry->getTransform() * _camera).invert();
+         const Vector object_space_camera = inverse_view.translation();
+         activeDevice->setParameter(_param_camera, object_space_camera);
+         activeDevice->setParameter(_param_offset, Vector(x, y));
 
-         //         if (geo->getBoneCount()==0)
-         activeDevice->push(geo->getTransform());
+         activeDevice->push(geometry->getTransform());
 
          // draw mesh
-         glBindBuffer(GL_ARRAY_BUFFER, vb->getVertexBuffer());
-         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)0);
-         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)sizeof(Vector));
-         glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)(sizeof(Vector) * 2));
+         glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer->getVertexBuffer());
+         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), nullptr);
+         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const GLvoid*>(sizeof(Vector)));
+         glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const GLvoid*>(sizeof(Vector) * 2));
 
-         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vb->getIndexBuffer());
-         glDrawElements(GL_TRIANGLES, vb->getIndexCount(), GL_UNSIGNED_SHORT, 0);  // render
+         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vertex_buffer->getIndexBuffer());
+         glDrawElements(GL_TRIANGLES, vertex_buffer->getIndexCount(), GL_UNSIGNED_SHORT, nullptr);  // render
 
          activeDevice->pop();
       }
    }
 
    end();
-
-   //   printf("blocks [%d]: %f \n", mVB.size(), (t2-t1)/1000000.0);
 }
 
-void BlockMaterial::update(float /*frame*/, Node** /* nodelist */, const Matrix& cam)
+void BlockMaterial::update(float /*frame*/, Node** /*node_list*/, const Matrix& camera)
 {
-   mCamera = cam;
+   _camera = camera;
 }

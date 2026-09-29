@@ -1,66 +1,65 @@
 #include "light.h"
 
-Light::Light(Node::ID id, Node* parent) : Node(id, parent), mFlags(0), mMapSize(0), mAttStart(0.0f), mAttEnd(0.0f)
-{
-}
-
-Light::~Light()
+Light::Light(Node::ID id, Node* parent) : Node(id, parent)
 {
 }
 
 void Light::transform(float time)
 {
    Node::transform(time);
-   mColor = mColTrack.get(time);
+   _color = _color_track.get(time);
 }
 
 void Light::load(Stream* stream)
 {
-   mFlags = stream->getInt();
-   //   mMapSize= stream->getInt();
+   _flags = stream->getInt();
 
-   mAttStart = stream->getFloat();
-   mAttEnd = stream->getFloat();
+   _attenuation_start = stream->getFloat();
+   _attenuation_end = stream->getFloat();
 
    // load exclude list
    Chunk list(stream);
-   int size = list.getInt();
-   mExclude.init(size);
-   for (int i = 0; i < size; i++)
-      mExclude.add(list.getInt());
+   const int32_t size = list.getInt();
+   _exclude.init(size);
+   for (int32_t i = 0; i < size; i++)
+   {
+      _exclude.add(list.getInt());
+   }
    list.skip();
 
-   Chunk anim(&list);
-   mColTrack.load(&anim);
-   mPosTrack.load(&anim);
-   mRotTrack.load(&anim);
-   mScaleTrack.load(&anim);
-   mVisTrack.load(&anim);
-   mFlipTrack.load(&anim);
-   anim.skip();
+   Chunk animation(&list);
+   _color_track.load(&animation);
+   _position_track.load(&animation);
+   _rotation_track.load(&animation);
+   _scale_track.load(&animation);
+   _visibility_track.load(&animation);
+   _flip_track.load(&animation);
+   animation.skip();
 }
 
 void Light::write(Stream* stream)
 {
-   // load exclude list
+   // write exclude list
    {
       Chunk list(stream, 500, "Light");
 
-      list.writeInt(mExclude.size());
-      for (int i = 0; i < mExclude.size(); i++)
-         list.writeInt(mExclude[i]);
+      list.writeInt(_exclude.size());
+      for (int32_t i = 0; i < _exclude.size(); i++)
+      {
+         list.writeInt(_exclude[i]);
+      }
    }
 
-   Chunk anim(stream, 2000, "Animation");
-   mColTrack.write(&anim);
-   mPosTrack.write(&anim);
-   mRotTrack.write(&anim);
-   mScaleTrack.write(&anim);
-   mVisTrack.write(&anim);
-   mFlipTrack.write(&anim);
+   Chunk animation(stream, 2000, "Animation");
+   _color_track.write(&animation);
+   _position_track.write(&animation);
+   _rotation_track.write(&animation);
+   _scale_track.write(&animation);
+   _visibility_track.write(&animation);
+   _flip_track.write(&animation);
 }
 
 Vector Light::getColor() const
 {
-   return mColor;
+   return _color;
 }

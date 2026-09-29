@@ -10,5 +10,5 @@ class VisTrack : public Track<KeyBase>
 public:
    VisTrack();
 
-   int get(int time);
+   int32_t get(int32_t time);
 };

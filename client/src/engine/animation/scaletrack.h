@@ -13,8 +13,8 @@ public:
 
    Matrix get(float time);
 
-   void add(int time, const Scale& scale);
+   void add(int32_t time, const Scale& scale);
 
-   virtual void load(Stream* stream);
-   virtual void write(Stream* stream);
+   void load(Stream* stream) override;
+   void write(Stream* stream) override;
 };
