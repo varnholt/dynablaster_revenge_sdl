@@ -1,6 +1,7 @@
 #include "botmap.h"
-#include <cstring>
 
+#include <algorithm>
+#include <cstdlib>
 #include <format>
 #include <string>
 #include <vector>
@@ -12,79 +13,17 @@
 #include "bombmapitem.h"
 #include "botbombmapitem.h"
 #include "extramapitem.h"
+#include "logging.h"
 #include "mapitem.h"
 #include "stonemapitem.h"
 
-// Qt
-#include "logging.h"
-
-#include <algorithm>
-
-
-//-----------------------------------------------------------------------------
-/*!
-   \param parent parent node
-*/
-BotMap::BotMap()
-   : Map(13, 11)
+namespace
 {
-   initDirections();
-   _traversed_positions = new bool[mWidth * mHeight];
-   resetTraversedMap();
-}
-
-
-//-----------------------------------------------------------------------------
-/*!
-   \param width map width
-   \param height map height
-*/
-BotMap::BotMap(int width, int height)
-  : Map(width, height)
-{
-   initDirections();
-   _traversed_positions = new bool[mWidth * mHeight];
-   resetTraversedMap();
-}
-
-
-//-----------------------------------------------------------------------------
-/*!
-*/
-BotMap::~BotMap()
-{
-}
-
-
-//-----------------------------------------------------------------------------
-/*!
-   \param x x position
-   \param y y position
-   \return map item at x,y
-*/
-MapItem *BotMap::getItem(int x, int y) const
-{
-   return Map::getItem(x, y);
-}
-
-
-//-----------------------------------------------------------------------------
-/*!
-   \param x x position
-   \param y y position
-   \param item item to set
-*/
-void BotMap::setItem(int x, int y, MapItem * item)
-{
-   Map::setItem(x, y, item);
-}
-
-
-//-----------------------------------------------------------------------------
 /*!
    \param list list to randomize
 */
-template<typename T> void randomize(std::vector<T>& list)
+template <typename T>
+void randomize(std::vector<T>& list)
 {
    for (int index = static_cast<int>(list.size()) - 1; index > 0; --index)
    {
@@ -92,11 +31,24 @@ template<typename T> void randomize(std::vector<T>& list)
       std::swap(list[index], list[swap_index]);
    }
 }
+}  // namespace
 
+BotMap::BotMap() : Map(13, 11)
+{
+   initDirections();
+   _traversed_positions.assign(static_cast<size_t>(getWidth() * getHeight()), false);
+}
 
-//-----------------------------------------------------------------------------
 /*!
+   \param width map width
+   \param height map height
 */
+BotMap::BotMap(int width, int height) : Map(width, height)
+{
+   initDirections();
+   _traversed_positions.assign(static_cast<size_t>(getWidth() * getHeight()), false);
+}
+
 void BotMap::initDirections()
 {
    _directions.push_back(Constants::DirectionUp);
@@ -112,21 +64,13 @@ void BotMap::initDirections()
 
    _directions_randomized = _directions;
    randomize(_directions_randomized);
-   // debugDirections(_directions_randomized);
 }
 
-
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 const std::vector<Constants::Direction>& BotMap::getDirectionsAndCurrent()
 {
    return _directions_and_current;
 }
 
-
-//-----------------------------------------------------------------------------
 /*!
    \param x x pos
    \param y y pos
@@ -134,21 +78,14 @@ const std::vector<Constants::Direction>& BotMap::getDirectionsAndCurrent()
    \param enemies enemy positions
    \return \c true if a bomb drop now could kill
 */
-bool BotMap::isBombDropDeadly(
-   int x,
-   int y,
-   int flames,
-   const std::vector<Point>& enemies
-) const
+bool BotMap::isBombDropDeadly(int x, int y, int flames, const std::vector<Point>& enemies) const
 {
-   bool deadly = false;
-
    int direction_x = 0;
    int direction_y = 0;
 
-   for (Constants::Direction dir : _directions_and_current)
+   for (Constants::Direction direction : _directions_and_current)
    {
-      switch (dir)
+      switch (direction)
       {
          case Constants::DirectionUp:
             direction_x = 0;
@@ -179,153 +116,84 @@ bool BotMap::isBombDropDeadly(
       //    => check x+2, y
       for (int i = 1; i <= flames; i++)
       {
-         int position_x = x + i * direction_x;
-         int position_y = y + i * direction_y;
+         const int position_x = x + i * direction_x;
+         const int position_y = y + i * direction_y;
 
          // check if position runs out of field scope
-         bool valid =
-               position_x >= 0
-            && position_y >= 0
-            && position_x < getWidth()
-            && position_y < getHeight();
+         const bool valid = position_x >= 0 && position_y >= 0 && position_x < getWidth() && position_y < getHeight();
 
          // bomb hit something, abort this direction
-         if (
-               !valid
-            || getItem(position_x, position_y)
-         )
+         if (!valid || getItem(position_x, position_y))
          {
             break;
          }
-         else
+
+         // check if there's a player
+         if (std::ranges::find(enemies, Point(position_x, position_y)) != enemies.end())
          {
-            // check if there's a player
-            if (std::find(enemies.begin(), enemies.end(), Point(position_x, position_y)) != enemies.end())
-            {
-               // we'll just leave here with a positive result
-               return true;
-            }
+            return true;
          }
       }
    }
 
-   return deadly;
+   return false;
 }
 
-
-//-----------------------------------------------------------------------------
 /*!
    \param player_id player id
-   \param player bomb count
+   \param bomb_count player bomb count
    \return \c true if all bombs have been consumed
 */
 bool BotMap::isBombAmountConsumed(int player_id, int bomb_count) const
 {
-   return getBombs(player_id).size() < bomb_count;
+   return getBombs(player_id).size() < static_cast<size_t>(bomb_count);
 }
 
-
-//-----------------------------------------------------------------------------
 /*!
    \param player_id player id
    \return list of bombs by player id
 */
-std::vector<BotBombMapItem *> BotMap::getBombs(int player_id) const
+std::vector<BotBombMapItem*> BotMap::getBombs(int player_id) const
 {
-   std::vector<BotBombMapItem *> bombs;
-   MapItem* item = 0;
-   BotBombMapItem* bomb = 0;
+   std::vector<BotBombMapItem*> bombs;
 
    for (int y = 0; y < getHeight(); y++)
    {
       for (int x = 0; x < getWidth(); x++)
       {
-         item = getItem(x, y);
-
-         bomb = dynamic_cast<BotBombMapItem*>(item);
+         auto* bomb = dynamic_cast<BotBombMapItem*>(getItem(x, y));
 
          if (bomb && (bomb->getPlayerId() == player_id || player_id == -1))
+         {
             bombs.push_back(bomb);
+         }
       }
    }
 
    return bombs;
 }
 
-
-//-----------------------------------------------------------------------------
 /*!
-   \parem item map item to create
+   \param item map item to create
 */
-void BotMap::createMapItem(MapItem *item)
+void BotMap::createMapItem(MapItem* item)
 {
-   setItem(
-      item->getX(),
-      item->getY(),
-      item
-   );
-
-   if (item->getType() == MapItem::Extra)
-   {
-      ExtraMapItem* extra = (ExtraMapItem*)item;
-      std::string extra_name;
-
-      switch (extra->getExtraType())
-      {
-         case Constants::ExtraBomb:
-            extra_name = "bomb";
-            break;
-         case Constants::ExtraFlame:
-            extra_name = "flame";
-            break;
-         case Constants::ExtraSpeedup:
-            extra_name = "speedup";
-            break;
-         case Constants::ExtraKick:
-            extra_name = "kick";
-            break;
-         case Constants::ExtraSkull:
-            extra_name = "skull";
-            break;
-         default:
-            extra_name = "unknown";
-            break;
-      }
-
-      /*
-      qDebug(
-         "BotMap::createMapItem: '%s' (ptr: %p) created at (%d, %d) (mapptr: %p)",
-         qPrintable(extra_name),
-         item,
-         item->getX(),
-         item->getY(),
-         this
-      );
-      */
-   }
+   setItem(item->getX(), item->getY(), item);
 }
 
-
-//-----------------------------------------------------------------------------
 /*!
-   \parem item item to remove
+   \param remove_item item to remove
 */
-void BotMap::removeMapItem(MapItem *remove_item)
+void BotMap::removeMapItem(MapItem* remove_item)
 {
    MapItem* found_item = getItem(remove_item->getX(), remove_item->getY());
 
    if (found_item == remove_item)
    {
-      setItem(
-         remove_item->getX(),
-         remove_item->getY(),
-         0
-      );
+      setItem(remove_item->getX(), remove_item->getY(), nullptr);
    }
 }
 
-
-//-----------------------------------------------------------------------------
 /*!
    \param x x pos to look up
    \param y y pos to look up
@@ -333,11 +201,9 @@ void BotMap::removeMapItem(MapItem *remove_item)
 */
 bool BotMap::isTraversed(int x, int y) const
 {
-   return _traversed_positions[y * mWidth + x];
+   return _traversed_positions[y * getWidth() + x];
 }
 
-
-//-----------------------------------------------------------------------------
 /*!
    \param x x pos to look up
    \param y y pos to look up
@@ -345,32 +211,24 @@ bool BotMap::isTraversed(int x, int y) const
 */
 void BotMap::setTraversed(int x, int y, bool traversed)
 {
-   _traversed_positions[y * mWidth + x] = traversed;
+   _traversed_positions[y * getWidth() + x] = traversed;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 void BotMap::resetTraversedMap()
 {
-   for (int y = 0; y < getHeight(); y++)
-      for (int x = 0; x < getWidth(); x++)
-         setTraversed(x, y, false);
+   std::fill(_traversed_positions.begin(), _traversed_positions.end(), false);
 }
 
-
-//-----------------------------------------------------------------------------
 /*!
    \param list direction list
 */
-void BotMap::debugDirections(const std::vector<Constants::Direction> &list)
+void BotMap::debugDirections(const std::vector<Constants::Direction>& list)
 {
    std::string line;
 
-   for (Constants::Direction dir : list)
+   for (Constants::Direction direction : list)
    {
-      switch (dir)
+      switch (direction)
       {
          case Constants::DirectionUp:
             line.append("; up");
@@ -392,16 +250,14 @@ void BotMap::debugDirections(const std::vector<Constants::Direction> &list)
    qDebug("%s", line.c_str());
 }
 
-
-//-----------------------------------------------------------------------------
 /*!
    \param x x position
    \param y y position
-   \parem iteration no.
+   \param iteration iteration no.
 */
 void BotMap::updateReachablePositions(int x, int y, int iteration)
 {
-   int current_iteration = iteration;
+   const int current_iteration = iteration;
    iteration++;
 
    if (current_iteration == 0)
@@ -412,15 +268,12 @@ void BotMap::updateReachablePositions(int x, int y, int iteration)
    // current position is reachable
    setTraversed(x, y, true);
 
-   int xt = 0;
-   int yt = 0;
-
-   for (Constants::Direction dir : _directions)
+   for (Constants::Direction direction : _directions)
    {
-      xt = x;
-      yt = y;
+      int xt = x;
+      int yt = y;
 
-      switch (dir)
+      switch (direction)
       {
          case Constants::DirectionUp:
             yt--;
@@ -442,26 +295,16 @@ void BotMap::updateReachablePositions(int x, int y, int iteration)
       // - limits not exceeded
       // - position is not yet traversed
       // - there's nothing in the way
-      bool within_limits = (
-               xt >= 0
-            && yt >= 0
-            && xt < getWidth()
-            && yt < getHeight()
-         );
+      const bool within_limits = (xt >= 0 && yt >= 0 && xt < getWidth() && yt < getHeight());
 
-      MapItem* item = 0;
+      MapItem* item = nullptr;
 
       if (within_limits)
+      {
          item = getItem(xt, yt);
+      }
 
-      if (
-             within_limits
-         && !isTraversed(xt, yt)
-         && (
-               !item
-            || (item && !item->isBlocking())
-        )
-      )
+      if (within_limits && !isTraversed(xt, yt) && (!item || !item->isBlocking()))
       {
          updateReachablePositions(xt, yt, iteration);
       }
@@ -484,23 +327,21 @@ void BotMap::updateReachablePositions(int x, int y, int iteration)
       }
    }
 
-   if (_reachable_positions.size() == static_cast<size_t>(mWidth * mHeight))
+   if (_reachable_positions.size() == static_cast<size_t>(getWidth() * getHeight()))
    {
       qDebug("we're fucked");
       _reachable_positions.clear();
    }
 }
 
-
-//-----------------------------------------------------------------------------
 /*!
    \param x x position
    \param y y position
-   \parem iteration no.
+   \param iteration iteration no.
 */
 void BotMap::updateReachablePositionsRandomized(int x, int y, int iteration)
 {
-   int current_iteration = iteration;
+   const int current_iteration = iteration;
    iteration++;
 
    if (current_iteration == 0)
@@ -511,15 +352,12 @@ void BotMap::updateReachablePositionsRandomized(int x, int y, int iteration)
    // current position is reachable
    setTraversed(x, y, true);
 
-   int xt = 0;
-   int yt = 0;
-
-   for (Constants::Direction dir : _directions_randomized)
+   for (Constants::Direction direction : _directions_randomized)
    {
-      xt = x;
-      yt = y;
+      int xt = x;
+      int yt = y;
 
-      switch (dir)
+      switch (direction)
       {
          case Constants::DirectionUp:
             yt--;
@@ -541,26 +379,16 @@ void BotMap::updateReachablePositionsRandomized(int x, int y, int iteration)
       // - limits not exceeded
       // - position is not yet traversed
       // - there's nothing in the way
-      bool within_limits = (
-               xt >= 0
-            && yt >= 0
-            && xt < getWidth()
-            && yt < getHeight()
-         );
+      const bool within_limits = (xt >= 0 && yt >= 0 && xt < getWidth() && yt < getHeight());
 
-      MapItem* item = 0;
+      MapItem* item = nullptr;
 
       if (within_limits)
+      {
          item = getItem(xt, yt);
+      }
 
-      if (
-             within_limits
-         && !isTraversed(xt, yt)
-         && (
-               !item
-            || (item && !item->isBlocking())
-        )
-      )
+      if (within_limits && !isTraversed(xt, yt) && (!item || !item->isBlocking()))
       {
          updateReachablePositionsRandomized(xt, yt, iteration);
       }
@@ -583,36 +411,23 @@ void BotMap::updateReachablePositionsRandomized(int x, int y, int iteration)
       }
    }
 
-   if (_reachable_positions.size() == static_cast<size_t>(mWidth * mHeight))
+   if (_reachable_positions.size() == static_cast<size_t>(getWidth() * getHeight()))
    {
       qDebug("we're fucked");
       _reachable_positions.clear();
    }
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 void BotMap::updateReachableExtras()
 {
    _reachable_extras.clear();
 
-   int x = 0;
-   int y = 0;
-   MapItem* item = 0;
    for (const Point& p : _reachable_positions)
    {
-      x = p.x();
-      y = p.y();
-
-      item = getItem(x, y);
+      MapItem* item = getItem(p.x(), p.y());
 
       // store extra position if appropriate
-      if (
-             item
-         && (item->getType() == MapItem::Extra)
-      )
+      if (item && (item->getType() == MapItem::Extra))
       {
          // maybe distinguish between 'good' and 'bad' extras
          _reachable_extras.push_back(p);
@@ -620,8 +435,6 @@ void BotMap::updateReachableExtras()
    }
 }
 
-
-//-----------------------------------------------------------------------------
 /*!
    \return list of reachable points
 */
@@ -630,8 +443,6 @@ const std::vector<Point>& BotMap::getReachablePositions() const
    return _reachable_positions;
 }
 
-
-//-----------------------------------------------------------------------------
 /*!
    \return list of reachable extras
 */
@@ -640,24 +451,19 @@ const std::vector<Point>& BotMap::getReachableExtras() const
    return _reachable_extras;
 }
 
-
-//-----------------------------------------------------------------------------
 /*!
    \return list of reachable neighbor points
 */
 std::vector<Point> BotMap::getReachableNeighborPositions(int x, int y) const
 {
    std::vector<Point> positions;
-   MapItem* item = 0;
+   MapItem* item = nullptr;
 
    if (x > 0)
    {
       item = getItem(x - 1, y);
 
-      if (
-             (item && item->getType() == MapItem::Extra)
-          || !item
-      )
+      if ((item && item->getType() == MapItem::Extra) || !item)
       {
          positions.push_back(Point(x - 1, y));
       }
@@ -667,10 +473,7 @@ std::vector<Point> BotMap::getReachableNeighborPositions(int x, int y) const
    {
       item = getItem(x + 1, y);
 
-      if (
-             (item && item->getType() == MapItem::Extra)
-          || !item
-      )
+      if ((item && item->getType() == MapItem::Extra) || !item)
       {
          positions.push_back(Point(x + 1, y));
       }
@@ -680,10 +483,7 @@ std::vector<Point> BotMap::getReachableNeighborPositions(int x, int y) const
    {
       item = getItem(x, y - 1);
 
-      if (
-             (item && item->getType() == MapItem::Extra)
-          || !item
-      )
+      if ((item && item->getType() == MapItem::Extra) || !item)
       {
          positions.push_back(Point(x, y - 1));
       }
@@ -693,10 +493,7 @@ std::vector<Point> BotMap::getReachableNeighborPositions(int x, int y) const
    {
       item = getItem(x, y + 1);
 
-      if (
-             (item && item->getType() == MapItem::Extra)
-          || !item
-      )
+      if ((item && item->getType() == MapItem::Extra) || !item)
       {
          positions.push_back(Point(x, y + 1));
       }
@@ -705,19 +502,17 @@ std::vector<Point> BotMap::getReachableNeighborPositions(int x, int y) const
    return positions;
 }
 
-
-//-----------------------------------------------------------------------------
 /*!
    \return list of reachable neighbor points
 */
 std::vector<Point> BotMap::getReachableNeighborPositionsRandomized(int x, int y) const
 {
    std::vector<Point> positions;
-   MapItem* item = 0;
+   MapItem* item = nullptr;
 
-   for (Constants::Direction dir : _directions_randomized)
+   for (Constants::Direction direction : _directions_randomized)
    {
-      switch (dir)
+      switch (direction)
       {
          case Constants::DirectionUp:
          {
@@ -725,10 +520,7 @@ std::vector<Point> BotMap::getReachableNeighborPositionsRandomized(int x, int y)
             {
                item = getItem(x, y - 1);
 
-               if (
-                      (item && item->getType() == MapItem::Extra)
-                   || !item
-               )
+               if ((item && item->getType() == MapItem::Extra) || !item)
                {
                   positions.push_back(Point(x, y - 1));
                }
@@ -743,10 +535,7 @@ std::vector<Point> BotMap::getReachableNeighborPositionsRandomized(int x, int y)
             {
                item = getItem(x, y + 1);
 
-               if (
-                      (item && item->getType() == MapItem::Extra)
-                   || !item
-               )
+               if ((item && item->getType() == MapItem::Extra) || !item)
                {
                   positions.push_back(Point(x, y + 1));
                }
@@ -761,10 +550,7 @@ std::vector<Point> BotMap::getReachableNeighborPositionsRandomized(int x, int y)
             {
                item = getItem(x - 1, y);
 
-               if (
-                      (item && item->getType() == MapItem::Extra)
-                   || !item
-               )
+               if ((item && item->getType() == MapItem::Extra) || !item)
                {
                   positions.push_back(Point(x - 1, y));
                }
@@ -779,10 +565,7 @@ std::vector<Point> BotMap::getReachableNeighborPositionsRandomized(int x, int y)
             {
                item = getItem(x + 1, y);
 
-               if (
-                      (item && item->getType() == MapItem::Extra)
-                   || !item
-               )
+               if ((item && item->getType() == MapItem::Extra) || !item)
                {
                   positions.push_back(Point(x + 1, y));
                }
@@ -799,56 +582,37 @@ std::vector<Point> BotMap::getReachableNeighborPositionsRandomized(int x, int y)
    return positions;
 }
 
-
-
-//-----------------------------------------------------------------------------
 /*!
    \return a map with all stones that are going to be destroyed in a while
 */
-int* BotMap::getStonesToBeBombedMap()
+std::vector<int> BotMap::getStonesToBeBombedMap()
 {
-   int dimension = getWidth() * getHeight();
-   int* map = new int[dimension];
-   std::memset(map, 0, dimension * sizeof(int));
+   const int width = getWidth();
+   std::vector<int> map(static_cast<size_t>(width * getHeight()), 0);
 
-   std::vector<BotBombMapItem *> bombs = getBombs();
+   const std::vector<Point> directions = {Point(0, -1), Point(0, 1), Point(-1, 0), Point(1, 0)};
 
-   std::vector<Point> directions;
-   directions.push_back(Point(0, -1));
-   directions.push_back(Point(0, 1));
-   directions.push_back(Point(-1, 0));
-   directions.push_back(Point(1, 0));
-
-   int x = 0;
-   int y = 0;
-   int xi = 0;
-   int yi = 0;
-
-   MapItem* item = 0;
-   for (BotBombMapItem* bomb : bombs)
+   for (BotBombMapItem* bomb : getBombs())
    {
-      x = bomb->getX();
-      y = bomb->getY();
+      const int x = bomb->getX();
+      const int y = bomb->getY();
 
-      for (const Point& dir : directions)
+      for (const Point& direction : directions)
       {
          for (int i = 1; i <= bomb->getFlames(); i++)
          {
-            xi = x + i * dir.x();
-            yi = y + i * dir.y();
+            const int xi = x + i * direction.x();
+            const int yi = y + i * direction.y();
 
-            if (
-                  xi >= 0 && xi < getWidth()
-               && yi >= 0 && yi < getHeight()
-            )
+            if (xi >= 0 && xi < width && yi >= 0 && yi < getHeight())
             {
-               item = getItem(xi, yi);
-
                // we hit something
-               if (item)
+               if (MapItem* item = getItem(xi, yi))
                {
                   if (item->getType() == MapItem::Stone)
-                     map[yi * getWidth() + xi] = -1;
+                  {
+                     map[yi * width + xi] = -1;
+                  }
 
                   break;
                }
@@ -860,8 +624,6 @@ int* BotMap::getStonesToBeBombedMap()
    return map;
 }
 
-
-//-----------------------------------------------------------------------------
 /*!
    \param x x position
    \param y y position
@@ -871,14 +633,13 @@ int* BotMap::getStonesToBeBombedMap()
 int BotMap::getStoneCountAroundPoint(int x, int y, int flames)
 {
    int count = 0;
-   MapItem* item = 0;
 
    int direction_x = 0;
    int direction_y = 0;
 
-   for (Constants::Direction dir : _directions)
+   for (Constants::Direction direction : _directions)
    {
-      switch (dir)
+      switch (direction)
       {
          case Constants::DirectionUp:
             direction_x = 0;
@@ -902,17 +663,12 @@ int BotMap::getStoneCountAroundPoint(int x, int y, int flames)
 
       for (int i = 1; i <= flames; i++)
       {
-         int position_x = x + i * direction_x;
-         int position_y = y + i * direction_y;
+         const int position_x = x + i * direction_x;
+         const int position_y = y + i * direction_y;
 
-         if (
-               position_x >= 0 && position_x < getWidth()
-            && position_y >= 0 && position_y < getHeight()
-         )
+         if (position_x >= 0 && position_x < getWidth() && position_y >= 0 && position_y < getHeight())
          {
-            item = getItem(position_x, position_y);
-
-            if (item)
+            if (MapItem* item = getItem(position_x, position_y))
             {
                if (item->getType() == MapItem::Stone)
                {
@@ -934,30 +690,23 @@ int BotMap::getStoneCountAroundPoint(int x, int y, int flames)
    return count;
 }
 
-
-//-----------------------------------------------------------------------------
 /*!
    \param x x position
    \param y y position
    \param flames number of flames
+   \param extras unique ids of stones containing an extra
    \return number of stones around current position
 */
-int BotMap::getExtraStoneCountAroundPoint(
-   int x,
-   int y,
-   int flames,
-   const std::vector<int>& extras
-)
+int BotMap::getExtraStoneCountAroundPoint(int x, int y, int flames, const std::vector<int>& extras)
 {
    int count = 0;
-   MapItem* item = 0;
 
    int direction_x = 0;
    int direction_y = 0;
 
-   for (Constants::Direction dir : _directions)
+   for (Constants::Direction direction : _directions)
    {
-      switch (dir)
+      switch (direction)
       {
          case Constants::DirectionUp:
             direction_x = 0;
@@ -981,22 +730,16 @@ int BotMap::getExtraStoneCountAroundPoint(
 
       for (int i = 1; i <= flames; i++)
       {
-         int position_x = x + i * direction_x;
-         int position_y = y + i * direction_y;
+         const int position_x = x + i * direction_x;
+         const int position_y = y + i * direction_y;
 
-         if (
-               position_x >= 0 && position_x < getWidth()
-            && position_y >= 0 && position_y < getHeight()
-         )
+         if (position_x >= 0 && position_x < getWidth() && position_y >= 0 && position_y < getHeight())
          {
-            item = getItem(position_x, position_y);
-
-            if (item)
+            if (MapItem* item = getItem(position_x, position_y))
             {
-               if (item->getType() == MapItem::Stone)
+               if (item->getType() == MapItem::Stone && std::ranges::find(extras, item->getUniqueId()) != extras.end())
                {
-                  if (std::find(extras.begin(), extras.end(), item->getUniqueId()) != extras.end())
-                     count++;
+                  count++;
                }
 
                // we hit something
@@ -1014,13 +757,9 @@ int BotMap::getExtraStoneCountAroundPoint(
    return count;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 void BotMap::debugTraversedMatrix()
 {
-   std::vector<std::string> lines;
+   std::string joined;
 
    for (int yi = 0; yi < getHeight(); yi++)
    {
@@ -1028,19 +767,14 @@ void BotMap::debugTraversedMatrix()
 
       for (int xi = 0; xi < getWidth(); xi++)
       {
-         line.append(
-            isTraversed(xi, yi) ? "o" : "x"
-         );
+         line.append(isTraversed(xi, yi) ? "o" : "x");
       }
 
-      lines.push_back(line);
-   }
-
-   std::string joined;
-   for (const auto& line : lines)
-   {
       if (!joined.empty())
+      {
          joined += '\n';
+      }
+
       joined += line;
    }
 
@@ -1048,8 +782,6 @@ void BotMap::debugTraversedMatrix()
    qDebug("%s\n", joined.c_str());
 }
 
-
-//-----------------------------------------------------------------------------
 /*!
    \param x x position
    \param y y position
@@ -1057,16 +789,9 @@ void BotMap::debugTraversedMatrix()
    \param abort abort flag
    \param distance distance to origin field
 */
-void BotMap::checkPosition(
-   int x,
-   int y,
-   bool& hazardous,
-   bool& abort,
-   int distance
-) const
+void BotMap::checkPosition(int x, int y, bool& hazardous, bool& abort, int distance) const
 {
    MapItem* item = getItem(x, y);
-   BombMapItem* bomb = 0;
 
    if (item)
    {
@@ -1074,9 +799,8 @@ void BotMap::checkPosition(
       {
          case MapItem::Bomb:
          {
-            bomb = (BombMapItem*)item;
+            auto* bomb = static_cast<BombMapItem*>(item);
 
-            // if (true)
             if (bomb->getFlames() >= distance)
             {
                hazardous = true;
@@ -1104,8 +828,6 @@ void BotMap::checkPosition(
    }
 }
 
-
-//-----------------------------------------------------------------------------
 /*!
    \param x x position
    \param y y position
@@ -1120,37 +842,32 @@ bool BotMap::isPositionHazardous(int x, int y) const
 
    bool hazardous = false;
    bool abort = false;
-   int distance = 0;
 
    // go to the left
    for (int xi = x - 1; xi >= 0 && !abort && !hazardous; xi--)
    {
-      distance = abs(xi - x);
-      checkPosition(xi, y, hazardous, abort, distance);
+      checkPosition(xi, y, hazardous, abort, std::abs(xi - x));
    }
 
    // go to the right
    abort = false;
    for (int xi = x + 1; xi < getWidth() && !abort && !hazardous; xi++)
    {
-      distance = abs(xi - x);
-      checkPosition(xi, y, hazardous, abort, distance);
+      checkPosition(xi, y, hazardous, abort, std::abs(xi - x));
    }
 
    // go up
    abort = false;
    for (int yi = y - 1; yi >= 0 && !abort && !hazardous; yi--)
    {
-      distance = abs(yi - y);
-      checkPosition(x, yi, hazardous, abort, distance);
+      checkPosition(x, yi, hazardous, abort, std::abs(yi - y));
    }
 
    // go down
    abort = false;
    for (int yi = y + 1; yi < getHeight() && !abort && !hazardous; yi++)
    {
-      distance = abs(yi - y);
-      checkPosition(x, yi, hazardous, abort, distance);
+      checkPosition(x, yi, hazardous, abort, std::abs(yi - y));
    }
 
    // center
@@ -1163,8 +880,6 @@ bool BotMap::isPositionHazardous(int x, int y) const
    return hazardous;
 }
 
-
-//-----------------------------------------------------------------------------
 /*!
    \param x x position
    \param y y position
@@ -1174,9 +889,7 @@ bool BotMap::isPositionBlocked(int x, int y) const
 {
    bool blocked = false;
 
-   MapItem* item = getItem(x, y);
-
-   if (item)
+   if (MapItem* item = getItem(x, y))
    {
       switch (item->getType())
       {
@@ -1196,14 +909,9 @@ bool BotMap::isPositionBlocked(int x, int y) const
    return blocked;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 void BotMap::debugMapItems()
 {
-   std::vector<std::string> lines;
-   MapItem* item = 0;
+   std::string joined;
    char c = ' ';
 
    for (int yi = 0; yi < getHeight(); yi++)
@@ -1212,7 +920,7 @@ void BotMap::debugMapItems()
 
       for (int xi = 0; xi < getWidth(); xi++)
       {
-         item = getItem(xi, yi);
+         MapItem* item = getItem(xi, yi);
 
          if (item)
          {
@@ -1242,19 +950,14 @@ void BotMap::debugMapItems()
 
       line += std::format("{} ", yi);
 
-      lines.push_back(line);
-   }
-
-   std::string joined;
-   for (const auto& l : lines)
-   {
       if (!joined.empty())
+      {
          joined += '\n';
-      joined += l;
+      }
+
+      joined += line;
    }
 
    qDebug("%s", joined.c_str());
    qDebug("  0|  1|  2|  3|  4|  5|  6|  7|  8|  9| 10| 11| 12|\n");
 }
-
-

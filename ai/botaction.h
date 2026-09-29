@@ -3,30 +3,27 @@
 
 class BotAction
 {
-   public:
+public:
+   //! action types
+   enum class ActionType
+   {
+      ActionIdle,
+      ActionWalk,
+      ActionBomb
+   };
 
-      //! action types
-      enum ActionType
-      {
-         ActionIdle,
-         ActionWalk,
-         ActionBomb
-      };
+   //! constructor
+   explicit BotAction(ActionType action_type = ActionType::ActionIdle);
 
-      //! constructor
-      BotAction();
+   //! destructor
+   virtual ~BotAction() = default;
 
-      //! destructor
-      virtual ~BotAction();
+   //! getter for action type
+   ActionType getActionType() const;
 
-      //! getter for action type
-      ActionType getActionType() const;
-
-
-   protected:
-
-      //! action type
-      ActionType _action_type;
+protected:
+   //! action type
+   ActionType _action_type = ActionType::ActionIdle;
 };
 
-#endif // BOTACTION_H
+#endif  // BOTACTION_H

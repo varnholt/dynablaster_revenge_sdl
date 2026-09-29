@@ -3,25 +3,18 @@
 
 class BotCharacter
 {
-   public:
+public:
+   void setCharacter(int extras, int bomb_drop, int attack);
 
-      //! constructor
-      BotCharacter();
+   int getScoreForExtras() const;
+   int getScoreForPrepareBombDrop() const;
+   int getScoreForAttack() const;
 
-      void setCharacter(int extras, int bombdrop, int attack);
-
-      int getScoreForExtras() const;
-      int getScoreForPrepareBombDrop() const;
-      int getScoreForAttack() const;
-
-
-   protected:
-
-      int _score_for_escape;
-      int _score_for_extras;
-      int _score_for_prepare_bomb_drop;
-      int _score_for_attack;
-
+protected:
+   int _score_for_escape = 0;
+   int _score_for_extras = 0;
+   int _score_for_prepare_bomb_drop = 0;
+   int _score_for_attack = 0;
 };
 
-#endif // BOTCHARACTER_H
+#endif  // BOTCHARACTER_H

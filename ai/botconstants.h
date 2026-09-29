@@ -3,29 +3,23 @@
 
 class BotConstants
 {
-
-   public:
-      BotConstants();
-
-
 };
 
 // it is import to have the keyboard correction epsilon smaller than the
 // "field reached precision" -> so the bot doesn't think he missed a field
 // after the keyboard correction was applied
-#define FIELD_REACHED_PRECISION     0.15f
-#define KEYBOARD_CORRECTION_EPSILON 0.1f
+inline constexpr float FIELD_REACHED_PRECISION = 0.15f;
+inline constexpr float KEYBOARD_CORRECTION_EPSILON = 0.1f;
 
-#define DEBUG_MAPITEMS              false
-#define DEBUG_PATH                  false
-#define DEBUG_SCORES                false
-#define DEBUG_KEYSPRESSED           false
-#define DEBUG_POSSIBLE_ACTIONS      false
-#define DEBUG_EXECUTED_ACTIONS      false
-#define DEBUG_CURRENT_HAZARDOUS     false
-#define DEBUG_ESCAPE_PATH           false
-#define DEBUG_WALK_ACTION           false
-#define DEBUG_BOMB_DROP             false
+inline constexpr bool DEBUG_MAPITEMS = false;
+inline constexpr bool DEBUG_PATH = false;
+inline constexpr bool DEBUG_SCORES = false;
+inline constexpr bool DEBUG_KEYSPRESSED = false;
+inline constexpr bool DEBUG_POSSIBLE_ACTIONS = false;
+inline constexpr bool DEBUG_EXECUTED_ACTIONS = false;
+inline constexpr bool DEBUG_CURRENT_HAZARDOUS = false;
+inline constexpr bool DEBUG_ESCAPE_PATH = false;
+inline constexpr bool DEBUG_WALK_ACTION = false;
+inline constexpr bool DEBUG_BOMB_DROP = false;
 
-
-#endif // BOTCONSTANTS_H
+#endif  // BOTCONSTANTS_H

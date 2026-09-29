@@ -12,6 +12,7 @@
 #include "timer.h"
 
 #include <deque>
+#include <memory>
 #include <vector>
 
 // forward declarations
@@ -22,21 +23,18 @@ class Bot
 {
 public:
    //! bot state
-   enum BotState
+   enum class BotState
    {
       BotStateIdle,
       BotStateActive,
       BotStateDead
    };
 
-   //! constructor
-   Bot();
-
    //! destructor
-   virtual ~Bot();
+   virtual ~Bot() = default;
 
    //! setter for bot map
-   virtual void setBotMap(BotMap* botmap);
+   virtual void setBotMap(BotMap* bot_map);
 
    //! setter for player info ptr
    void setPlayerInfo(BotPlayerInfo* info);
@@ -57,7 +55,7 @@ public:
    int getYField();
 
    //! create a map
-   virtual BotMap* createMap(int width, int height);
+   virtual std::unique_ptr<BotMap> createMap(int width, int height);
 
    //! setter for server configuration
    void setServerConfiguration(const ServerConfiguration&);
@@ -85,8 +83,6 @@ public:
 
    //! time to sync
    Signal<> syncSignal;
-
-public:
 
    //! setter for current position
    virtual void updatePlayerPosition(int id, float x, float y, float angle);
@@ -130,9 +126,6 @@ protected:
    //! reset bot states
    virtual void reset();
 
-   //! delete stuff in destructor
-   virtual void cleanUpBot();
-
    //! think/decide/act once, called every _tick_timer interval while active
    virtual void tick();
 
@@ -172,57 +165,57 @@ protected:
    // members
 
    //! bot state
-   BotState _bot_state;
+   BotState _bot_state = BotState::BotStateDead;
 
-   //! bot map
-   BotMap* _bot_map;
+   //! bot map, owned by the BotClient
+   BotMap* _bot_map = nullptr;
 
-   //! player info ptr
-   BotPlayerInfo* _player_info;
+   //! player info ptr, owned by the BotClient
+   BotPlayerInfo* _player_info = nullptr;
 
    //! bot's options
-   std::vector<BotOption*> _options;
+   std::vector<std::unique_ptr<BotOption>> _options;
 
-   //! bot's next action
+   //! bot's next action, non-owning (actions are owned by _options)
    std::vector<BotAction*> _actions;
 
    //! x position
-   float _x;
+   float _x = 0.0f;
 
    //! y position
-   float _y;
+   float _y = 0.0f;
 
    //! x field
-   int _x_field;
+   int _x_field = 0;
 
    //! y field
-   int _y_field;
+   int _y_field = 0;
 
    //! bot id
-   int _id;
+   int _id = -1;
 
-   //! ticks tick() at the same ~100ms cadence the old QThread loop's msleep(100) had
+   //! ticks tick() every 100ms
    Timer _tick_timer;
 
    //! current walk direction
-   int _bot_keys_pressed;
+   int _bot_keys_pressed = 0;
 
    //! decision required flag
-   bool _decision_required;
+   bool _decision_required = false;
 
    //! action required flag
-   bool _action_required;
+   bool _action_required = false;
 
    // navigation
 
    //! transiteration target x
-   int _transiterate_target_x;
+   int _transiterate_target_x = 0;
 
    //! transiteration target y
-   int _transiterate_target_y;
+   int _transiterate_target_y = 0;
 
    //! player position is valid
-   bool _player_position_valid;
+   bool _player_position_valid = false;
 
    //! store last few player positions
    std::deque<Point> _position_queue;

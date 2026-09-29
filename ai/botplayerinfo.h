@@ -1,57 +1,51 @@
 #ifndef BOTPLAYERINFO_H
 #define BOTPLAYERINFO_H
 
-// base
+#include "constants.h"
 #include "playerinfo.h"
 
 class BotPlayerInfo : public PlayerInfo
 {
-   public:
+public:
+   //! reset player data
+   void reset();
 
-      //! constructor
-      BotPlayerInfo();
+   //! player got a bomb extra
+   void addBomb();
 
-      //! reset player data
-      void reset();
+   //! player got a flame extra
+   void addFlame();
 
-      //! player got a bomb extra
-      void addBomb();
+   //! player got a speed extra
+   void addSpeed();
 
-      //! player got a flame extra
-      void addFlame();
+   //! getter for bomb count
+   int getBombCount() const;
 
-      //! player got a speed extra
-      void addSpeed();
+   //! getter for flame count
+   int getFlameCount() const;
 
-      //! getter for bomb count
-      int getBombCount() const;
+   //! getter for speed count
+   int getSpeedCount() const;
 
-      //! getter for flame count
-      int getFlameCount() const;
+   //! setter for kick flag
+   void setKickEnabled(bool);
 
-      //! getter for speed count
-      int getSpeedCount() const;
+   //! getter for kick flag
+   bool isKickEnabled() const;
 
-      //! setter for kick flag
-      void setKickEnabled(bool);
+protected:
+   //! number of bombs
+   int _bombs = SERVER_DEFAULT_BOMBCOUNT;
 
-      //! getter for kick flag
-      bool isKickEnabled() const;
+   //! number of flames
+   int _flames = SERVER_DEFAULT_FLAMECOUNT;
 
+   //! number of speedups
+   int _speed_ups = SERVER_DEFAULT_SPEEDUPS;
 
-   protected:
-
-      //! number of bombs
-      int _bombs;
-
-      //! number of flames
-      int _flames;
-
-      //! number of speedups
-      int _speed_ups;
-
-      //! player can kick
-      bool _kick_enabled;
+   //! player can kick
+   bool _kick_enabled = false;
 };
 
-#endif // BOTPLAYERINFO_H
+#endif  // BOTPLAYERINFO_H

@@ -1,16 +1,9 @@
 #include "botwalkaction.h"
 
-//-----------------------------------------------------------------------------
-/*!
-*/
-BotWalkAction::BotWalkAction()
-   : _walk_keys(0)
+BotWalkAction::BotWalkAction() : BotAction(ActionType::ActionWalk)
 {
-   _action_type = ActionWalk;
 }
 
-
-//-----------------------------------------------------------------------------
 /*!
    \param direction walk direction
 */
@@ -19,8 +12,6 @@ void BotWalkAction::setWalkKeys(int8_t direction)
    _walk_keys = direction;
 }
 
-
-//-----------------------------------------------------------------------------
 /*!
    \return walk direction
 */

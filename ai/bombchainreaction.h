@@ -11,48 +11,38 @@ class BotMap;
 #include <unordered_set>
 #include <vector>
 
-
 class BombChainReaction
 {
-   public:
+public:
+   using ChainList = std::vector<std::vector<BotBombMapItem*>>;
 
-      typedef std::vector<std::vector<BotBombMapItem*>> ChainList;
+   //! setter for bot map
+   void setBotMap(BotMap* map);
 
-      //! constructor
-      BombChainReaction();
+   //! compute chained bombs
+   void compute();
 
-      //! setter for bot map
-      void setBotMap(BotMap* map);
+   //! initialize list of directions
+   void initDirections();
 
-      //! compute chained bombs
-      void compute();
+   //! getter for detonation chain
+   const ChainList& getDetonationChain() const;
 
-      //! do unit test
-      void unitTest1();
+protected:
+   //! recursion
+   void iterate(BotBombMapItem* item, std::vector<BotBombMapItem*>& items);
 
-      //! initialize list of directions
-      void initDirections();
+   //! visited items
+   std::unordered_set<BotBombMapItem*> _visited;
 
-      //! getter for detonation chain
-      const ChainList& getDetonationChain();
+   //! bot map
+   BotMap* _bot_map = nullptr;
 
+   //! list of detonation chains
+   ChainList _chain;
 
-   protected:
-
-      //! recursion
-      void iterate(BotBombMapItem *item, std::vector<BotBombMapItem *> &items);
-
-      //! visited items
-      std::unordered_set<BotBombMapItem*> _visited;
-
-      //! bot map
-      BotMap* _bot_map;
-
-      //! list of detonation chains
-      ChainList _chain;
-
-      //! direction vectors
-      std::vector<Point> _directions;
+   //! direction vectors
+   std::vector<Point> _directions;
 };
 
-#endif // BOMBCHAINREACTION_H
+#endif  // BOMBCHAINREACTION_H

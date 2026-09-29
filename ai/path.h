@@ -5,26 +5,18 @@
 
 #include <vector>
 
-
 class Path
 {
-   public:
+public:
+   //! one position was reached
+   void positionReached();
 
-      //! constructor
-      Path();
+   //! setter for points
+   void setPoints(const std::vector<Point>&);
 
-      //! one position was reached
-      void positionReached();
-
-      //! setter for points
-      void setPoints(const std::vector<Point>&);
-
-
-   protected:
-
-      //! list of points
-      std::vector<Point> _points;
-
+protected:
+   //! list of points
+   std::vector<Point> _points;
 };
 
-#endif // PATH_H
+#endif  // PATH_H

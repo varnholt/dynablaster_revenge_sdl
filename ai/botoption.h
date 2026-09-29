@@ -3,47 +3,41 @@
 
 #include "botaction.h"
 
+#include <memory>
 
 class BotOption
 {
-   public:
+public:
+   //! destructor
+   virtual ~BotOption() = default;
 
-      //! constructor
-      BotOption();
+   //! setter for score
+   void setScore(int);
 
-      //! destructor
-      virtual ~BotOption();
+   //! getter for score
+   int getScore() const;
 
-      //! setter for score
-      void setScore(int);
+   //! setter for action
+   void setAction(std::unique_ptr<BotAction> action);
 
-      //! getter for score
-      int getScore() const;
+   //! getter for action
+   BotAction* getAction() const;
 
-      //! setter for action
-      void setAction(BotAction*);
+   //! setter for combinable flag
+   void setCombinable(bool combinable);
 
-      //! getter for action
-      BotAction* getAction() const;
+   //! action is combinable (default is nope)
+   virtual bool isCombinable() const;
 
-      //! setter for combinable flag
-      void setCombinable(bool combinable);
+protected:
+   //! options action
+   std::unique_ptr<BotAction> _action;
 
-      //! action is combinable (default is nope)
-      virtual bool isCombinable() const;
+   //! option's score
+   int _score = 0;
 
-
-   protected:
-
-      //! options action
-      BotAction* _action;
-
-      //! option's score
-      int _score;
-
-      //! combinable flag
-      bool _combinable;
-
+   //! combinable flag
+   bool _combinable = false;
 };
 
-#endif // BOTOPTION_H
+#endif  // BOTOPTION_H

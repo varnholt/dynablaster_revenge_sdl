@@ -3,78 +3,69 @@
 
 class ProtoBotMemory
 {
-   public:
+public:
+   //! reset memory
+   void reset();
 
-      //! constructor
-      ProtoBotMemory();
+   // extras
 
-      //! reset memory
-      void reset();
+   //! invalidate last extra position
+   void invalidateExtraPosition();
 
+   //! setter for extra position
+   void setExtraPosition(int x, int y);
 
-      // extras
+   //! check if extra position is valid
+   bool isExtraPositionValid() const;
 
-      //! invalidate last extra position
-      void invalidateExtraPosition();
+   //! getter for extra position x
+   int getExtraPositionX() const;
 
-      //! setter for extra position
-      void setExtraPosition(int x, int y);
+   //! getter for extra position y
+   int getExtraPositionY() const;
 
-      //! check if extra position is valid
-      bool isExtraPositionValid() const;
+   // stones
 
-      //! getter for extra position x
-      int getExtraPositionX() const;
+   //! invalidate last bomb stone position
+   void invalidateBombStonePosition();
 
-      //! getter for extra position y
-      int getExtraPositionY() const;
+   //! setter for bomb stone position
+   void setBombStonePosition(int x, int y);
 
+   //! check if bomb stone position is valid
+   bool isBombStonePositionValid() const;
 
-      // stones
+   //! getter for bomb stone position x
+   int getBombStonePositionX() const;
 
-      //! invalidate last bomb stone position
-      void invalidateBombStonePosition();
+   //! getter for bomb stone position y
+   int getBombStonePositionY() const;
 
-      //! setter for bomb stone position
-      void setBombStonePosition(int x, int y);
+   //! setter for stone count around position
+   void setBombStoneCount(int count);
 
-      //! check if bomb stone position is valid
-      bool isBombStonePositionValid() const;
+   //! getter for bomb stone neighbor count
+   int getBombStoneCount() const;
 
-      //! getter for bomb stone position x
-      int getBombStonePositionX() const;
+protected:
+   // extras
 
-      //! getter for bomb stone position y
-      int getBombStonePositionY() const;
+   //! last extra x position
+   int _extra_x = 0;
 
-      //! setter for stone count around position
-      void setBombStoneCount(int count);
+   //! last extra y position
+   int _extra_y = 0;
 
-      //! getter for bomb stone neighbor count
-      int getBombStoneCount() const;
+   // stones
 
+   //! last bomb stone x position
+   int _bomb_stone_x = 0;
 
-   protected:
+   //! last bomb stone y position
+   int _bomb_stone_y = 0;
 
-      // extras
-
-      //! last extra x position
-      int _extra_x;
-
-      //! last extra y position
-      int _extra_y;
-
-
-      // stones
-
-      //! last bomb stone x position
-      int _bomb_stone_x;
-
-      //! last bomb stone y position
-      int _bomb_stone_y;
-
-      //! stones located around that position
-      int _bomb_stone_count;
+   //! stones located around that position
+   int _bomb_stone_count = 0;
 };
 
-#endif // PROTOBOTMEMORY_H
+#endif  // PROTOBOTMEMORY_H

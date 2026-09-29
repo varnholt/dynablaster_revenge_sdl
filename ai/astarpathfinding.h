@@ -14,13 +14,10 @@
 class AStarPathFinding : public PathFinding
 {
 public:
-   //! constructor
-   AStarPathFinding();
-
    //! setter for map
    void setMap(AStarMap* map);
 
-   //! setter for start pojt
+   //! setter for start point
    void setStart(int x, int y);
 
    //! setter for target point
@@ -36,14 +33,14 @@ public:
    void debugPathShort();
 
    //! getter for path nodes
-   std::vector<AStarNode*> getPath() const;
+   const std::vector<AStarNode*>& getPath() const;
 
    //! getter for the path length
    int getPathLength() const;
 
 protected:
    //! get best f score node in given set
-   AStarNode* getBestFValueNode(std::unordered_set<AStarNode*>* set);
+   AStarNode* getBestFValueNode(const std::unordered_set<AStarNode*>& set) const;
 
    //! build path by linking parents
    std::vector<AStarNode*> reconstructPath(AStarNode* current_node);
@@ -55,16 +52,16 @@ protected:
    std::unordered_set<AStarNode*> _closed_set;
 
    //! start node
-   AStarNode* _start_node;
+   AStarNode* _start_node = nullptr;
 
    //! target node
-   AStarNode* _target_node;
+   AStarNode* _target_node = nullptr;
 
    //! current node
-   AStarNode* _current_node;
+   AStarNode* _current_node = nullptr;
 
    //! map to work on
-   AStarMap* _node_map;
+   AStarMap* _node_map = nullptr;
 
    //! resulting path
    std::vector<AStarNode*> _path;

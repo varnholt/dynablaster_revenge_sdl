@@ -1,18 +1,10 @@
-// header
 #include "astarpathfinding.h"
 
 #include <cstdio>
 #include <format>
+#include <limits>
 #include <string>
 
-//-----------------------------------------------------------------------------
-/*!
- */
-AStarPathFinding::AStarPathFinding() : _start_node(0), _target_node(0), _current_node(0), _node_map(0)
-{
-}
-
-//-----------------------------------------------------------------------------
 /*!
    \param map astar map to process
 */
@@ -21,29 +13,24 @@ void AStarPathFinding::setMap(AStarMap* map)
    _node_map = map;
 }
 
-//-----------------------------------------------------------------------------
 /*!
-   \param start x position
-   \param start y position
+   \param x start x position
+   \param y start y position
 */
 void AStarPathFinding::setStart(int x, int y)
 {
    _start_node = _node_map->getNode(x, y);
 }
 
-//-----------------------------------------------------------------------------
 /*!
-   \param target x position
-   \param target y position
+   \param x target x position
+   \param y target y position
 */
 void AStarPathFinding::setTarget(int x, int y)
 {
    _target_node = _node_map->getNode(x, y);
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void AStarPathFinding::findPath()
 {
    // init
@@ -57,13 +44,15 @@ void AStarPathFinding::findPath()
 
    // add starting node to open list
    if (_start_node)
+   {
       _open_set.insert(_start_node);
+   }
 
    while (!_open_set.empty())
    {
       // consider the best node in the open list (the node with the lowest f value)
       // the node in openset having the lowest f_score[] value;
-      _current_node = getBestFValueNode(&_open_set);
+      _current_node = getBestFValueNode(_open_set);
 
       // this node is the goal
       if (_current_node->getX() == _target_node->getX() && _current_node->getY() == _target_node->getY())
@@ -113,10 +102,9 @@ void AStarPathFinding::findPath()
    }
 }
 
-//-----------------------------------------------------------------------------
 /*!
-   \param current_node
-   \return all parent nodes
+   \param current_node node to start from
+    eturn all parent nodes
 */
 std::vector<AStarNode*> AStarPathFinding::reconstructPath(AStarNode* current_node)
 {
@@ -131,32 +119,28 @@ std::vector<AStarNode*> AStarPathFinding::reconstructPath(AStarNode* current_nod
    return path;
 }
 
-//-----------------------------------------------------------------------------
 /*!
    \param set set to scan
-   \return node with best f value
+    eturn node with best f value
 */
-AStarNode* AStarPathFinding::getBestFValueNode(std::unordered_set<AStarNode*>* set)
+AStarNode* AStarPathFinding::getBestFValueNode(const std::unordered_set<AStarNode*>& set) const
 {
-   AStarNode* node = 0;
+   AStarNode* best = nullptr;
 
-   int f_min = INT_MAX;
+   int f_min = std::numeric_limits<int>::max();
 
-   for (AStarNode* n : *set)
+   for (AStarNode* candidate : set)
    {
-      if (n->getF() < f_min)
+      if (candidate->getF() < f_min)
       {
-         node = n;
-         f_min = node->getF();
+         best = candidate;
+         f_min = best->getF();
       }
    }
 
-   return node;
+   return best;
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void AStarPathFinding::debugPath()
 {
    int i = 0;
@@ -167,10 +151,6 @@ void AStarPathFinding::debugPath()
    }
 }
 
-//-----------------------------------------------------------------------------
-/*!
-  \param path path to debug
-*/
 void AStarPathFinding::debugPathShort()
 {
    std::string path_string;
@@ -190,22 +170,20 @@ void AStarPathFinding::debugPathShort()
    }
 }
 
-//-----------------------------------------------------------------------------
 /*!
-   \return computed path
+    eturn computed path
 */
-std::vector<AStarNode*> AStarPathFinding::getPath() const
+const std::vector<AStarNode*>& AStarPathFinding::getPath() const
 {
    return _path;
 }
 
-//-----------------------------------------------------------------------------
 /*!
-   \return computed path length
+    eturn computed path length
 */
 int AStarPathFinding::getPathLength() const
 {
-   return _path.size();
+   return static_cast<int>(_path.size());
 }
 
 /*

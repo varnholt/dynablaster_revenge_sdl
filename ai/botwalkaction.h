@@ -11,25 +11,19 @@
 
 class BotWalkAction : public BotAction
 {
-   public:
+public:
+   //! constructor
+   BotWalkAction();
 
-      //! constructor
-      BotWalkAction();
+   //! setter for walk direction
+   void setWalkKeys(int8_t);
 
-      //! setter for walk direction
-      void setWalkKeys(int8_t);
+   //! getter for walk direction
+   int8_t getWalkKeys() const;
 
-      //! getter for walk direction
-      int8_t getWalkKeys() const;
-
-
-   protected:
-
-      //! walk direction
-      int8_t _walk_keys;
-
-
-      // Path or target point
+protected:
+   //! walk direction
+   int8_t _walk_keys = 0;
 };
 
-#endif // BOTWALKACTION_H
+#endif  // BOTWALKACTION_H
