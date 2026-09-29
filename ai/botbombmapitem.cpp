@@ -25,5 +25,5 @@ std::chrono::steady_clock::time_point BotBombMapItem::getDropTime() const
 void BotBombMapItem::setFlameCount(int flames)
 {
    // BombMapItem has no flame setter, so the protected base member is written directly
-   mFlames = static_cast<int8_t>(flames);
+   _flames = static_cast<int8_t>(flames);
 }
