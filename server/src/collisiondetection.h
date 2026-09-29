@@ -1,6 +1,9 @@
 #ifndef COLLISIONDETECTION_H
 #define COLLISIONDETECTION_H
 
+#include <array>
+#include <cstdint>
+
 // shared
 #include "constants.h"
 #include "signal.h"
@@ -14,14 +17,11 @@ class Player;
 class CollisionDetection
 {
 public:
-   //! constructor
-   CollisionDetection();
-
    //! process player
    void process(Player* player);
 
    //! returns true if position is blocked
-   bool isFieldBlocked(int* field, MapItem** blockingItem = 0);
+   bool isFieldBlocked(const std::array<int32_t, 2>& field, MapItem** blocking_item = nullptr);
 
    //! getter for game
    Game* getGame() const;
@@ -46,22 +46,35 @@ protected:
    Map* getMap() const;
 
    //! prepare referenced values for current player
-   void updatePlayerDirections(Player* player, int keysPressed, int8_t& directions, float& desiredXPos, float& desiredYPos);
+   void updatePlayerDirections(Player* player, int keys_pressed, int8_t& directions, float& desired_x_position, float& desired_y_position);
 
    //! adjust player x position
-   float adjustXPosition(Player* player, float xInField, float desiredXPos, bool playerMovesHorizontally, bool horizontalMovementForbidden);
+   float adjustXPosition(
+      Player* player,
+      float x_in_field,
+      float desired_x_position,
+      bool player_moves_horizontally,
+      bool horizontal_movement_forbidden
+   );
 
    //! adjust player y position
-   float adjustYPosition(Player* player, float yInField, float desiredYPos, bool playerMovesVertically, bool verticalMovementForbidden);
+   float adjustYPosition(
+      Player* player,
+      float y_in_field,
+      float desired_y_position,
+      bool player_moves_vertically,
+      bool vertical_movement_forbidden
+   );
 
    //! update the player's rotation
-   bool updateRotation(Player* player, int keysPressed, bool moved, float assignedXPos, float assignedYPos);
+   bool updateRotation(Player* player, int keys_pressed, bool moved, float assigned_x_position, float assigned_y_position);
 
    //! returns true if position is blocked
-   bool isPositionBlocked(float x, float y, int keysPressed, bool verticalCheck, int fieldX, int fieldY, MapItem** blockingItem = 0);
+   bool
+   isPositionBlocked(float x, float y, int keys_pressed, bool vertical_check, int field_x, int field_y, MapItem** blocking_item = nullptr);
 
    //! game
-   Game* mGame;
+   Game* _game = nullptr;
 };
 
 #endif  // COLLISIONDETECTION_H

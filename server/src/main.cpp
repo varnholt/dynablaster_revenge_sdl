@@ -1,5 +1,3 @@
-#include "logging.h"
-
 // SDL
 #include <SDL3_net/SDL_net.h>
 
@@ -7,11 +5,12 @@
 #include "server.h"
 
 // shared
+#include "logging.h"
 #include "timer.h"
 
+// stdlib
 #include <chrono>
 #include <thread>
-
 
 int main(int /*argc*/, char** /*argv*/)
 {

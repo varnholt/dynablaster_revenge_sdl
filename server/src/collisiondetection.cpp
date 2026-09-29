@@ -1,61 +1,59 @@
 // header
 #include "collisiondetection.h"
 
-// qt
-#include "logging.h"
-
 // server
 #include "game.h"
 
 // shared
+#include "logging.h"
 #include "map.h"
 #include "mapitem.h"
 #include "player.h"
 
-// math
+// stdlib
 #include <algorithm>
 #include <cmath>
 
-#define SERVER_CENTER_EPSILON 0.2f
-#define SERVER_CORNER_EPSILON_MINOR 0.30f
-#define SERVER_CORNER_EPSILON_MAJOR 0.70f
-
-CollisionDetection::CollisionDetection() : mGame(0)
+namespace
 {
-}
+constexpr float SERVER_CORNER_EPSILON_MINOR = 0.30f;
+constexpr float SERVER_CORNER_EPSILON_MAJOR = 0.70f;
+}  // namespace
 
 void CollisionDetection::process(Player* player)
 {
-   int keysPressed = player->getKeysPressed();
+   int keys_pressed = player->getKeysPressed();
    bool moved = false;
-   float desiredXPos = player->getX();
-   float desiredYPos = player->getY();
+   float desired_x_position = player->getX();
+   float desired_y_position = player->getY();
    int8_t directions = 0;
 
    // ----------------------------------------------------------------------
    // drunken helli course correction (tm) mueslee 2012
-   bool upPressed = keysPressed & Constants::KeyUp;
-   bool downPressed = keysPressed & Constants::KeyDown;
-   bool leftPressed = keysPressed & Constants::KeyLeft;
-   bool rightPressed = keysPressed & Constants::KeyRight;
+   const bool up_pressed = keys_pressed & Constants::KeyUp;
+   const bool down_pressed = keys_pressed & Constants::KeyDown;
+   const bool left_pressed = keys_pressed & Constants::KeyLeft;
+   const bool right_pressed = keys_pressed & Constants::KeyRight;
 
-   int field[2] = {(int)std::floor(player->getX()), (int)std::floor(player->getY())};
+   const std::array<int32_t, 2> field = {
+      static_cast<int32_t>(std::floor(player->getX())), static_cast<int32_t>(std::floor(player->getY()))
+   };
 
-   int left[2] = {field[0] - 1, field[1]};
-   int right[2] = {field[0] + 1, field[1]};
-   int up[2] = {field[0], field[1] - 1};
-   int down[2] = {field[0], field[1] + 1};
+   const std::array<int32_t, 2> left = {field[0] - 1, field[1]};
+   const std::array<int32_t, 2> right = {field[0] + 1, field[1]};
+   const std::array<int32_t, 2> up = {field[0], field[1] - 1};
+   const std::array<int32_t, 2> down = {field[0], field[1] + 1};
 
-   bool fieldLeftAllowed = !isFieldBlocked(left);
-   bool fieldRightAllowed = !isFieldBlocked(right);
-   bool fieldUpAllowed = !isFieldBlocked(up);
-   bool fieldDownAllowed = !isFieldBlocked(down);
+   const bool field_left_allowed = !isFieldBlocked(left);
+   const bool field_right_allowed = !isFieldBlocked(right);
+   const bool field_up_allowed = !isFieldBlocked(up);
+   const bool field_down_allowed = !isFieldBlocked(down);
 
-   float absoluteX = player->getX();
-   float absoluteY = player->getY();
+   const float absolute_x = player->getX();
+   const float absolute_y = player->getY();
 
-   float relativeX = absoluteX - std::floor(absoluteX);
-   float relativeY = absoluteY - std::floor(absoluteY);
+   const float relative_x = absolute_x - std::floor(absolute_x);
+   const float relative_y = absolute_y - std::floor(absolute_y);
 
    /*
 
@@ -77,123 +75,149 @@ void CollisionDetection::process(Player* player)
 
    */
 
-   if (downPressed && !leftPressed && !rightPressed && !upPressed && fieldDownAllowed && relativeX > SERVER_CORNER_EPSILON_MAJOR)
-      keysPressed |= Constants::KeyLeft;
-   else if (downPressed && !leftPressed && !rightPressed && !upPressed && fieldDownAllowed && relativeX < SERVER_CORNER_EPSILON_MINOR)
-      keysPressed |= Constants::KeyRight;
-
-   else if (upPressed && !leftPressed && !rightPressed && !downPressed && fieldUpAllowed && relativeX > SERVER_CORNER_EPSILON_MAJOR)
-      keysPressed |= Constants::KeyLeft;
-   else if (upPressed && !leftPressed && !rightPressed && !downPressed && fieldUpAllowed && relativeX < SERVER_CORNER_EPSILON_MINOR)
-      keysPressed |= Constants::KeyRight;
-
-   else if (leftPressed && !rightPressed && !upPressed && !downPressed && fieldLeftAllowed && relativeY > SERVER_CORNER_EPSILON_MAJOR)
-      keysPressed |= Constants::KeyUp;
-   else if (leftPressed && !rightPressed && !upPressed && !downPressed && fieldLeftAllowed && relativeY < SERVER_CORNER_EPSILON_MINOR)
-      keysPressed |= Constants::KeyDown;
-
-   else if (rightPressed && !leftPressed && !upPressed && !downPressed && fieldRightAllowed && relativeY > SERVER_CORNER_EPSILON_MAJOR)
-      keysPressed |= Constants::KeyUp;
-   else if (rightPressed && !leftPressed && !upPressed && !downPressed && fieldRightAllowed && relativeY < SERVER_CORNER_EPSILON_MINOR)
-      keysPressed |= Constants::KeyDown;
+   if (down_pressed && !left_pressed && !right_pressed && !up_pressed && field_down_allowed && relative_x > SERVER_CORNER_EPSILON_MAJOR)
+   {
+      keys_pressed |= Constants::KeyLeft;
+   }
+   else if (down_pressed && !left_pressed && !right_pressed && !up_pressed && field_down_allowed &&
+            relative_x < SERVER_CORNER_EPSILON_MINOR)
+   {
+      keys_pressed |= Constants::KeyRight;
+   }
+   else if (up_pressed && !left_pressed && !right_pressed && !down_pressed && field_up_allowed && relative_x > SERVER_CORNER_EPSILON_MAJOR)
+   {
+      keys_pressed |= Constants::KeyLeft;
+   }
+   else if (up_pressed && !left_pressed && !right_pressed && !down_pressed && field_up_allowed && relative_x < SERVER_CORNER_EPSILON_MINOR)
+   {
+      keys_pressed |= Constants::KeyRight;
+   }
+   else if (left_pressed && !right_pressed && !up_pressed && !down_pressed && field_left_allowed &&
+            relative_y > SERVER_CORNER_EPSILON_MAJOR)
+   {
+      keys_pressed |= Constants::KeyUp;
+   }
+   else if (left_pressed && !right_pressed && !up_pressed && !down_pressed && field_left_allowed &&
+            relative_y < SERVER_CORNER_EPSILON_MINOR)
+   {
+      keys_pressed |= Constants::KeyDown;
+   }
+   else if (right_pressed && !left_pressed && !up_pressed && !down_pressed && field_right_allowed &&
+            relative_y > SERVER_CORNER_EPSILON_MAJOR)
+   {
+      keys_pressed |= Constants::KeyUp;
+   }
+   else if (right_pressed && !left_pressed && !up_pressed && !down_pressed && field_right_allowed &&
+            relative_y < SERVER_CORNER_EPSILON_MINOR)
+   {
+      keys_pressed |= Constants::KeyDown;
+   }
 
    // ----------------------------------------------------------------------
 
-   updatePlayerDirections(player, keysPressed, directions, desiredXPos, desiredYPos);
+   updatePlayerDirections(player, keys_pressed, directions, desired_x_position, desired_y_position);
 
    // collision control
-   int fieldX = std::floor(desiredXPos);
-   int fieldY = std::floor(desiredYPos);
-   float xInField = desiredXPos - std::floor(desiredXPos);
-   float yInField = desiredYPos - std::floor(desiredYPos);
-   float assignedXPos = 0.0;
-   float assignedYPos = 0.0;
-   bool playerMovesVertically = (player->getY() != desiredYPos);
-   bool playerMovesHorizontally = (player->getX() != desiredXPos);
-   bool horizontalMovementForbidden = false;
-   bool verticalMovementForbidden = false;
+   int field_x = static_cast<int32_t>(std::floor(desired_x_position));
+   int field_y = static_cast<int32_t>(std::floor(desired_y_position));
+   float x_in_field = desired_x_position - std::floor(desired_x_position);
+   float y_in_field = desired_y_position - std::floor(desired_y_position);
+   float assigned_x_position = 0.0;
+   float assigned_y_position = 0.0;
+   const bool player_moves_vertically = (player->getY() != desired_y_position);
+   const bool player_moves_horizontally = (player->getX() != desired_x_position);
+   bool horizontal_movement_forbidden = false;
+   bool vertical_movement_forbidden = false;
 
-   bool hBlocked = false;
-   bool vBlocked = false;
-   bool xInEpsilon = false;
-   bool yInEpsilon = false;
+   bool horizontal_blocked = false;
+   bool vertical_blocked = false;
+   bool x_in_epsilon = false;
+   bool y_in_epsilon = false;
 
-   MapItem* kickedBomb1 = 0;
-   MapItem* kickedBomb2 = 0;
+   MapItem* kicked_bomb1 = nullptr;
+   MapItem* kicked_bomb2 = nullptr;
 
-   hBlocked = isPositionBlocked(desiredXPos, desiredYPos, keysPressed, true, fieldX, fieldY, &kickedBomb1);
+   horizontal_blocked = isPositionBlocked(desired_x_position, desired_y_position, keys_pressed, true, field_x, field_y, &kicked_bomb1);
 
-   vBlocked = isPositionBlocked(desiredXPos, desiredYPos, keysPressed, false, fieldX, fieldY, &kickedBomb2);
+   vertical_blocked = isPositionBlocked(desired_x_position, desired_y_position, keys_pressed, false, field_x, field_y, &kicked_bomb2);
 
-   xInField = desiredXPos - std::floor(desiredXPos);
-   yInField = desiredYPos - std::floor(desiredYPos);
+   x_in_field = desired_x_position - std::floor(desired_x_position);
+   y_in_field = desired_y_position - std::floor(desired_y_position);
 
-   xInEpsilon = xInField <= 0.5 + SERVER_MOVE_EPSILON && xInField >= 0.5 - SERVER_MOVE_EPSILON;
+   x_in_epsilon = x_in_field <= 0.5 + SERVER_MOVE_EPSILON && x_in_field >= 0.5 - SERVER_MOVE_EPSILON;
 
-   yInEpsilon = yInField <= 0.5 + SERVER_MOVE_EPSILON && yInField >= 0.5 - SERVER_MOVE_EPSILON;
+   y_in_epsilon = y_in_field <= 0.5 + SERVER_MOVE_EPSILON && y_in_field >= 0.5 - SERVER_MOVE_EPSILON;
 
    // kick bombs if possible
-   playerKicksBombSignal(player, kickedBomb1, true, keysPressed);
-   playerKicksBombSignal(player, kickedBomb2, false, keysPressed);
+   playerKicksBombSignal(player, kicked_bomb1, true, keys_pressed);
+   playerKicksBombSignal(player, kicked_bomb2, false, keys_pressed);
 
    // ----------------------------------------------------------------------
    // experimental position correction
 
-   if (!xInEpsilon && !yInEpsilon)
+   if (!x_in_epsilon && !y_in_epsilon)
    {
       // retry horizontal
-      desiredXPos = player->getX();
-      desiredYPos = player->getY();
+      desired_x_position = player->getX();
+      desired_y_position = player->getY();
 
-      int keysFixedHorizontal = keysPressed;
+      int keys_fixed_horizontal = keys_pressed;
 
-      if (keysFixedHorizontal & Constants::KeyUp)
-         keysFixedHorizontal &= ~(Constants::KeyUp);
-      if (keysFixedHorizontal & Constants::KeyDown)
-         keysFixedHorizontal &= ~(Constants::KeyDown);
-
-      updatePlayerDirections(player, keysFixedHorizontal, directions, desiredXPos, desiredYPos);
-
-      fieldX = std::floor(desiredXPos);
-      fieldY = std::floor(desiredYPos);
-
-      xInField = desiredXPos - std::floor(desiredXPos);
-      yInField = desiredYPos - std::floor(desiredYPos);
-
-      hBlocked = isPositionBlocked(desiredXPos, desiredYPos, keysFixedHorizontal, false, fieldX, fieldY);
-
-      xInEpsilon = xInField <= 0.5 + SERVER_MOVE_EPSILON && xInField >= 0.5 - SERVER_MOVE_EPSILON;
-
-      yInEpsilon = yInField <= 0.5 + SERVER_MOVE_EPSILON && yInField >= 0.5 - SERVER_MOVE_EPSILON;
-
-      if (!xInEpsilon && !yInEpsilon)
+      if (keys_fixed_horizontal & Constants::KeyUp)
       {
-         desiredXPos = player->getX();
-         desiredYPos = player->getY();
-
-         int keysFixedVertical = keysPressed;
-
-         if (keysFixedVertical & Constants::KeyRight)
-            keysFixedVertical &= ~(Constants::KeyRight);
-         if (keysFixedVertical & Constants::KeyLeft)
-            keysFixedVertical &= ~(Constants::KeyLeft);
-
-         updatePlayerDirections(player, keysFixedVertical, directions, desiredXPos, desiredYPos);
-
-         fieldX = std::floor(desiredXPos);
-         fieldY = std::floor(desiredYPos);
-
-         // check if vertical movement is now possible
-         vBlocked = isPositionBlocked(desiredXPos, desiredYPos, keysFixedVertical, true, fieldX, fieldY);
+         keys_fixed_horizontal &= ~(Constants::KeyUp);
+      }
+      if (keys_fixed_horizontal & Constants::KeyDown)
+      {
+         keys_fixed_horizontal &= ~(Constants::KeyDown);
       }
 
-      xInField = desiredXPos - std::floor(desiredXPos);
-      yInField = desiredYPos - std::floor(desiredYPos);
+      updatePlayerDirections(player, keys_fixed_horizontal, directions, desired_x_position, desired_y_position);
+
+      field_x = static_cast<int32_t>(std::floor(desired_x_position));
+      field_y = static_cast<int32_t>(std::floor(desired_y_position));
+
+      x_in_field = desired_x_position - std::floor(desired_x_position);
+      y_in_field = desired_y_position - std::floor(desired_y_position);
+
+      horizontal_blocked = isPositionBlocked(desired_x_position, desired_y_position, keys_fixed_horizontal, false, field_x, field_y);
+
+      x_in_epsilon = x_in_field <= 0.5 + SERVER_MOVE_EPSILON && x_in_field >= 0.5 - SERVER_MOVE_EPSILON;
+
+      y_in_epsilon = y_in_field <= 0.5 + SERVER_MOVE_EPSILON && y_in_field >= 0.5 - SERVER_MOVE_EPSILON;
+
+      if (!x_in_epsilon && !y_in_epsilon)
+      {
+         desired_x_position = player->getX();
+         desired_y_position = player->getY();
+
+         int keys_fixed_vertical = keys_pressed;
+
+         if (keys_fixed_vertical & Constants::KeyRight)
+         {
+            keys_fixed_vertical &= ~(Constants::KeyRight);
+         }
+         if (keys_fixed_vertical & Constants::KeyLeft)
+         {
+            keys_fixed_vertical &= ~(Constants::KeyLeft);
+         }
+
+         updatePlayerDirections(player, keys_fixed_vertical, directions, desired_x_position, desired_y_position);
+
+         field_x = static_cast<int32_t>(std::floor(desired_x_position));
+         field_y = static_cast<int32_t>(std::floor(desired_y_position));
+
+         // check if vertical movement is now possible
+         vertical_blocked = isPositionBlocked(desired_x_position, desired_y_position, keys_fixed_vertical, true, field_x, field_y);
+      }
+
+      x_in_field = desired_x_position - std::floor(desired_x_position);
+      y_in_field = desired_y_position - std::floor(desired_y_position);
 
       // x should be in epsilon now
-      xInEpsilon = xInField <= 0.5 + SERVER_MOVE_EPSILON && xInField >= 0.5 - SERVER_MOVE_EPSILON;
+      x_in_epsilon = x_in_field <= 0.5 + SERVER_MOVE_EPSILON && x_in_field >= 0.5 - SERVER_MOVE_EPSILON;
 
-      yInEpsilon = yInField <= 0.5 + SERVER_MOVE_EPSILON && yInField >= 0.5 - SERVER_MOVE_EPSILON;
+      y_in_epsilon = y_in_field <= 0.5 + SERVER_MOVE_EPSILON && y_in_field >= 0.5 - SERVER_MOVE_EPSILON;
    }
 
    // ----------------------------------------------------------------------
@@ -202,16 +226,17 @@ void CollisionDetection::process(Player* player)
    // - position is changed
    // - x position is within 0.5 +- tolerance
    // - desired position is not blocked
-   if (playerMovesVertically && xInEpsilon && !hBlocked)
+   if (player_moves_vertically && x_in_epsilon && !horizontal_blocked)
    {
       // correct position until the player reached the middle of a field
       // or move the player to its desired position
-      horizontalMovementForbidden = isPositionBlocked(desiredXPos, desiredYPos, keysPressed, false, fieldX, fieldY);
+      horizontal_movement_forbidden = isPositionBlocked(desired_x_position, desired_y_position, keys_pressed, false, field_x, field_y);
 
       // x position is above the movement-path
-      assignedXPos = adjustXPosition(player, xInField, desiredXPos, playerMovesHorizontally, horizontalMovementForbidden);
+      assigned_x_position =
+         adjustXPosition(player, x_in_field, desired_x_position, player_moves_horizontally, horizontal_movement_forbidden);
 
-      assignedYPos = desiredYPos;
+      assigned_y_position = desired_y_position;
 
       // yup, player was moved
       moved = true;
@@ -221,46 +246,46 @@ void CollisionDetection::process(Player* player)
    // - position is changed
    // - x position is within 0.5 +- tolerance
    // - desired position is not blocked
-   if (playerMovesHorizontally && yInEpsilon && !vBlocked)
+   if (player_moves_horizontally && y_in_epsilon && !vertical_blocked)
    {
       // correct position until the player reached the middle of a field
       // or move the player to its desired position
-      verticalMovementForbidden = isPositionBlocked(desiredXPos, desiredYPos, keysPressed, true, fieldX, fieldY);
+      vertical_movement_forbidden = isPositionBlocked(desired_x_position, desired_y_position, keys_pressed, true, field_x, field_y);
 
       // y position is above the movement-path
-      assignedYPos = adjustYPosition(player, yInField, desiredYPos, playerMovesVertically, verticalMovementForbidden);
+      assigned_y_position = adjustYPosition(player, y_in_field, desired_y_position, player_moves_vertically, vertical_movement_forbidden);
 
-      assignedXPos = desiredXPos;
+      assigned_x_position = desired_x_position;
 
       // yup, player was moved
       moved = true;
    }
 
    // update player rotation (if required)
-   bool rotationChanged = updateRotation(player, keysPressed, moved, assignedXPos, assignedYPos);
+   const bool rotation_changed = updateRotation(player, keys_pressed, moved, assigned_x_position, assigned_y_position);
 
-   if (moved || rotationChanged)
+   if (moved || rotation_changed)
    {
-      int skipCount = player->getPositionSkipCounter();
+      const int skip_count = player->getPositionSkipCounter();
 
       if (!moved  // <- TODO: always set! why?
           || (getGame()->getState() != Constants::GameActive) || player->isKilled())
       {
-         assignedXPos = player->getX();
-         assignedYPos = player->getY();
+         assigned_x_position = player->getX();
+         assigned_y_position = player->getY();
       }
 
-      if ((player->getKeysPressed() != player->getKeysPressedPreviously()) || (skipCount >= getGame()->getPositionSkipCount()))
+      if ((player->getKeysPressed() != player->getKeysPressedPreviously()) || (skip_count >= getGame()->getPositionSkipCount()))
       {
-         playerMoveSignal(player, assignedXPos, assignedYPos, directions);
+         playerMoveSignal(player, assigned_x_position, assigned_y_position, directions);
       }
       else
       {
-         player->setPositionSkipCounter(skipCount + 1);
+         player->setPositionSkipCounter(skip_count + 1);
       }
 
-      player->setX(assignedXPos);
-      player->setY(assignedYPos);
+      player->setX(assigned_x_position);
+      player->setY(assigned_y_position);
 
       // notify kick animations about player positions
       if (!player->isKilled())
@@ -274,175 +299,176 @@ void CollisionDetection::process(Player* player)
    }
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param player affected player
-   \param directions directions to follow
-   \param desiredXPos next desired x position
-   \param desiredYPos next desired y position
-*/
-void CollisionDetection::updatePlayerDirections(Player* player, int keysPressed, int8_t& directions, float& desiredXPos, float& desiredYPos)
+void CollisionDetection::updatePlayerDirections(
+   Player* player,
+   int keys_pressed,
+   int8_t& directions,
+   float& desired_x_position,
+   float& desired_y_position
+)
 {
-   float speed = player->getSpeed();
+   const float speed = player->getSpeed();
 
-   if (keysPressed & Constants::KeyUp)
+   if (keys_pressed & Constants::KeyUp)
    {
-      desiredYPos = player->getY() - (SERVER_SPEED * speed);
+      desired_y_position = player->getY() - (SERVER_SPEED * speed);
       directions |= Constants::KeyUp;
    }
 
-   if (keysPressed & Constants::KeyDown)
+   if (keys_pressed & Constants::KeyDown)
    {
-      desiredYPos = player->getY() + (SERVER_SPEED * speed);
+      desired_y_position = player->getY() + (SERVER_SPEED * speed);
       directions |= Constants::KeyDown;
    }
 
-   if (keysPressed & Constants::KeyLeft)
+   if (keys_pressed & Constants::KeyLeft)
    {
-      desiredXPos = player->getX() - (SERVER_SPEED * speed);
+      desired_x_position = player->getX() - (SERVER_SPEED * speed);
       directions |= Constants::KeyLeft;
    }
 
-   if (keysPressed & Constants::KeyRight)
+   if (keys_pressed & Constants::KeyRight)
    {
-      desiredXPos = player->getX() + (SERVER_SPEED * speed);
+      desired_x_position = player->getX() + (SERVER_SPEED * speed);
       directions |= Constants::KeyRight;
    }
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param player affected player
-   \param xInField x position in the current field
-   \param desiredXPos desired x position
-   \param playerMovesHorizontally \c true if player moves horizontally
-   \param horizontalMovementForbidden \c true if horizontal movement is forbidden
-*/
 float CollisionDetection::adjustXPosition(
    Player* player,
-   float xInField,
-   float desiredXPos,
-   bool playerMovesHorizontally,
-   bool horizontalMovementForbidden
+   float x_in_field,
+   float desired_x_position,
+   bool player_moves_horizontally,
+   bool horizontal_movement_forbidden
 )
 {
-   float assignedXPos = 0.0;
-   float speed = player->getSpeed();
+   float assigned_x_position = 0.0;
+   const float speed = player->getSpeed();
 
-   if (xInField > 0.5 && (horizontalMovementForbidden || !playerMovesHorizontally))
+   if (x_in_field > 0.5 && (horizontal_movement_forbidden || !player_moves_horizontally))
    {
-      if (xInField - 0.5 < (SERVER_SPEED * speed))
-         assignedXPos = std::floor(desiredXPos) + 0.5;
+      if (x_in_field - 0.5 < (SERVER_SPEED * speed))
+      {
+         assigned_x_position = std::floor(desired_x_position) + 0.5;
+      }
       else
-         assignedXPos = desiredXPos - (SERVER_SPEED * speed);
+      {
+         assigned_x_position = desired_x_position - (SERVER_SPEED * speed);
+      }
    }
 
    // x position is below the movement-path
-   else if (xInField < 0.5 && (horizontalMovementForbidden || !playerMovesHorizontally))
+   else if (x_in_field < 0.5 && (horizontal_movement_forbidden || !player_moves_horizontally))
    {
-      if (0.5 - xInField < (SERVER_SPEED * speed))
-         assignedXPos = std::floor(desiredXPos) + 0.5;
+      if (0.5 - x_in_field < (SERVER_SPEED * speed))
+      {
+         assigned_x_position = std::floor(desired_x_position) + 0.5;
+      }
       else
-         assignedXPos = desiredXPos + (SERVER_SPEED * speed);
+      {
+         assigned_x_position = desired_x_position + (SERVER_SPEED * speed);
+      }
    }
 
    // x position is on the movement path
    else
    {
-      assignedXPos = desiredXPos;
+      assigned_x_position = desired_x_position;
    }
 
-   return assignedXPos;
+   return assigned_x_position;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param player affected player
-   \param yInField y position in the current field
-   \param desiredYPos desired y position
-   \param playerMovesVertically \c true if player moves vertically
-   \param verticalMovementForbidden \c true if vertical movement is forbidden
-*/
 float CollisionDetection::adjustYPosition(
    Player* player,
-   float yInField,
-   float desiredYPos,
-   bool playerMovesVertically,
-   bool verticalMovementForbidden
+   float y_in_field,
+   float desired_y_position,
+   bool player_moves_vertically,
+   bool vertical_movement_forbidden
 )
 {
-   float assignedYPos = 0.0;
-   float speed = player->getSpeed();
+   float assigned_y_position = 0.0;
+   const float speed = player->getSpeed();
 
-   if (yInField > 0.5 && (verticalMovementForbidden || !playerMovesVertically))
+   if (y_in_field > 0.5 && (vertical_movement_forbidden || !player_moves_vertically))
    {
-      if (yInField - 0.5 < (SERVER_SPEED * speed))
-         assignedYPos = std::floor(desiredYPos) + 0.5;
+      if (y_in_field - 0.5 < (SERVER_SPEED * speed))
+      {
+         assigned_y_position = std::floor(desired_y_position) + 0.5;
+      }
       else
-         assignedYPos = desiredYPos - (SERVER_SPEED * speed);
+      {
+         assigned_y_position = desired_y_position - (SERVER_SPEED * speed);
+      }
    }
 
    // y position is below the movement-path
-   else if (yInField < 0.5 && (verticalMovementForbidden || !playerMovesVertically))
+   else if (y_in_field < 0.5 && (vertical_movement_forbidden || !player_moves_vertically))
    {
-      if (0.5 - yInField < (SERVER_SPEED * speed))
-         assignedYPos = std::floor(desiredYPos) + 0.5;
+      if (0.5 - y_in_field < (SERVER_SPEED * speed))
+      {
+         assigned_y_position = std::floor(desired_y_position) + 0.5;
+      }
       else
-         assignedYPos = desiredYPos + (SERVER_SPEED * speed);
+      {
+         assigned_y_position = desired_y_position + (SERVER_SPEED * speed);
+      }
    }
 
    // y position is on movement path
    else
    {
-      assignedYPos = desiredYPos;
+      assigned_y_position = desired_y_position;
    }
 
-   return assignedYPos;
+   return assigned_y_position;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param x x position
-   \param y y position
-   \param keysPressed keys pressed
-   \return true is position is blocked
-*/
 bool CollisionDetection::isPositionBlocked(
    float x,
    float y,
-   int keysPressed,
-   bool verticalCheck,
-   int fieldX,
-   int fieldY,
-   MapItem** blockingItem
+   int keys_pressed,
+   bool vertical_check,
+   int field_x,
+   int field_y,
+   MapItem** blocking_item
 )
 {
    bool blocked = false;
 
    // add player bounds to desired positions
-   if (verticalCheck)
+   if (vertical_check)
    {
-      if (keysPressed & Constants::KeyUp)
+      if (keys_pressed & Constants::KeyUp)
+      {
          y -= 0.5;
+      }
 
-      if (keysPressed & Constants::KeyDown)
+      if (keys_pressed & Constants::KeyDown)
+      {
          y += 0.5;
+      }
    }
    else
    {
-      if (keysPressed & Constants::KeyLeft)
+      if (keys_pressed & Constants::KeyLeft)
+      {
          x -= 0.5;
+      }
 
-      if (keysPressed & Constants::KeyRight)
+      if (keys_pressed & Constants::KeyRight)
+      {
          x += 0.5;
+      }
    }
 
    // make field position of x and y
-   int fieldXPos = std::floor(x);
-   int fieldYPos = std::floor(y);
+   const int field_x_position = static_cast<int32_t>(std::floor(x));
+   const int field_y_position = static_cast<int32_t>(std::floor(y));
 
    // block if map bounds are exceeded
-   if (fieldXPos < 0 || fieldYPos < 0 || fieldXPos > getMap()->getWidth() - 1 || fieldYPos > getMap()->getHeight() - 1)
+   if (field_x_position < 0 || field_y_position < 0 || field_x_position > getMap()->getWidth() - 1 ||
+       field_y_position > getMap()->getHeight() - 1)
    {
       blocked = true;
    }
@@ -450,13 +476,13 @@ bool CollisionDetection::isPositionBlocked(
    // block if player hit block or stone
    else
    {
-      MapItem* item = getMap()->getItem(fieldXPos, fieldYPos);
+      MapItem* item = getMap()->getItem(field_x_position, field_y_position);
 
-      if (item && item->isBlocking() && !(item->getX() == fieldX && item->getY() == fieldY))
+      if (item && item->isBlocking() && !(item->getX() == field_x && item->getY() == field_y))
       {
-         if (blockingItem)
+         if (blocking_item)
          {
-            *blockingItem = item;
+            *blocking_item = item;
          }
 
          blocked = true;
@@ -466,75 +492,77 @@ bool CollisionDetection::isPositionBlocked(
    return blocked;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return true if a rotation update was required
-*/
-bool CollisionDetection::updateRotation(Player* player, int keysPressed, bool moved, float assignedXPos, float assignedYPos)
+bool CollisionDetection::updateRotation(Player* player, int keys_pressed, bool moved, float assigned_x_position, float assigned_y_position)
 {
-   bool rotationChanged = false;
-   bool xMoved = false;
-   bool yMoved = false;
+   bool x_moved = false;
+   bool y_moved = false;
 
    PlayerRotation* rotation = player->getPlayerRotation();
-   float previousRotationAngle = rotation->getAngle();
+   const float previous_rotation_angle = rotation->getAngle();
 
    // init the new target vector depending either
    // on the player's keyboard inputs or - if no movement was allowed -
    // the previous target vector directions
    Vec2 direction;
 
-   bool cursorKeysPressed = (keysPressed & Constants::KeyUp) || (keysPressed & Constants::KeyDown) || (keysPressed & Constants::KeyLeft) ||
-                            (keysPressed & Constants::KeyRight);
+   const bool cursor_keys_pressed = (keys_pressed & Constants::KeyUp) || (keys_pressed & Constants::KeyDown) ||
+                                    (keys_pressed & Constants::KeyLeft) || (keys_pressed & Constants::KeyRight);
 
-   if (keysPressed & Constants::KeyUp)
+   if (keys_pressed & Constants::KeyUp)
+   {
       direction.setY(1.0f);
+   }
 
-   if (keysPressed & Constants::KeyDown)
+   if (keys_pressed & Constants::KeyDown)
+   {
       direction.setY(-1.0f);
+   }
 
-   if (keysPressed & Constants::KeyLeft)
+   if (keys_pressed & Constants::KeyLeft)
+   {
       direction.setX(-1.0f);
+   }
 
-   if (keysPressed & Constants::KeyRight)
+   if (keys_pressed & Constants::KeyRight)
+   {
       direction.setX(1.0f);
+   }
 
    // only allow 90 degree rotations
    if (moved)
    {
-      xMoved = assignedXPos != player->getX();
-      yMoved = assignedYPos != player->getY();
+      x_moved = assigned_x_position != player->getX();
+      y_moved = assigned_y_position != player->getY();
 
-      if (!xMoved)
+      if (!x_moved)
+      {
          direction.setX(0.0f);
+      }
 
-      if (!yMoved)
+      if (!y_moved)
+      {
          direction.setY(0.0f);
+      }
    }
 
    // set new target vector and update the according angle
-   if (cursorKeysPressed || xMoved || yMoved)
+   if (cursor_keys_pressed || x_moved || y_moved)
+   {
       player->getPlayerRotation()->setTargetVector(direction);
+   }
 
    player->getPlayerRotation()->updateAngle();
 
-   const float newRotationAngle = rotation->getAngle();
-   rotationChanged = std::abs(previousRotationAngle - newRotationAngle) * 100000.0f > std::min(std::abs(previousRotationAngle), std::abs(newRotationAngle));
+   const float new_rotation_angle = rotation->getAngle();
 
-   return rotationChanged;
+   return std::abs(previous_rotation_angle - new_rotation_angle) * 100000.0f >
+          std::min(std::abs(previous_rotation_angle), std::abs(new_rotation_angle));
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param x x position
-   \param y y position
-   \param keysPressed keys pressed
-   \return true is position is blocked
-*/
-bool CollisionDetection::isFieldBlocked(int* field, MapItem** blockingItem)
+bool CollisionDetection::isFieldBlocked(const std::array<int32_t, 2>& field, MapItem** blocking_item)
 {
-   int x = field[0];
-   int y = field[1];
+   const int x = field[0];
+   const int y = field[1];
 
    bool blocked = false;
 
@@ -551,9 +579,9 @@ bool CollisionDetection::isFieldBlocked(int* field, MapItem** blockingItem)
 
       if (item && item->isBlocking())
       {
-         if (blockingItem)
+         if (blocking_item)
          {
-            *blockingItem = item;
+            *blocking_item = item;
          }
 
          blocked = true;
@@ -565,12 +593,12 @@ bool CollisionDetection::isFieldBlocked(int* field, MapItem** blockingItem)
 
 Game* CollisionDetection::getGame() const
 {
-   return mGame;
+   return _game;
 }
 
 void CollisionDetection::setGame(Game* game)
 {
-   mGame = game;
+   _game = game;
 }
 
 Map* CollisionDetection::getMap() const

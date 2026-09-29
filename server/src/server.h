@@ -1,7 +1,9 @@
 #ifndef SERVER_H
 #define SERVER_H
 
+#include <cstdint>
 #include <map>
+#include <memory>
 #include <string>
 
 // shared
@@ -19,13 +21,8 @@ struct NET_StreamSocket;
 
 class Server
 {
-
 public:
-
-   //! constructor
    Server();
-
-   //! destructor
    ~Server();
 
    //! get server instance
@@ -35,87 +32,84 @@ public:
    bool isListening() const;
 
    //! get socket for player id
-   NET_StreamSocket* getPlayerSocket( int playerId );
+   NET_StreamSocket* getPlayerSocket(int player_id);
 
    //! getter for server configuration
    const ServerConfiguration& getServerConfiguration() const;
 
-
    //! start the poll timer
    void startPolling();
 
-
 protected:
-
    //! initialize server configuration
    void initServerConfiguration();
 
-
 private:
-
    //! poll for new connections and incoming data, once per tick
    void poll();
 
-   void processStartGameRequest(NET_StreamSocket* tcpSocket, Packet* packet);
-   void processJoinGameRequest(NET_StreamSocket* tcpSocket, Packet* packet);
-   void processLoginRequest(NET_StreamSocket* tcpSocket, Packet* packet);
-   void processListGamesRequest(NET_StreamSocket* tcpSocket);
-   void processCreateGameRequest(NET_StreamSocket* tcpSocket, Packet* packet);
-   void processGamePacket(NET_StreamSocket* tcpSocket, Packet* packet);
-   void processPlayerLeavesGame(NET_StreamSocket* socket);
-   void processPlayerSynchronize(NET_StreamSocket* tcpSocket, Packet* packet);
-   void processRemoveGame(int gameId);
-   void processRemoveAllBots(int gameId);
+   void processStartGameRequest(NET_StreamSocket* tcp_socket, Packet* packet);
+   void processJoinGameRequest(NET_StreamSocket* tcp_socket, Packet* packet);
+   void processLoginRequest(NET_StreamSocket* tcp_socket, Packet* packet);
+   void processListGamesRequest(NET_StreamSocket* tcp_socket);
+   void processCreateGameRequest(NET_StreamSocket* tcp_socket, Packet* packet);
+   void processGamePacket(NET_StreamSocket* tcp_socket, Packet* packet);
+   void processPlayerLeavesGame(NET_StreamSocket* tcp_socket);
+   void processPlayerSynchronize(NET_StreamSocket* tcp_socket, Packet* packet);
+   void processRemoveGame(int game_id);
+   void processRemoveAllBots(int game_id);
    void processBroadcastLeaveGameResponse(Player* player, Game* game);
 
    //! fix duplicate game names
-   void correctDuplicateGameName(Game* game);
+   void correctDuplicateGameName(Game* new_game);
 
    //! send single packet
-   void sendPacket(NET_StreamSocket* socket, Packet* packet);
+   void sendPacket(NET_StreamSocket* socket, std::unique_ptr<Packet> packet);
 
    //! accept all pending incoming connections
    void acceptConnections();
 
    //! read and dispatch all available data for one connected socket
-   void readSocket(NET_StreamSocket* socket);
+   void readSocket(NET_StreamSocket* tcp_socket);
 
    //! socket failed or the remote end dropped - clean up and destroy it
-   void disconnectSocket(NET_StreamSocket* socket);
+   void disconnectSocket(NET_StreamSocket* tcp_socket);
 
    //! fix duplicate player names
    std::string correctDuplicatePlayerName(const std::string& nick);
 
+   //! player of the given socket, nullptr if unknown
+   Player* findPlayer(NET_StreamSocket* socket) const;
+
    //! listen socket
-   NET_Server* mNetServer;
+   NET_Server* _net_server = nullptr;
 
    //! drives poll() once per tick
-   Timer mPollTimer;
+   Timer _poll_timer;
 
    //! per-connection incoming byte buffer
-   std::map<NET_StreamSocket*, PacketStreamBuffer*> mSocketBuffers;
+   std::map<NET_StreamSocket*, std::unique_ptr<PacketStreamBuffer>> _socket_buffers;
 
    //! map of expected packet sizes
-   std::map<NET_StreamSocket*, uint16_t> mPacketSizes;
+   std::map<NET_StreamSocket*, uint16_t> _packet_sizes;
 
-   //! map socket <-> player
-   std::map<NET_StreamSocket*, Player*> mPlayerSockets;
+   //! map socket <-> player, owns the players
+   std::map<NET_StreamSocket*, std::unique_ptr<Player>> _player_sockets;
 
    //! map socket <-> game
-   std::map<NET_StreamSocket*, Game*> mSocketGameMapping;
+   std::map<NET_StreamSocket*, Game*> _socket_game_mapping;
 
-   //! map of active games
-   std::map<int, Game*> mGames;
+   //! map of active games, owns the games
+   std::map<int, std::unique_ptr<Game>> _games;
 
    //! next player id
-   int mPlayerId;
+   int _player_id = 0;
 
    //! static server instance
-   static Server* sInstance;
+   static Server* _instance;
 
    //! server configuration data
-   ServerConfiguration mServerConfiguration;
+   ServerConfiguration _server_configuration;
 };
-
 
 #endif

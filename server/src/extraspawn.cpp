@@ -2,120 +2,59 @@
 #include "extraspawn.h"
 
 // shared
+#include "constants.h"
 #include "map.h"
 
-// server
-#include "constants.h"
-
-
-//-----------------------------------------------------------------------------
-/*!
-   \param parent parent object
-*/
 ExtraSpawn::ExtraSpawn()
- : mMap(0)
 {
-   mSpawnTimer.setInterval(SERVER_SPAWN_INTERVAL);
+   _spawn_timer.setInterval(SERVER_SPAWN_INTERVAL);
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \return \c true if spawning has been enabled
-*/
 bool ExtraSpawn::isEnabled() const
 {
-   return mEnabled;
+   return _enabled;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \param enabled enabled flag
-*/
 void ExtraSpawn::setEnabled(bool enabled)
 {
-   mEnabled = enabled;
+   _enabled = enabled;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \param map game's map
-*/
-void ExtraSpawn::setMap(Map *map)
+void ExtraSpawn::setMap(Map* map)
 {
-   mMap = map;
+   _map = map;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 void ExtraSpawn::activateSpawnTimer()
 {
-   mSpawnTimer.start();
+   _spawn_timer.start();
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \brief this is the start condition, if this is function returned true once,
-          spawn extras all the time
-*/
+//! start condition: once this returned true, extras are spawned all the time
 bool ExtraSpawn::isExtraAvailable() const
 {
-   bool available = false;
-
-   available = mMap->isHiddenExtraAvailable();
-
-   return available;
+   return _map->isHiddenExtraAvailable();
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \return \c true if spawn timer is active
-*/
 bool ExtraSpawn::isSpawnTimerActive() const
 {
-   return mSpawnTimer.isActive();
+   return _spawn_timer.isActive();
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \return map
-*/
-Map *ExtraSpawn::getMap() const
+Map* ExtraSpawn::getMap() const
 {
-   return mMap;
+   return _map;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 void ExtraSpawn::reset()
 {
-   mSpawnTimer.stop();
+   _spawn_timer.stop();
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 void ExtraSpawn::update()
 {
-   if (isEnabled())
+   if (isEnabled() && !isSpawnTimerActive() && !isExtraAvailable())
    {
-      if (!isSpawnTimerActive())
-      {
-         if (!isExtraAvailable())
-         {
-            activateSpawnTimer();
-         }
-      }
+      activateSpawnTimer();
    }
 }
-

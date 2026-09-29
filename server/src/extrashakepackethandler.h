@@ -7,11 +7,9 @@
 // forward declarations
 class Game;
 
-
 class ExtraShakePacketHandler
 {
 public:
-
    ExtraShakePacketHandler();
 
    void setEnabled(bool enabled);
@@ -20,13 +18,11 @@ public:
    Game* getGame() const;
 
 protected:
-
    void check();
 
+   Game* _game = nullptr;
 
-   Game* mGame;
-
-   Timer mCheckTimer;
+   Timer _check_timer;
 };
 
-#endif // SHAKEPACKETHANDLER_H
+#endif  // SHAKEPACKETHANDLER_H
