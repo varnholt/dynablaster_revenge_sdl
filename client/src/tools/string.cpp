@@ -130,10 +130,10 @@ String& String::operator=(const String& other)
       if (getRefCount() == 1)
       {
          dealloc();
-         delete mReferences;
+         delete _references;
       }
 
-      mReferences = other.getRef();
+      _references = other.getRef();
       addRef();
       _data = const_cast<char*>(other.data());
    }

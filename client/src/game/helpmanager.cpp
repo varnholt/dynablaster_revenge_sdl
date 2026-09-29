@@ -2,11 +2,9 @@
 
 HelpManager* HelpManager::sInstance = nullptr;
 
-
 HelpManager::HelpManager()
 {
 }
-
 
 HelpManager* HelpManager::getInstance()
 {
@@ -18,7 +16,6 @@ HelpManager* HelpManager::getInstance()
    return sInstance;
 }
 
-
 void HelpManager::addMessage(
    const std::string& page,
    const std::string& message,
@@ -27,11 +24,5 @@ void HelpManager::addMessage(
    int delay
 )
 {
-   messageAddedSignal(
-      page,
-      message,
-      severity,
-      location,
-      delay
-   );
+   messageAddedSignal(page, message, severity, location, delay);
 }

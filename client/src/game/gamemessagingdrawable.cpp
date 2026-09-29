@@ -20,8 +20,8 @@
 #include "gldevice.h"
 #include "timer.h"
 
-#include <cmath>
 #include <algorithm>
+#include <cmath>
 
 #define LINEEDIT_SAY "lineedit_say"
 #define LINEEDIT_SAY_Y 1057
@@ -53,7 +53,7 @@ GameMessagingDrawable::~GameMessagingDrawable() = default;
 
 void GameMessagingDrawable::messageReceived(int /*sender_id*/, const std::string& text, bool typing_finished)
 {
-   if (mVisible)
+   if (_visible)
    {
       if (StringUtils::trim(text).empty())
          return;

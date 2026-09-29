@@ -7,7 +7,7 @@
 
 #include <cstring>
 
-RenderBuffer::RenderBuffer(Geometry* geometry) : mNode(geometry->getParent()), mGeometry(geometry)
+RenderBuffer::RenderBuffer(Geometry* geometry) : _node(geometry->getParent()), _geometry(geometry)
 {
 }
 
@@ -50,47 +50,47 @@ void RenderBuffer::deleteBuffer(uint32_t buffer)
 
 void RenderBuffer::update(Node**)
 {
-   if (mWeights)
+   if (_weights)
    {
-      auto* vram = static_cast<Vector*>(activeDevice->lockVertexBuffer(mVertex));
-      std::memcpy(vram, mGeometry->getVertices(), mGeometry->getVertexCount() * sizeof(Vector));
-      activeDevice->unlockVertexBuffer(mVertex);
+      auto* vram = static_cast<Vector*>(activeDevice->lockVertexBuffer(_vertex));
+      std::memcpy(vram, _geometry->getVertices(), _geometry->getVertexCount() * sizeof(Vector));
+      activeDevice->unlockVertexBuffer(_vertex);
    }
 }
 
 const Matrix& RenderBuffer::getTransform() const
 {
-   return mNode->getTransform();
+   return _node->getTransform();
 }
 
 int32_t RenderBuffer::getSize() const
 {
-   return mSize;
+   return _size;
 }
 
 void RenderBuffer::setSize(int32_t num)
 {
-   mSize = num;
+   _size = num;
 }
 
 uint32_t RenderBuffer::getVertexBuffer() const
 {
-   return mVertex;
+   return _vertex;
 }
 
 uint32_t RenderBuffer::getIndexBuffer() const
 {
-   return mIndex;
+   return _index;
 }
 
 Geometry* RenderBuffer::getGeometry() const
 {
-   return mGeometry;
+   return _geometry;
 }
 
 bool RenderBuffer::getVisible() const
 {
-   return mGeometry->isVisible();
+   return _geometry->isVisible();
 }
 
 void RenderBuffer::clear()

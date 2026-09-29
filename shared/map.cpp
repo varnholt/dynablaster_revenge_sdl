@@ -146,7 +146,7 @@ Point Map::getStartPosition(int32_t player_number) const
    return _start_positions.at(static_cast<size_t>(player_number));
 }
 
-Map* Map::generateMap(
+std::unique_ptr<Map> Map::generateMap(
    int32_t width,
    int32_t height,
    int32_t stone_count,
@@ -158,7 +158,7 @@ Map* Map::generateMap(
    const std::vector<Point>& start_positions
 )
 {
-   Map* map = nullptr;
+   std::unique_ptr<Map> map;
 
    // check if the map is actually capable of storing the given number of stones and extras
    const int32_t extra_sum = extra_bomb_count + extra_flame_count + extra_kick_count + extra_speed_up_count + extra_skull_count;
@@ -201,7 +201,7 @@ Map* Map::generateMap(
 
    if ((stone_count <= allowed_stone_count) && (extra_sum <= allowed_stone_count) && (extra_sum <= stone_count))
    {
-      map = new Map(width, height);
+      map = std::make_unique<Map>(width, height);
 
       // initialize that map with blocking items
       map->initialize();

@@ -27,17 +27,17 @@ public:
 
 protected:
    // member names kept: accessed directly by the RenderBuffer subclasses in engine/materials
-   Node* mNode = nullptr;
-   Geometry* mGeometry = nullptr;
-   uint32_t mFormat = 0;
-   int32_t mSize = 0;
-   int32_t mVertexCount = 0;
-   Vector* mOrgVerts = nullptr;
-   Weight* mWeights = nullptr;
+   Node* _node = nullptr;
+   Geometry* _geometry = nullptr;
+   uint32_t _format = 0;
+   int32_t _size = 0;
+   int32_t _vertex_count = 0;
+   Vector* _original_vertices = nullptr;
+   Weight* _weights = nullptr;
 
    // vertex/index buffer handles
-   uint32_t mVertex = 0;
-   uint32_t mIndex = 0;
+   uint32_t _vertex = 0;
+   uint32_t _index = 0;
 
    uint32_t createVertexBuffer(void* data, int32_t size, bool dynamic = false);
    uint32_t createIndexBuffer(void* data, int32_t size, bool dynamic = false);

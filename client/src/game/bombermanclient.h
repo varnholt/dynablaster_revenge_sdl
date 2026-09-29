@@ -17,9 +17,9 @@
 #include <vector>
 
 // game
+#include <cstdint>
 #include "gameinformation.h"
 #include "playerinfo.h"
-#include <cstdint>
 
 // foward declarations
 class BotFactory;
@@ -190,7 +190,6 @@ public:
    Signal<bool> hostingSignal;
 
 public:
-
    // key event handlers
 
    //! process key pressed event handed from gui
@@ -279,7 +278,6 @@ public:
    void showIps();
 
 private:
-
    //! poll for connection progress and incoming data, once per tick
    void poll();
 

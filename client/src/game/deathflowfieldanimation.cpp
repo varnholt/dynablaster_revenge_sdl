@@ -11,8 +11,8 @@
 
 #include "deathflowfieldanimation.h"
 
-#include "framework/gldevice.h"
 #include "framework/framebuffer.h"
+#include "framework/gldevice.h"
 #include "math/vector2.h"
 
 #include <cmath>
@@ -221,7 +221,22 @@ void DeathFlowFieldAnimation::initializePositions(uint32_t depth_map, const Vect
    glBindTexture(GL_TEXTURE_2D, depth_map);
 
    const float quad[4 * 4] = {
-      -1.0f, -1.0f, min.x, min.y, 1.0f, -1.0f, max.x, min.y, 1.0f, 1.0f, max.x, max.y, -1.0f, 1.0f, min.x, max.y,
+      -1.0f,
+      -1.0f,
+      min.x,
+      min.y,
+      1.0f,
+      -1.0f,
+      max.x,
+      min.y,
+      1.0f,
+      1.0f,
+      max.x,
+      max.y,
+      -1.0f,
+      1.0f,
+      min.x,
+      max.y,
    };
    drawQuad(quad, 4);
 
@@ -249,7 +264,22 @@ void DeathFlowFieldAnimation::initializeParams(uint32_t depth_map, const Vector&
    glBindTexture(GL_TEXTURE_2D, depth_map);
 
    const float quad[4 * 4] = {
-      -1.0f, -1.0f, min.x, min.y, 1.0f, -1.0f, max.x, min.y, 1.0f, 1.0f, max.x, max.y, -1.0f, 1.0f, min.x, max.y,
+      -1.0f,
+      -1.0f,
+      min.x,
+      min.y,
+      1.0f,
+      -1.0f,
+      max.x,
+      min.y,
+      1.0f,
+      1.0f,
+      max.x,
+      max.y,
+      -1.0f,
+      1.0f,
+      min.x,
+      max.y,
    };
    drawQuad(quad, 4);
 

@@ -3,18 +3,18 @@
 // GLES3 port of client/src/game/gamewindrawable.cpp.
 
 #include "drawable.h"
-#include "math/matrix.h"
-#include "weighted.h"
 #include "gamestatemachine.h"
+#include "math/matrix.h"
 #include "menus/psdlayer.h"
 #include "render/texture.h"
+#include "weighted.h"
 
 #include <string>
 #include <vector>
 
-#include "math/color.h"
 #include <cstdint>
 #include <memory>
+#include "math/color.h"
 
 class BitmapFont;
 class BlurFilter;

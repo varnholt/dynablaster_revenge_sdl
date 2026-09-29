@@ -29,10 +29,10 @@ Texture& Texture::operator=(const Texture& texture)
          {
             TexturePool::Instance()->remove(_texture_id);
          }
-         delete mReferences;
+         delete _references;
       }
 
-      mReferences = texture.getRef();
+      _references = texture.getRef();
       addRef();
       _texture_id = texture.getTexture();
    }

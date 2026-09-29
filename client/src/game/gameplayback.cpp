@@ -35,7 +35,15 @@ bool GamePlayback::isRecording() const
    return _recording;
 }
 
-void GamePlayback::record(Packet*) {}
-void GamePlayback::playDemo() {}
-void GamePlayback::abort() {}
-void GamePlayback::setPlayerId(int) {}
+void GamePlayback::record(Packet*)
+{
+}
+void GamePlayback::playDemo()
+{
+}
+void GamePlayback::abort()
+{
+}
+void GamePlayback::setPlayerId(int)
+{
+}

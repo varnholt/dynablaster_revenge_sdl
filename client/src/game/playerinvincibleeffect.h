@@ -3,9 +3,9 @@
 #include "math/vector.h"
 #include "render/texture.h"
 
+#include <cstdint>
 #include <memory>
 #include <unordered_map>
-#include <cstdint>
 
 class Material;
 class Matrix;

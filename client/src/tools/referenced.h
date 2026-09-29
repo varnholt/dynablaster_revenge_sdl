@@ -19,6 +19,6 @@ public:
    int32_t* getRef() const;      // get reference pointer
 
 protected:
-   // kept as mReferences: derived classes outside tools/ access it directly
-   int32_t* mReferences = nullptr;
+   // kept as _references: derived classes outside tools/ access it directly
+   int32_t* _references = nullptr;
 };

@@ -9,7 +9,6 @@
 class HelpManager
 {
 public:
-
    static HelpManager* getInstance();
 
    // no live consumer ported yet - client/src/game/gamehelpdrawable.cpp (the toast HUD
@@ -24,12 +23,10 @@ public:
       int delay = 0
    );
 
-
 protected:
-
    HelpManager();
 
    static HelpManager* sInstance;
 };
 
-#endif // HELPMANAGER_H
+#endif  // HELPMANAGER_H

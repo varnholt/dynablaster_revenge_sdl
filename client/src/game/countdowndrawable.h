@@ -10,8 +10,8 @@
 #include <string>
 #include <vector>
 
-#include "image/psd.h"
 #include <cstdint>
+#include "image/psd.h"
 
 class PSDLayer;
 

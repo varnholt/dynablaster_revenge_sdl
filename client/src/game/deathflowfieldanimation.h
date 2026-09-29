@@ -3,9 +3,9 @@
 /// \brief GLES3 port of client/src/game/deathflowfieldanimation.cpp - see project memory for the
 /// full GPGPU-particle-simulation background. Interface unchanged from the original.
 
+#include <cstdint>
 #include "math/vector.h"
 #include "math/vector4.h"
-#include <cstdint>
 
 class FrameBuffer;
 

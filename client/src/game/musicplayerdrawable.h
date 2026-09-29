@@ -4,9 +4,9 @@
 #include "framework/frametimer.h"
 #include "image/psd.h"
 
+#include <memory>
 #include <string>
 #include <vector>
-#include <memory>
 
 class BitmapFont;
 class PSDLayer;

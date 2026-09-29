@@ -1,8 +1,8 @@
 #ifndef PLAYER_H
 #define PLAYER_H
 
-#include "math/vector.h"
 #include "constants.h"
+#include "math/vector.h"
 
 #include <string>
 
@@ -11,9 +11,7 @@ class Mesh;
 
 class PlayerItem
 {
-
 public:
-
    PlayerItem(int id, const std::string& nick, Constants::Color color);
    ~PlayerItem();
 
@@ -21,10 +19,10 @@ public:
    Constants::Color getColor() const;
    const std::string& getNick() const;
 
-   void setMaterial(Material *mat);
+   void setMaterial(Material* mat);
    Material* getMaterial() const;
 
-   void setMesh(Mesh *mesh);
+   void setMesh(Mesh* mesh);
    Mesh* getMesh() const;
 
    void setRotation(float rot);
@@ -43,24 +41,22 @@ public:
 
    void setFlash(float flash);
 
-
 private:
-
    void update();
 
    int _id;
    Constants::Color _color;
    std::string _nick;
-   Mesh *_mesh = nullptr;
-   Material *_material = nullptr;
+   Mesh* _mesh = nullptr;
+   Material* _material = nullptr;
    Vector _pos;
    float _rot = 0;
    float _speed = 0.0f;
    float _anim_blend = 0.0f;
    float _stand_blend = 0.0f;
-   bool  _killed = false;
-   bool  _win = false;
-   bool  _left_foot = false;
+   bool _killed = false;
+   bool _win = false;
+   bool _left_foot = false;
    float _flash = 0.0f;
 };
 

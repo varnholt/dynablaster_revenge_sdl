@@ -2,9 +2,9 @@
 
 #include "math/matrix.h"
 
+#include <cstdint>
 #include <memory>
 #include <vector>
-#include <cstdint>
 
 class Detonation;
 

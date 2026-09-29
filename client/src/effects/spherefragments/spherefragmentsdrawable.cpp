@@ -124,7 +124,7 @@ void SphereFragmentsDrawable::paintGL()
    // draw earth fragments once into a framebuffer, reuse later. clears to alpha=0: the alpha
    // channel drives the blend composite onto the menu below, so it must start fully transparent
    _earth_fb->bind();
-   static_cast<GLDevice*>(mDevice)->clear(0.0f, 0.0f, 0.0f, 0.0f);
+   static_cast<GLDevice*>(_device)->clear(0.0f, 0.0f, 0.0f, 0.0f);
 
    // put bomb into zbuffer to black backside fragments
    _bomb->draw(Vector4(1, 1, 1, 0));
@@ -137,7 +137,7 @@ void SphereFragmentsDrawable::paintGL()
 
    // create white mask from alpha channel
    _aura_fb->bind();
-   static_cast<GLDevice*>(mDevice)->clear(0.0f, 0.0f, 0.0f, 0.0f);
+   static_cast<GLDevice*>(_device)->clear(0.0f, 0.0f, 0.0f, 0.0f);
    _alpha_duplicate->process(_earth_fb->texture(), Vector4(1.0f, 1.0f, 1.0f, 1.0f));
 
    // blur white mask
@@ -147,7 +147,7 @@ void SphereFragmentsDrawable::paintGL()
 
    // lava glow pass
    _bomb_fb->bind();
-   static_cast<GLDevice*>(mDevice)->clear(0.0f, 0.0f, 0.0f, 0.0f);
+   static_cast<GLDevice*>(_device)->clear(0.0f, 0.0f, 0.0f, 0.0f);
    _bomb->draw(Vector4(1, 1, 1, 1));
 
    // draw black fragments

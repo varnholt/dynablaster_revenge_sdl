@@ -44,10 +44,10 @@ const Image& Image::operator=(const Image& image)
       if (getRefCount() == 1)
       {
          discard();
-         delete mReferences;
+         delete _references;
       }
 
-      mReferences = image.getRef();
+      _references = image.getRef();
       addRef();
       _width = image.getWidth();
       _height = image.getHeight();

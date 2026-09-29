@@ -1,15 +1,12 @@
 #ifndef SKULL_H
 #define SKULL_H
 
-#include "nodes/mesh.h"
 #include "math/matrix.h"
-
+#include "nodes/mesh.h"
 
 class Skull : public Mesh
 {
-
 public:
-
    //! constructor
    Skull(Mesh* reference, float x, float y);
 
@@ -25,9 +22,7 @@ public:
    //! getter for start time
    float getStartTime() const;
 
-
 private:
-
    //! animation time
    float _start_time;
 
@@ -38,5 +33,4 @@ private:
    Matrix _translation;
 };
 
-
-#endif // SKULLCYCLEANIMATION_H
+#endif  // SKULLCYCLEANIMATION_H

@@ -7,37 +7,35 @@
 // defaults
 
 // audio
-#define DEFAULT_VOLUME_SFX          0.5f
-#define DEFAULT_VOLUME_MUSIC        0.5f
+#define DEFAULT_VOLUME_SFX 0.5f
+#define DEFAULT_VOLUME_MUSIC 0.5f
 
 // video
-#define DEFAULT_VIDEO_WIDTH          1024
-#define DEFAULT_VIDEO_HEIGHT         576
-#define DEFAULT_VIDEO_RESOLUTION     1
-#define DEFAULT_VIDEO_ANTIALIAS      1
-#define DEFAULT_VIDEO_FULLSCREEN     false
-#define DEFAULT_VIDEO_BRIGHTNESS     0.5
-#define DEFAULT_VIDEO_VSYNC          1
-#define DEFAULT_VIDEO_SHOWFPS        false
-#define DEFAULT_VIDEO_ZOOM           1
-#define DEFAULT_VIDEO_BORDERLEFT     0
-#define DEFAULT_VIDEO_BORDERTOP      0
-#define DEFAULT_VIDEO_BORDERRIGHT    0
-#define DEFAULT_VIDEO_BORDERBOTTOM   0
+#define DEFAULT_VIDEO_WIDTH 1024
+#define DEFAULT_VIDEO_HEIGHT 576
+#define DEFAULT_VIDEO_RESOLUTION 1
+#define DEFAULT_VIDEO_ANTIALIAS 1
+#define DEFAULT_VIDEO_FULLSCREEN false
+#define DEFAULT_VIDEO_BRIGHTNESS 0.5
+#define DEFAULT_VIDEO_VSYNC 1
+#define DEFAULT_VIDEO_SHOWFPS false
+#define DEFAULT_VIDEO_ZOOM 1
+#define DEFAULT_VIDEO_BORDERLEFT 0
+#define DEFAULT_VIDEO_BORDERTOP 0
+#define DEFAULT_VIDEO_BORDERRIGHT 0
+#define DEFAULT_VIDEO_BORDERBOTTOM 0
 
 // control
-#define KEYMAP_NOMINAL_SIZE          5
-#define DEFAULT_ANALOGUE_AXIS_1      0
-#define DEFAULT_ANALOGUE_AXIS_2      1
+#define KEYMAP_NOMINAL_SIZE 5
+#define DEFAULT_ANALOGUE_AXIS_1 0
+#define DEFAULT_ANALOGUE_AXIS_2 1
 #define DEFAULT_ANALOGUE_THRESHOLD 3200
 
 // gameplay
 #define DEFAULT_GAMEPLAY_CAMERA_SHAKE_INTENSITY 1.0f
-#define DEFAULT_GAMEPLAY_CAMERA_FOLLOWS_PLAYER  true
-
+#define DEFAULT_GAMEPLAY_CAMERA_FOLLOWS_PLAYER true
 
 GameSettings* GameSettings::s_settings = nullptr;
-
 
 GameSettings::GameSettings()
 {
@@ -73,9 +71,7 @@ GameSettings::GameSettings()
       settings->deserialize();
 }
 
-
 GameSettings::~GameSettings() = default;
-
 
 GameSettings* GameSettings::getInstance()
 {
@@ -85,95 +81,75 @@ GameSettings* GameSettings::getInstance()
    return s_settings;
 }
 
-
-GameSettings::SettingsPrivate::SettingsPrivate()
- : Settings(
-      SETTINGS_FILE,
-      Settings::IniFormat
-   )
+GameSettings::SettingsPrivate::SettingsPrivate() : Settings(SETTINGS_FILE, Settings::IniFormat)
 {
 }
-
 
 GameSettings::SettingsPrivate::~SettingsPrivate()
 {
 }
 
-
 void GameSettings::SettingsPrivate::deserialize()
 {
 }
-
 
 void GameSettings::SettingsPrivate::serialize()
 {
 }
 
-
 void GameSettings::SettingsPrivate::restoreDefaults()
 {
 }
 
-
-GameSettings::DevelopmentSettings *GameSettings::getDevelopmentSettings()
+GameSettings::DevelopmentSettings* GameSettings::getDevelopmentSettings()
 {
    return _development_settings.get();
 }
 
-
-GameSettings::StyleSettings *GameSettings::getStyleSettings()
+GameSettings::StyleSettings* GameSettings::getStyleSettings()
 {
    return _style_settings.get();
 }
 
-
-GameSettings::GameplaySettings *GameSettings::getGameplaySettings()
+GameSettings::GameplaySettings* GameSettings::getGameplaySettings()
 {
    return _gameplay_settings.get();
 }
 
-
-GameSettings::AudioSettings *GameSettings::getAudioSettings()
+GameSettings::AudioSettings* GameSettings::getAudioSettings()
 {
    return _audio_settings.get();
 }
 
-
-GameSettings::LoginSettings *GameSettings::getLoginSettings()
+GameSettings::LoginSettings* GameSettings::getLoginSettings()
 {
    return _login_settings.get();
 }
 
-
-GameSettings::VideoSettings *GameSettings::getVideoSettings()
+GameSettings::VideoSettings* GameSettings::getVideoSettings()
 {
    return _video_settings.get();
 }
 
-
-GameSettings::VideoSettings *GameSettings::getVideoSettingsBackup()
+GameSettings::VideoSettings* GameSettings::getVideoSettingsBackup()
 {
    return _video_settings_backup.get();
 }
 
-
-GameSettings::CreateGameSettings *GameSettings::getCreateGameSettingsSingle()
+GameSettings::CreateGameSettings* GameSettings::getCreateGameSettingsSingle()
 {
    return _create_game_settings_single.get();
 }
 
-
-GameSettings::CreateGameSettings *GameSettings::getCreateGameSettingsMulti()
+GameSettings::CreateGameSettings* GameSettings::getCreateGameSettingsMulti()
 {
    return _create_game_settings_multi.get();
 }
 
-
-GameSettings::ControllerSettings *GameSettings::getControllerSettings()
+GameSettings::ControllerSettings* GameSettings::getControllerSettings()
 {
    return _controller_settings.get();
 }
-
 
 void GameSettings::serialize()
 {
@@ -183,18 +159,15 @@ void GameSettings::serialize()
    getGameplaySettings()->serialize();
 }
 
-
 GameSettings::AudioSettings::AudioSettings()
 {
 }
-
 
 void GameSettings::AudioSettings::serialize()
 {
    setValue("audio/volume_music", getVolumeMusic());
    setValue("audio/volume_sfx", getVolumeSfx());
 }
-
 
 void GameSettings::AudioSettings::deserialize()
 {
@@ -204,35 +177,19 @@ void GameSettings::AudioSettings::deserialize()
 
    volume = value("audio/volume_music").toFloat(&ok);
 
-   setVolumeMusic(
-      ok
-         ? volume
-         : DEFAULT_VOLUME_MUSIC
-   );
+   setVolumeMusic(ok ? volume : DEFAULT_VOLUME_MUSIC);
 
    volume = value("audio/volume_sfx").toFloat(&ok);
 
-   setVolumeSfx(
-      ok
-         ? volume
-         : DEFAULT_VOLUME_SFX
-   );
+   setVolumeSfx(ok ? volume : DEFAULT_VOLUME_SFX);
 
    volume = value("audio/volume_music_default").toFloat(&ok);
 
-   setVolumeMusicDefault(
-      ok
-         ? volume
-         : DEFAULT_VOLUME_MUSIC
-   );
+   setVolumeMusicDefault(ok ? volume : DEFAULT_VOLUME_MUSIC);
 
    volume = value("audio/volume_sfx_default").toFloat(&ok);
 
-   setVolumeSfxDefault(
-      ok
-         ? volume
-         : DEFAULT_VOLUME_SFX
-   );
+   setVolumeSfxDefault(ok ? volume : DEFAULT_VOLUME_SFX);
 
    bool shuffle_music = value("audio/shuffle_music", true).toBool();
    bool shuffle1st_track_only = value("audio/shuffle_1st_track_only", false).toBool();
@@ -244,7 +201,6 @@ void GameSettings::AudioSettings::deserialize()
    setMusicPlayerVisibile(music_player_visible);
 }
 
-
 void GameSettings::AudioSettings::restoreDefaults()
 {
    SettingsPrivate::restoreDefaults();
@@ -253,95 +209,79 @@ void GameSettings::AudioSettings::restoreDefaults()
    setVolumeSfx(DEFAULT_VOLUME_SFX);
 }
 
-
 float GameSettings::AudioSettings::getVolumeMusic() const
 {
    return _volume_music;
 }
-
 
 float GameSettings::AudioSettings::getVolumeSfx() const
 {
    return _volume_sfx;
 }
 
-
 void GameSettings::AudioSettings::setVolumeMusic(float volume)
 {
    _volume_music = volume;
 }
-
 
 void GameSettings::AudioSettings::setVolumeSfx(float volume)
 {
    _volume_sfx = volume;
 }
 
-
 float GameSettings::AudioSettings::getVolumeMusicDefault() const
 {
    return _volume_music_default;
 }
-
 
 float GameSettings::AudioSettings::getVolumeSfxDefault() const
 {
    return _volume_sfx_default;
 }
 
-
 void GameSettings::AudioSettings::setVolumeMusicDefault(float volume)
 {
    _volume_music_default = volume;
 }
-
 
 void GameSettings::AudioSettings::setVolumeSfxDefault(float volume)
 {
    _volume_sfx_default = volume;
 }
 
-
 bool GameSettings::AudioSettings::isShuffleMusicEnabled() const
 {
    return _shuffle_music;
 }
-
 
 void GameSettings::AudioSettings::setShuffleMusicEnabled(bool value)
 {
    _shuffle_music = value;
 }
 
-
 bool GameSettings::AudioSettings::isShuffle1stTrackOnlyEnabled() const
 {
    return _shuffle1st_track_only;
 }
-
 
 void GameSettings::AudioSettings::setShuffle1stTrackOnlyEnabled(bool value)
 {
    _shuffle1st_track_only = value;
 }
 
-
 bool GameSettings::AudioSettings::isMusicPlayerVisibile() const
 {
    return _music_player_visible;
 }
-
 
 void GameSettings::AudioSettings::setMusicPlayerVisibile(bool value)
 {
    _music_player_visible = value;
 }
 
-
 GameSettings::DevelopmentSettings::DevelopmentSettings()
 {
 }
-
 
 void GameSettings::DevelopmentSettings::deserialize()
 {
@@ -354,131 +294,98 @@ void GameSettings::DevelopmentSettings::deserialize()
    _game_recording_enabled = value("development/gamerecording", false).toBool();
    _joysticks_enabled = value("development/joysticksenabled", true).toBool();
 
-   setPageFacebook(
-      value(
-         "development/page_facebook",
-         "https://www.facebook.com/DynablasterRevenge"
-      ).toString()
-   );
+   setPageFacebook(value("development/page_facebook", "https://www.facebook.com/DynablasterRevenge").toString());
 
-   setPagePouet(
-      value(
-         "development/page_pouet",
-         "http://www.pouet.net/prod.php?which=62926"
-      ).toString()
-   );
+   setPagePouet(value("development/page_pouet", "http://www.pouet.net/prod.php?which=62926").toString());
 
-   setPageHome(
-      value(
-         "development/page_home",
-         "https://dynablaster.titandemo.de/"
-      ).toString()
-   );
+   setPageHome(value("development/page_home", "https://dynablaster.titandemo.de/").toString());
 }
-
 
 bool GameSettings::DevelopmentSettings::isSkipMenuEnabled()
 {
    return _skip_menu;
 }
 
-
 bool GameSettings::DevelopmentSettings::isSplashScreenEnabled()
 {
    return _show_splash;
 }
-
 
 bool GameSettings::DevelopmentSettings::isMusicEnabled()
 {
    return _music_enabled;
 }
 
-
-const std::string &GameSettings::DevelopmentSettings::getLevel() const
+const std::string& GameSettings::DevelopmentSettings::getLevel() const
 {
    return _level;
 }
-
 
 bool GameSettings::DevelopmentSettings::isDryRunEnabled() const
 {
    return _dry_run_enabled;
 }
 
-
 void GameSettings::DevelopmentSettings::setDryRunEnabled(bool enabled)
 {
    _dry_run_enabled = enabled;
 }
-
 
 bool GameSettings::DevelopmentSettings::isGameRecordingEnabled() const
 {
    return _game_recording_enabled;
 }
 
-
 void GameSettings::DevelopmentSettings::setGameRecordingEnabled(bool value)
 {
    _game_recording_enabled = value;
 }
-
 
 bool GameSettings::DevelopmentSettings::isJoysticksEnabled() const
 {
    return _joysticks_enabled;
 }
 
-
 void GameSettings::DevelopmentSettings::setJoysticksEnabled(bool value)
 {
    _joysticks_enabled = value;
 }
 
-
 std::string GameSettings::DevelopmentSettings::getPageHome() const
 {
-    return _page_home;
+   return _page_home;
 }
 
-
-void GameSettings::DevelopmentSettings::setPageHome(const std::string &value)
+void GameSettings::DevelopmentSettings::setPageHome(const std::string& value)
 {
-    _page_home = value;
+   _page_home = value;
 }
-
 
 std::string GameSettings::DevelopmentSettings::getPageFacebook() const
 {
-    return _page_facebook;
+   return _page_facebook;
 }
 
-
-void GameSettings::DevelopmentSettings::setPageFacebook(const std::string &value)
+void GameSettings::DevelopmentSettings::setPageFacebook(const std::string& value)
 {
-    _page_facebook = value;
+   _page_facebook = value;
 }
-
 
 std::string GameSettings::DevelopmentSettings::getPagePouet() const
 {
-    return _page_pouet;
+   return _page_pouet;
 }
 
-
-void GameSettings::DevelopmentSettings::setPagePouet(const std::string &value)
+void GameSettings::DevelopmentSettings::setPagePouet(const std::string& value)
 {
-    _page_pouet = value;
+   _page_pouet = value;
 }
-
 
 void GameSettings::LoginSettings::serialize()
 {
-    setValue("logindata/nick", getNick());
-    setValue("logindata/host", getHost());
+   setValue("logindata/nick", getNick());
+   setValue("logindata/host", getHost());
 }
-
 
 void GameSettings::LoginSettings::deserialize()
 {
@@ -497,145 +404,119 @@ void GameSettings::LoginSettings::deserialize()
    setPlayer10Nick(value("logindata/player10", "player10").toString());
 }
 
-
-void GameSettings::LoginSettings::setNick(const std::string &nick)
+void GameSettings::LoginSettings::setNick(const std::string& nick)
 {
    _nick = nick;
 }
 
-
-const std::string &GameSettings::LoginSettings::getNick() const
+const std::string& GameSettings::LoginSettings::getNick() const
 {
    return _nick;
 }
 
-
-void GameSettings::LoginSettings::setHost(const std::string &host)
+void GameSettings::LoginSettings::setHost(const std::string& host)
 {
    _host = host;
 }
 
-
-const std::string &GameSettings::LoginSettings::getHost() const
+const std::string& GameSettings::LoginSettings::getHost() const
 {
    return _host;
 }
-
 
 std::string GameSettings::LoginSettings::getPlayer10Nick() const
 {
    return _player10_nick;
 }
 
-
-void GameSettings::LoginSettings::setPlayer10Nick(const std::string &value)
+void GameSettings::LoginSettings::setPlayer10Nick(const std::string& value)
 {
    _player10_nick = value;
 }
-
 
 std::string GameSettings::LoginSettings::getPlayer9Nick() const
 {
    return _player9_nick;
 }
 
-
-void GameSettings::LoginSettings::setPlayer9Nick(const std::string &value)
+void GameSettings::LoginSettings::setPlayer9Nick(const std::string& value)
 {
    _player9_nick = value;
 }
-
 
 std::string GameSettings::LoginSettings::getPlayer8Nick() const
 {
    return _player8_nick;
 }
 
-
-void GameSettings::LoginSettings::setPlayer8Nick(const std::string &value)
+void GameSettings::LoginSettings::setPlayer8Nick(const std::string& value)
 {
    _player8_nick = value;
 }
-
 
 std::string GameSettings::LoginSettings::getPlayer7Nick() const
 {
    return _player7_nick;
 }
 
-
-void GameSettings::LoginSettings::setPlayer7Nick(const std::string &value)
+void GameSettings::LoginSettings::setPlayer7Nick(const std::string& value)
 {
    _player7_nick = value;
 }
-
 
 std::string GameSettings::LoginSettings::getPlayer6Nick() const
 {
    return _player6_nick;
 }
 
-
-void GameSettings::LoginSettings::setPlayer6Nick(const std::string &value)
+void GameSettings::LoginSettings::setPlayer6Nick(const std::string& value)
 {
    _player6_nick = value;
 }
-
 
 std::string GameSettings::LoginSettings::getPlayer5Nick() const
 {
    return _player5_nick;
 }
 
-
-void GameSettings::LoginSettings::setPlayer5Nick(const std::string &value)
+void GameSettings::LoginSettings::setPlayer5Nick(const std::string& value)
 {
    _player5_nick = value;
 }
-
 
 std::string GameSettings::LoginSettings::getPlayer4Nick() const
 {
    return _player4_nick;
 }
 
-
-void GameSettings::LoginSettings::setPlayer4Nick(const std::string &value)
+void GameSettings::LoginSettings::setPlayer4Nick(const std::string& value)
 {
    _player4_nick = value;
 }
-
 
 std::string GameSettings::LoginSettings::getPlayer3Nick() const
 {
    return _player3_nick;
 }
 
-
-void GameSettings::LoginSettings::setPlayer3Nick(const std::string &value)
+void GameSettings::LoginSettings::setPlayer3Nick(const std::string& value)
 {
    _player3_nick = value;
 }
-
 
 std::string GameSettings::LoginSettings::getPlayer2Nick() const
 {
    return _player2_nick;
 }
 
-
-void GameSettings::LoginSettings::setPlayer2Nick(const std::string &value)
+void GameSettings::LoginSettings::setPlayer2Nick(const std::string& value)
 {
    _player2_nick = value;
 }
 
-
-
 GameSettings::CreateGameSettings::CreateGameSettings()
 {
-
 }
-
 
 void GameSettings::CreateGameSettings::serialize()
 {
@@ -671,7 +552,6 @@ void GameSettings::CreateGameSettings::serialize()
    }
 }
 
-
 void GameSettings::CreateGameSettings::deserialize()
 {
    if (isSinglePlayer())
@@ -690,10 +570,8 @@ void GameSettings::CreateGameSettings::deserialize()
       setExtraSkullsEnabled(value("creategamesingle/extraskulls", false).toBool());
 
       setDimensions(
-         static_cast<Constants::Dimension>(value(
-            "creategamesingle/dimension",
-            static_cast<int32_t>(Constants::Dimension13x11)
-         ).toInt()));
+         static_cast<Constants::Dimension>(value("creategamesingle/dimension", static_cast<int32_t>(Constants::Dimension13x11)).toInt())
+      );
    }
    else
    {
@@ -711,177 +589,145 @@ void GameSettings::CreateGameSettings::deserialize()
       setExtraSkullsEnabled(value("creategamemulti/extraskulls", false).toBool());
 
       setDimensions(
-         static_cast<Constants::Dimension>(value(
-            "creategamemulti/dimension",
-            static_cast<int32_t>(Constants::Dimension13x11)
-         ).toInt()));
+         static_cast<Constants::Dimension>(value("creategamemulti/dimension", static_cast<int32_t>(Constants::Dimension13x11)).toInt())
+      );
    }
 }
 
-
-void GameSettings::CreateGameSettings::setGameName(const std::string & val)
+void GameSettings::CreateGameSettings::setGameName(const std::string& val)
 {
    _game_name = val;
 }
 
-
-const std::string &GameSettings::CreateGameSettings::getGameName() const
+const std::string& GameSettings::CreateGameSettings::getGameName() const
 {
    return _game_name;
 }
-
 
 void GameSettings::CreateGameSettings::setLevelIndex(int index)
 {
    _level_index = index;
 }
 
-
 int GameSettings::CreateGameSettings::getLevelIndex() const
 {
    return _level_index;
 }
-
 
 void GameSettings::CreateGameSettings::setRounds(int rounds)
 {
    _rounds = rounds;
 }
 
-
 int GameSettings::CreateGameSettings::getRounds() const
 {
    return _rounds;
 }
-
 
 void GameSettings::CreateGameSettings::setDuration(int duration)
 {
    _duration = duration;
 }
 
-
 int GameSettings::CreateGameSettings::getDuration() const
 {
    return _duration;
 }
-
 
 void GameSettings::CreateGameSettings::setBotCount(int val)
 {
    _bot_count = val;
 }
 
-
 int GameSettings::CreateGameSettings::getBotCount() const
 {
    return _bot_count;
 }
-
 
 void GameSettings::CreateGameSettings::setMaxPlayers(int val)
 {
    _max_players = val;
 }
 
-
 int GameSettings::CreateGameSettings::getMaxPlayers() const
 {
    return _max_players;
 }
-
 
 void GameSettings::CreateGameSettings::setExtraBombsEnabled(bool enabled)
 {
    _extra_bombs = enabled;
 }
 
-
 bool GameSettings::CreateGameSettings::isExtraBombsEnabled() const
 {
    return _extra_bombs;
 }
-
 
 void GameSettings::CreateGameSettings::setExtraFlamesEnabled(bool enabled)
 {
    _extra_flames = enabled;
 }
 
-
 bool GameSettings::CreateGameSettings::isExtraFlamesEnabled() const
 {
    return _extra_flames;
 }
-
 
 void GameSettings::CreateGameSettings::setExtraSpeedUpsEnabled(bool enabled)
 {
    _extra_speed_ups = enabled;
 }
 
-
 bool GameSettings::CreateGameSettings::isExtraSpeedUpsEnabled() const
 {
    return _extra_speed_ups;
 }
-
 
 void GameSettings::CreateGameSettings::setExtraKicksEnabled(bool enabled)
 {
    _extra_kicks = enabled;
 }
 
-
 bool GameSettings::CreateGameSettings::isExtraKicksEnabled() const
 {
    return _extra_kicks;
 }
-
 
 void GameSettings::CreateGameSettings::setExtraSkullsEnabled(bool enabled)
 {
    _extra_skulls = enabled;
 }
 
-
 bool GameSettings::CreateGameSettings::isExtraSkullsEnabled() const
 {
    return _extra_skulls;
 }
-
 
 void GameSettings::CreateGameSettings::setDimensions(Constants::Dimension dimensions)
 {
    _dimensions = dimensions;
 }
 
-
 Constants::Dimension GameSettings::CreateGameSettings::getDimensions() const
 {
    return _dimensions;
 }
-
 
 bool GameSettings::CreateGameSettings::isSinglePlayer() const
 {
    return _single_player;
 }
 
-
 void GameSettings::CreateGameSettings::setSinglePlayer(bool value)
 {
    _single_player = value;
 }
 
-
 GameSettings::ControllerSettings::ControllerSettings()
-   : _analogue_axis1(DEFAULT_ANALOGUE_AXIS_1),
-     _analogue_axis2(DEFAULT_ANALOGUE_AXIS_2),
-     _analogue_treshold(DEFAULT_ANALOGUE_THRESHOLD)
+    : _analogue_axis1(DEFAULT_ANALOGUE_AXIS_1), _analogue_axis2(DEFAULT_ANALOGUE_AXIS_2), _analogue_treshold(DEFAULT_ANALOGUE_THRESHOLD)
 {
 }
-
 
 void GameSettings::ControllerSettings::serialize()
 {
@@ -901,7 +747,6 @@ void GameSettings::ControllerSettings::serialize()
    setValue("controller/analogueaxis2", getAnalogueAxis2());
    setValue("controller/analoguethreshold", getAnalogueThreshold());
 }
-
 
 void GameSettings::ControllerSettings::deserialize()
 {
@@ -924,28 +769,12 @@ void GameSettings::ControllerSettings::deserialize()
       }
    }
 
-   setAnalogueAxis1(
-      value(
-         "controller/analogueaxis1",
-         DEFAULT_ANALOGUE_AXIS_1
-      ).toInt()
-   );
+   setAnalogueAxis1(value("controller/analogueaxis1", DEFAULT_ANALOGUE_AXIS_1).toInt());
 
-   setAnalogueAxis2(
-      value(
-         "controller/analogueaxis2",
-         DEFAULT_ANALOGUE_AXIS_2
-      ).toInt()
-   );
+   setAnalogueAxis2(value("controller/analogueaxis2", DEFAULT_ANALOGUE_AXIS_2).toInt());
 
-   setAnalogueThreshold(
-      value(
-         "controller/analoguethreshold",
-         DEFAULT_ANALOGUE_THRESHOLD
-      ).toInt()
-   );
+   setAnalogueThreshold(value("controller/analoguethreshold", DEFAULT_ANALOGUE_THRESHOLD).toInt());
 }
-
 
 void GameSettings::ControllerSettings::restoreDefaults()
 {
@@ -959,18 +788,15 @@ void GameSettings::ControllerSettings::restoreDefaults()
    setAnalogueThreshold(DEFAULT_ANALOGUE_THRESHOLD);
 }
 
-
 void GameSettings::ControllerSettings::setKeyMap(const std::unordered_map<Constants::Key, int>& key_map)
 {
    _key_map = key_map;
 }
 
-
 std::unordered_map<Constants::Key, int> GameSettings::ControllerSettings::getKeyMap() const
 {
    return _key_map;
 }
-
 
 void GameSettings::ControllerSettings::initializeDefaultMap()
 {
@@ -984,103 +810,85 @@ void GameSettings::ControllerSettings::initializeDefaultMap()
    _key_map[Constants::KeyStart] = SDLK_F10;
 }
 
-
 SDL_Keycode GameSettings::ControllerSettings::getKey(Constants::Key key) const
 {
    auto it = _key_map.find(key);
    return it != _key_map.end() ? static_cast<SDL_Keycode>(it->second) : 0;
 }
 
-
 SDL_Keycode GameSettings::ControllerSettings::getUpKey() const
 {
    return getKey(Constants::KeyUp);
 }
-
 
 SDL_Keycode GameSettings::ControllerSettings::getDownKey() const
 {
    return getKey(Constants::KeyDown);
 }
 
-
 SDL_Keycode GameSettings::ControllerSettings::getLeftKey() const
 {
    return getKey(Constants::KeyLeft);
 }
-
 
 SDL_Keycode GameSettings::ControllerSettings::getRightKey() const
 {
    return getKey(Constants::KeyRight);
 }
 
-
 SDL_Keycode GameSettings::ControllerSettings::getBombKey() const
 {
    return getKey(Constants::KeyBomb);
 }
-
 
 SDL_Keycode GameSettings::ControllerSettings::getZoomInKey() const
 {
    return getKey(Constants::KeyZoomIn);
 }
 
-
 SDL_Keycode GameSettings::ControllerSettings::getZoomOutKey() const
 {
    return getKey(Constants::KeyZoomOut);
 }
-
 
 SDL_Keycode GameSettings::ControllerSettings::getStartKey() const
 {
    return getKey(Constants::KeyStart);
 }
 
-
 void GameSettings::ControllerSettings::setAnalogueAxis1(int axis1)
 {
    _analogue_axis1 = axis1;
 }
-
 
 int GameSettings::ControllerSettings::getAnalogueAxis1() const
 {
    return _analogue_axis1;
 }
 
-
 void GameSettings::ControllerSettings::setAnalogueAxis2(int axis2)
 {
    _analogue_axis2 = axis2;
 }
-
 
 int GameSettings::ControllerSettings::getAnalogueAxis2() const
 {
    return _analogue_axis2;
 }
 
-
 void GameSettings::ControllerSettings::setAnalogueThreshold(int threshold)
 {
    _analogue_treshold = threshold;
 }
-
 
 int GameSettings::ControllerSettings::getAnalogueThreshold() const
 {
    return _analogue_treshold;
 }
 
-
-
 GameSettings::StyleSettings::StyleSettings()
 {
 }
-
 
 void GameSettings::StyleSettings::deserialize()
 {
@@ -1112,7 +920,6 @@ void GameSettings::StyleSettings::deserialize()
 
    initializeIndividualColor();
 }
-
 
 void GameSettings::StyleSettings::initializeIndividualColor()
 {
@@ -1156,7 +963,6 @@ void GameSettings::StyleSettings::initializeIndividualColor()
    }
 }
 
-
 void GameSettings::StyleSettings::serialize()
 {
    SettingsMap serialize_map;
@@ -1168,7 +974,6 @@ void GameSettings::StyleSettings::serialize()
 
    setValue("style/colormap", serialize_map);
 }
-
 
 Color GameSettings::StyleSettings::getColor(Constants::Color player_color) const
 {
@@ -1211,7 +1016,6 @@ Color GameSettings::StyleSettings::getColor(Constants::Color player_color) const
    return color;
 }
 
-
 uint32_t GameSettings::StyleSettings::getRgb(Constants::Color player_color) const
 {
    uint32_t rgb = Constants::ColorBlack;
@@ -1253,21 +1057,19 @@ uint32_t GameSettings::StyleSettings::getRgb(Constants::Color player_color) cons
    return rgb;
 }
 
-
 void GameSettings::StyleSettings::initDefaultMap()
 {
-   _player_colors.insert({Constants::ColorWhite,  Color("#ffffff")});
-   _player_colors.insert({Constants::ColorBlack,  Color("#0e0e0e")});
-   _player_colors.insert({Constants::ColorRed,    Color("#ff1b1b")});
-   _player_colors.insert({Constants::ColorGreen,  Color("#51fb07")});
-   _player_colors.insert({Constants::ColorBlue,   Color("#0072ff")});
-   _player_colors.insert({Constants::ColorGrey,   Color("#51fb07")});
+   _player_colors.insert({Constants::ColorWhite, Color("#ffffff")});
+   _player_colors.insert({Constants::ColorBlack, Color("#0e0e0e")});
+   _player_colors.insert({Constants::ColorRed, Color("#ff1b1b")});
+   _player_colors.insert({Constants::ColorGreen, Color("#51fb07")});
+   _player_colors.insert({Constants::ColorBlue, Color("#0072ff")});
+   _player_colors.insert({Constants::ColorGrey, Color("#51fb07")});
    _player_colors.insert({Constants::ColorYellow, Color("#8c8c8c")});
    _player_colors.insert({Constants::ColorPurple, Color("#fdba02")});
-   _player_colors.insert({Constants::ColorCyan,   Color("#00e5ff")});
+   _player_colors.insert({Constants::ColorCyan, Color("#00e5ff")});
    _player_colors.insert({Constants::ColorOrange, Color("#ff6000")});
 }
-
 
 /*
    Player 1	           #ffffff   white
@@ -1286,11 +1088,9 @@ void GameSettings::StyleSettings::initDefaultMap()
    Game Notification   #f6ff00
 */
 
-
 GameSettings::VideoSettings::VideoSettings()
 {
 }
-
 
 void GameSettings::VideoSettings::serialize()
 {
@@ -1309,29 +1109,24 @@ void GameSettings::VideoSettings::serialize()
    setValue("video/borderbottom", getBorderBottom());
 }
 
-
 void GameSettings::VideoSettings::deserialize()
 {
-   setWidth(value("video/width",               DEFAULT_VIDEO_WIDTH).toInt());
-   setHeight(value("video/height",             DEFAULT_VIDEO_HEIGHT).toInt());
-   setResolution(value("video/resolution",     DEFAULT_VIDEO_RESOLUTION).toInt());
-   setAntialias(value("video/antialias",       DEFAULT_VIDEO_ANTIALIAS).toInt());
-   setFullscreen(value("video/fullscreen",     DEFAULT_VIDEO_FULLSCREEN).toBool());
-   setBrightness(value("video/brightness",     DEFAULT_VIDEO_BRIGHTNESS).toFloat());
-   setVSync(value("video/vsync",               DEFAULT_VIDEO_VSYNC).toInt());
-   setShowFps(value("video/showfps",           DEFAULT_VIDEO_SHOWFPS).toBool());
-   setZoom(value("video/zoom",                 DEFAULT_VIDEO_ZOOM).toFloat());
-   setBorderLeft(value("video/borderleft",     DEFAULT_VIDEO_BORDERLEFT).toInt());
-   setBorderTop(value("video/bordertop",       DEFAULT_VIDEO_BORDERTOP).toInt());
-   setBorderRight(value("video/borderright",   DEFAULT_VIDEO_BORDERRIGHT).toInt());
+   setWidth(value("video/width", DEFAULT_VIDEO_WIDTH).toInt());
+   setHeight(value("video/height", DEFAULT_VIDEO_HEIGHT).toInt());
+   setResolution(value("video/resolution", DEFAULT_VIDEO_RESOLUTION).toInt());
+   setAntialias(value("video/antialias", DEFAULT_VIDEO_ANTIALIAS).toInt());
+   setFullscreen(value("video/fullscreen", DEFAULT_VIDEO_FULLSCREEN).toBool());
+   setBrightness(value("video/brightness", DEFAULT_VIDEO_BRIGHTNESS).toFloat());
+   setVSync(value("video/vsync", DEFAULT_VIDEO_VSYNC).toInt());
+   setShowFps(value("video/showfps", DEFAULT_VIDEO_SHOWFPS).toBool());
+   setZoom(value("video/zoom", DEFAULT_VIDEO_ZOOM).toFloat());
+   setBorderLeft(value("video/borderleft", DEFAULT_VIDEO_BORDERLEFT).toInt());
+   setBorderTop(value("video/bordertop", DEFAULT_VIDEO_BORDERTOP).toInt());
+   setBorderRight(value("video/borderright", DEFAULT_VIDEO_BORDERRIGHT).toInt());
    setBorderBottom(value("video/borderbottom", DEFAULT_VIDEO_BORDERBOTTOM).toInt());
 }
 
-
-void GameSettings::VideoSettings::duplicate(
-   GameSettings::VideoSettings * dest,
-   GameSettings::VideoSettings * src
-)
+void GameSettings::VideoSettings::duplicate(GameSettings::VideoSettings* dest, GameSettings::VideoSettings* src)
 {
    dest->setWidth(src->getWidth());
    dest->setHeight(src->getHeight());
@@ -1347,7 +1142,6 @@ void GameSettings::VideoSettings::duplicate(
    dest->setBorderRight(src->getBorderRight());
    dest->setBorderBottom(src->getBorderBottom());
 }
-
 
 void GameSettings::VideoSettings::restoreDefaults()
 {
@@ -1368,30 +1162,25 @@ void GameSettings::VideoSettings::restoreDefaults()
    setBorderBottom(DEFAULT_VIDEO_BORDERBOTTOM);
 }
 
-
 void GameSettings::VideoSettings::setWidth(int width)
 {
    _width = width;
 }
-
 
 int GameSettings::VideoSettings::getWidth() const
 {
    return _width;
 }
 
-
 void GameSettings::VideoSettings::setHeight(int height)
 {
    _height = height;
 }
 
-
 int GameSettings::VideoSettings::getHeight() const
 {
    return _height;
 }
-
 
 void GameSettings::VideoSettings::setResolution(int resolution)
 {
@@ -1403,66 +1192,55 @@ int GameSettings::VideoSettings::getResolution() const
    return _resolution;
 }
 
-
 void GameSettings::VideoSettings::setAntialias(int samples)
 {
    _antialias = samples;
 }
-
 
 int GameSettings::VideoSettings::getAntialias() const
 {
    return _antialias;
 }
 
-
 void GameSettings::VideoSettings::setFullscreen(bool fullscreen)
 {
    _fullscreen = fullscreen;
 }
-
 
 bool GameSettings::VideoSettings::isFullscreen() const
 {
    return _fullscreen;
 }
 
-
 void GameSettings::VideoSettings::toggleFullscreen()
 {
    setFullscreen(!isFullscreen());
 }
-
 
 void GameSettings::VideoSettings::setBrightness(float brightness)
 {
    _brightness = brightness;
 }
 
-
 float GameSettings::VideoSettings::getBrightness() const
 {
    return _brightness;
 }
-
 
 void GameSettings::VideoSettings::setVSync(int vsync)
 {
    _v_sync = vsync;
 }
 
-
 int GameSettings::VideoSettings::getVSync() const
 {
    return _v_sync;
 }
 
-
 bool GameSettings::VideoSettings::isFpsShown() const
 {
    return _show_fps;
 }
-
 
 void GameSettings::VideoSettings::setShowFps(bool value)
 {
@@ -1476,7 +1254,7 @@ float GameSettings::VideoSettings::getZoom() const
 
 void GameSettings::VideoSettings::setZoom(float zoom)
 {
-   _zoom= zoom;
+   _zoom = zoom;
 }
 
 int GameSettings::VideoSettings::getBorderLeft() const
@@ -1486,7 +1264,7 @@ int GameSettings::VideoSettings::getBorderLeft() const
 
 void GameSettings::VideoSettings::setBorderLeft(int left)
 {
-   _border_left= left;
+   _border_left = left;
 }
 
 int GameSettings::VideoSettings::getBorderTop() const
@@ -1496,7 +1274,7 @@ int GameSettings::VideoSettings::getBorderTop() const
 
 void GameSettings::VideoSettings::setBorderTop(int top)
 {
-   _border_top= top;
+   _border_top = top;
 }
 
 int GameSettings::VideoSettings::getBorderRight() const
@@ -1506,7 +1284,7 @@ int GameSettings::VideoSettings::getBorderRight() const
 
 void GameSettings::VideoSettings::setBorderRight(int right)
 {
-   _border_right= right;
+   _border_right = right;
 }
 
 int GameSettings::VideoSettings::getBorderBottom() const
@@ -1516,14 +1294,12 @@ int GameSettings::VideoSettings::getBorderBottom() const
 
 void GameSettings::VideoSettings::setBorderBottom(int bottom)
 {
-   _border_bottom= bottom;
+   _border_bottom = bottom;
 }
-
 
 GameSettings::GameplaySettings::GameplaySettings()
 {
 }
-
 
 void GameSettings::GameplaySettings::serialize()
 {
@@ -1531,24 +1307,12 @@ void GameSettings::GameplaySettings::serialize()
    setValue("gameplay/camerafollowsplayer", isCameraFollowingPlayer());
 }
 
-
 void GameSettings::GameplaySettings::deserialize()
 {
-   setCameraShakeIntensity(
-      value(
-         "gameplay/camerashakeintensity",
-         DEFAULT_GAMEPLAY_CAMERA_SHAKE_INTENSITY
-      ).toFloat()
-   );
+   setCameraShakeIntensity(value("gameplay/camerashakeintensity", DEFAULT_GAMEPLAY_CAMERA_SHAKE_INTENSITY).toFloat());
 
-   setCameraFollowsPlayer(
-      value(
-         "gameplay/camerafollowsplayer",
-         DEFAULT_GAMEPLAY_CAMERA_FOLLOWS_PLAYER
-      ).toBool()
-   );
+   setCameraFollowsPlayer(value("gameplay/camerafollowsplayer", DEFAULT_GAMEPLAY_CAMERA_FOLLOWS_PLAYER).toBool());
 }
-
 
 void GameSettings::GameplaySettings::restoreDefaults()
 {
@@ -1558,28 +1322,22 @@ void GameSettings::GameplaySettings::restoreDefaults()
    setCameraFollowsPlayer(DEFAULT_GAMEPLAY_CAMERA_FOLLOWS_PLAYER);
 }
 
-
 bool GameSettings::GameplaySettings::isCameraFollowingPlayer() const
 {
    return _camera_follows_player;
 }
-
 
 void GameSettings::GameplaySettings::setCameraFollowsPlayer(bool value)
 {
    _camera_follows_player = value;
 }
 
-
 float GameSettings::GameplaySettings::getCameraShakeIntensity() const
 {
    return _camera_shake_intensity;
 }
 
-
 void GameSettings::GameplaySettings::setCameraShakeIntensity(float value)
 {
    _camera_shake_intensity = value;
 }
-
-

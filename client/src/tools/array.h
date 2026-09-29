@@ -45,7 +45,7 @@ public:
 
    Item& operator[](int32_t index) const
    {
-      return mData[index];
+      return _data[index];
    }
 
    const Item& get(int32_t index) const;
@@ -88,33 +88,33 @@ private:
    void deepCopy(const Array<Item>& other);
 
 protected:
-   // kept as mData/mSize/mCount: derived classes outside tools/ access them directly
-   Item* mData = nullptr;  // array of items
-   int32_t mSize = 0;      // capacity of array
-   int32_t mCount = 0;     // number of items in array
+   // kept as _data/_size/_count: derived classes outside tools/ access them directly
+   Item* _data = nullptr;  // array of items
+   int32_t _size = 0;      // capacity of array
+   int32_t _count = 0;     // number of items in array
 };
 
 template <class Item>
-Array<Item>::Array(int32_t size) : mSize(size)
+Array<Item>::Array(int32_t size) : _size(size)
 {
-   if (mSize > 0)
+   if (_size > 0)
    {
-      mData = new Item[mSize];
+      _data = new Item[_size];
    }
 }
 
 template <class Item>
-Array<Item>::Array(const Array& other) : Referenced(other), mData(other.data()), mSize(other.capacity()), mCount(other.size())
+Array<Item>::Array(const Array& other) : Referenced(other), _data(other.data()), _size(other.capacity()), _count(other.size())
 {
 }
 
 template <class Item>
-Array<Item>::Array(Item* items, int32_t count) : mSize(count), mCount(count)
+Array<Item>::Array(Item* items, int32_t count) : _size(count), _count(count)
 {
    if (count > 0)
    {
-      mData = new Item[count];
-      std::copy_n(items, count, mData);
+      _data = new Item[count];
+      std::copy_n(items, count, _data);
    }
 }
 
@@ -124,7 +124,7 @@ Array<Item>::~Array()
 {
    if (getRefCount() == 1)
    {
-      delete[] mData;
+      delete[] _data;
    }
 }
 
@@ -136,15 +136,15 @@ Array<Item>& Array<Item>::operator=(const Array<Item>& other)
       // array is not referenced: delete data and reference counter
       if (getRefCount() == 1)
       {
-         delete[] mData;
-         delete mReferences;
+         delete[] _data;
+         delete _references;
       }
 
-      mReferences = other.getRef();
+      _references = other.getRef();
       addRef();
-      mSize = other.capacity();
-      mCount = other.size();
-      mData = other.data();
+      _size = other.capacity();
+      _count = other.size();
+      _data = other.data();
    }
    return *this;
 }
@@ -155,12 +155,12 @@ void Array<Item>::init(int32_t size)
    // data is not referenced by another object? delete it.
    if (!copyRef())
    {
-      delete[] mData;
+      delete[] _data;
    }
 
-   mData = (size > 0) ? new Item[size] : nullptr;
-   mSize = size;
-   mCount = 0;
+   _data = (size > 0) ? new Item[size] : nullptr;
+   _size = size;
+   _count = 0;
 }
 
 template <class Item>
@@ -168,28 +168,28 @@ void Array<Item>::clear()
 {
    if (copyRef())
    {
-      mData = new Item[mSize];
+      _data = new Item[_size];
    }
-   mCount = 0;
+   _count = 0;
 }
 
 template <class Item>
 const Item& Array<Item>::get(int32_t index) const
 {
-   return mData[index];
+   return _data[index];
 }
 
 template <class Item>
 const Item& Array<Item>::getLast() const
 {
-   return mData[mCount - 1];
+   return _data[_count - 1];
 }
 
 template <class Item>
 const Item& Array<Item>::takeLast()
 {
-   mCount--;
-   return mData[mCount];
+   _count--;
+   return _data[_count];
 }
 
 template <class Item>
@@ -199,22 +199,22 @@ int32_t Array<Item>::add(const Item& item)
    {
       deepCopy(*this);
    }
-   else if (mCount >= mSize)
+   else if (_count >= _size)
    {
       // grow array when more elements are needed
-      Item* previous = mData;
-      mSize += kGrowArray;
-      mData = new Item[mSize];
+      Item* previous = _data;
+      _size += kGrowArray;
+      _data = new Item[_size];
       if (previous)
       {
-         std::copy_n(previous, mCount, mData);
+         std::copy_n(previous, _count, _data);
          delete[] previous;
       }
    }
 
-   const int32_t index = mCount;
-   mData[mCount] = item;
-   mCount++;
+   const int32_t index = _count;
+   _data[_count] = item;
+   _count++;
    return index;
 }
 
@@ -225,25 +225,25 @@ int32_t Array<Item>::add(const Array<Item>& other)
    {
       deepCopy(*this);
    }
-   else if (mCount + other.size() >= mSize)
+   else if (_count + other.size() >= _size)
    {
       // grow array when more elements are needed
-      Item* previous = mData;
-      mSize = mCount + other.size();
-      mData = new Item[mSize];
+      Item* previous = _data;
+      _size = _count + other.size();
+      _data = new Item[_size];
       if (previous)
       {
-         std::copy_n(previous, mCount, mData);
+         std::copy_n(previous, _count, _data);
          delete[] previous;
       }
    }
 
    for (int32_t i = 0; i < other.size(); i++)
    {
-      mData[mCount + i] = other[i];
+      _data[_count + i] = other[i];
    }
 
-   mCount += other.size();
+   _count += other.size();
 
    return -1;
 }
@@ -251,9 +251,9 @@ int32_t Array<Item>::add(const Array<Item>& other)
 template <class Item>
 int32_t Array<Item>::indexOf(const Item& item) const
 {
-   for (int32_t index = 0; index < mCount; index++)
+   for (int32_t index = 0; index < _count; index++)
    {
-      if (mData[index] == item)
+      if (_data[index] == item)
       {
          return index;
       }
@@ -273,17 +273,17 @@ void Array<Item>::erase(int32_t index)
    if (copyRef())
    {
       // create new array without element at index
-      const Item* shared = mData;
-      mData = new Item[mSize];
-      std::copy_n(shared, index, mData);
-      std::copy(shared + index + 1, shared + mCount, mData + index);
+      const Item* shared = _data;
+      _data = new Item[_size];
+      std::copy_n(shared, index, _data);
+      std::copy(shared + index + 1, shared + _count, _data + index);
    }
    else
    {
-      std::copy(mData + index + 1, mData + mCount, mData + index);
+      std::copy(_data + index + 1, _data + _count, _data + index);
    }
 
-   mCount--;
+   _count--;
 }
 
 template <class Item>
@@ -291,21 +291,21 @@ void Array<Item>::copy(const Array<Item>& other)
 {
    if (!copyRef())
    {
-      delete[] mData;
+      delete[] _data;
    }
 
-   mCount = mSize = other.size();
-   if (mCount > 0)
+   _count = _size = other.size();
+   if (_count > 0)
    {
-      mData = new Item[mCount];
-      for (int32_t i = 0; i < mCount; i++)
+      _data = new Item[_count];
+      for (int32_t i = 0; i < _count; i++)
       {
-         mData[i] = other[i];
+         _data[i] = other[i];
       }
    }
    else
    {
-      mData = nullptr;
+      _data = nullptr;
    }
 }
 
@@ -318,46 +318,46 @@ bool Array<Item>::remove(const Item& item)
    }
 
    int32_t position = 0;
-   for (int32_t i = 0; i < mCount; i++)
+   for (int32_t i = 0; i < _count; i++)
    {
-      if (mData[i] != item)
+      if (_data[i] != item)
       {
          if (position != i)
          {
-            mData[position] = mData[i];
+            _data[position] = _data[i];
          }
          position++;
       }
    }
-   const bool result = (mCount != position);
-   mCount = position;
+   const bool result = (_count != position);
+   _count = position;
    return result;
 }
 
 template <class Item>
 Item* Array<Item>::data() const
 {
-   return mData;
+   return _data;
 }
 
 template <class Item>
 int32_t Array<Item>::size() const
 {
-   return mCount;
+   return _count;
 }
 
 template <class Item>
 int32_t Array<Item>::capacity() const
 {
-   return mSize;
+   return _size;
 }
 
 template <class Item>
 void Array<Item>::deepCopy(const Array<Item>& other)
 {
    const Item* shared = other.data();
-   mCount = other.size();
-   mSize = mCount + kGrowArray;
-   mData = new Item[mSize];
-   std::copy_n(shared, mCount, mData);
+   _count = other.size();
+   _size = _count + kGrowArray;
+   _data = new Item[_size];
+   std::copy_n(shared, _count, _data);
 }

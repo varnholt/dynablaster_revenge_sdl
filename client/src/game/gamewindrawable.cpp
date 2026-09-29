@@ -2,25 +2,25 @@
 
 #include "gamewindrawable.h"
 
-#include "gldevice.h"
 #include "framework/framebuffer.h"
+#include "gldevice.h"
 #include "postproduction/blurfilter.h"
 
 #include "tools/filestream.h"
 
-#include "menus/fontpool.h"
-#include "menus/defaultshader.h"
 #include "bombermanclient.h"
 #include "gamesettings.h"
+#include "menus/defaultshader.h"
+#include "menus/fontpool.h"
 #include "playeritem.h"
 #include "soundmanager.h"
 
 #include "engine/animation/motionmixer.h"
-#include "materials/material.h"
-#include "materials/playermaterial.h"
-#include "materials/materialfactory.h"
-#include "materials/environmentambientmaterial.h"
 #include "materials/environmentambientdiffusematerial.h"
+#include "materials/environmentambientmaterial.h"
+#include "materials/material.h"
+#include "materials/materialfactory.h"
+#include "materials/playermaterial.h"
 #include "nodes/camera.h"
 #include "nodes/mesh.h"
 #include "nodes/scenegraph.h"
@@ -30,11 +30,11 @@
 #include "logging.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <format>
 #include <map>
-#include <cmath>
 #include <numbers>
 #include <string>
 
@@ -263,7 +263,10 @@ void GameWinDrawable::drawGameData()
 
       const auto score_text = std::to_string(score);
       _default_font->buildVertices(
-         0.27f, score_text.c_str(), points_layer->getLeft() + OFFSET_X_POINTS, points_layer->getBottom() + OFFSET_Y_POINTS,
+         0.27f,
+         score_text.c_str(),
+         points_layer->getLeft() + OFFSET_X_POINTS,
+         points_layer->getBottom() + OFFSET_Y_POINTS,
          CENTER_WIDTH_SCORE
       );
       _default_font->draw();
@@ -292,7 +295,8 @@ float GameWinDrawable::getRadius() const
    if (radius > RADIUS_MAX)
       radius = RADIUS_MAX;
 
-   float fade_out_start = static_cast<float>(SHOW_WINNER_FADE_IN_TIME + SHOW_WINNER_DISPLAY_TIME + SHOW_WINNER_ADDITIONAL_TIME + SHOW_WINNER_FADE_OUT_TIME);
+   float fade_out_start =
+      static_cast<float>(SHOW_WINNER_FADE_IN_TIME + SHOW_WINNER_DISPLAY_TIME + SHOW_WINNER_ADDITIONAL_TIME + SHOW_WINNER_FADE_OUT_TIME);
 
    if (_time > fade_out_start)
    {

@@ -5,8 +5,8 @@
 #include <unordered_map>
 #include <vector>
 
-#include "math/vector.h"
 #include <cstdint>
+#include "math/vector.h"
 
 class MapItem;
 

@@ -13,24 +13,24 @@ public:
    // sorts descending
    void sort()
    {
-      if (mCount > 1)
+      if (_count > 1)
       {
-         std::ranges::sort(std::span(mData, static_cast<size_t>(mCount)), std::ranges::greater{});
+         std::ranges::sort(std::span(_data, static_cast<size_t>(_count)), std::ranges::greater{});
       }
    }
 
    bool find(int32_t value)
    {
       int32_t l = 0;
-      int32_t r = mCount - 1;
+      int32_t r = _count - 1;
       while (l <= r)
       {
          const int32_t m = (l + r) >> 1;
-         if (mData[m] > value)
+         if (_data[m] > value)
          {
             r = m - 1;
          }
-         else if (mData[m] < value)
+         else if (_data[m] < value)
          {
             l = m + 1;
          }

@@ -37,9 +37,7 @@ public:
    void setStartPositions(const std::vector<Point>& positions);
    [[nodiscard]] Point getStartPosition(int32_t player_number) const;
 
-   // TODO: returns an owning raw Map*, owned by the server's Game::mMap; converting it to
-   // unique_ptr is a server-side ownership change
-   [[nodiscard]] static Map* generateMap(
+   [[nodiscard]] static std::unique_ptr<Map> generateMap(
       int32_t width,
       int32_t height,
       int32_t stone_count,

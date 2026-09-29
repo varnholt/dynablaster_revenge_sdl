@@ -12,7 +12,6 @@ class Packet;
 class GamePlayback
 {
 public:
-
    GamePlayback();
 
    static GamePlayback* getInstance();
@@ -28,11 +27,10 @@ public:
    void setPlayerId(int id);
 
 protected:
-
    static GamePlayback* s_instance;
 
    bool _recording = false;
    bool _replaying = false;
 };
 
-#endif // GAMEPLAYBACK_H
+#endif  // GAMEPLAYBACK_H

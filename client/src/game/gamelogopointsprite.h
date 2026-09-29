@@ -2,10 +2,10 @@
 
 // Draws a screen-facing quad batch (not real GL point sprites, despite the class name).
 
+#include <cstdint>
 #include "math/vector.h"
 #include "render/texture.h"
 #include "tools/array.h"
-#include <cstdint>
 
 class GameLogoPointSprite
 {

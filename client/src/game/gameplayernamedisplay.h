@@ -6,10 +6,10 @@
 #include "math/vector.h"
 #include "render/texture.h"
 
+#include <cstdint>
 #include <map>
 #include <string>
 #include <vector>
-#include <cstdint>
 
 class BitmapFont;
 class PlayerItem;

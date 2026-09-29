@@ -1,6 +1,6 @@
 #include "drawable.h"
 
-Drawable::Drawable(RenderDevice* device, bool visible) : mDevice(device), mVisible(visible)
+Drawable::Drawable(RenderDevice* device, bool visible) : _device(device), _visible(visible)
 {
 }
 
@@ -34,10 +34,10 @@ void Drawable::keyReleaseEvent(const KeyEvent& /*event*/)
 
 void Drawable::setVisible(bool visible)
 {
-   mVisible = visible;
+   _visible = visible;
 }
 
 bool Drawable::isVisible() const
 {
-   return mVisible;
+   return _visible;
 }

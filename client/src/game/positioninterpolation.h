@@ -18,67 +18,56 @@ class PlayerInfo;
 
 class PositionInterpolation
 {
-   public:
+public:
+   //! constructor
+   PositionInterpolation();
 
-      //! constructor
-      PositionInterpolation();
+   //! destructor (out-of-line: _map_item_animations owns MapItemAnimation via unique_ptr,
+   //! only forward-declared here)
+   ~PositionInterpolation();
 
-      //! destructor (out-of-line: _map_item_animations owns MapItemAnimation via unique_ptr,
-      //! only forward-declared here)
-      ~PositionInterpolation();
+   //! emit player position
+   Signal<int, float, float, float> setPlayerPositionSignal;
 
-      //! emit player position
-      Signal<int, float, float, float> setPlayerPositionSignal;
+   //! emit map item position
+   Signal<MapItem*, float, float, float> setMapItemPositionSignal;
 
-      //! emit map item position
-      Signal<MapItem*, float, float, float> setMapItemPositionSignal;
+   //! emit player speed
+   Signal<int, float, float, float> setPlayerSpeedSignal;
 
-      //! emit player speed
-      Signal<int, float, float, float> setPlayerSpeedSignal;
+   //! one of the items bounces
+   Signal<> bounceSignal;
 
-      //! one of the items bounces
-      Signal<> bounceSignal;
+   //! a mapitem starts movement (bomb is kicked)
+   void moveMapItem(MapItem* item, Constants::Direction dir, float speed, int nominal_x, int nominal_y);
 
-      //! a mapitem starts movement (bomb is kicked)
-      void moveMapItem(
-         MapItem* item,
-         Constants::Direction dir,
-         float speed,
-         int nominal_x,
-         int nominal_y
-      );
+   //! a mapitem is removed (bomb exploded)
+   void removeMapItem(MapItem* item);
 
-      //! a mapitem is removed (bomb exploded)
-      void removeMapItem(MapItem* item);
+   //! enabled/disable timers
+   void gameStateChanged();
 
-      //! enabled/disable timers
-      void gameStateChanged();
+   //! update positions
+   void update();
 
-      //! update positions
-      void update();
+protected:
+   //! interpolate player positions
+   void interpolatePlayerPositions(float dt);
 
+   //! interpolate map item positions (only bombs right now)
+   void interpolateMapItemPositions(float dt);
 
-   protected:
+   //! last update time
+   float _time;
 
-      //! interpolate player positions
-      void interpolatePlayerPositions(float dt);
+   //! update timer
+   FrameTimer _timer;
 
-      //! interpolate map item positions (only bombs right now)
-      void interpolateMapItemPositions(float dt);
+   //! list of animated mapitems
+   std::vector<MapItem*> _map_items;
 
-
-      //! last update time
-      float _time;
-
-      //! update timer
-      FrameTimer _timer;
-
-      //! list of animated mapitems
-      std::vector<MapItem*> _map_items;
-
-      //! map mapitem <-> mapitemanimation
-      std::unordered_map<MapItem*, std::unique_ptr<MapItemAnimation>> _map_item_animations;
+   //! map mapitem <-> mapitemanimation
+   std::unordered_map<MapItem*, std::unique_ptr<MapItemAnimation>> _map_item_animations;
 };
 
-#endif // POSITIONINTERPOLATION_H
-
+#endif  // POSITIONINTERPOLATION_H

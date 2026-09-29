@@ -1,6 +1,5 @@
 #include "mapitemanimation.h"
 
-
 // cmath
 #include <cmath>
 
@@ -8,14 +7,9 @@
 #define TICK_UPPER_LIMIT 0.1
 #define TICK_LOWER_LIMIT 0.02
 
-
-MapItemAnimation::MapItemAnimation(
-   Constants::Direction dir,
-   float speed
-) : _direction(dir), _speed(speed)
+MapItemAnimation::MapItemAnimation(Constants::Direction dir, float speed) : _direction(dir), _speed(speed)
 {
 }
-
 
 void MapItemAnimation::animate(float dt)
 {
@@ -27,10 +21,7 @@ void MapItemAnimation::animate(float dt)
    _z *= _factor;
 
    // check for floor tick sound
-   if (
-         _z     < TICK_UPPER_LIMIT
-      && _z_prev > _z
-   )
+   if (_z < TICK_UPPER_LIMIT && _z_prev > _z)
    {
       if (!_tick)
       {
@@ -44,7 +35,6 @@ void MapItemAnimation::animate(float dt)
          _tick = false;
    }
 }
-
 
 void MapItemAnimation::reset()
 {

@@ -106,8 +106,8 @@ void MusicPlayerDrawable::initializeLayers()
 
 void MusicPlayerDrawable::initGlParameters()
 {
-   static_cast<GLDevice*>(mDevice)->pushProjection();
-   static_cast<GLDevice*>(mDevice)->setProjectionMatrix(
+   static_cast<GLDevice*>(_device)->pushProjection();
+   static_cast<GLDevice*>(_device)->setProjectionMatrix(
       Matrix::ortho(0.0f, (float)_psd.getWidth(), (float)_psd.getHeight(), 0.0f, -1.0f, 1.0f)
    );
 
@@ -127,7 +127,7 @@ void MusicPlayerDrawable::cleanupGlParameters()
    glEnable(GL_DEPTH_TEST);
    glDepthMask(GL_TRUE);
 
-   static_cast<GLDevice*>(mDevice)->popProjection();
+   static_cast<GLDevice*>(_device)->popProjection();
 }
 
 void MusicPlayerDrawable::paintGL()
@@ -221,7 +221,7 @@ void MusicPlayerDrawable::animate(float /*time*/)
       if (msecs < 0.0f)
       {
          _fade_out = false;
-         mVisible = false;
+         _visible = false;
          _animating = false;
          _animation_factor = 0.0f;
       }
@@ -238,7 +238,7 @@ void MusicPlayerDrawable::startAnimation()
    _animation_stop_time = FrameTimer::currentTime().addMSecs(FADE_IN_TIME);
 
    _fade_in = true;
-   mVisible = true;
+   _visible = true;
 }
 
 void MusicPlayerDrawable::showCurrentlyPlaying(const std::string& artist, const std::string& album, const std::string& track)
@@ -293,7 +293,7 @@ void MusicPlayerDrawable::showCurrentlyPlaying(const std::string& artist, const 
 
 void MusicPlayerDrawable::setVisible(bool /*visible*/)
 {
-   mVisible = true;
+   _visible = true;
 }
 
 bool MusicPlayerDrawable::isInGame() const
