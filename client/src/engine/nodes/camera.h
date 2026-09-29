@@ -11,28 +11,25 @@ class Stream;
 class Camera : public Node
 {
 public:
-   Camera(Node* parent = 0);
-   virtual ~Camera();
-   void load(Stream* stream);
-   void write(Stream* stream);
+   Camera(Node* parent = nullptr);
+   void load(Stream* stream) override;
+   void write(Stream* stream) override;
 
-   void transform(float time);
+   void transform(float time) override;
    float getFOV() const;
    void setFOV(float fov);
    float getNear() const;
-   void setNear(float znear);
+   void setNear(float z_near);
    float getFar() const;
-   void setFar(float zfar);
-   void lookAt(const Vector& pos, const Vector& target, const Vector& up = Vector(0, 0, 1));
+   void setFar(float z_far);
+   void lookAt(const Vector& position, const Vector& target, const Vector& up = Vector(0, 0, 1));
    bool getPerspectiveMode() const;
    void setPerspectiveMode(bool mode);
 
 private:
-   float mFov;
-   float mNear;
-   float mFar;
-   bool mPerspectiveMode;
-   ValTrack mFovTrack;   // fov track
-   ValTrack mNearTrack;  // near track
-   ValTrack mFarTrack;   // far track
+   float _fov = 1.0f;
+   float _near = 1.0f;
+   float _far = 1000.0f;
+   bool _perspective_mode = true;
+   ValTrack _fov_track;
 };

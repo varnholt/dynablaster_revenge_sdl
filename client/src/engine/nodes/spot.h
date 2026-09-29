@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include "light.h"
 
 class Stream;
@@ -7,12 +8,12 @@ class Stream;
 class Spot : public Light
 {
 public:
-   Spot(Node* parent = 0);
-   void load(Stream* stream);
-   void write(Stream* stream);
+   Spot(Node* parent = nullptr);
+   void load(Stream* stream) override;
+   void write(Stream* stream) override;
 
 private:
-   int mShape;
-   float mHotspot;
-   float mFallSize;
+   int32_t _shape = 0;
+   float _hotspot = 0.0f;
+   float _fall_size = 0.0f;
 };

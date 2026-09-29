@@ -9,154 +9,169 @@
 #include "materials/material.h"
 #include "materials/materialfactory.h"
 #include "tools/filestream.h"
-#include "tools/profiling.h"
 
 #include "gldevice.h"
 
-#include <math.h>
+#include <algorithm>
+#include <cmath>
+#include <cstdio>
+#include <format>
+#include <string>
 
-SceneGraph* SceneGraph::mInstance = 0;
+namespace
+{
+constexpr int32_t header_chunk_id = 0x33424a48;
+constexpr int32_t terminator_chunk_id = 0xffff;
+}  // namespace
 
-// construct empty graph
-SceneGraph::SceneGraph()
-    : Node(Node::idRoot), mCamera(NULL), mAnimBegin(0), mAnimEnd(0), mDepth(0), mFlags(0), mMaterialStartIndex(0), mNodeStartIndex(0)
+SceneGraph* SceneGraph::_instance = nullptr;
+
+SceneGraph::SceneGraph() : Node(Node::idRoot)
 {
 }
 
 SceneGraph::~SceneGraph()
 {
-   while (mMaterials.size() > 0)
+   while (!_materials.empty())
    {
-      Material* mat = mMaterials.takeLast();
-      delete mat;
+      Material* material = _materials.back();
+      _materials.pop_back();
+      delete material;
    }
 
-   while (mNodes.size() > 0)
+   while (_nodes.size() > 0)
    {
-      Node* node = mNodes.takeLast();
+      Node* node = _nodes.takeLast();
       delete node;
    }
 }
 
 SceneGraph* SceneGraph::instance()
 {
-   return mInstance;
+   return _instance;
 }
 
 const Matrix& SceneGraph::getGlobalTransform() const
 {
-   return mGlobalTransform;
+   return _global_transform;
 }
 
 void SceneGraph::setGlobalTransform(const Matrix& matrix)
 {
-   mGlobalTransform = matrix;
+   _global_transform = matrix;
 }
 
-int SceneGraph::getMaterialStartIndex() const
+int32_t SceneGraph::getMaterialStartIndex() const
 {
-   return mMaterialStartIndex;
+   return _material_start_index;
 }
 
-void SceneGraph::setMaterialStartIndex(int index)
+void SceneGraph::setMaterialStartIndex(int32_t index)
 {
-   mMaterialStartIndex = index;
+   _material_start_index = index;
 }
 
-int SceneGraph::getMaterialCount() const
+int32_t SceneGraph::getMaterialCount() const
 {
-   return mMaterials.size();
+   return static_cast<int32_t>(_materials.size());
 }
 
-Material* SceneGraph::getMaterial(int index) const
+Material* SceneGraph::getMaterial(int32_t index) const
 {
-   return mMaterials[index];
+   return _materials[index];
 }
 
-int SceneGraph::getNodeStartIndex() const
+int32_t SceneGraph::getNodeStartIndex() const
 {
-   return mNodeStartIndex;
+   return _node_start_index;
 }
 
-void SceneGraph::setNodeStartIndex(int index)
+void SceneGraph::setNodeStartIndex(int32_t index)
 {
-   mNodeStartIndex = index;
+   _node_start_index = index;
 }
 
 const Array<Node*>& SceneGraph::nodeList() const
 {
-   return mNodes;
+   return _nodes;
 }
 
 // get frame-number of end-of-animation
-int SceneGraph::getLastFrame() const
+int32_t SceneGraph::getLastFrame() const
 {
-   return mAnimEnd;
+   return _animation_end;
 }
 
 // get number of nodes
-int SceneGraph::size()
+int32_t SceneGraph::size()
 {
-   return mNodes.size();
+   return _nodes.size();
 }
 
 void SceneGraph::addNode(Node* node)
 {
-   mNodes.add(node);
+   _nodes.add(node);
 }
 
 void SceneGraph::removeNode(Node* node)
 {
-   mNodes.remove(node);
+   _nodes.remove(node);
 }
 
-// get node by index id
-Node* SceneGraph::getNode(int index)
+// get node by index
+Node* SceneGraph::getNode(int32_t index)
 {
-   return mNodes.get(index);
+   return _nodes.get(index);
 }
 
-// get node by index id
+// get node by name
 Node* SceneGraph::getNode(const String& name)
 {
-   int num = mNodes.size();
-   for (int i = 0; i < num; i++)
+   const int32_t count = _nodes.size();
+   for (int32_t i = 0; i < count; i++)
    {
-      Node* node = mNodes.get(i);
+      Node* node = _nodes.get(i);
       if (node->name() == name)
+      {
          return node;
+      }
    }
-   return 0;
+   return nullptr;
 }
 
 // get current camera node
 Node* SceneGraph::getCamera()
 {
-   return (Node*)mCamera;
+   return _camera;
 }
 
-// set n-th camera
-void SceneGraph::setCamera(Node* cam)
+// set active camera
+void SceneGraph::setCamera(Node* camera)
 {
-   if (cam && cam->id() != idCamera)
-      cam = 0;
-   mCamera = (Camera*)cam;
+   if (camera && camera->id() != idCamera)
+   {
+      camera = nullptr;
+   }
+   _camera = static_cast<Camera*>(camera);
 }
 
-int SceneGraph::loadHeader(Stream* stream)
+int32_t SceneGraph::loadHeader(Stream* stream)
 {
-   mInstance = this;
+   _instance = this;
 
    Chunk chunk(stream);
-   if (chunk.id() != 0x33424a48)
-      return 0;  // wtf?!
+   if (chunk.id() != header_chunk_id)
+   {
+      return 0;
+   }
 
    String comment;
    comment.load(stream);
-   mAnimBegin = chunk.getInt();
-   mAnimEnd = chunk.getInt();
+   _animation_begin = chunk.getInt();
+   _animation_end = chunk.getInt();
 
-   /*int nodes=*/chunk.getInt();
+   // node count is not used
+   chunk.getInt();
 
    chunk.skip();
 
@@ -165,106 +180,103 @@ int SceneGraph::loadHeader(Stream* stream)
 
 void SceneGraph::writeHeader(Stream* stream)
 {
-   Chunk chunk(stream, 0x33424a48, "Header");
+   Chunk chunk(stream, header_chunk_id, "Header");
 
    String comment = "Hfr";
    comment.write(&chunk);
-   chunk.writeInt(mAnimBegin);
-   chunk.writeInt(mAnimEnd);
+   chunk.writeInt(_animation_begin);
+   chunk.writeInt(_animation_end);
 
-   chunk.writeInt(mNodes.size());
+   chunk.writeInt(_nodes.size());
 }
 
 void SceneGraph::loadMaterials(Stream* stream, MaterialFactory* materials)
 {
-   Chunk mats(stream);
+   Chunk material_chunk(stream);
 
-   int num = mats.getInt();
+   const int32_t count = material_chunk.getInt();
 
-   setMaterialStartIndex(mMaterials.size());
+   setMaterialStartIndex(getMaterialCount());
 
    if (materials)
    {
-      for (int i = 0; i < num; i++)
+      for (int32_t i = 0; i < count; i++)
       {
-         Chunk chunk(&mats);
+         Chunk chunk(&material_chunk);
 
-         Material* mat = materials->createMaterial(this, chunk.id());
+         Material* material = materials->createMaterial(this, chunk.id());
 
-         if (mat)
+         if (material)
          {
-            mat->load(&chunk);
-            mat->setName(chunk.name());
+            material->load(&chunk);
+            material->setName(chunk.name());
          }
 
          chunk.skip();  // skip to next chunk
       }
    }
 
-   mats.skip();
+   material_chunk.skip();
 }
 
 void SceneGraph::writeMaterials(Stream* stream)
 {
    Chunk chunk(stream, 1000, "Materials");
 
-   chunk.writeInt(mMaterials.size());
+   chunk.writeInt(getMaterialCount());
 
-   for (int i = 0; i < mMaterials.size(); i++)
+   for (Material* material : _materials)
    {
-      Material* mat = mMaterials[i];
-      mat->write(&chunk);
+      material->write(&chunk);
    }
 }
 
-void SceneGraph::addMaterial(Material* mat)
+void SceneGraph::addMaterial(Material* material)
 {
-   mMaterials.add(mat);
+   _materials.push_back(material);
 }
 
-void SceneGraph::removeMaterial(Material* mat)
+void SceneGraph::removeMaterial(Material* material)
 {
-   mMaterials.remove(mat);
+   std::erase(_materials, material);
 }
 
 void SceneGraph::linkMaterials(Mesh* mesh)
 {
-   int num = mesh->getPartCount();
-   for (int i = 0; i < num; i++)
+   const int32_t count = mesh->getPartCount();
+   for (int32_t i = 0; i < count; i++)
    {
-      Geometry* geo = mesh->getPart(i);
-      int matid = geo->getMaterial();
-      if (matid >= 0 && matid < mMaterials.size())
+      Geometry* geometry = mesh->getPart(i);
+      const int32_t material_id = geometry->getMaterial();
+      if (material_id >= 0 && material_id < getMaterialCount())
       {
-         Material* mat = mMaterials[matid];
-         if (mat)
-            mat->add(geo);
+         Material* material = _materials[material_id];
+         if (material)
+         {
+            material->add(geometry);
+         }
       }
    }
 }
 
 void SceneGraph::loadNode(Stream* stream, Node* parent)
 {
-   int id = 0;
-
-   mDepth++;  // increase indent with every recursion (-> child), for debug text only.
-
-   while (id != 0xffff)
+   for (;;)
    {
-      // get new chunk from stream
-      Chunk* chunk = new Chunk(stream);
-      id = chunk->id();
+      Node* node = nullptr;
 
-      // stop recursion when terminator chunk is found
-      if (id != 0xffff)
+      // the chunk is destroyed before recursing deeper
       {
-         //         // print name and id of node
-         //         for (int i=0;i<mDepth;i++) printf(" ");
-         //         printf("%s [%d] (%d) \n", (const char*)chunk->name(), id, mNodes.size());
-         //         for (int i=0;i<mDepth;i++) printf(" ");
+         Chunk chunk(stream);
+         const int32_t id = chunk.id();
+
+         // stop recursion when terminator chunk is found
+         if (id == terminator_chunk_id)
+         {
+            break;
+         }
 
          // create new node based on chunk id
-         Node* node = 0;
          switch (id)
          {
             case Node::idMesh:
@@ -287,111 +299,93 @@ void SceneGraph::loadNode(Stream* stream, Node* parent)
                break;
          }
 
-         //         addNode(node);    // add node to nodelist
-         node->setName(chunk->name());
-         node->load(stream);  // load the node
+         node->setName(chunk.name());
+         node->load(stream);
 
-         if (!mCamera && node->id() == Node::idCamera)
-            mCamera = (Camera*)node;
+         if (!_camera && node->id() == Node::idCamera)
+         {
+            _camera = static_cast<Camera*>(node);
+         }
 
          // link mesh to materials
          if (id == Node::idMesh)
          {
-            linkMaterials((Mesh*)node);
+            linkMaterials(static_cast<Mesh*>(node));
          }
 
-         if (id == Node::idShape)
-         {
-            mShapes.add(node);
-         }
-
-         chunk->skip();  // skip to next chunk
-         delete chunk;   // delete chunk before recursing deeper to save fragmentation
-
-         // printf("\r");
-
-         loadNode(stream, node);  // recursive load child nodes
+         chunk.skip();  // skip to next chunk
       }
-      else
-         delete chunk;
-   }
 
-   mDepth--;
+      loadNode(stream, node);  // recursive load child nodes
+   }
 }
 
 void SceneGraph::writeNode(Stream* stream, Node* parent)
 {
-   // int id=0;
-
    {
       Chunk chunk(stream, parent->id(), parent->name());
       parent->write(&chunk);
    }
 
-   for (int i = 0; i < parent->getChildCount(); i++)
+   for (int32_t i = 0; i < parent->getChildCount(); i++)
    {
       writeNode(stream, parent->getChild(i));
    }
 
-   stream->writeInt(0xffff);
+   stream->writeInt(terminator_chunk_id);
 }
 
-int SceneGraph::load(const String& name, MaterialFactory* materials, Node* parent)
+int32_t SceneGraph::load(const String& name, MaterialFactory* materials, Node* parent)
 {
-   int i;
    FileStream stream;
 
-   mInstance = this;
-   if (parent == 0)
-      parent = (Node*)this;
+   _instance = this;
+   if (!parent)
+   {
+      parent = this;
+   }
 
    if (!stream.open(name))
+   {
       return 0;
+   }
    if (!loadHeader(&stream))
+   {
       return 0;
+   }
 
-   int count = mNodes.size();
+   const int32_t count = _nodes.size();
 
    setName(name);
 
    loadMaterials(&stream, materials);
 
-   setNodeStartIndex(mNodes.size());
-   mDepth = 0;
+   setNodeStartIndex(_nodes.size());
    loadNode(&stream, parent);
 
-   /*
-      {
-         Chunk layers(&stream);
-         layers.skip();
-      }
-   */
-
-   // printf("done\n");
-
    // find skeleton root nodes for all meshes
-   for (i = count; i < mNodes.size(); i++)
+   for (int32_t i = count; i < _nodes.size(); i++)
    {
-      Node* node = mNodes[i];
+      Node* node = _nodes[i];
       if (node->id() == idMesh)
       {
-         Mesh* mesh = (Mesh*)node;
+         Mesh* mesh = static_cast<Mesh*>(node);
 
-         int minDepth = 0xffff;
-         Node* skeleton = 0;
-         for (int i = 0; i < mesh->getPartCount(); i++)
+         int32_t min_depth = 0xffff;
+         Node* skeleton = nullptr;
+         for (int32_t part = 0; part < mesh->getPartCount(); part++)
          {
-            Geometry* geo = mesh->getPart(i);
-            for (int j = 0; j < geo->getBoneCount(); j++)
+            Geometry* geometry = mesh->getPart(part);
+            for (int32_t j = 0; j < geometry->getBoneCount(); j++)
             {
-               const Bone& bone = geo->getBone(j);
-               Node* node = mNodes[bone.id()];
-               int depth = node->getDepth();
+               const Bone& bone = geometry->getBone(j);
+               Node* bone_node = _nodes[bone.id()];
+               const int32_t depth = bone_node->getDepth();
 
-               if (depth < minDepth)
+               if (depth < min_depth)
                {
-                  minDepth = depth;
-                  skeleton = node;
+                  min_depth = depth;
+                  skeleton = bone_node;
                }
             }
          }
@@ -399,308 +393,221 @@ int SceneGraph::load(const String& name, MaterialFactory* materials, Node* paren
          if (skeleton)
          {
             while (skeleton && skeleton->parent() && skeleton->parent()->id() == idDummy)
+            {
                skeleton = skeleton->parent();
+            }
             mesh->setSkeleton(skeleton);
          }
       }
    }
 
-   // find skeleton root nodes for all meshes
-   for (i = count; i < mNodes.size(); i++)
+   // initial transformation of all loaded nodes
+   for (int32_t i = count; i < _nodes.size(); i++)
    {
-      Node* node = mNodes[i];
-      node->transform(0.0f);
+      _nodes[i]->transform(0.0f);
    }
 
-   mInstance = 0;
+   _instance = nullptr;
 
    return 1;
 }
 
 void SceneGraph::write(const String& name)
 {
-   // int i;
    FileStream stream;
 
-   mInstance = this;
+   _instance = this;
 
    if (!stream.open(name, true))
+   {
       return;
+   }
 
    writeHeader(&stream);
 
    writeMaterials(&stream);
 
-   for (int i = 0; i < getChildCount(); i++)
+   for (int32_t i = 0; i < getChildCount(); i++)
+   {
       writeNode(&stream, getChild(i));
+   }
 
-   stream.writeInt(0xffff);
+   stream.writeInt(terminator_chunk_id);
    stream.close();
 }
 
 //! export scenegraph to obj
 void SceneGraph::exportOBJ(const String& name)
 {
-   // int i;
-   FILE* file = fopen(name.data(), "wb");
-
-   int indexOffset = 1;  // indices start with 1 (not 0)
-   for (int obj = 0; obj < getChildCount(); obj++)
+   std::FILE* file = std::fopen(name.data(), "wb");
+   if (!file)
    {
-      Node* node = getChild(obj);
+      return;
+   }
+
+   const auto print = [file](const std::string& text) { std::fputs(text.c_str(), file); };
+
+   int32_t index_offset = 1;  // indices start with 1 (not 0)
+   for (int32_t object = 0; object < getChildCount(); object++)
+   {
+      Node* node = getChild(object);
       if (node && node->id() == Node::idMesh)
       {
-         Mesh* mesh = (Mesh*)node;
-         int partCount = mesh->getPartCount();
-         for (int part = 0; part < partCount; part++)
+         Mesh* mesh = static_cast<Mesh*>(node);
+         const std::string node_name = node->name().isEmpty() ? std::string() : std::string(node->name().data());
+         const int32_t part_count = mesh->getPartCount();
+         for (int32_t part = 0; part < part_count; part++)
          {
-            Geometry* geo = mesh->getPart(part);
-            int vertexCount = geo->getVertexCount();
-            int indexCount = geo->getIndexCount();
+            Geometry* geometry = mesh->getPart(part);
+            const int32_t vertex_count = geometry->getVertexCount();
+            const int32_t index_count = geometry->getIndexCount();
 
-            Vector* vtx = geo->getVertices();
-            Vector* nrm = geo->getNormals();
-            UV* texcoords = geo->getUV(1);
-            unsigned short* indices = geo->getIndices();
+            const Vector* vertices = geometry->getVertices();
+            const Vector* normals = geometry->getNormals();
+            const UV* texcoords = geometry->getUV(1);
+            const uint16_t* indices = geometry->getIndices();
 
             // write object info comment
-            fprintf(file, "# object: %s-%d\n", (const char*)node->name(), part);
-            fprintf(file, "# vertices: %d\n", vertexCount);
-            fprintf(file, "# triangles: %d\n", indexCount / 3);
+            print(std::format("# object: {}-{}\n", node_name, part));
+            print(std::format("# vertices: {}\n", vertex_count));
+            print(std::format("# triangles: {}\n", index_count / 3));
 
             // write vertices
-            fprintf(file, "\n");
-            const Matrix& tm = geo->getTransform();
-            for (int i = 0; i < vertexCount; i++)
+            print("\n");
+            const Matrix& transform = geometry->getTransform();
+            for (int32_t i = 0; i < vertex_count; i++)
             {
-               Vector v = tm * vtx[i];
-               fprintf(file, "v %.09f %.09f %.09f\n", v.x, v.y, v.z);  // flip y/z !
+               const Vector v = transform * vertices[i];
+               print(std::format("v {:.9f} {:.9f} {:.9f}\n", v.x, v.y, v.z));
             }
 
             // write normals
-            fprintf(file, "\n");
-            for (int i = 0; i < vertexCount; i++)
+            print("\n");
+            for (int32_t i = 0; i < vertex_count; i++)
             {
-               const Vector& n = nrm[i];
-               fprintf(file, "vn %f %f %f\n", n.x, n.y, n.z);
+               const Vector& n = normals[i];
+               print(std::format("vn {:.6f} {:.6f} {:.6f}\n", n.x, n.y, n.z));
             }
 
             // write uv channel
-            fprintf(file, "\n");
-            for (int i = 0; i < vertexCount; i++)
+            print("\n");
+            for (int32_t i = 0; i < vertex_count; i++)
             {
                if (texcoords)
-                  fprintf(file, "vt %f %f 0.0\n", texcoords[i].u, 1.0f - texcoords[i].v);
+               {
+                  print(std::format("vt {:.6f} {:.6f} 0.0\n", texcoords[i].u, 1.0f - texcoords[i].v));
+               }
                else
-                  fprintf(file, "vt 0.0 0.0 0.0\n");
+               {
+                  print("vt 0.0 0.0 0.0\n");
+               }
             }
 
             // write triangles - indices start with 1 (not 0)
-            fprintf(file, "\n");
-            fprintf(file, "g %s-%d \n", (const char*)node->name(), part);
-            fprintf(file, "s off \n");
-            for (int i = 0; i < indexCount; i += 3)
+            print("\n");
+            print(std::format("g {}-{} \n", node_name, part));
+            print("s off \n");
+            for (int32_t i = 0; i < index_count; i += 3)
             {
-               bool valid = true;
-               // flip normal because of y/z-issue
-               int i1 = indices[i];
-               int i2 = indices[i + 1];
-               int i3 = indices[i + 2];
-               if (i1 < 0 || i1 >= vertexCount || i2 < 0 || i2 >= vertexCount || i3 < 0 || i3 >= vertexCount)
-                  valid = false;
+               const int32_t i1 = indices[i];
+               const int32_t i2 = indices[i + 1];
+               const int32_t i3 = indices[i + 2];
+               const bool valid = i1 >= 0 && i1 < vertex_count && i2 >= 0 && i2 < vertex_count && i3 >= 0 && i3 < vertex_count;
 
                if (valid)
                {
-                  fprintf(
-                     file,
-                     "f %d/%d/%d %d/%d/%d %d/%d/%d\n",
-                     i1 + indexOffset,
-                     i1 + indexOffset,
-                     i1 + indexOffset,
-                     i2 + indexOffset,
-                     i2 + indexOffset,
-                     i2 + indexOffset,
-                     i3 + indexOffset,
-                     i3 + indexOffset,
-                     i3 + indexOffset
-                  );
+                  const int32_t f1 = i1 + index_offset;
+                  const int32_t f2 = i2 + index_offset;
+                  const int32_t f3 = i3 + index_offset;
+                  print(std::format("f {0}/{0}/{0} {1}/{1}/{1} {2}/{2}/{2}\n", f1, f2, f3));
                }
             }
-            fprintf(file, "\n\n");
+            print("\n\n");
 
-            indexOffset += vertexCount;
+            index_offset += vertex_count;
          }
       }
    }
 
-   fclose(file);
+   std::fclose(file);
 }
 
-void SceneGraph::exportOBJ(float /*frame*/, Stream* stream, int& vertexNum)
+void SceneGraph::exportOBJ(float /*frame*/, Stream* stream, int32_t& vertex_num)
 {
    // render() needs to be called first!
-   int num = mMaterials.size();
-   for (int i = 0; i < num; i++)
-      mMaterials[i]->exportOBJ(stream, vertexNum);
-}
-
-int SceneGraph::processLights()
-{
-   int count = 0;
-
-   // fixed-function lighting (glDisable(GL_LIGHTING)) has no GLES equivalent and this function
-   // already returns unconditionally right below - the loop past it is dead code upstream too.
-   return 0;
-   /*
-      for (i=0;i<mNodes.size();i++)
-      {
-         Node *node= mNodes.get(i);
-         if (node->id() & ID_LIGHT)
-         {
-            int nr= GL_LIGHT0 + count;
-
-            Light *light= (Light*)node;
-
-            Vector p= light->getPosition();
-            Vector c= light->getColor();
-
-   //         printf("%d: %f,%f,%f \n", count, c.x, c.y, c.z);
-
-            glEnable(nr);
-            float pos[4]={p.x, p.y, p.z, 1.0};
-            float amb[4]={1.0, 1.0, 1.0, 1.0};
-            float col[4]={c.x, c.y, c.z, 1.0};
-   //         float spc[4]={1,1,1,1};
-
-            glLightfv(nr, GL_POSITION,             pos);
-            glLightfv(nr, GL_AMBIENT,              amb);
-            glLightfv(nr, GL_DIFFUSE,              col);
-            glLightfv(nr, GL_SPECULAR,             col);
-            glLightf(nr,  GL_CONSTANT_ATTENUATION, 1.0000f);
-            glLightf(nr,  GL_LINEAR_ATTENUATION,   0.0f);
-            glLightf(nr,  GL_QUADRATIC_ATTENUATION,0.0f);
-
-            count++;
-         }
-      }
-
-      for (i=count;i<8;i++) glDisable(GL_LIGHT0 + i);
-
-      if (count>0) glEnable(GL_LIGHTING);
-   */
-
-   return count;
+   const int32_t count = getMaterialCount();
+   for (int32_t i = 0; i < count; i++)
+   {
+      _materials[i]->exportOBJ(stream, vertex_num);
+   }
 }
 
 Matrix SceneGraph::setupCamera(const Matrix& shake)
 {
-   Matrix cam;
+   Matrix camera;
    float fov = 1.0f;
-   float znear = 1.0f;
-   float zfar = 500.0f;
-   bool persp = true;
-   if (mCamera)
+   float z_near = 1.0f;
+   float z_far = 500.0f;
+   bool perspective = true;
+   if (_camera)
    {
-      const Matrix& obj = mCamera->getTransform();
-      //      cam= obj.getView();
-      cam = obj.invert();
+      const Matrix& object = _camera->getTransform();
+      camera = object.invert();
 
-      fov = mCamera->getFOV();
-      fov = tanf(fov * 0.5f) * 9.0f / 16.0f;
-      znear = mCamera->getNear();
-      zfar = mCamera->getFar();
-      cam = mGlobalTransform * cam * shake;
-      persp = mCamera->getPerspectiveMode();
+      fov = _camera->getFOV();
+      fov = std::tan(fov * 0.5f) * 9.0f / 16.0f;
+      z_near = _camera->getNear();
+      z_far = _camera->getFar();
+      camera = _global_transform * camera * shake;
+      perspective = _camera->getPerspectiveMode();
    }
    else
    {
-      cam = mGlobalTransform * shake;
+      camera = _global_transform * shake;
    }
-   activeDevice->setCamera(cam, fov, znear, zfar, persp);
-   return cam;
+   activeDevice->setCamera(camera, fov, z_near, z_far, perspective);
+   return camera;
 }
 
+// index loops with a fixed count: processing a material must not see materials registered meanwhile
 void SceneGraph::prepare()
 {
-   int num = mMaterials.size();
-   for (int i = 0; i < num; i++)
-      mMaterials[i]->prepare();
+   const int32_t count = getMaterialCount();
+   for (int32_t i = 0; i < count; i++)
+   {
+      _materials[i]->prepare();
+   }
 }
 
 void SceneGraph::render(float frame, const Matrix& shake)
 {
-
-   //   glFinish();
-
-   //   double t1= getCpuTick();
-
-   int i;
-
-   // no camera: no render.
-   //   if (!mCamera) return;
-
    // call "transform" all nodes
-   for (i = 0; i < mNodes.size(); i++)
+   for (int32_t i = 0; i < _nodes.size(); i++)
    {
-      Node* node = mNodes[i];
+      Node* node = _nodes[i];
       if (node)
+      {
          node->transform(frame);
+      }
    }
 
    // get view matrix from camera node
-   Matrix cam = setupCamera(shake);
-
-   //   cam.print();
-
-   // tell renderdevice about position, target & fov
-
-   processLights();
+   const Matrix camera = setupCamera(shake);
 
    // process all materials
-   int num = mMaterials.size();
-   for (i = 0; i < num; i++)
-      mMaterials[i]->update(frame, mNodes.data(), cam);
+   const int32_t count = getMaterialCount();
+   for (int32_t i = 0; i < count; i++)
+   {
+      _materials[i]->update(frame, _nodes.data(), camera);
+   }
 
-   //   glFinish();
-   //   double t2= getCpuTick();
-
-   for (i = 0; i < num; i++)
-      mMaterials[i]->renderDiffuse();
-   /*
-      for (i=0; i<mShapes.size(); i++)
-      {
-         Shape* shape= (Shape*)mShapes[i];
-         const Matrix& tm= shape->getTransform();
-         for (int j=0; j<shape->getPolyCount(); j++)
-         {
-            Shape::PolyLine* poly= shape->getPoly(j);
-            const int numVerts= poly->getVertexCount();
-            glColor4f(1,1,1,1);
-            glBegin(GL_LINE_STRIP);
-            for (int k=0; k<numVerts-1; k++)
-            {
-               Vector v= tm * poly->getVertex(k);
-               glVertex3fv(v);
-            }
-            glEnd();
-         }
-
-      }
-   */
-   //   glFinish();
-
-   //   double t3= getCpuTick();
-
-   //   printf("%s:  transform: %f  render: %f \n", (const char*)mName, (t2-t1)/1000000.0, (t3-t2)/1000000.0);
-
-   //   mOutlines->renderDiffuse();
-
-   // draw debug information
-   //   if (mFlags & 1)
-   //      renderBones();
+   for (int32_t i = 0; i < count; i++)
+   {
+      _materials[i]->renderDiffuse();
+   }
 }
 
-void SceneGraph::setFlags(int flags)
+void SceneGraph::setFlags(int32_t flags)
 {
-   mFlags = flags;
+   _flags = flags;
 }

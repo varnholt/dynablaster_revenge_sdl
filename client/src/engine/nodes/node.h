@@ -3,6 +3,9 @@
 
 #pragma once
 
+#include <cstdint>
+#include <vector>
+
 #include "math/matrix.h"
 #include "math/vector.h"
 #include "tools/array.h"
@@ -16,9 +19,10 @@
 #include "animation/valtrack.h"
 #include "animation/vistrack.h"
 
-class Node;
 class SceneGraph;
 
+// a node's parent does not own it: every node in a scene is owned by the SceneGraph's flat node
+// list, and a node unregisters itself from that list on destruction
 class Node : public Streamable, public ObjectName
 {
 public:
@@ -36,35 +40,35 @@ public:
       idAnimMesh = 32
    };
 
-   Node(ID id, Node* parent = 0);
-   Node(const Node& node, Node* parent = 0);
-   virtual ~Node();
+   Node(ID id, Node* parent = nullptr);
+   Node(const Node& node, Node* parent = nullptr);
+   ~Node() override;
    ID id() const;         // return the node id (object type)
    Node* parent() const;  // get parent node
    SceneGraph* getRoot() const;
-   int getDepth() const;
+   int32_t getDepth() const;
    bool visible() const;
    void setVisible(bool visible);
    void addChild(Node* node);
-   int getChildCount() const;
-   Node* getChild(int index) const;
+   int32_t getChildCount() const;
+   Node* getChild(int32_t index) const;
    Node* getChild(const String& name) const;
    void setParent(Node* parent);  // link to parent obj. includes this to parent's children
    bool getUserTransformable() const;
-   void setUserTransformable(bool);
+   void setUserTransformable(bool state);
    bool hasSkinning() const;
    float getFrame() const;
    void setFrame(float frame);
-   int getAnimationLength() const;
+   int32_t getAnimationLength() const;
    void bakeAnimationTrack(float step);
    const BakedTransformation& getBakedAnimation() const;
 
-   virtual void load(Stream* stream);  // load object from stream
-   virtual void write(Stream* stream);
+   void load(Stream* stream) override;  // load object from stream
+   void write(Stream* stream) override;
 
    virtual void transform(float frame);  // calc transformation at frame
 
-   void setTransform(const Matrix& m);
+   void setTransform(const Matrix& matrix);
    const Matrix& getTransform() const;
    Vector getPosition() const;
 
@@ -75,23 +79,22 @@ public:
    const VisTrack& getVisibilityTrack() const;
 
 protected:
-   // node-head
-   ID mID;                // pseudo-rtti to identify the object type
-   Node* mParent;         // pointer to parent object
-   Array<Node*> mChilds;  // list of child objects
+   ID _id;                        // pseudo-rtti to identify the object type
+   Node* _parent = nullptr;       // parent object
+   std::vector<Node*> _children;  // child objects (not owned)
 
-   Matrix mTransform;
-   bool mHasSkinning;
-   bool mVisible;
+   Matrix _transform;
+   bool _has_skinning = false;
+   bool _visible = true;
 
-   bool mUserTransform;
-   float mFrame;
+   bool _user_transform = false;
+   float _frame = 0.0f;
 
    // tracks
-   PosTrack mPosTrack;      // position track
-   RotTrack mRotTrack;      // rotation track
-   ScaleTrack mScaleTrack;  // scale track
-   ValTrack mFlipTrack;     // deprecated!
-   VisTrack mVisTrack;      // visibility track
-   BakedTransformation mBake;
+   PosTrack _position_track;
+   RotTrack _rotation_track;
+   ScaleTrack _scale_track;
+   ValTrack _flip_track;  // deprecated
+   VisTrack _visibility_track;
+   BakedTransformation _bake;
 };

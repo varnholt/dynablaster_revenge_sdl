@@ -1,18 +1,13 @@
-#ifndef ANIMATEDMESH_H
-#define ANIMATEDMESH_H
+#pragma once
 
+#include <cstdint>
 #include "mesh.h"
 
 class AnimatedMesh : public Mesh
 {
 public:
-   AnimatedMesh(Node* parent = 0);
-   ~AnimatedMesh();
+   AnimatedMesh(Node* parent = nullptr);
 
-   int getFrameCount() const;
-   Geometry* getFrame(int frame);
-
-private:
+   int32_t getFrameCount() const;
+   Geometry* getFrame(int32_t frame);
 };
-
-#endif

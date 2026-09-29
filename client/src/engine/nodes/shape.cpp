@@ -5,57 +5,53 @@ Shape::Shape(Node* parent) : Node(Node::idShape, parent)
 {
 }
 
-Shape::~Shape()
-{
-}
-
 void Shape::load(Stream* stream)
 {
    Node::load(stream);
 
-   int numPolys = stream->getInt();
-   mPolys.init(numPolys);
-   for (int i = 0; i < numPolys; i++)
+   const int32_t poly_count = stream->getInt();
+   _polys.clear();
+   _polys.reserve(poly_count);
+   for (int32_t i = 0; i < poly_count; i++)
    {
-      Chunk polyChunk(stream);
-      PolyLine* poly = new PolyLine();
-      poly->load(&polyChunk);
-      mPolys.add(poly);
-      polyChunk.skip();
+      Chunk poly_chunk(stream);
+      auto poly = std::make_unique<PolyLine>();
+      poly->load(&poly_chunk);
+      _polys.push_back(std::move(poly));
+      poly_chunk.skip();
    }
 
    // read tracks
-   Chunk anim(stream);
-   mPosTrack.load(&anim);
-   mRotTrack.load(&anim);
-   mScaleTrack.load(&anim);
-   mVisTrack.load(&anim);
-   mFlipTrack.load(&anim);
-   anim.skip();
+   Chunk animation(stream);
+   _position_track.load(&animation);
+   _rotation_track.load(&animation);
+   _scale_track.load(&animation);
+   _visibility_track.load(&animation);
+   _flip_track.load(&animation);
+   animation.skip();
 }
 
 void Shape::write(Stream* stream)
 {
    Node::write(stream);
 
-   // todo:
-   // write poly lines
+   // TODO: write poly lines
 
    // write tracks
-   Chunk anim(stream, 2000, "Animation");
-   mPosTrack.write(&anim);
-   mRotTrack.write(&anim);
-   mScaleTrack.write(&anim);
-   mVisTrack.write(&anim);
-   mFlipTrack.write(&anim);
+   Chunk animation(stream, 2000, "Animation");
+   _position_track.write(&animation);
+   _rotation_track.write(&animation);
+   _scale_track.write(&animation);
+   _visibility_track.write(&animation);
+   _flip_track.write(&animation);
 }
 
-int Shape::getPolyCount() const
+int32_t Shape::getPolyCount() const
 {
-   return mPolys.size();
+   return static_cast<int32_t>(_polys.size());
 }
 
-Shape::PolyLine* Shape::getPoly(int index) const
+Shape::PolyLine* Shape::getPoly(int32_t index) const
 {
-   return mPolys[index];
+   return _polys[index].get();
 }

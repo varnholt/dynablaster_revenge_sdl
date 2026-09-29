@@ -1,24 +1,24 @@
 #include "spot.h"
 #include "tools/stream.h"
 
-Spot::Spot(Node* parent) : Light(Node::idSpot, parent), mShape(0), mHotspot(0.0f), mFallSize(0.0f)
+Spot::Spot(Node* parent) : Light(Node::idSpot, parent)
 {
 }
 
 void Spot::load(Stream* stream)
 {
-   mShape = stream->getInt();
-   mHotspot = stream->getFloat();
-   mFallSize = stream->getFloat();
+   _shape = stream->getInt();
+   _hotspot = stream->getFloat();
+   _fall_size = stream->getFloat();
 
    Light::load(stream);
 }
 
 void Spot::write(Stream* stream)
 {
-   stream->writeInt(mFlags);
-   stream->writeFloat(mHotspot);
-   stream->writeFloat(mFallSize);
+   stream->writeInt(_shape);
+   stream->writeFloat(_hotspot);
+   stream->writeFloat(_fall_size);
 
    Light::write(stream);
 }

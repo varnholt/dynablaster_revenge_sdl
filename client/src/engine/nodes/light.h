@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include "animation/postrack.h"
 #include "node.h"
 #include "render/idlist.h"
@@ -12,19 +13,17 @@ class Stream;
 class Light : public Node
 {
 public:
-   Light(Node::ID id, Node* parent = 0);
-   virtual ~Light();
+   Light(Node::ID id, Node* parent = nullptr);
    Vector getColor() const;
-   virtual void transform(float frame);
-   virtual void load(Stream* stream);
-   virtual void write(Stream* stream);
+   void transform(float frame) override;
+   void load(Stream* stream) override;
+   void write(Stream* stream) override;
 
 protected:
-   int mFlags;
-   int mMapSize;
-   float mAttStart;
-   float mAttEnd;
-   Vector mColor;
-   PosTrack mColTrack;
-   IDList mExclude;
+   int32_t _flags = 0;
+   float _attenuation_start = 0.0f;
+   float _attenuation_end = 0.0f;
+   Vector _color;
+   PosTrack _color_track;
+   IDList _exclude;
 };

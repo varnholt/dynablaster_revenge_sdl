@@ -6,16 +6,12 @@ AnimatedMesh::AnimatedMesh(Node* parent) : Mesh(parent)
    setUserTransformable(true);
 }
 
-AnimatedMesh::~AnimatedMesh()
+int32_t AnimatedMesh::getFrameCount() const
 {
+   return getPartCount();
 }
 
-int AnimatedMesh::getFrameCount() const
+Geometry* AnimatedMesh::getFrame(int32_t frame)
 {
-   return mGeometry.size();
-}
-
-Geometry* AnimatedMesh::getFrame(int frame)
-{
-   return mGeometry[frame];
+   return getPart(frame);
 }
