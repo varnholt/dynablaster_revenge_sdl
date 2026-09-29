@@ -6,6 +6,7 @@
 #include <cctype>
 #include <charconv>
 #include <fstream>
+#include <ranges>
 #include <sstream>
 
 namespace
@@ -43,8 +44,8 @@ SettingsValue::SettingsValue(const std::string& text) : _text(text), _valid(true
 int32_t SettingsValue::toInt(bool* ok) const
 {
    int32_t result = 0;
-   const auto [ptr, ec] = std::from_chars(_text.data(), _text.data() + _text.size(), result);
-   const auto success = (ec == std::errc()) && ptr == _text.data() + _text.size();
+   const auto [end, error] = std::from_chars(_text.data(), _text.data() + _text.size(), result);
+   const auto success = (error == std::errc()) && end == _text.data() + _text.size();
    if (ok)
    {
       *ok = success;
@@ -56,9 +57,9 @@ float SettingsValue::toFloat(bool* ok) const
 {
    try
    {
-      size_t pos = 0;
-      const auto result = std::stof(_text, &pos);
-      const auto success = pos == _text.size();
+      size_t position = 0;
+      const auto result = std::stof(_text, &position);
+      const auto success = position == _text.size();
       if (ok)
       {
          *ok = success;
@@ -123,16 +124,15 @@ SettingsValue::SettingsMap SettingsValue::toMap() const
 
 std::shared_ptr<Settings::SharedFile> Settings::acquire(const std::string& filename)
 {
-   // process-wide registry so every Settings instance pointed at the same
-   // file shares one in-memory state, matching QSettings' own per-path cache -
-   // otherwise the last instance destroyed would clobber every other
+   // process-wide registry so every Settings instance pointed at the same file shares one
+   // in-memory state - otherwise the last instance destroyed would clobber every other
    // instance's writes with its own load-time snapshot.
-   static std::map<std::string, std::weak_ptr<SharedFile>> reg;
+   static std::map<std::string, std::weak_ptr<SharedFile>> registry;
 
-   auto it = reg.find(filename);
-   if (it != reg.end())
+   const auto registered = registry.find(filename);
+   if (registered != registry.end())
    {
-      if (auto existing = it->second.lock())
+      if (auto existing = registered->second.lock())
       {
          return existing;
       }
@@ -141,13 +141,13 @@ std::shared_ptr<Settings::SharedFile> Settings::acquire(const std::string& filen
    auto file = std::make_shared<SharedFile>();
    file->filename = filename;
 
-   std::ifstream io(filename);
-   if (io.is_open())
+   std::ifstream stream(filename);
+   if (stream.is_open())
    {
       std::string section;
       std::string line;
 
-      while (std::getline(io, line))
+      while (std::getline(stream, line))
       {
          line = StringUtils::trim(line);
 
@@ -176,7 +176,7 @@ std::shared_ptr<Settings::SharedFile> Settings::acquire(const std::string& filen
       }
    }
 
-   reg[filename] = file;
+   registry[filename] = file;
 
    return file;
 }
@@ -226,14 +226,14 @@ std::vector<std::string> Settings::childKeys() const
    const auto prefix = qualifiedKey(std::string());
    std::vector<std::string> keys;
 
-   for (const auto& entry : _file->values)
+   for (const auto& key : _file->values | std::views::keys)
    {
-      if (entry.first.size() < prefix.size() || entry.first.compare(0, prefix.size(), prefix) != 0)
+      if (!key.starts_with(prefix))
       {
          continue;
       }
 
-      const auto remainder = entry.first.substr(prefix.size());
+      const auto remainder = key.substr(prefix.size());
       if (remainder.find('/') == std::string::npos)
       {
          keys.push_back(remainder);
@@ -246,20 +246,20 @@ std::vector<std::string> Settings::childKeys() const
 SettingsValue Settings::value(const std::string& key) const
 {
    const auto& values = _file->values;
-   const auto it = values.find(qualifiedKey(key));
-   if (it == values.end())
+   const auto found = values.find(qualifiedKey(key));
+   if (found == values.end())
    {
       return SettingsValue();
    }
 
-   return SettingsValue(it->second);
+   return SettingsValue(found->second);
 }
 
 SettingsValue Settings::value(const std::string& key, const std::string& default_value) const
 {
    const auto& values = _file->values;
-   const auto it = values.find(qualifiedKey(key));
-   return SettingsValue(it == values.end() ? default_value : it->second);
+   const auto found = values.find(qualifiedKey(key));
+   return SettingsValue(found == values.end() ? default_value : found->second);
 }
 
 SettingsValue Settings::value(const std::string& key, const char* default_value) const
@@ -270,29 +270,29 @@ SettingsValue Settings::value(const std::string& key, const char* default_value)
 SettingsValue Settings::value(const std::string& key, int32_t default_value) const
 {
    const auto& values = _file->values;
-   const auto it = values.find(qualifiedKey(key));
-   return SettingsValue(it == values.end() ? std::to_string(default_value) : it->second);
+   const auto found = values.find(qualifiedKey(key));
+   return SettingsValue(found == values.end() ? std::to_string(default_value) : found->second);
 }
 
 SettingsValue Settings::value(const std::string& key, float default_value) const
 {
    const auto& values = _file->values;
-   const auto it = values.find(qualifiedKey(key));
-   return SettingsValue(it == values.end() ? std::to_string(default_value) : it->second);
+   const auto found = values.find(qualifiedKey(key));
+   return SettingsValue(found == values.end() ? std::to_string(default_value) : found->second);
 }
 
 SettingsValue Settings::value(const std::string& key, double default_value) const
 {
    const auto& values = _file->values;
-   const auto it = values.find(qualifiedKey(key));
-   return SettingsValue(it == values.end() ? std::to_string(default_value) : it->second);
+   const auto found = values.find(qualifiedKey(key));
+   return SettingsValue(found == values.end() ? std::to_string(default_value) : found->second);
 }
 
 SettingsValue Settings::value(const std::string& key, bool default_value) const
 {
    const auto& values = _file->values;
-   const auto it = values.find(qualifiedKey(key));
-   return SettingsValue(it == values.end() ? std::string(default_value ? "true" : "false") : it->second);
+   const auto found = values.find(qualifiedKey(key));
+   return SettingsValue(found == values.end() ? std::string(default_value ? "true" : "false") : found->second);
 }
 
 void Settings::setValue(const std::string& key, const std::string& value)
@@ -330,16 +330,16 @@ void Settings::setValue(const std::string& key, const SettingsMap& map)
 {
    std::string text;
 
-   for (const auto& entry : map)
+   for (const auto& [map_key, map_value] : map)
    {
       if (!text.empty())
       {
          text += map_record_separator;
       }
 
-      text += entry.first;
+      text += map_key;
       text += map_field_separator;
-      text += entry.second;
+      text += map_value;
    }
 
    setValue(key, text);
@@ -352,42 +352,42 @@ void Settings::sync()
 
 void Settings::save() const
 {
-   std::ofstream io(_file->filename);
-   if (!io.is_open())
+   std::ofstream stream(_file->filename);
+   if (!stream.is_open())
    {
       return;
    }
 
    std::map<std::string, std::vector<std::pair<std::string, std::string>>> sections;
 
-   for (const auto& entry : _file->values)
+   for (const auto& [qualified_key, value] : _file->values)
    {
-      const auto separator_index = entry.first.rfind('/');
+      const auto separator_index = qualified_key.rfind('/');
 
       std::string section;
-      std::string key = entry.first;
+      std::string key = qualified_key;
 
       if (separator_index != std::string::npos)
       {
-         section = entry.first.substr(0, separator_index);
-         key = entry.first.substr(separator_index + 1);
+         section = qualified_key.substr(0, separator_index);
+         key = qualified_key.substr(separator_index + 1);
       }
 
-      sections[section].emplace_back(key, entry.second);
+      sections[section].emplace_back(key, value);
    }
 
-   for (const auto& section_entry : sections)
+   for (const auto& [section, entries] : sections)
    {
-      if (!section_entry.first.empty())
+      if (!section.empty())
       {
-         io << "[" << section_entry.first << "]\n";
+         stream << "[" << section << "]\n";
       }
 
-      for (const auto& key_value : section_entry.second)
+      for (const auto& [key, value] : entries)
       {
-         io << key_value.first << "=" << key_value.second << "\n";
+         stream << key << "=" << value << "\n";
       }
 
-      io << "\n";
+      stream << "\n";
    }
 }

@@ -15,7 +15,6 @@
 class Packet : public std::vector<uint8_t>
 {
 public:
-   //! packet types available
    enum TYPE
    {
       INVALID,
@@ -57,58 +56,43 @@ public:
       PLAYERINFECTEDPACKET
    };
 
-   //! read constructor
+   // read constructor
    Packet();
 
-   //! write constructor
-   Packet(TYPE packetType);
+   // write constructor
+   explicit Packet(TYPE packet_type);
 
-   //! destructor
-   virtual ~Packet();
+   virtual ~Packet() = default;
 
-   //! serializes a packet
    void serialize();
 
-   //! deserializes a packet
-   static std::unique_ptr<Packet> deserialize(BinaryReader&);
+   // reader must be positioned right after the packet's size prefix
+   static std::unique_ptr<Packet> deserialize(BinaryReader& in);
 
-   //! debug function
    virtual void debug() = 0;
+   virtual void enqueue(BinaryWriter& out) = 0;
+   virtual void dequeue(BinaryReader& in) = 0;
 
-   //! enqueue member variables
-   virtual void enqueue(BinaryWriter&) = 0;
-
-   //! dequeue member variables
-   virtual void dequeue(BinaryReader&) = 0;
-
-   //! getter for packet size
    [[nodiscard]] int16_t getSize();
-
-   //! getter for packet type
    [[nodiscard]] TYPE getType();
 
-   //! getter for the packet's timestamp (milliseconds since midnight)
+   // milliseconds since midnight
    [[nodiscard]] int32_t getTimestamp() const;
 
-   //! timestamp can be modified (e.g. in playback)
+   // timestamp can be modified (e.g. in playback)
    void setTimeStamp(int32_t time);
 
-   //! getter for packet name
    [[nodiscard]] const std::string& getPacketName() const;
 
-   //! raw byte pointer, kept for existing socket-write call sites
+   // raw byte pointer, kept for existing socket-write call sites
    [[nodiscard]] const char* constData() const;
 
 protected:
-   //! packet size
-   int16_t mPacketSize;
+   int16_t _packet_size = 0;
+   TYPE _packet_type = INVALID;
 
-   //! packet type
-   TYPE mPacketType;
+   // milliseconds since midnight
+   int32_t _timestamp = 0;
 
-   //! timestamp (milliseconds since midnight)
-   int32_t mTimestamp;
-
-   //! packet name
-   std::string mPacketName;
+   std::string _packet_name;
 };

@@ -1,58 +1,36 @@
 #pragma once
 
 #include <cstdint>
-
-// base
-#include "packet.h"
-
-#include "point.h"
-
 #include <vector>
+
+#include "packet.h"
+#include "point.h"
 
 class MapCreateRequestPacket : public Packet
 {
 public:
-   //! write constructor
+   // write constructor
    MapCreateRequestPacket(
       int32_t width,
       int32_t height,
-      int32_t stoneCount,
-      int32_t extraBombCount,
-      int32_t extraFlameCount,
-      const std::vector<Point>& startPositions
+      int32_t stone_count,
+      int32_t extra_bomb_count,
+      int32_t extra_flame_count,
+      const std::vector<Point>& start_positions
    );
 
-   //! read constructor
+   // read constructor
    MapCreateRequestPacket();
 
-   //! destructor
-   virtual ~MapCreateRequestPacket();
-
-   //! debugs the member variables
-   void debug();
-
-   //! enqueues the member variables to datastream
-   void enqueue(BinaryWriter&);
-
-   //! dequeues the member variables from datastream
-   void dequeue(BinaryReader&);
+   void debug() override;
+   void enqueue(BinaryWriter& out) override;
+   void dequeue(BinaryReader& in) override;
 
 private:
-   //! map width
-   int32_t mWidth;
-
-   //! map height
-   int32_t mHeight;
-
-   //! number of stones
-   int32_t mStoneCount;
-
-   //! number of bomb extras
-   int32_t mExtraBombCount;
-
-   //! number of flame extras
-   int32_t mExtraFlameCount;
-
-   //! player start positions
-   std::vector<Point> mStartPositions;
+   int32_t _width = 0;
+   int32_t _height = 0;
+   int32_t _stone_count = 0;
+   int32_t _extra_bomb_count = 0;
+   int32_t _extra_flame_count = 0;
+   std::vector<Point> _start_positions;
 };

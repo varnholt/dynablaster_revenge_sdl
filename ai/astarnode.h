@@ -3,76 +3,70 @@
 
 class AStarNode
 {
-   public:
+public:
+   //! constructor
+   explicit AStarNode(AStarNode* parent = nullptr);
 
-      //! constructor
-      AStarNode(AStarNode* parent = 0);
+   //! setter for x
+   void setX(int x);
 
-      //! setter for x
-      void setX(int x);
+   //! setter for y
+   void setY(int y);
 
-      //! setter for y
-      void setY(int y);
+   //! getter for x
+   int getX() const;
 
-      //! getter for x
-      int getX() const;
+   //! getter for y
+   int getY() const;
 
-      //! getter for y
-      int getY() const;
+   //! setter for parent node
+   void setParent(AStarNode* parent);
 
-      //! setter for parent node
-      void setParent(AStarNode* parent);
+   //! getter for parent node
+   AStarNode* getParent() const;
 
-      //! getter for parent node
-      AStarNode* getParent() const;
+   //! setter for g function value
+   void setG(int g);
 
-      //! setter for g function value
-      void setG(int g);
+   //! getter for g function value
+   int getG() const;
 
-      //! getter for g function value
-      int getG() const;
+   //! getter for h function value
+   int getH() const;
 
-      //! getter for h function value
-      int getH() const;
+   //! getter for f function value
+   int getF() const;
 
-      //! getter for f function value
-      int getF() const;
+   //! calculate number of parent nodes
+   void calcG();
 
-      //! calculate number of parent nodes
-      void calcG();
+   //! calculate heuristic value
+   void calcH(AStarNode* target);
 
-      //! calculate heuristic value
-      void calcH(AStarNode* target);
+   //! calculate sum
+   void calcF();
 
-      //! calculate sum
-      void calcF();
+   //! getter for distance from this to target node
+   int getDistance(AStarNode* target);
 
-      //! getter for distance from this to target node
-      int getDistance(AStarNode* target);
+protected:
+   //! parent node
+   AStarNode* _parent = nullptr;
 
+   //! x position
+   int _x = 0;
 
-   protected:
+   //! y position
+   int _y = 0;
 
-      //! parent node
-      AStarNode* mParent;
+   //! g value
+   int _g = 0;
 
-      //! x position
-      int mX;
+   //! h value
+   int _h = 0;
 
-      //! y position
-      int mY;
-
-      //! g value
-      int mG;
-
-      //! h value
-      int mH;
-
-      //! f value
-      int mF;
-
+   //! f value
+   int _f = 0;
 };
 
-#endif // ASTARNODE_H
-
-
+#endif  // ASTARNODE_H

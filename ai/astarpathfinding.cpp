@@ -1,110 +1,99 @@
-// header
 #include "astarpathfinding.h"
 
 #include <cstdio>
 #include <format>
+#include <limits>
 #include <string>
 
-//-----------------------------------------------------------------------------
-/*!
- */
-AStarPathFinding::AStarPathFinding() : mStartNode(0), mTargetNode(0), mCurrentNode(0), mNodeMap(0)
-{
-}
-
-//-----------------------------------------------------------------------------
 /*!
    \param map astar map to process
 */
 void AStarPathFinding::setMap(AStarMap* map)
 {
-   mNodeMap = map;
+   _node_map = map;
 }
 
-//-----------------------------------------------------------------------------
 /*!
-   \param start x position
-   \param start y position
+   \param x start x position
+   \param y start y position
 */
 void AStarPathFinding::setStart(int x, int y)
 {
-   mStartNode = mNodeMap->getNode(x, y);
+   _start_node = _node_map->getNode(x, y);
 }
 
-//-----------------------------------------------------------------------------
 /*!
-   \param target x position
-   \param target y position
+   \param x target x position
+   \param y target y position
 */
 void AStarPathFinding::setTarget(int x, int y)
 {
-   mTargetNode = mNodeMap->getNode(x, y);
+   _target_node = _node_map->getNode(x, y);
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void AStarPathFinding::findPath()
 {
    // init
-   int testGScore = 0;
-   bool testBetter = false;
+   int test_g_score = 0;
+   bool test_better = false;
 
    // reset
-   mPath.clear();
-   mOpenSet.clear();
-   mClosedSet.clear();
+   _path.clear();
+   _open_set.clear();
+   _closed_set.clear();
 
    // add starting node to open list
-   if (mStartNode)
-      mOpenSet.insert(mStartNode);
+   if (_start_node)
+   {
+      _open_set.insert(_start_node);
+   }
 
-   while (!mOpenSet.empty())
+   while (!_open_set.empty())
    {
       // consider the best node in the open list (the node with the lowest f value)
       // the node in openset having the lowest f_score[] value;
-      mCurrentNode = getBestFValueNode(&mOpenSet);
+      _current_node = getBestFValueNode(_open_set);
 
       // this node is the goal
-      if (mCurrentNode->getX() == mTargetNode->getX() && mCurrentNode->getY() == mTargetNode->getY())
+      if (_current_node->getX() == _target_node->getX() && _current_node->getY() == _target_node->getY())
       {
          // then we're done
-         mOpenSet.clear();
-         mPath = reconstructPath(mCurrentNode);
+         _open_set.clear();
+         _path = reconstructPath(_current_node);
       }
       else
       {
          // remove current from openset
-         mOpenSet.erase(mCurrentNode);
+         _open_set.erase(_current_node);
 
          // add current to closedset
-         mClosedSet.insert(mCurrentNode);
+         _closed_set.insert(_current_node);
 
          // for (each neighbor) // i.e. up, down, left, right
-         for (AStarNode* neighbor : mNodeMap->getNeighbors(mCurrentNode->getX(), mCurrentNode->getY(), true))
+         for (AStarNode* neighbor : _node_map->getNeighbors(_current_node->getX(), _current_node->getY(), true))
          {
-            if (!mClosedSet.contains(neighbor))
+            if (!_closed_set.contains(neighbor))
             {
-               testBetter = false;
-               mCurrentNode->calcG();
-               testGScore = mCurrentNode->getG() + mCurrentNode->getDistance(mTargetNode);
+               test_better = false;
+               _current_node->calcG();
+               test_g_score = _current_node->getG() + _current_node->getDistance(_target_node);
 
-               if (!mOpenSet.contains(neighbor))
+               if (!_open_set.contains(neighbor))
                {
-                  mOpenSet.insert(neighbor);
-                  neighbor->calcH(mTargetNode);
-                  testBetter = true;
+                  _open_set.insert(neighbor);
+                  neighbor->calcH(_target_node);
+                  test_better = true;
                }
                else
                {
                   neighbor->calcG();
-                  testBetter = (testGScore < neighbor->getG());
+                  test_better = (test_g_score < neighbor->getG());
                }
 
-               if (testBetter)
+               if (test_better)
                {
-                  neighbor->setParent(mCurrentNode);
-                  neighbor->setG(testGScore);
+                  neighbor->setParent(_current_node);
+                  neighbor->setG(test_g_score);
                   neighbor->calcF();
                }
             }
@@ -113,76 +102,67 @@ void AStarPathFinding::findPath()
    }
 }
 
-//-----------------------------------------------------------------------------
 /*!
-   \param currentNode
-   \return all parent nodes
+   \param current_node node to start from
+    eturn all parent nodes
 */
-std::vector<AStarNode*> AStarPathFinding::reconstructPath(AStarNode* currentNode)
+std::vector<AStarNode*> AStarPathFinding::reconstructPath(AStarNode* current_node)
 {
    std::vector<AStarNode*> path;
 
-   while (currentNode && currentNode->getParent())
+   while (current_node && current_node->getParent())
    {
-      path.push_back(currentNode);
-      currentNode = currentNode->getParent();
+      path.push_back(current_node);
+      current_node = current_node->getParent();
    }
 
    return path;
 }
 
-//-----------------------------------------------------------------------------
 /*!
    \param set set to scan
-   \return node with best f value
+    eturn node with best f value
 */
-AStarNode* AStarPathFinding::getBestFValueNode(std::unordered_set<AStarNode*>* set)
+AStarNode* AStarPathFinding::getBestFValueNode(const std::unordered_set<AStarNode*>& set) const
 {
-   AStarNode* node = 0;
+   AStarNode* best = nullptr;
 
-   int fMin = INT_MAX;
+   int f_min = std::numeric_limits<int>::max();
 
-   for (AStarNode* n : *set)
+   for (AStarNode* candidate : set)
    {
-      if (n->getF() < fMin)
+      if (candidate->getF() < f_min)
       {
-         node = n;
-         fMin = node->getF();
+         best = candidate;
+         f_min = best->getF();
       }
    }
 
-   return node;
+   return best;
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void AStarPathFinding::debugPath()
 {
    int i = 0;
-   for (AStarNode* node : mPath)
+   for (AStarNode* node : _path)
    {
       std::printf("%d: (%d, %d)\n", i, node->getX(), node->getY());
       i++;
    }
 }
 
-//-----------------------------------------------------------------------------
-/*!
-  \param path path to debug
-*/
 void AStarPathFinding::debugPathShort()
 {
-   std::string pathString;
+   std::string path_string;
 
-   for (AStarNode* node : mPath)
+   for (AStarNode* node : _path)
    {
-      pathString += std::format("=> ({}; {}) ", node->getX(), node->getY());
+      path_string += std::format("=> ({}; {}) ", node->getX(), node->getY());
    }
 
-   if (!pathString.empty())
+   if (!path_string.empty())
    {
-      std::printf("AStarMap::debugPathSimplified: %s\n", pathString.c_str());
+      std::printf("AStarMap::debugPathSimplified: %s\n", path_string.c_str());
    }
    else
    {
@@ -190,22 +170,20 @@ void AStarPathFinding::debugPathShort()
    }
 }
 
-//-----------------------------------------------------------------------------
 /*!
-   \return computed path
+    eturn computed path
 */
-std::vector<AStarNode*> AStarPathFinding::getPath() const
+const std::vector<AStarNode*>& AStarPathFinding::getPath() const
 {
-   return mPath;
+   return _path;
 }
 
-//-----------------------------------------------------------------------------
 /*!
-   \return computed path length
+    eturn computed path length
 */
 int AStarPathFinding::getPathLength() const
 {
-   return mPath.size();
+   return static_cast<int>(_path.size());
 }
 
 /*

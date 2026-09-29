@@ -1,75 +1,38 @@
-// header
 #include "startgamerequestpacket.h"
 
-// Qt
 #include "logging.h"
 
-// defines
-#define PACKETNAME "StartGameRequest"
-
-//-----------------------------------------------------------------------------
-/*!
-   write constructor
-
-   \param name game's name
-*/
-StartGameRequestPacket::StartGameRequestPacket(int32_t id) : Packet(Packet::STARTGAMEREQUEST), mId(id)
+namespace
 {
-   mPacketName = PACKETNAME;
+constexpr auto PACKETNAME = "StartGameRequest";
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   read constructor
-*/
+StartGameRequestPacket::StartGameRequestPacket(int32_t id) : Packet(Packet::STARTGAMEREQUEST), _id(id)
+{
+   _packet_name = PACKETNAME;
+}
+
 StartGameRequestPacket::StartGameRequestPacket() : Packet(Packet::STARTGAMEREQUEST)
 {
-   mPacketName = PACKETNAME;
+   _packet_name = PACKETNAME;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   destructor
-*/
-StartGameRequestPacket::~StartGameRequestPacket()
-{
-}
-
-//-----------------------------------------------------------------------------
-/*!
-   \return game's id
-*/
 int32_t StartGameRequestPacket::getId() const
 {
-   return mId;
+   return _id;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param out datastream to write members to
-*/
 void StartGameRequestPacket::enqueue(BinaryWriter& out)
 {
-   // write members
-   out << mId;
+   out << _id;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param in datastream read members from
-*/
 void StartGameRequestPacket::dequeue(BinaryReader& in)
 {
-   // read members
-   in >> mId;
+   in >> _id;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   debug output of members
-*/
 void StartGameRequestPacket::debug()
 {
-   // debug output login response
-   qDebug("StartGameRequestPacket:debug: id: %d", mId);
+   qDebug("StartGameRequestPacket:debug: id: %d", _id);
 }

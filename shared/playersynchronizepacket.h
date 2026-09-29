@@ -5,38 +5,26 @@
 class PlayerSynchronizePacket : public Packet
 {
 public:
-   //! packet can be used for multiple purposes
+   // packet can be used for multiple purposes
    enum SynchronizeProcess
    {
       LevelLoaded,
       Invalid
    };
 
-   //! read constructor
+   // read constructor
    PlayerSynchronizePacket();
 
-   //! write constructor
-   PlayerSynchronizePacket(SynchronizeProcess process);
+   // write constructor
+   explicit PlayerSynchronizePacket(SynchronizeProcess process);
 
-   //! destructor
-   virtual ~PlayerSynchronizePacket();
-
-   //! setter for synchronize process
    void setSynchronizeProcess(SynchronizeProcess process);
-
-   //! getter for synchronize process
    [[nodiscard]] SynchronizeProcess getSynchronizeProcess() const;
 
-   //! debugs the member variables
-   void debug();
-
-   //! enqueues the member variables to datastream
-   void enqueue(BinaryWriter&);
-
-   //! dequeues the member variables from datastream
-   void dequeue(BinaryReader&);
+   void debug() override;
+   void enqueue(BinaryWriter& out) override;
+   void dequeue(BinaryReader& in) override;
 
 protected:
-   //! synchronize process
-   SynchronizeProcess mSynchronizeProcess;
+   SynchronizeProcess _synchronize_process = Invalid;
 };

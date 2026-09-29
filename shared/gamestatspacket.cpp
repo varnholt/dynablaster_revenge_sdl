@@ -1,12 +1,13 @@
-// header
 #include "gamestatspacket.h"
 
 #include "logging.h"
 
 #include <ranges>
 
-// defines
-#define PACKETNAME "GameStats"
+namespace
+{
+constexpr auto PACKETNAME = "GameStats";
+}
 
 BinaryWriter& operator<<(BinaryWriter& out, const PlayerGameStats& stats)
 {
@@ -20,94 +21,56 @@ BinaryReader& operator>>(BinaryReader& in, PlayerGameStats& stats)
    return in;
 }
 
-//----------------------------------------------------------------------------
-/*!
-   \param message message to send
-   \param receiverId id of the receiver
-*/
 GameStatsPacket::GameStatsPacket(
-   const std::vector<int32_t>& ids, const std::vector<PlayerStats>& overallStats, const std::vector<PlayerStats>& roundStats
+   const std::vector<int32_t>& ids,
+   const std::vector<PlayerStats>& overall_stats,
+   const std::vector<PlayerStats>& round_stats
 )
     : Packet(Packet::GAMESTATS)
 {
-   mPacketName = PACKETNAME;
+   _packet_name = PACKETNAME;
 
-   mPlayerStats.reserve(ids.size());
-   for (const auto& [id, overall, round] : std::views::zip(ids, overallStats, roundStats))
+   _player_stats.reserve(ids.size());
+   for (const auto& [id, overall, round] : std::views::zip(ids, overall_stats, round_stats))
    {
-      mPlayerStats.push_back(PlayerGameStats{id, overall, round});
+      _player_stats.push_back(PlayerGameStats{id, overall, round});
    }
 }
 
-//----------------------------------------------------------------------------
-/*!
- */
 GameStatsPacket::GameStatsPacket() : Packet(Packet::GAMESTATS)
 {
-   mPacketName = PACKETNAME;
+   _packet_name = PACKETNAME;
 }
 
-//----------------------------------------------------------------------------
-/*!
- */
-GameStatsPacket::~GameStatsPacket()
-{
-}
-
-//----------------------------------------------------------------------------
-/*!
-   \return overall game stats
-*/
 std::vector<PlayerStats> GameStatsPacket::getOverallStats() const
 {
-   auto view = mPlayerStats | std::views::transform([](const PlayerGameStats& stats) { return stats.overall_stats; });
+   auto view = _player_stats | std::views::transform([](const PlayerGameStats& stats) { return stats.overall_stats; });
    return {view.begin(), view.end()};
 }
 
-//----------------------------------------------------------------------------
-/*!
-   \return round game stats
-*/
 std::vector<PlayerStats> GameStatsPacket::getRoundStats() const
 {
-   auto view = mPlayerStats | std::views::transform([](const PlayerGameStats& stats) { return stats.round_stats; });
+   auto view = _player_stats | std::views::transform([](const PlayerGameStats& stats) { return stats.round_stats; });
    return {view.begin(), view.end()};
 }
 
-//----------------------------------------------------------------------------
-/*!
-   \return player ids
-*/
 std::vector<int32_t> GameStatsPacket::getPlayerIds() const
 {
-   auto view = mPlayerStats | std::views::transform([](const PlayerGameStats& stats) { return stats.player_id; });
+   auto view = _player_stats | std::views::transform([](const PlayerGameStats& stats) { return stats.player_id; });
    return {view.begin(), view.end()};
 }
 
-//----------------------------------------------------------------------------
-/*!
-   \param out datastream to write members to
-*/
 void GameStatsPacket::enqueue(BinaryWriter& out)
 {
-   out << mPlayerStats;
+   out << _player_stats;
 }
 
-//----------------------------------------------------------------------------
-/*!
-   \param in datastream read members from
-*/
 void GameStatsPacket::dequeue(BinaryReader& in)
 {
-   in >> mPlayerStats;
+   in >> _player_stats;
 }
 
-//----------------------------------------------------------------------------
-/*!
-   debug output of members
-*/
 void GameStatsPacket::debug()
 {
-   // debug message request
    qDebug("GameStatsPacket:debug: ");
 }

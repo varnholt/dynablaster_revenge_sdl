@@ -1,47 +1,22 @@
-// header
 #include "playerrotation.h"
 
-// std
+#include <algorithm>
 #include <cmath>
 #include <numbers>
 
-// init static variables
-float PlayerRotation::mAngleIncrement = 0.2f; // 0.075f;
-Vec2 PlayerRotation::mDown = Vec2(0.0f, -1.0f);
+float PlayerRotation::_angle_increment = 0.2f;
+Vec2 PlayerRotation::_down = Vec2(0.0f, -1.0f);
 
-
-//-----------------------------------------------------------------------------
-/*!
-  constructor
-*/
-PlayerRotation::PlayerRotation()
-   : mAngle(0.0f)
-   , mPreviousAngle(0.0f)
-   , mTargetAngle(0.0f)
-   , mDelta(0.0f)
-{
-}
-
-
-//-----------------------------------------------------------------------------
-/*!
-   \param vector target direction
-*/
 void PlayerRotation::setAngleIncrement(float angle)
 {
-   mAngleIncrement = angle;
+   _angle_increment = angle;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \param vector target direction
-*/
 void PlayerRotation::setTargetVector(const Vec2& target)
 {
-   mTargetVector = target;
-   /*
+   _target_vector = target;
 
+   /*
       the player may only move in 4 directions:
       - right
       - down
@@ -69,31 +44,15 @@ void PlayerRotation::setTargetVector(const Vec2& target)
 
    */
 
-   // initialize target angle from direction vector
-
    // map the atan2 circle to 0..2*PI
-   mTargetAngle = std::atan2(-target.y(), -target.x()) + std::numbers::pi_v<float>;
-
-//      qDebug(
-//         "PlayerRotation::SetTargetVector: target angle is %f [deg]",
-//         mTargetAngle / M_PI * 180.0f
-//      );
+   _target_angle = std::atan2(-target.y(), -target.x()) + std::numbers::pi_v<float>;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \return target vector
-*/
 const Vec2& PlayerRotation::getTargetVector() const
 {
-   return mTargetVector;
+   return _target_vector;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 void PlayerRotation::updateAngle()
 {
    /*
@@ -125,107 +84,76 @@ void PlayerRotation::updateAngle()
          increase = (a > b)
    */
 
+   constexpr auto two_pi = 2.0f * std::numbers::pi_v<float>;
+
    float a = 0.0f;
    float b = 0.0f;
 
-   float from = mAngle;
-   float to = mTargetAngle;
-
-   bool increase = false;
+   const float from = _angle;
+   const float to = _target_angle;
 
    if (from >= to)
    {
       a = from - to;
-      b = to + (2.0f * std::numbers::pi_v<float>) - from;
+      b = to + two_pi - from;
    }
    else
    {
-      a = from + (2.0f * std::numbers::pi_v<float>) - to;
+      a = from + two_pi - to;
       b = to - from;
    }
 
-   increase = (a > b);
+   const bool increase = (a > b);
 
-   mPreviousAngle = mAngle;
+   _previous_angle = _angle;
 
    if (increase)
    {
-      float delta = mAngleIncrement;
+      const float delta = std::min(_angle_increment, b);
 
-      if (delta > b)
-         delta = b;
+      _delta = delta;
+      _angle += delta;
 
-      mDelta = delta;
-      mAngle += delta;
-
-      if (mAngle >= std::numbers::pi_v<float> * 2.0f)
-         mAngle -= std::numbers::pi_v<float> * 2.0f;
+      if (_angle >= two_pi)
+      {
+         _angle -= two_pi;
+      }
    }
    else
    {
-      float delta = mAngleIncrement;
+      const float delta = std::min(_angle_increment, a);
 
-      if (delta > a)
-         delta = a;
+      _delta = -delta;
+      _angle -= delta;
 
-      mDelta = -delta;
-      mAngle -= delta;
+      if (_angle < 0.0f)
+      {
+         _angle += two_pi;
+      }
 
-      if (mAngle < 0.0f)
-         mAngle += std::numbers::pi_v<float> * 2.0f;
-
-      if (mAngle < mTargetAngle && mPreviousAngle >= mTargetAngle)
-         mAngle = mTargetAngle;
+      if (_angle < _target_angle && _previous_angle >= _target_angle)
+      {
+         _angle = _target_angle;
+      }
    }
-
-//   qDebug(
-//      "PlayerRotation::UpdateAngle: "
-//      "from: %f [deg], to: %f [deg] new angle to: %f [deg]",
-//      from / M_PI * 180.0f,
-//      to / M_PI * 180.0f,
-//      mAngle / M_PI * 180.0f
-//   );
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \param vector target direction
-*/
 float PlayerRotation::getAngle() const
 {
-   return mAngle;
+   return _angle;
 }
 
-
-
-//-----------------------------------------------------------------------------
-/*!
-   \param vector target direction
-*/
 float PlayerRotation::getPreviousAngle() const
 {
-   return mPreviousAngle;
+   return _previous_angle;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \param vector target direction
-*/
 float PlayerRotation::getAngleDelta() const
 {
-   return mDelta;
+   return _delta;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 void PlayerRotation::reset()
 {
-   setTargetVector(mDown);
+   setTargetVector(_down);
 }
-
-
-

@@ -1,84 +1,43 @@
-// header
 #include "stopgameresponsepacket.h"
 
-// Qt
 #include "logging.h"
 
-// defines
-#define PACKETNAME "StopGameResponse"
-
-//-----------------------------------------------------------------------------
-/*!
-   write constructor
-
-   \param name game's name
-*/
-StopGameResponsePacket::StopGameResponsePacket(int32_t id, bool finished) : Packet(Packet::STOPGAMERESPONSE), mId(id), mFinished(finished)
+namespace
 {
-   mPacketName = PACKETNAME;
+constexpr auto PACKETNAME = "StopGameResponse";
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   read constructor
-*/
-StopGameResponsePacket::StopGameResponsePacket() : Packet(Packet::STOPGAMERESPONSE), mId(-1), mFinished(false)
+StopGameResponsePacket::StopGameResponsePacket(int32_t id, bool finished) : Packet(Packet::STOPGAMERESPONSE), _id(id), _finished(finished)
 {
-   mPacketName = PACKETNAME;
+   _packet_name = PACKETNAME;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   destructor
-*/
-StopGameResponsePacket::~StopGameResponsePacket()
+StopGameResponsePacket::StopGameResponsePacket() : Packet(Packet::STOPGAMERESPONSE)
 {
+   _packet_name = PACKETNAME;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return game's id
-*/
 int32_t StopGameResponsePacket::getId() const
 {
-   return mId;
+   return _id;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return stopped flag
-*/
 bool StopGameResponsePacket::isFinished() const
 {
-   return mFinished;
+   return _finished;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param out datastream to write members to
-*/
 void StopGameResponsePacket::enqueue(BinaryWriter& out)
 {
-   // write members
-   out << mId << mFinished;
+   out << _id << _finished;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param in datastream read members from
-*/
 void StopGameResponsePacket::dequeue(BinaryReader& in)
 {
-   // read members
-   in >> mId >> mFinished;
+   in >> _id >> _finished;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   debug output of members
-*/
 void StopGameResponsePacket::debug()
 {
-   // debug output login response
-   qDebug("StopGameResponsePacket:debug: id: %d, all rounds finished: %d", mId, mFinished);
+   qDebug("StopGameResponsePacket:debug: id: %d, all rounds finished: %d", _id, _finished);
 }

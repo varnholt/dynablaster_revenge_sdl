@@ -1,76 +1,39 @@
-// header
 #include "creategameresponsepacket.h"
 
-// Qt
 #include "logging.h"
 
-// defines
-#define PACKETNAME "CreateGameResponse"
-
-//-----------------------------------------------------------------------------
-/*!
-   write constructor
-
-   \param name game's name
-*/
-CreateGameResponsePacket::CreateGameResponsePacket(const GameInformation& gameInformation)
-    : Packet(Packet::CREATEGAMERESPONSE), mGameInformation(gameInformation)
+namespace
 {
-   mPacketName = PACKETNAME;
+constexpr auto PACKETNAME = "CreateGameResponse";
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   read constructor
-*/
+CreateGameResponsePacket::CreateGameResponsePacket(const GameInformation& game_information)
+    : Packet(Packet::CREATEGAMERESPONSE), _game_information(game_information)
+{
+   _packet_name = PACKETNAME;
+}
+
 CreateGameResponsePacket::CreateGameResponsePacket() : Packet(Packet::CREATEGAMERESPONSE)
 {
-   mPacketName = PACKETNAME;
+   _packet_name = PACKETNAME;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   destructor
-*/
-CreateGameResponsePacket::~CreateGameResponsePacket()
-{
-}
-
-//-----------------------------------------------------------------------------
-/*!
-   \return game information object
-*/
 const GameInformation& CreateGameResponsePacket::getGameInformation() const
 {
-   return mGameInformation;
+   return _game_information;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param out datastream to write members to
-*/
 void CreateGameResponsePacket::enqueue(BinaryWriter& out)
 {
-   // write members
-   out << mGameInformation;
+   out << _game_information;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param in datastream read members from
-*/
 void CreateGameResponsePacket::dequeue(BinaryReader& in)
 {
-   // read members
-   in >> mGameInformation;
+   in >> _game_information;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   debug output of members
-*/
 void CreateGameResponsePacket::debug()
 {
-   // debug output login response
-   qDebug("CreateGameResponsePacket:debug: id: %d, player id: %d", mGameInformation.getId(), mGameInformation.getCreatorId());
+   qDebug("CreateGameResponsePacket:debug: id: %d, player id: %d", _game_information.getId(), _game_information.getCreatorId());
 }

@@ -12,6 +12,7 @@
 #include "timer.h"
 
 #include <deque>
+#include <memory>
 #include <vector>
 
 // forward declarations
@@ -22,21 +23,18 @@ class Bot
 {
 public:
    //! bot state
-   enum BotState
+   enum class BotState
    {
       BotStateIdle,
       BotStateActive,
       BotStateDead
    };
 
-   //! constructor
-   Bot();
-
    //! destructor
-   virtual ~Bot();
+   virtual ~Bot() = default;
 
    //! setter for bot map
-   virtual void setBotMap(BotMap* botmap);
+   virtual void setBotMap(BotMap* bot_map);
 
    //! setter for player info ptr
    void setPlayerInfo(BotPlayerInfo* info);
@@ -57,7 +55,7 @@ public:
    int getYField();
 
    //! create a map
-   virtual BotMap* createMap(int width, int height);
+   virtual std::unique_ptr<BotMap> createMap(int width, int height);
 
    //! setter for server configuration
    void setServerConfiguration(const ServerConfiguration&);
@@ -69,7 +67,7 @@ public:
    void startTicking();
 
    //! setter for bot keys pressed
-   void setBotKeysPressed(int8_t keysPressed);
+   void setBotKeysPressed(int8_t keys_pressed);
 
    //! getter for bot keys pressed
    int8_t getBotKeysPressed() const;
@@ -86,10 +84,8 @@ public:
    //! time to sync
    Signal<> syncSignal;
 
-public:
-
    //! setter for current position
-   virtual void updatePlayerPosition(int id, float x, float y, float ang);
+   virtual void updatePlayerPosition(int id, float x, float y, float angle);
 
    //! setter for player id
    void updatePlayerId(int id);
@@ -107,10 +103,10 @@ public:
    virtual void extraShake(int);
 
    //! mark hazardous temporary
-   virtual void markHazardousTemporary(int x, int y, int ms, int fieldCount = 0);
+   virtual void markHazardousTemporary(int x, int y, int ms, int field_count = 0);
 
    //! make hazardous temp for bomb kicks
-   virtual void bombKicked(int startX, int startY, Constants::Direction, int flames);
+   virtual void bombKicked(int start_x, int start_y, Constants::Direction, int flames);
 
 protected:
    // bot base functionality
@@ -130,10 +126,7 @@ protected:
    //! reset bot states
    virtual void reset();
 
-   //! delete stuff in destructor
-   virtual void cleanUpBot();
-
-   //! think/decide/act once, called every mTickTimer interval while active
+   //! think/decide/act once, called every _tick_timer interval while active
    virtual void tick();
 
    // game state transitions
@@ -172,65 +165,65 @@ protected:
    // members
 
    //! bot state
-   BotState mBotState;
+   BotState _bot_state = BotState::BotStateDead;
 
-   //! bot map
-   BotMap* mBotMap;
+   //! bot map, owned by the BotClient
+   BotMap* _bot_map = nullptr;
 
-   //! player info ptr
-   BotPlayerInfo* mPlayerInfo;
+   //! player info ptr, owned by the BotClient
+   BotPlayerInfo* _player_info = nullptr;
 
    //! bot's options
-   std::vector<BotOption*> mOptions;
+   std::vector<std::unique_ptr<BotOption>> _options;
 
-   //! bot's next action
-   std::vector<BotAction*> mActions;
+   //! bot's next action, non-owning (actions are owned by _options)
+   std::vector<BotAction*> _actions;
 
    //! x position
-   float mX;
+   float _x = 0.0f;
 
    //! y position
-   float mY;
+   float _y = 0.0f;
 
    //! x field
-   int mXField;
+   int _x_field = 0;
 
    //! y field
-   int mYField;
+   int _y_field = 0;
 
    //! bot id
-   int mId;
+   int _id = -1;
 
-   //! ticks tick() at the same ~100ms cadence the old QThread loop's msleep(100) had
-   Timer mTickTimer;
+   //! ticks tick() every 100ms
+   Timer _tick_timer;
 
    //! current walk direction
-   int mBotKeysPressed;
+   int _bot_keys_pressed = 0;
 
    //! decision required flag
-   bool mDecisionRequired;
+   bool _decision_required = false;
 
    //! action required flag
-   bool mActionRequired;
+   bool _action_required = false;
 
    // navigation
 
    //! transiteration target x
-   int mTransiterateTargetX;
+   int _transiterate_target_x = 0;
 
    //! transiteration target y
-   int mTransiterateTargetY;
+   int _transiterate_target_y = 0;
 
    //! player position is valid
-   bool mPlayerPositionValid;
+   bool _player_position_valid = false;
 
    //! store last few player positions
-   std::deque<Point> mPositionQueue;
+   std::deque<Point> _position_queue;
 
    // server related
 
    //! server configuration
-   ServerConfiguration mServerConfiguration;
+   ServerConfiguration _server_configuration;
 };
 
 #endif  // BOT_H

@@ -1,26 +1,21 @@
 #pragma once
 
-template<typename O, typename W>
+template <typename O, typename W>
 class Weighted
 {
-
 public:
-
    Weighted() = default;
 
-   Weighted(O object, W weight)
-    : _object(object),
-      _weight(weight)
+   Weighted(O object, W weight) : _object(object), _weight(weight)
    {
-
    }
 
-   [[nodiscard]] bool operator == (const Weighted& other) const
+   [[nodiscard]] bool operator==(const Weighted& other) const
    {
       return other._weight == _weight;
    }
 
-   [[nodiscard]] bool operator < (const Weighted& other) const
+   [[nodiscard]] bool operator<(const Weighted& other) const
    {
       return other._weight < _weight;
    }
@@ -37,13 +32,10 @@ public:
 
    void setWeight(W weight)
    {
-       _weight = weight;
+      _weight = weight;
    }
 
-
 protected:
-
-   O _object;
-   W _weight;
+   O _object{};
+   W _weight{};
 };
-

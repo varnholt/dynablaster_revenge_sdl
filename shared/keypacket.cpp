@@ -1,80 +1,44 @@
-// header
 #include "keypacket.h"
 
-// qt
 #include "logging.h"
 
-// defines
-#define PACKETNAME "Key"
-
-/*!----------------------------------------------------------------------------
-   read constructor
-*/
-KeyPacket::KeyPacket() : Packet(Packet::KEY), playerId(0), keys(0)
+namespace
 {
-   mPacketName = PACKETNAME;
+constexpr auto PACKETNAME = "Key";
 }
 
-/*!----------------------------------------------------------------------------
-   write constructor
-
-   \param playerId player's id
-   \param key keys pressed
-*/
-KeyPacket::KeyPacket(int8_t id, int8_t k) : Packet(Packet::KEY), playerId(id), keys(k)
+KeyPacket::KeyPacket() : Packet(Packet::KEY)
 {
-   mPacketName = PACKETNAME;
+   _packet_name = PACKETNAME;
 }
 
-/*!----------------------------------------------------------------------------
-   destructor
-*/
-KeyPacket::~KeyPacket()
+KeyPacket::KeyPacket(int8_t player_id, int8_t keys) : Packet(Packet::KEY), _player_id(player_id), _keys(keys)
 {
+   _packet_name = PACKETNAME;
 }
 
-/*!----------------------------------------------------------------------------
-   \param out output datastream
-*/
 void KeyPacket::enqueue(BinaryWriter& out)
 {
-   // write player id
-   out << playerId;
-
-   // write keyboard input
-   out << keys;
+   out << _player_id;
+   out << _keys;
 }
 
-/*!----------------------------------------------------------------------------
-   \param in input datastream
-*/
 void KeyPacket::dequeue(BinaryReader& in)
 {
-   // read player id, key
-   in >> playerId >> keys;
+   in >> _player_id >> _keys;
 }
 
-/*!----------------------------------------------------------------------------
-   \return pressed keys
-*/
 int8_t KeyPacket::getKeys() const
 {
-   return keys;
+   return _keys;
 }
 
-/*!----------------------------------------------------------------------------
-   \return player id
-*/
 int8_t KeyPacket::getPlayerId() const
 {
-   return playerId;
+   return _player_id;
 }
 
-/*!----------------------------------------------------------------------------
-   debug members
-*/
 void KeyPacket::debug()
 {
-   // output player id and key
-   qDebug("KeyPacket: player id: %d, keys: %d", playerId, keys);
+   qDebug("KeyPacket: player id: %d, keys: %d", _player_id, _keys);
 }

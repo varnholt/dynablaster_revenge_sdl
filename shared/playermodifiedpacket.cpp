@@ -1,64 +1,38 @@
-// header
 #include "playermodifiedpacket.h"
 
-// Qt
 #include "logging.h"
 
-// defines
-#define PACKETNAME "PlayerModified"
-
-//-----------------------------------------------------------------------------
-/*!
- */
-PlayerModifiedPacket::PlayerModifiedPacket(Constants::Color color) : Packet(Packet::PLAYERMODIFIED), mColor(color)
+namespace
 {
-   mPacketName = PACKETNAME;
+constexpr auto PACKETNAME = "PlayerModified";
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   read constructor
-*/
+PlayerModifiedPacket::PlayerModifiedPacket(Constants::Color color) : Packet(Packet::PLAYERMODIFIED), _color(color)
+{
+   _packet_name = PACKETNAME;
+}
+
 PlayerModifiedPacket::PlayerModifiedPacket() : Packet(Packet::PLAYERMODIFIED)
 {
-   mPacketName = PACKETNAME;
+   _packet_name = PACKETNAME;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return player color
-*/
 Constants::Color PlayerModifiedPacket::getColor() const
 {
-   return static_cast<Constants::Color>(mColor);
+   return static_cast<Constants::Color>(_color);
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param out datastream to write members to
-*/
 void PlayerModifiedPacket::enqueue(BinaryWriter& out)
 {
-   // write members
-   out << mColor;
+   out << _color;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param in datastream read members from
-*/
 void PlayerModifiedPacket::dequeue(BinaryReader& in)
 {
-   // read members
-   in >> mColor;
+   in >> _color;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   debug output of members
-*/
 void PlayerModifiedPacket::debug()
 {
-   // output packet members
-   qDebug("PlayerModifiedPacket: player color: %d", mColor);
+   qDebug("PlayerModifiedPacket: player color: %d", _color);
 }

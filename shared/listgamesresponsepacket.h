@@ -1,48 +1,30 @@
 #pragma once
 
-#include "packet.h"
-
-// shared
-#include "gameinformation.h"
-
-// Qt
-
 #include <vector>
+
+#include "gameinformation.h"
+#include "packet.h"
 
 class ListGamesResponsePacket : public Packet
 {
 public:
-   //! write constructor
+   // write constructor
    ListGamesResponsePacket(const std::vector<GameInformation>& games, bool update = false);
 
-   //! read constructor
+   // read constructor
    ListGamesResponsePacket();
 
-   //! destructor
-   virtual ~ListGamesResponsePacket();
+   void debug() override;
+   void enqueue(BinaryWriter& out) override;
+   void dequeue(BinaryReader& in) override;
 
-   //! debugs the member variables
-   void debug();
-
-   //! enqueues the member variables to datastream
-   void enqueue(BinaryWriter&);
-
-   //! dequeues the member variables from datastream
-   void dequeue(BinaryReader&);
-
-   //! getter for game name
    [[nodiscard]] std::vector<GameInformation> getGames() const;
 
-   //! setter for update flag
+   // update flag: the packet updates already known game information
    void setUpdate(bool update);
-
-   //! getter for update flag
    [[nodiscard]] bool isUpdate() const;
 
 private:
-   //! game's name
-   std::vector<GameInformation> mGames;
-
-   //! update game information
-   bool mUpdate;
+   std::vector<GameInformation> _games;
+   bool _update = false;
 };

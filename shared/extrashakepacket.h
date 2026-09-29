@@ -7,28 +7,18 @@
 class ExtraShakePacket : public Packet
 {
 public:
-   //! write constructor
-   ExtraShakePacket(int32_t uniqueId);
+   // write constructor
+   ExtraShakePacket(int32_t unique_id);
 
-   //! read constructor
+   // read constructor
    ExtraShakePacket();
 
-   //! destructor
-   virtual ~ExtraShakePacket();
+   void debug() override;
+   void enqueue(BinaryWriter& out) override;
+   void dequeue(BinaryReader& in) override;
 
-   //! debugs the member variables
-   void debug();
-
-   //! enqueues the member variables to datastream
-   void enqueue(BinaryWriter&);
-
-   //! dequeues the member variables from datastream
-   void dequeue(BinaryReader&);
-
-   //! getter for item unique id
    [[nodiscard]] int32_t getMapItemUniqueId() const;
 
 private:
-   //! unique id
-   int32_t mMapItemUniqueId;
+   int32_t _map_item_unique_id = 0;
 };

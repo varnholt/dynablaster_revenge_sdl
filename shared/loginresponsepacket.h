@@ -2,58 +2,36 @@
 
 #include <string>
 
-// base
 #include "packet.h"
-
-// shared
 #include "serverconfiguration.h"
 
 class LoginResponsePacket : public Packet
 {
 public:
-   //! write constructor
-   LoginResponsePacket(bool broadcasted, int32_t id, const std::string& nick, const ServerConfiguration& serverConfig);
+   // write constructor
+   LoginResponsePacket(bool broadcast, int32_t id, const std::string& nick, const ServerConfiguration& server_configuration);
 
-   //! read constructor
+   // read constructor
    LoginResponsePacket();
 
-   //! destructor
-   virtual ~LoginResponsePacket();
+   void debug() override;
+   void enqueue(BinaryWriter& out) override;
+   void dequeue(BinaryReader& in) override;
 
-   //! debugs the member variables
-   void debug();
-
-   //! enqueues the member variables to datastream
-   void enqueue(BinaryWriter&);
-
-   //! dequeues the member variables from datastream
-   void dequeue(BinaryReader&);
-
-   //! setter for the id
+   // player id, -1 if the login was denied
    void setId(int32_t id);
-
-   //! getter for the id
    [[nodiscard]] int32_t getId() const;
 
-   //! getter for player nick
    [[nodiscard]] const std::string& getNick() const;
 
-   //! getter for broadcast flag
+   // individual response or broadcast to every client
    [[nodiscard]] bool isBroadcast() const;
 
-   //! getter for server configuration
    [[nodiscard]] const ServerConfiguration& getServerConfiguration() const;
 
 private:
-   //! individual allowance or broadcast packet
-   bool mBroadcast;
-
-   //! player's
-   int32_t mId;
-
-   //! player nick
-   std::string mNick;
-
-   //! server configuration data
-   ServerConfiguration mServerConfiguration;
+   bool _broadcast = false;
+   int32_t _id = -1;
+   std::string _nick;
+   ServerConfiguration _server_configuration;
 };

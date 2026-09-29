@@ -1,36 +1,23 @@
 #pragma once
 
-// shared
 #include "gameinformation.h"
 #include "packet.h"
-
-// Qt
 
 class CreateGameResponsePacket : public Packet
 {
 public:
-   //! write constructor
-   CreateGameResponsePacket(const GameInformation& gameInformation);
+   // write constructor
+   CreateGameResponsePacket(const GameInformation& game_information);
 
-   //! read constructor
+   // read constructor
    CreateGameResponsePacket();
 
-   //! destructor
-   virtual ~CreateGameResponsePacket();
+   void debug() override;
+   void enqueue(BinaryWriter& out) override;
+   void dequeue(BinaryReader& in) override;
 
-   //! debugs the member variables
-   void debug();
-
-   //! enqueues the member variables to datastream
-   void enqueue(BinaryWriter&);
-
-   //! dequeues the member variables from datastream
-   void dequeue(BinaryReader&);
-
-   //! getter for game information
    [[nodiscard]] const GameInformation& getGameInformation() const;
 
 private:
-   //! game information
-   GameInformation mGameInformation;
+   GameInformation _game_information;
 };

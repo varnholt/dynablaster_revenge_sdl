@@ -6,17 +6,12 @@
 
 class BotBombAction : public BotAction
 {
-   public:
+public:
+   //! constructor
+   BotBombAction();
 
-      //! constructor
-      BotBombAction();
-
-      //! action is combinable
-      virtual bool isCombinable() const;
-
-
-   protected:
-
+   //! action is combinable
+   virtual bool isCombinable() const;
 };
 
-#endif // BOTBOMBACTION_H
+#endif  // BOTBOMBACTION_H

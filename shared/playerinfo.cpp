@@ -1,252 +1,152 @@
-// header
 #include "playerinfo.h"
 
-// shared
 #include "playerdisease.h"
 
-
-PlayerInfo::PlayerInfo()
-   : mId(-1),
-     mColor(Constants::ColorWhite),
-     mX(0.0f),
-     mY(0.0f),
-     mAngle(0.0f),
-     mDeltaX(0.0f),
-     mDeltaY(0.0f),
-     mDeltaAngle(0.0f),
-     mKilled(false),
-     mDisease(nullptr),
-     mDirections(0)
-{
-}
-
+PlayerInfo::PlayerInfo() = default;
 
 PlayerInfo::~PlayerInfo() = default;
 
-
 void PlayerInfo::setId(int32_t id)
 {
-   mId = id;
+   _id = id;
 }
-
 
 void PlayerInfo::setColor(Constants::Color color)
 {
-   mColor = color;
+   _color = color;
 }
-
 
 void PlayerInfo::setNick(const std::string& nick)
 {
-   mNick = nick;
+   _nick = nick;
 }
-
 
 void PlayerInfo::setPosition(float x, float y, float angle)
 {
-   mX = x;
-   mY = y;
-   mAngle = angle;
+   _x = x;
+   _y = y;
+   _angle = angle;
 }
 
-void PlayerInfo::setPositionDelta(float dx, float dy, float dAngle)
+void PlayerInfo::setPositionDelta(float delta_x, float delta_y, float delta_angle)
 {
-   setDeltaX(dx);
-   setDeltaY(dy);
-   setDeltaAngle(dAngle);
+   setDeltaX(delta_x);
+   setDeltaY(delta_y);
+   setDeltaAngle(delta_angle);
 }
-
 
 float PlayerInfo::getX() const
 {
-   return mX;
+   return _x;
 }
-
 
 float PlayerInfo::getY() const
 {
-   return mY;
+   return _y;
 }
-
 
 float PlayerInfo::getAngle() const
 {
-   return mAngle;
+   return _angle;
 }
 
-
-void PlayerInfo::setDeltaX(float val)
+void PlayerInfo::setDeltaX(float value)
 {
-   mDeltaX = val;
+   _delta_x = value;
 }
 
-
-void PlayerInfo::setDeltaY(float val)
+void PlayerInfo::setDeltaY(float value)
 {
-   mDeltaY = val;
+   _delta_y = value;
 }
 
-
-void PlayerInfo::setDeltaAngle(float val)
+void PlayerInfo::setDeltaAngle(float value)
 {
-   mDeltaAngle = val;
+   _delta_angle = value;
 }
-
 
 int32_t PlayerInfo::getId() const
 {
-   return mId;
+   return _id;
 }
-
 
 Constants::Color PlayerInfo::getColor() const
 {
-   return mColor;
+   return _color;
 }
-
 
 std::string PlayerInfo::getNick() const
 {
-   return mNick;
+   return _nick;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \return player delta x
-*/
 float PlayerInfo::getDeltaX() const
 {
-   return mDeltaX;
+   return _delta_x;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \return player delta y
-*/
 float PlayerInfo::getDeltaY() const
 {
-   return mDeltaY;
+   return _delta_y;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \return player angle delta
-*/
 float PlayerInfo::getAngleDelta() const
 {
-   return mDeltaAngle;
+   return _delta_angle;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \param stats overall stats
-*/
-void PlayerInfo::setOverallStats(const PlayerStats & stats)
+void PlayerInfo::setOverallStats(const PlayerStats& stats)
 {
-   mOverallStats = stats;
+   _overall_stats = stats;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \return overall stats
-*/
-PlayerStats &PlayerInfo::getOverallStats()
+PlayerStats& PlayerInfo::getOverallStats()
 {
-   return mOverallStats;
+   return _overall_stats;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \param stats round stats
-*/
-void PlayerInfo::setRoundStats(const PlayerStats & stats)
+void PlayerInfo::setRoundStats(const PlayerStats& stats)
 {
-   mRoundStats = stats;
+   _round_stats = stats;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \return round stats
-*/
-PlayerStats &PlayerInfo::getRoundStats()
+PlayerStats& PlayerInfo::getRoundStats()
 {
-   return mRoundStats;
+   return _round_stats;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \param killed killed flag
-*/
 void PlayerInfo::setKilled(bool killed)
 {
-   mKilled = killed;
+   _killed = killed;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \return \c true if player is killed
-*/
 bool PlayerInfo::isKilled() const
 {
-   return mKilled;
+   return _killed;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \param disease disease to infect player with
-*/
 void PlayerInfo::infect(std::unique_ptr<PlayerDisease> disease)
 {
-   // assignment destroys whatever mDisease previously owned
-   mDisease = std::move(disease);
+   // assignment destroys whatever was previously owned
+   _disease = std::move(disease);
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \return \c true if player is infected
-*/
 bool PlayerInfo::isInfected() const
 {
-   return (mDisease != nullptr);
+   return _disease != nullptr;
 }
 
-
-//----------------------------------------------------------------------------
-/*!
-   \return player disease
-*/
-PlayerDisease *PlayerInfo::getDisease() const
+PlayerDisease* PlayerInfo::getDisease() const
 {
-   return mDisease.get();
+   return _disease.get();
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \return player directions
-*/
 int8_t PlayerInfo::getDirections() const
 {
-   return mDirections;
+   return _directions;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-   \param directions player directions
-*/
 void PlayerInfo::setDirections(int8_t directions)
 {
-   mDirections = directions;
+   _directions = directions;
 }

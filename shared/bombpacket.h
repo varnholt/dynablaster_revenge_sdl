@@ -5,40 +5,24 @@
 class BombPacket : public Packet
 {
 public:
-   //! write constructor
-   BombPacket(int8_t playerId, uint8_t x, uint8_t y);
+   // write constructor
+   BombPacket(int8_t player_id, uint8_t x, uint8_t y);
 
-   //! read constructor
+   // read constructor
    BombPacket();
 
-   //! destructor
-   virtual ~BombPacket();
+   void debug() override;
+   void enqueue(BinaryWriter& out) override;
+   void dequeue(BinaryReader& in) override;
 
-   //! debugs the member variables
-   void debug();
-
-   //! enqueues the member variables to datastream
-   void enqueue(BinaryWriter&);
-
-   //! dequeues the member variables from datastream
-   void dequeue(BinaryReader&);
-
-   //! getter for player id
    [[nodiscard]] int8_t getPlayerId() const;
 
-   //! getter for the bomb's x field position
+   // the bomb's field position
    [[nodiscard]] uint8_t getX() const;
-
-   //! getter for the bomb's y field position
    [[nodiscard]] uint8_t getY() const;
 
 private:
-   //! player id
-   int8_t playerId;
-
-   //! the bomb's x field position
-   uint8_t x;
-
-   //! the bomb's x field position
-   uint8_t y;
+   int8_t _player_id = 0;
+   uint8_t _x = 0;
+   uint8_t _y = 0;
 };

@@ -1,72 +1,38 @@
-// header
 #include "extrashakepacket.h"
 
-// Qt
 #include "logging.h"
 
-// defines
-#define PACKETNAME "ExtraShake"
-
-//-----------------------------------------------------------------------------
-/*!
-   write constructor
-
-   \param uniqueId unique id
-*/
-ExtraShakePacket::ExtraShakePacket(int32_t uniqueId) : Packet(Packet::EXTRASHAKE), mMapItemUniqueId(uniqueId)
+namespace
 {
-   mPacketName = PACKETNAME;
+constexpr auto PACKETNAME = "ExtraShake";
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   read constructor
-*/
-ExtraShakePacket::ExtraShakePacket() : Packet(Packet::EXTRASHAKE), mMapItemUniqueId(0)
+ExtraShakePacket::ExtraShakePacket(int32_t unique_id) : Packet(Packet::EXTRASHAKE), _map_item_unique_id(unique_id)
 {
-   mPacketName = PACKETNAME;
+   _packet_name = PACKETNAME;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   destructor
-*/
-ExtraShakePacket::~ExtraShakePacket()
+ExtraShakePacket::ExtraShakePacket() : Packet(Packet::EXTRASHAKE)
 {
+   _packet_name = PACKETNAME;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return unique id
-*/
 int32_t ExtraShakePacket::getMapItemUniqueId() const
 {
-   return mMapItemUniqueId;
+   return _map_item_unique_id;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param out datastream to write members to
-*/
 void ExtraShakePacket::enqueue(BinaryWriter& out)
 {
-   out << mMapItemUniqueId;
+   out << _map_item_unique_id;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param in datastream read members from
-*/
 void ExtraShakePacket::dequeue(BinaryReader& in)
 {
-   in >> mMapItemUniqueId;
+   in >> _map_item_unique_id;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   debug output of members
-*/
 void ExtraShakePacket::debug()
 {
-   qDebug("ExtraShakePacket: unique id: %d", mMapItemUniqueId);
+   qDebug("ExtraShakePacket: unique id: %d", _map_item_unique_id);
 }

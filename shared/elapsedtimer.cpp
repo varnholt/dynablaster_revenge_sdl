@@ -1,9 +1,5 @@
 #include "elapsedtimer.h"
 
-ElapsedTimer::ElapsedTimer() : _start_time(std::chrono::steady_clock::now())
-{
-}
-
 void ElapsedTimer::start()
 {
    _start_time = std::chrono::steady_clock::now();

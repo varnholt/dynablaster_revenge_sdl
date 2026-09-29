@@ -1,28 +1,14 @@
 #include "path.h"
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
-Path::Path()
-{
-}
-
-
-//-----------------------------------------------------------------------------
 /*!
    \param points points to set
 */
 void Path::setPoints(const std::vector<Point>& points)
 {
-   mPoints = points;
+   _points = points;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 void Path::positionReached()
 {
-   mPoints.erase(mPoints.begin());
+   _points.erase(_points.begin());
 }

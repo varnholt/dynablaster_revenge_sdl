@@ -1,94 +1,60 @@
-// header
 #include "mapcreaterequestpacket.h"
 
-// Qt
 #include "logging.h"
 
-// defines
-#define PACKETNAME "MapCreateRequest"
+namespace
+{
+constexpr auto PACKETNAME = "MapCreateRequest";
+}
 
-//-----------------------------------------------------------------------------
-/*!
-   write constructor
-
-   \param width map's width
-   \param height map's height
-   \param stoneCount number of stones to place
-   \param extraBombCount number of bomb extras to place
-   \param extraFlameCount number of flame extras to place
-*/
 MapCreateRequestPacket::MapCreateRequestPacket(
    int32_t width,
    int32_t height,
-   int32_t stoneCount,
-   int32_t extraBombCount,
-   int32_t extraFlameCount,
-   const std::vector<Point>& startPositions
+   int32_t stone_count,
+   int32_t extra_bomb_count,
+   int32_t extra_flame_count,
+   const std::vector<Point>& start_positions
 )
     : Packet(Packet::MAPCREATEREQUEST),
-      mWidth(width),
-      mHeight(height),
-      mStoneCount(stoneCount),
-      mExtraBombCount(extraBombCount),
-      mExtraFlameCount(extraFlameCount),
-      mStartPositions(startPositions)
+      _width(width),
+      _height(height),
+      _stone_count(stone_count),
+      _extra_bomb_count(extra_bomb_count),
+      _extra_flame_count(extra_flame_count),
+      _start_positions(start_positions)
 {
-   mPacketName = PACKETNAME;
+   _packet_name = PACKETNAME;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   read constructor
-*/
 MapCreateRequestPacket::MapCreateRequestPacket() : Packet(Packet::MAPCREATEREQUEST)
 {
-   mPacketName = PACKETNAME;
+   _packet_name = PACKETNAME;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   destructor
-*/
-MapCreateRequestPacket::~MapCreateRequestPacket()
-{
-}
-
-//-----------------------------------------------------------------------------
-/*!
-   \param out datastream to write members to
-*/
 void MapCreateRequestPacket::enqueue(BinaryWriter& out)
 {
-   out << mWidth;
-   out << mHeight;
-   out << mStoneCount;
-   out << mExtraBombCount;
-   out << mExtraFlameCount;
-   out << mStartPositions;
+   out << _width;
+   out << _height;
+   out << _stone_count;
+   out << _extra_bomb_count;
+   out << _extra_flame_count;
+   out << _start_positions;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param in datastream read members from
-*/
 void MapCreateRequestPacket::dequeue(BinaryReader& in)
 {
-   in >> mWidth >> mHeight >> mStoneCount >> mExtraBombCount >> mExtraFlameCount >> mStartPositions;
+   in >> _width >> _height >> _stone_count >> _extra_bomb_count >> _extra_flame_count >> _start_positions;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   debug output of members
-*/
 void MapCreateRequestPacket::debug()
 {
    qDebug(
       "MapCreateRequestPacket:debug: width: %d, height: %d, stones: %d, "
       "bombextras: %d, flamextras: %d",
-      mWidth,
-      mHeight,
-      mStoneCount,
-      mExtraBombCount,
-      mExtraFlameCount
+      _width,
+      _height,
+      _stone_count,
+      _extra_bomb_count,
+      _extra_flame_count
    );
 }

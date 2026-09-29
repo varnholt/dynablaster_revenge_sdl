@@ -1,17 +1,10 @@
 #include "botbombaction.h"
 
-//-----------------------------------------------------------------------------
-/*!
-*/
-BotBombAction::BotBombAction()
+BotBombAction::BotBombAction() : BotAction(ActionType::ActionBomb)
 {
-   mActionType = ActionBomb;
 }
-
 
 bool BotBombAction::isCombinable() const
 {
    return false;
 }
-
-

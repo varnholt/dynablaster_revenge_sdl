@@ -5,10 +5,10 @@
 #include "botmap.h"
 #include "point.h"
 
+#include <memory>
 #include <vector>
 
-// forward declarations
-class AStarNode;
+#include "astarnode.h"
 
 class AStarMap : public BotMap
 {
@@ -19,21 +19,6 @@ public:
    //! constructor
    AStarMap(int width, int height);
 
-   //! copy constructor for botmap (map items are not copied)
-   explicit AStarMap(BotMap*);
-
-   //! copy constructor for astar map (map items are not copied)
-   explicit AStarMap(AStarMap*);
-
-   //! destructor
-   virtual ~AStarMap();
-
-   //! clear map
-   void clear();
-
-   //! setter for botmap
-   void setBotMap(BotMap*);
-
    //! create nodes
    void buildNodes();
 
@@ -41,13 +26,10 @@ public:
    void clearNodes();
 
    //! get all neighbor nodes of a position
-   std::vector<AStarNode*> getNeighbors(int x, int y, bool regardStones = false);
+   std::vector<AStarNode*> getNeighbors(int x, int y, bool regard_stones = false);
 
    //! get node at x, y
    AStarNode* getNode(int x, int y) const;
-
-   //! set node at x, y
-   void setNode(int x, int y, AStarNode*);
 
    //! debug path
    void debugPath(const std::vector<AStarNode*>& path);
@@ -57,13 +39,13 @@ protected:
    void initMap();
 
    //! check if a point is traversable
-   bool isTraversable(const Point& p, bool regardStones);
+   bool isTraversable(const Point& point, bool regard_stones) const;
 
-   //! node map
-   AStarNode** mNodeMap;
+   //! node map, non-owning lookup into _nodes
+   std::vector<AStarNode*> _node_map;
 
    //! list of nodes
-   std::vector<AStarNode*> mNodes;
+   std::vector<std::unique_ptr<AStarNode>> _nodes;
 };
 
 #endif  // ASTARMAP_H

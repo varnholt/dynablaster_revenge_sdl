@@ -2,40 +2,29 @@
 
 #include <vector>
 
-// base
 #include "mapitemcreatedpacket.h"
 
-// forward declarations
 class ExtraMapItem;
 
 class ExtraMapItemCreatedPacket : public MapItemCreatedPacket
 {
 public:
-   //! write constructor
-   ExtraMapItemCreatedPacket(ExtraMapItem*);
+   // write constructor
+   ExtraMapItemCreatedPacket(ExtraMapItem* item);
 
-   //! read constructor
+   // read constructor
    ExtraMapItemCreatedPacket();
 
-   //! enqueues the member variables to datastream
-   virtual void enqueue(BinaryWriter&);
+   void enqueue(BinaryWriter& out) override;
+   void dequeue(BinaryReader& in) override;
 
-   //! dequeues the member variables from datastream
-   virtual void dequeue(BinaryReader&);
-
-   //! getter for extra type
    [[nodiscard]] int32_t getExtraType() const;
 
-   //! setter for different skull sides
+   // the skull's six faces
    void setSkullFaces(const std::vector<Constants::SkullType>& faces);
-
-   //! getter for skull sides
    [[nodiscard]] std::vector<Constants::SkullType> getSkullFaces() const;
 
 private:
-   //! extra type
-   int32_t mExtraType;
-
-   //! skull sides
-   std::vector<Constants::SkullType> mSkullFaces;
+   int32_t _extra_type = -1;
+   std::vector<Constants::SkullType> _skull_faces = std::vector<Constants::SkullType>(6, Constants::SkullReset);
 };

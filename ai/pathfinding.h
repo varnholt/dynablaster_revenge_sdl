@@ -3,10 +3,6 @@
 
 class PathFinding
 {
-   public:
-
-      //! constructor
-      PathFinding();
 };
 
-#endif // PATHFINDING_H
+#endif  // PATHFINDING_H

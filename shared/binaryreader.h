@@ -59,8 +59,8 @@ private:
    template <typename T>
    T read();
 
-   const uint8_t* _data;
-   size_t _size;
+   const uint8_t* _data = nullptr;
+   size_t _size = 0;
    size_t _pos = 0;
    bool _ok = true;
 };

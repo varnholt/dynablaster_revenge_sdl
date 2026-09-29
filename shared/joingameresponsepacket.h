@@ -2,70 +2,38 @@
 
 #include <string>
 
-// base
-#include "packet.h"
-
-// shared
 #include "constants.h"
+#include "packet.h"
 
 class JoinGameResponsePacket : public Packet
 {
 public:
-   //! write constructor
-   JoinGameResponsePacket(bool success, int32_t gameid, int32_t id, const std::string& nick, Constants::Color color);
+   // write constructor
+   JoinGameResponsePacket(bool success, int32_t game_id, int32_t player_id, const std::string& nick, Constants::Color color);
 
-   //! read constructor
+   // read constructor
    JoinGameResponsePacket();
 
-   //! destructor
-   virtual ~JoinGameResponsePacket();
+   void debug() override;
+   void enqueue(BinaryWriter& out) override;
+   void dequeue(BinaryReader& in) override;
 
-   //! debugs the member variables
-   void debug();
-
-   //! enqueues the member variables to datastream
-   void enqueue(BinaryWriter&);
-
-   //! dequeues the member variables from datastream
-   void dequeue(BinaryReader&);
-
-   //! setter for the game id
    void setGameId(int32_t id);
-
-   //! getter for the game id
    [[nodiscard]] int32_t getGameId() const;
 
-   //! setter for the player id
    void setPlayerId(int32_t id);
-
-   //! getter for the player id
    [[nodiscard]] int32_t getPlayerId() const;
 
-   //! getter for player nick
    [[nodiscard]] const std::string& getNick() const;
-
-   //! getter for successful flag
    [[nodiscard]] bool isSuccessful() const;
 
-   //! setter for player color
    void setColor(Constants::Color color);
-
-   //! getter for player color
    [[nodiscard]] Constants::Color getColor() const;
 
 private:
-   //! successfully joined
-   bool mSuccess;
-
-   //! game's id
-   int32_t mGameId;
-
-   //! player's
-   int32_t mPlayerId;
-
-   //! player nick
-   std::string mNick;
-
-   //! player's color
-   Constants::Color mColor;
+   bool _success = false;
+   int32_t _game_id = -1;
+   int32_t _player_id = -1;
+   std::string _nick;
+   Constants::Color _color = Constants::ColorWhite;
 };

@@ -1,6 +1,7 @@
 #ifndef BOTFACTORY_H
 #define BOTFACTORY_H
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -11,7 +12,6 @@ class BotClient;
 class BotFactory
 {
 public:
-
    BotFactory();
 
    virtual ~BotFactory();
@@ -22,7 +22,7 @@ public:
 
    const std::string& getHostname() const;
 
-   void setGameId(int gameId);
+   void setGameId(int game_id);
 
    int getGameId() const;
 
@@ -30,26 +30,24 @@ public:
 
    void removeBot(BotClient* client);
 
-
 protected:
-
    //! create a bot and a client instance
    void createBotClientPair();
 
    //! host to connect to
-   std::string mHostname;
+   std::string _hostname = "127.0.0.1";
 
    //! game to join
-   int mGameId;
+   int _game_id = -1;
 
-   //! list of bot clients
-   std::vector<BotClient*> mClients;
+   //! list of bot clients (each client owns its bot)
+   std::vector<std::unique_ptr<BotClient>> _clients;
 
-   //! list of bots
-   std::vector<Bot*> mBots;
+   //! list of bots, non-owning
+   std::vector<Bot*> _bots;
 
    //! list of given names
-   std::vector<std::string> mGivenNames;
+   std::vector<std::string> _given_names;
 };
 
-#endif // BOTFACTORY_H
+#endif  // BOTFACTORY_H

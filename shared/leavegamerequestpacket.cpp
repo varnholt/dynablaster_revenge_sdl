@@ -1,99 +1,54 @@
-// header
 #include "leavegamerequestpacket.h"
 
-// Qt
 #include "logging.h"
 
-// defines
-#define PACKETNAME "LeaveGameRequest"
-
-//-----------------------------------------------------------------------------
-/*!
- */
-LeaveGameRequestPacket::LeaveGameRequestPacket() : Packet(Packet::LEAVEGAMEREQUEST), mGameId(-1), mPlayerId(-1)
+namespace
 {
-   mPacketName = PACKETNAME;
+constexpr auto PACKETNAME = "LeaveGameRequest";
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
-LeaveGameRequestPacket::LeaveGameRequestPacket(int32_t gameId, int32_t playerId)
-    : Packet(Packet::LEAVEGAMEREQUEST), mGameId(gameId), mPlayerId(playerId)
+LeaveGameRequestPacket::LeaveGameRequestPacket() : Packet(Packet::LEAVEGAMEREQUEST)
 {
-   mPacketName = PACKETNAME;
+   _packet_name = PACKETNAME;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   destructor
-*/
-LeaveGameRequestPacket::~LeaveGameRequestPacket()
+LeaveGameRequestPacket::LeaveGameRequestPacket(int32_t game_id, int32_t player_id)
+    : Packet(Packet::LEAVEGAMEREQUEST), _game_id(game_id), _player_id(player_id)
 {
+   _packet_name = PACKETNAME;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param out datastream to write members to
-*/
 void LeaveGameRequestPacket::enqueue(BinaryWriter& out)
 {
-   // write player data
-   out << mGameId << mPlayerId;
+   out << _game_id << _player_id;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param in datastream read members from
-*/
 void LeaveGameRequestPacket::dequeue(BinaryReader& in)
 {
-   // read player data
-   in >> mGameId >> mPlayerId;
+   in >> _game_id >> _player_id;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   debug output of members
-*/
 void LeaveGameRequestPacket::debug()
 {
-   // debug output login request
    qDebug("LeaveGameRequestPacket:debug: no members");
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param id player id to set
-*/
-void LeaveGameRequestPacket::setPlayerId(int32_t tmpId)
+void LeaveGameRequestPacket::setPlayerId(int32_t id)
 {
-   mPlayerId = tmpId;
+   _player_id = id;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return player's id
-*/
 int32_t LeaveGameRequestPacket::getPlayerId() const
 {
-   return mPlayerId;
+   return _player_id;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param id game id to set
-*/
 void LeaveGameRequestPacket::setGameId(int32_t id)
 {
-   mGameId = id;
+   _game_id = id;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return game's id
-*/
 int32_t LeaveGameRequestPacket::getGameId() const
 {
-   return mGameId;
+   return _game_id;
 }

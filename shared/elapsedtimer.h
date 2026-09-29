@@ -7,12 +7,12 @@
 class ElapsedTimer
 {
 public:
-   ElapsedTimer();
+   ElapsedTimer() = default;
 
    void start();
    int64_t restart();
    int64_t elapsed() const;
 
 private:
-   std::chrono::steady_clock::time_point _start_time;
+   std::chrono::steady_clock::time_point _start_time = std::chrono::steady_clock::now();
 };

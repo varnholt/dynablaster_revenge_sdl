@@ -1,33 +1,24 @@
 #pragma once
 
-// base
-#include "packet.h"
-
-// constants
 #include "constants.h"
+#include "packet.h"
 
 class TimePacket : public Packet
 {
 public:
-   //! read constructor
+   // read constructor
    TimePacket();
 
-   //! write constructor
-   TimePacket(int32_t timeLeft);
+   // write constructor
+   explicit TimePacket(int32_t time_left);
 
-   //! debugs the member variables
-   void debug();
+   void debug() override;
+   void enqueue(BinaryWriter& out) override;
+   void dequeue(BinaryReader& in) override;
 
-   //! enqueues the member variables to datastream
-   void enqueue(BinaryWriter&);
-
-   //! dequeues the member variables from datastream
-   void dequeue(BinaryReader&);
-
-   //! getter for elapsed time
    [[nodiscard]] int32_t getTimeLeft() const;
 
 private:
-   //! elapsed time in ms
-   int32_t mTimeLeft;
+   // time left in ms
+   int32_t _time_left = 0;
 };

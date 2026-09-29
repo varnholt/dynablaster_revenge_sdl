@@ -7,10 +7,8 @@ class BinaryReader;
 
 class PlayerStats
 {
-
 public:
-
-   PlayerStats();
+   PlayerStats() = default;
 
    [[nodiscard]] uint32_t getWins() const;
 
@@ -22,17 +20,17 @@ public:
 
    [[nodiscard]] uint32_t getExtrasCollected() const;
 
-   void setWins(uint32_t);
+   void setWins(uint32_t wins);
 
-   void setKills(uint32_t);
+   void setKills(uint32_t kills);
 
-   void setDeaths(uint32_t);
+   void setDeaths(uint32_t deaths);
 
    void setSurvivalTime(uint32_t time);
 
-   void setExtrasCollected(uint32_t extrasCollected);
+   void setExtrasCollected(uint32_t extras_collected);
 
-   void increaseSurvivalTime(uint32_t);
+   void increaseSurvivalTime(uint32_t survival_time);
 
    void increaseWins();
 
@@ -44,18 +42,12 @@ public:
 
    void reset();
 
-
 protected:
-
-   uint32_t _wins;
-
-   uint32_t _kills;
-
-   uint32_t _deaths;
-
-   uint32_t _survival_time;
-
-   uint32_t _extras_collected;
+   uint32_t _wins = 0;
+   uint32_t _kills = 0;
+   uint32_t _deaths = 0;
+   uint32_t _survival_time = 0;
+   uint32_t _extras_collected = 0;
 };
 
 BinaryWriter& operator<<(BinaryWriter& out, const PlayerStats& stats);

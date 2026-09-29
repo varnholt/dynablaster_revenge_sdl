@@ -1,62 +1,37 @@
 #pragma once
 
-// shared
 #include "vec2.h"
-
 
 class PlayerRotation
 {
+public:
+   PlayerRotation() = default;
 
-   public:
+   // angle to increment by each update
+   static void setAngleIncrement(float angle);
 
-      //! constructor
-      PlayerRotation();
+   // target direction (position on the unit circle)
+   void setTargetVector(const Vec2& target);
+   [[nodiscard]] const Vec2& getTargetVector() const;
 
-      //! setter for angle increment 0..360
-      static void setAngleIncrement(float angle);
+   void updateAngle();
 
-      //! setter for target direction (position on the unit circle)
-      void setTargetVector(const Vec2&);
+   [[nodiscard]] float getAngle() const;
+   [[nodiscard]] float getPreviousAngle() const;
 
-      //! getter for the target vector
-      [[nodiscard]] const Vec2& getTargetVector() const;
+   // delta from previous angle to current angle
+   [[nodiscard]] float getAngleDelta() const;
 
-      //! update angle
-      void updateAngle();
+   void reset();
 
-      //! getter for the current angle
-      [[nodiscard]] float getAngle() const;
+private:
+   static float _angle_increment;
 
-      //! getter for the previous angle
-      [[nodiscard]] float getPreviousAngle() const;
+   float _angle = 0.0f;
+   float _previous_angle = 0.0f;
+   float _target_angle = 0.0f;
+   float _delta = 0.0f;
+   Vec2 _target_vector;
 
-      //! getter for angle delta
-      [[nodiscard]] float getAngleDelta() const;
-
-      //! reset angle
-      void reset();
-
-
-   private:
-
-      //! angle to increment by each update
-      static float mAngleIncrement;
-
-      //! current angle
-      float mAngle;
-
-      //! previous angle
-      float mPreviousAngle;
-
-      //! target angle
-      float mTargetAngle;
-
-      //! delta from previous angle to current angle
-      float mDelta;
-
-      //! target vector
-      Vec2 mTargetVector;
-
-      //! down vector
-      static Vec2 mDown;
+   static Vec2 _down;
 };

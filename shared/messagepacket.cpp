@@ -1,116 +1,64 @@
-// header
 #include "messagepacket.h"
 
-// Qt
 #include "logging.h"
 
-// defines
-#define PACKETNAME "Message"
-
-//----------------------------------------------------------------------------
-/*!
-   \param message message to send
-   \param receiverId id of the receiver
-*/
-MessagePacket::MessagePacket(int8_t senderId, const std::string& message, bool finishedTyping, int8_t receiverId)
-    : Packet(Packet::MESSAGE), mSenderId(senderId), mMessage(message), mReceiverId(receiverId), mFinishedTyping(finishedTyping)
+namespace
 {
-   mPacketName = PACKETNAME;
+constexpr auto PACKETNAME = "Message";
 }
 
-//----------------------------------------------------------------------------
-/*!
- */
-MessagePacket::MessagePacket() : Packet(Packet::MESSAGE), mReceiverId(-1), mFinishedTyping(true)
+MessagePacket::MessagePacket(int8_t sender_id, const std::string& message, bool finished_typing, int8_t receiver_id)
+    : Packet(Packet::MESSAGE), _sender_id(sender_id), _message(message), _receiver_id(receiver_id), _finished_typing(finished_typing)
 {
-   mPacketName = PACKETNAME;
+   _packet_name = PACKETNAME;
 }
 
-//----------------------------------------------------------------------------
-/*!
- */
-MessagePacket::~MessagePacket()
+MessagePacket::MessagePacket() : Packet(Packet::MESSAGE)
 {
+   _packet_name = PACKETNAME;
 }
 
-//----------------------------------------------------------------------------
-/*!
-   \return message to send
-*/
 std::string MessagePacket::getMessage() const
 {
-   return mMessage;
+   return _message;
 }
 
-//----------------------------------------------------------------------------
-/*!
-   \return receiver's id
-*/
 int8_t MessagePacket::getReceiverId() const
 {
-   return mReceiverId;
+   return _receiver_id;
 }
 
-//----------------------------------------------------------------------------
-/*!
-   \return \c true if typing is finished
-*/
 bool MessagePacket::isTypingFinished() const
 {
-   return mFinishedTyping;
+   return _finished_typing;
 }
 
-//----------------------------------------------------------------------------
-/*!
-   \param out datastream to write members to
-*/
 void MessagePacket::enqueue(BinaryWriter& out)
 {
-   // write sender id
-   out << mSenderId;
-
-   // write message
-   out << mMessage;
-
-   // write receiver id
-   out << mReceiverId;
-
-   // write finished typing flag
-   out << mFinishedTyping;
+   out << _sender_id;
+   out << _message;
+   out << _receiver_id;
+   out << _finished_typing;
 }
 
-//----------------------------------------------------------------------------
-/*!
-   \param in datastream read members from
-*/
 void MessagePacket::dequeue(BinaryReader& in)
 {
-   // read message and receiver id
-   in >> mSenderId >> mMessage >> mReceiverId >> mFinishedTyping;
+   in >> _sender_id >> _message >> _receiver_id >> _finished_typing;
 }
 
-//----------------------------------------------------------------------------
-/*!
-   \return sender id
-*/
 int8_t MessagePacket::getSenderId() const
 {
-   return mSenderId;
+   return _sender_id;
 }
 
-//----------------------------------------------------------------------------
-/*!
-   debug output of members
-*/
 void MessagePacket::debug()
 {
-   // debug message request
    qDebug(
       "MessagePacket:debug: sender: %d, message: '%s', "
       "receiver: %d, finished: %d",
-      mSenderId,
-      mMessage.c_str(),
-      mReceiverId,
-      mFinishedTyping
+      _sender_id,
+      _message.c_str(),
+      _receiver_id,
+      _finished_typing
    );
 }

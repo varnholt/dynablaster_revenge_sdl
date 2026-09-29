@@ -1,211 +1,145 @@
-
-// header
 #include "playerdisease.h"
 
-// shared
 #include "player.h"
-
-// Qt
 #include "random.h"
-
 #include "timer.h"
 
-// static
-std::unordered_set<Constants::SkullType> PlayerDisease::sSupportedSkulls;
-std::vector<Constants::SkullType> PlayerDisease::sCubeFaces;
+std::unordered_set<Constants::SkullType> PlayerDisease::_supported_skulls;
+std::vector<Constants::SkullType> PlayerDisease::_cube_faces;
 
-//-----------------------------------------------------------------------------
-/*!
- */
-PlayerDisease::PlayerDisease() : mType(Constants::SkullAutofire), mDuration(SERVER_SKULL_DURATION), mPlayerId(-1)
-{
-}
-
-//-----------------------------------------------------------------------------
-/*!
- */
 PlayerDisease::~PlayerDisease()
 {
-   for (const auto& callback : mDestroyCallbacks)
+   for (const auto& callback : _destroy_callbacks)
    {
       callback();
    }
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param callback run once, right before this object is destroyed
-*/
 void PlayerDisease::addDestroyCallback(std::function<void()> callback)
 {
-   mDestroyCallbacks.push_back(std::move(callback));
+   _destroy_callbacks.push_back(std::move(callback));
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param type disease type
-*/
 void PlayerDisease::setType(Constants::SkullType type)
 {
-   mType = type;
+   _type = type;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return disease type
-*/
 Constants::SkullType PlayerDisease::getType() const
 {
-   return mType;
+   return _type;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param duration disease duration
-*/
 void PlayerDisease::setDuration(int32_t duration)
 {
-   mDuration = duration;
+   _duration = duration;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return disease duration
-*/
 int32_t PlayerDisease::getDuration() const
 {
-   return mDuration;
+   return _duration;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return \c true if disease is active
-*/
 bool PlayerDisease::isActive() const
 {
-   return mActiveTime.elapsed() < getDuration();
+   return _active_time.elapsed() < getDuration();
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void PlayerDisease::activate()
 {
-   mActiveTime.start();
+   _active_time.start();
 
-   Timer::singleShot(getDuration(), [this]() { abort(); });
+   // a disease replaced by a new infection (or destroyed with its player) before the duration
+   // elapses must not be aborted through a dangling pointer
+   Timer::singleShot(
+      getDuration(),
+      [this, token = std::weak_ptr<bool>(_lifetime_token)]()
+      {
+         if (!token.expired())
+         {
+            abort();
+         }
+      }
+   );
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void PlayerDisease::randomizeType()
 {
    setType(static_cast<Constants::SkullType>(Random::bounded(static_cast<int32_t>(Constants::SkullReset))));
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param keysPressed keys to modify
-*/
-void PlayerDisease::applyAutofire(int8_t& keysPressed)
+void PlayerDisease::applyAutofire(int8_t& keys_pressed)
 {
-   keysPressed |= Constants::KeyBomb;
+   keys_pressed |= Constants::KeyBomb;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param keysPressed keys to modify
-*/
-void PlayerDisease::applyKeyboardInvert(int8_t& keysPressed)
+void PlayerDisease::applyKeyboardInvert(int8_t& keys_pressed)
 {
-   int8_t invertedKeys = 0;
+   int8_t inverted_keys = 0;
 
    // pass bomb bit
-   if (keysPressed & Constants::KeyBomb)
-      invertedKeys |= Constants::KeyBomb;
+   if (keys_pressed & Constants::KeyBomb)
+   {
+      inverted_keys |= Constants::KeyBomb;
+   }
 
    // invert others
-   if (keysPressed & Constants::KeyUp)
-      invertedKeys |= Constants::KeyDown;
-   if (keysPressed & Constants::KeyDown)
-      invertedKeys |= Constants::KeyUp;
-   if (keysPressed & Constants::KeyLeft)
-      invertedKeys |= Constants::KeyRight;
-   if (keysPressed & Constants::KeyRight)
-      invertedKeys |= Constants::KeyLeft;
+   if (keys_pressed & Constants::KeyUp)
+   {
+      inverted_keys |= Constants::KeyDown;
+   }
+   if (keys_pressed & Constants::KeyDown)
+   {
+      inverted_keys |= Constants::KeyUp;
+   }
+   if (keys_pressed & Constants::KeyLeft)
+   {
+      inverted_keys |= Constants::KeyRight;
+   }
+   if (keys_pressed & Constants::KeyRight)
+   {
+      inverted_keys |= Constants::KeyLeft;
+   }
 
-   keysPressed = invertedKeys;
+   keys_pressed = inverted_keys;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return id of infected player
-*/
 int32_t PlayerDisease::getPlayerId() const
 {
-   return mPlayerId;
+   return _player_id;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param playerId infected player
-*/
-void PlayerDisease::setPlayerId(int32_t playerId)
+void PlayerDisease::setPlayerId(int32_t player_id)
 {
-   mPlayerId = playerId;
+   _player_id = player_id;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param skulls supported skulls
-*/
 void PlayerDisease::setSupportedSkulls(const std::unordered_set<Constants::SkullType>& skulls)
 {
-   sSupportedSkulls = skulls;
+   _supported_skulls = skulls;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return supported skulls
-*/
 std::unordered_set<Constants::SkullType> PlayerDisease::getSupportedSkulls()
 {
-   return sSupportedSkulls;
+   return _supported_skulls;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param skull face setup
-*/
-void PlayerDisease::setSkullFaces(std::vector<Constants::SkullType>& faces)
+void PlayerDisease::setSkullFaces(const std::vector<Constants::SkullType>& faces)
 {
-   sCubeFaces = faces;
+   _cube_faces = faces;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return skull faces setup
-*/
 std::vector<Constants::SkullType> PlayerDisease::getSkullFaces()
 {
-   return sCubeFaces;
+   return _cube_faces;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return randomized skull faces
-*/
 std::vector<Constants::SkullType> PlayerDisease::generateSkullFaces()
 {
-   // TODO: really generate random faces in the future
-   //       for now, the setup defined in the server settings is used.
-   return sCubeFaces;
+   // TODO: really generate random faces, for now the setup defined in the server settings is used
+   return _cube_faces;
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void PlayerDisease::abort()
 {
    stoppedSignal();

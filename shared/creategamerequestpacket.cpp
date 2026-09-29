@@ -1,137 +1,85 @@
-// header
 #include "creategamerequestpacket.h"
 
-// Qt
 #include "logging.h"
 
-// defines
-#define PACKETNAME "CreateGameReqest"
+namespace
+{
+constexpr auto PACKETNAME = "CreateGameReqest";
+}
 
-//-----------------------------------------------------------------------------
-/*!
-   write constructor
-
-   \param name game's name
-*/
 CreateGameRequestPacket::CreateGameRequestPacket(
    const std::string& name,
    const std::string& level,
    int32_t rounds,
    int32_t duration,
-   int32_t maxPlayers,
-   bool extraBombEnabled,
-   bool extraFlameEnabled,
-   bool extraSpeedupEnabled,
-   bool extraKickEnabled,
-   bool extraSkullsEnabled,
+   int32_t max_players,
+   bool extra_bomb_enabled,
+   bool extra_flame_enabled,
+   bool extra_speedup_enabled,
+   bool extra_kick_enabled,
+   bool extra_skulls_enabled,
    Constants::Dimension dimension
 )
     : Packet(Packet::CREATEGAMEREQUEST)
 {
-   mPacketName = PACKETNAME;
+   _packet_name = PACKETNAME;
 
-   mData.mName = name;
-   mData.mLevel = level;
-   mData.mRounds = rounds;
-   mData.mDuration = duration;
-   mData.mMaxPlayers = maxPlayers;
-   mData.mExtraBombEnabled = extraBombEnabled;
-   mData.mExtraFlameEnabled = extraFlameEnabled;
-   mData.mExtraSpeedupEnabled = extraSpeedupEnabled;
-   mData.mExtraKickEnabled = extraKickEnabled;
-   mData.mExtraSkullsEnabled = extraSkullsEnabled;
-   mData.mDimension = dimension;
+   _data.mName = name;
+   _data.mLevel = level;
+   _data.mRounds = rounds;
+   _data.mDuration = duration;
+   _data.mMaxPlayers = max_players;
+   _data.mExtraBombEnabled = extra_bomb_enabled;
+   _data.mExtraFlameEnabled = extra_flame_enabled;
+   _data.mExtraSpeedupEnabled = extra_speedup_enabled;
+   _data.mExtraKickEnabled = extra_kick_enabled;
+   _data.mExtraSkullsEnabled = extra_skulls_enabled;
+   _data.mDimension = dimension;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   read constructor
-*/
 CreateGameRequestPacket::CreateGameRequestPacket() : Packet(Packet::CREATEGAMEREQUEST)
 {
-   mPacketName = PACKETNAME;
+   _packet_name = PACKETNAME;
 
-   mData.mRounds = 1;
-   mData.mDuration = 180;
-   mData.mMaxPlayers = 5;
-   mData.mExtraBombEnabled = false;
-   mData.mExtraFlameEnabled = false;
-   mData.mExtraSpeedupEnabled = false;
-   mData.mExtraKickEnabled = false;
-   mData.mExtraSkullsEnabled = false;
+   _data.mRounds = 1;
+   _data.mDuration = 180;
+   _data.mMaxPlayers = 5;
+   _data.mExtraBombEnabled = false;
+   _data.mExtraFlameEnabled = false;
+   _data.mExtraSpeedupEnabled = false;
+   _data.mExtraKickEnabled = false;
+   _data.mExtraSkullsEnabled = false;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   destructor
-*/
-CreateGameRequestPacket::~CreateGameRequestPacket()
-{
-}
-
-//-----------------------------------------------------------------------------
-/*!
-   \return game's name
-*/
 std::string CreateGameRequestPacket::getName() const
 {
-   return mData.mName;
+   return _data.mName;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return game's crate data
-*/
 CreateGameData CreateGameRequestPacket::getData() const
 {
-   return mData;
+   return _data;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param out datastream to write members to
-*/
 void CreateGameRequestPacket::enqueue(BinaryWriter& out)
 {
-   // write members
-   out << mData.mName << mData.mLevel
-
-       << mData.mRounds << mData.mDuration << mData.mMaxPlayers
-
-       << mData.mExtraBombEnabled << mData.mExtraFlameEnabled << mData.mExtraSpeedupEnabled << mData.mExtraKickEnabled
-       << mData.mExtraSkullsEnabled
-
-       << mData.mDimension;
+   out << _data.mName << _data.mLevel << _data.mRounds << _data.mDuration << _data.mMaxPlayers << _data.mExtraBombEnabled
+       << _data.mExtraFlameEnabled << _data.mExtraSpeedupEnabled << _data.mExtraKickEnabled << _data.mExtraSkullsEnabled
+       << static_cast<int32_t>(_data.mDimension);
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param in datastream read members from
-*/
 void CreateGameRequestPacket::dequeue(BinaryReader& in)
 {
    int32_t dimension = 0;
 
-   // read members
-   in >> mData.mName >> mData.mLevel
+   in >> _data.mName >> _data.mLevel >> _data.mRounds >> _data.mDuration >> _data.mMaxPlayers >> _data.mExtraBombEnabled >>
+      _data.mExtraFlameEnabled >> _data.mExtraSpeedupEnabled >> _data.mExtraKickEnabled >> _data.mExtraSkullsEnabled >> dimension;
 
-      >> mData.mRounds >> mData.mDuration >> mData.mMaxPlayers
-
-      >> mData.mExtraBombEnabled >> mData.mExtraFlameEnabled >> mData.mExtraSpeedupEnabled >> mData.mExtraKickEnabled >>
-      mData.mExtraSkullsEnabled
-
-      >> dimension;
-
-   mData.mDimension = static_cast<Constants::Dimension>(dimension);
+   _data.mDimension = static_cast<Constants::Dimension>(dimension);
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   debug output of members
-*/
 void CreateGameRequestPacket::debug()
 {
-   // debug output login request
    qDebug(
       "CreateGameRequestPacket:debug:\n"
       "- name: %s\n"
@@ -145,16 +93,16 @@ void CreateGameRequestPacket::debug()
       "- extra kick enabled: %d"
       "- extra skulls enabled: %d"
       "- dimension: %d",
-      mData.mName.c_str(),
-      mData.mLevel.c_str(),
-      mData.mRounds,
-      mData.mDuration,
-      mData.mMaxPlayers,
-      mData.mExtraBombEnabled,
-      mData.mExtraFlameEnabled,
-      mData.mExtraSpeedupEnabled,
-      mData.mExtraKickEnabled,
-      mData.mExtraSkullsEnabled,
-      mData.mDimension
+      _data.mName.c_str(),
+      _data.mLevel.c_str(),
+      _data.mRounds,
+      _data.mDuration,
+      _data.mMaxPlayers,
+      _data.mExtraBombEnabled,
+      _data.mExtraFlameEnabled,
+      _data.mExtraSpeedupEnabled,
+      _data.mExtraKickEnabled,
+      _data.mExtraSkullsEnabled,
+      _data.mDimension
    );
 }
