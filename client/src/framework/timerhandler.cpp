@@ -1,19 +1,18 @@
 #include "timerhandler.h"
 
-TimerHandler::TimerHandler()
-{
-}
+#include <utility>
 
 TimerHandler::~TimerHandler()
 {
-   std::unordered_set<FrameTimer*>::iterator it;
-   it = mTimers.begin();
-   while (it != mTimers.end())
+   auto iterator = _timers.begin();
+   while (iterator != _timers.end())
    {
-      FrameTimer* timer = *it;
-      it = mTimers.erase(it);
-      if (timer->mDelete)
+      FrameTimer* timer = *iterator;
+      iterator = _timers.erase(iterator);
+      if (timer->_delete)
+      {
          delete timer;
+      }
    }
 }
 
@@ -21,41 +20,43 @@ void TimerHandler::addTimer(FrameTimer* timer)
 {
    if (timer)
    {
-      mTimers.insert(timer);
+      _timers.insert(timer);
    }
 }
 
 void TimerHandler::removeTimer(FrameTimer* timer)
 {
-   mTimers.erase(timer);
+   _timers.erase(timer);
 }
 
 void TimerHandler::update()
 {
-   std::unordered_set<FrameTimer*>::iterator it = mTimers.begin();
-   while (it != mTimers.end())
+   auto iterator = _timers.begin();
+   while (iterator != _timers.end())
    {
-      FrameTimer* timer = *it;
+      FrameTimer* timer = *iterator;
 
       if (timer && timer->update())
       {
-         it = mTimers.erase(it);
-         if (timer->mDelete)
+         iterator = _timers.erase(iterator);
+         if (timer->_delete)
+         {
             delete timer;
+         }
       }
       else
       {
-         it++;
+         iterator++;
       }
    }
 }
 
 void TimerHandler::singleShot(float ms, std::function<void()> callback)
 {
-   FrameTimer* timer = new FrameTimer();
+   auto* timer = new FrameTimer();
    timer->setSingleShot(true);
    timer->setInterval(ms);
-   timer->mDelete = true;
+   timer->_delete = true;
    timer->timeoutSignal.connect(std::move(callback));
    timer->start();
 }

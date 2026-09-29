@@ -9,8 +9,8 @@
 class TimerHandler : public Singleton<TimerHandler>
 {
 public:
-   TimerHandler();
-   ~TimerHandler();
+   TimerHandler() = default;
+   ~TimerHandler() override;
 
    void addTimer(FrameTimer* timer);
    void removeTimer(FrameTimer* timer);
@@ -20,5 +20,6 @@ public:
    static void singleShot(float ms, std::function<void()> callback);
 
 private:
-   std::unordered_set<FrameTimer*> mTimers;
+   // non-owning, except for timers flagged _delete (singleShot()), which are deleted once they fire
+   std::unordered_set<FrameTimer*> _timers;
 };

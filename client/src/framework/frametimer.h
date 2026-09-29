@@ -5,7 +5,7 @@
 class FrameTimer
 {
 public:
-   FrameTimer();
+   FrameTimer() = default;
    FrameTimer(const FrameTimer& other);
    ~FrameTimer();
 
@@ -30,13 +30,16 @@ public:
    float interval() const;
    void setInterval(float ms);
 
-   void setSingleShot(bool singleShot);
+   void setSingleShot(bool single_shot);
 
    Signal<> timeoutSignal;
 
-   bool mStarted;
-   bool mSingleShot;
-   float mStartTime;
-   float mInterval;
-   bool mDelete;
+private:
+   friend class TimerHandler;
+
+   bool _started = false;
+   bool _single_shot = false;
+   float _start_time = 0.0f;  // seconds
+   float _interval = 0.0f;    // seconds
+   bool _delete = false;      // owned by TimerHandler, deleted once it fired
 };
