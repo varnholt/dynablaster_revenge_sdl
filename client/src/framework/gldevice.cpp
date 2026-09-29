@@ -366,18 +366,21 @@ void GLDevice::updateTexture(void* data, int32_t x, int32_t y, int32_t flags)
       const int32_t next_y = (y >> 1) == 0 ? 1 : (y >> 1);
 
       uint32_t* destination = pixels.data();
-      const uint32_t* source1 = pixels.data();
+
+      // a 1 pixel wide level has no second column to average with
+      const int32_t column_step = (x > 1) ? 1 : 0;
 
       for (int32_t i = 0; i < next_y; ++i)
       {
+         const uint32_t* source1 = pixels.data() + static_cast<size_t>(i) * 2 * x;
          const uint32_t* source2 = (next_y > 1) ? source1 + x : source1;
 
          for (int32_t j = 0; j < next_x; ++j)
          {
-            const uint32_t c1 = *source1++;
-            const uint32_t c2 = *source1++;
-            const uint32_t c3 = *source2++;
-            const uint32_t c4 = *source2++;
+            const uint32_t c1 = source1[2 * j];
+            const uint32_t c2 = source1[2 * j + column_step];
+            const uint32_t c3 = source2[2 * j];
+            const uint32_t c4 = source2[2 * j + column_step];
 
             const uint32_t a = ((c1 >> 24 & 0xff) + (c2 >> 24 & 0xff) + (c3 >> 24 & 0xff) + (c4 >> 24 & 0xff)) >> 2;
             const uint32_t r = ((c1 >> 16 & 0xff) + (c2 >> 16 & 0xff) + (c3 >> 16 & 0xff) + (c4 >> 16 & 0xff)) >> 2;
@@ -386,7 +389,6 @@ void GLDevice::updateTexture(void* data, int32_t x, int32_t y, int32_t flags)
 
             *destination++ = (a << 24) | (r << 16) | (g << 8) | b;
          }
-         source1 += (x << 1) - (next_x << 1);
       }
 
       x >>= 1;
