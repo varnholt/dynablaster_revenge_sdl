@@ -1,297 +1,191 @@
-// header
 #include "astarmap.h"
-#include <cstring>
-
-// astar
-#include "astarnode.h"
 
 // shared
 #include "mapitem.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <format>
 #include <string>
 #include <vector>
 
-//-----------------------------------------------------------------------------
-/*!
- */
-AStarMap::AStarMap() : BotMap(), mNodeMap(0)
+AStarMap::AStarMap()
 {
    initMap();
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 AStarMap::AStarMap(int width, int height) : BotMap(width, height)
 {
    initMap();
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param map map to copy
-*/
-AStarMap::AStarMap(BotMap* map) : BotMap()
-{
-   // init map
-   initMap();
-
-   for (int x = 0; x < _width; x++)
-   {
-      for (int y = 0; y < _height; y++)
-      {
-         setItem(x, y, map->getItem(x, y));
-      }
-   }
-}
-
-//-----------------------------------------------------------------------------
-/*!
-   \param map map to copy
-*/
-AStarMap::AStarMap(AStarMap* map)
-{
-   // init map
-   initMap();
-
-   for (int x = 0; x < _width; x++)
-   {
-      for (int y = 0; y < _height; y++)
-      {
-         setItem(x, y, map->getItem(x, y));
-      }
-   }
-}
-
-//-----------------------------------------------------------------------------
-/*!
- */
-AStarMap::~AStarMap()
-{
-}
-
-//-----------------------------------------------------------------------------
-/*!
- */
 void AStarMap::initMap()
 {
-   mNodeMap = new AStarNode*[_width * _height];
-   std::memset(mNodeMap, 0, _width * _height * sizeof(AStarNode*));
+   _node_map.assign(static_cast<size_t>(getWidth() * getHeight()), nullptr);
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param map botmap
-*/
-void AStarMap::setBotMap(BotMap* map)
-{
-   for (int x = 0; x < _width; x++)
-      for (int y = 0; y < _height; y++)
-         setItem(x, y, map->getItem(x, y));
-}
-
-//-----------------------------------------------------------------------------
-/*!
- */
 void AStarMap::buildNodes()
 {
-   for (int x = 0; x < _width; x++)
+   const int width = getWidth();
+
+   for (int x = 0; x < width; x++)
    {
-      for (int y = 0; y < _height; y++)
+      for (int y = 0; y < getHeight(); y++)
       {
          // init node
-         AStarNode* node = new AStarNode();
+         auto node = std::make_unique<AStarNode>();
          node->setX(x);
          node->setY(y);
 
          // add node to map
-         mNodeMap[y * _width + x] = node;
+         _node_map[y * width + x] = node.get();
 
          // add node to node list
-         mNodes.push_back(node);
+         _nodes.push_back(std::move(node));
       }
    }
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void AStarMap::clearNodes()
 {
-   for (int x = 0; x < _width; x++)
-   {
-      for (int y = 0; y < _height; y++)
-      {
-         delete mNodeMap[y * _width + x];
-         mNodeMap[y * _width + x] = 0;
-      }
-   }
-
-   mNodes.clear();
+   std::ranges::fill(_node_map, nullptr);
+   _nodes.clear();
 }
 
-//-----------------------------------------------------------------------------
 /*!
   \param x x position
   \param y y position
-  \param regardStones \c true if stones are to be regarded
+  \param regard_stones \c true if stones are to be regarded
   \return list of neighbors
 */
-std::vector<AStarNode*> AStarMap::getNeighbors(int x, int y, bool regardStones)
+std::vector<AStarNode*> AStarMap::getNeighbors(int x, int y, bool regard_stones)
 {
    std::vector<AStarNode*> list;
 
-   Point up(x, y - 1);
-   Point down(x, y + 1);
-   Point left(x - 1, y);
-   Point right(x + 1, y);
+   const Point up(x, y - 1);
+   const Point down(x, y + 1);
+   const Point left(x - 1, y);
+   const Point right(x + 1, y);
 
-   if (up.y() >= 0)
+   if (up.y() >= 0 && isTraversable(up, regard_stones))
    {
-      if (isTraversable(up, regardStones))
-         list.push_back(getNode(up.x(), up.y()));
+      list.push_back(getNode(up.x(), up.y()));
    }
 
-   if (down.y() < getHeight())
+   if (down.y() < getHeight() && isTraversable(down, regard_stones))
    {
-      if (isTraversable(down, regardStones))
-         list.push_back(getNode(down.x(), down.y()));
+      list.push_back(getNode(down.x(), down.y()));
    }
 
-   if (left.x() >= 0)
+   if (left.x() >= 0 && isTraversable(left, regard_stones))
    {
-      if (isTraversable(left, regardStones))
-         list.push_back(getNode(left.x(), left.y()));
+      list.push_back(getNode(left.x(), left.y()));
    }
 
-   if (right.x() < getWidth())
+   if (right.x() < getWidth() && isTraversable(right, regard_stones))
    {
-      if (isTraversable(right, regardStones))
-         list.push_back(getNode(right.x(), right.y()));
+      list.push_back(getNode(right.x(), right.y()));
    }
 
    return list;
 }
 
-//-----------------------------------------------------------------------------
 /*!
   \param point point to check
-  \param regardStones \c if stones are to be regarded
+  \param regard_stones \c if stones are to be regarded
   \return true if point is traversable
 */
-bool AStarMap::isTraversable(const Point& point, bool regardStones)
+bool AStarMap::isTraversable(const Point& point, bool regard_stones) const
 {
-   MapItem* item = 0;
+   MapItem* item = getItem(point.x(), point.y());
    bool add = true;
 
-   item = getItem(point.x(), point.y());
-
    if (item && item->getType() == MapItem::Bomb)
+   {
       add = false;
+   }
 
    if (item && item->getType() == MapItem::Block)
+   {
       add = false;
+   }
 
-   if (add && regardStones && item && item->getType() == MapItem::Stone)
+   if (add && regard_stones && item && item->getType() == MapItem::Stone)
+   {
       add = false;
+   }
 
    return add;
 }
 
-//-----------------------------------------------------------------------------
 /*!
-   \return pointer to mapitem
+   \return pointer to node
    \param x x position
    \param y y position
 */
 AStarNode* AStarMap::getNode(int x, int y) const
 {
-   return mNodeMap[y * _width + x];
+   return _node_map[y * getWidth() + x];
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param x x position
-   \param y y position
-   \param mapitem
-*/
-void AStarMap::setNode(int x, int y, AStarNode* item)
-{
-   mNodeMap[y * _width + x] = item;
-}
-
-//-----------------------------------------------------------------------------
 /*!
   \param path path to debug
 */
 void AStarMap::debugPath(const std::vector<AStarNode*>& path)
 {
-   AStarNode** map = new AStarNode*[_width * _height];
-
-   std::memset(map, 0, _width * _height * sizeof(AStarNode*));
+   const int width = getWidth();
+   std::vector<AStarNode*> map(static_cast<size_t>(width * getHeight()), nullptr);
 
    for (AStarNode* node : path)
-      map[node->getY() * _width + node->getX()] = node;
+   {
+      map[node->getY() * width + node->getX()] = node;
+   }
 
-   std::vector<std::string> lines;
-   MapItem* item = 0;
-   char c = ' ';
+   std::string joined;
 
    for (int yi = 0; yi < getHeight(); yi++)
    {
       std::string line = std::format("{:x}| ", yi);
 
-      for (int xi = 0; xi < getWidth(); xi++)
+      for (int xi = 0; xi < width; xi++)
       {
-         if (map[yi * _width + xi])
+         char c = ' ';
+
+         if (map[yi * width + xi])
          {
             c = 'x';
          }
-         else
+         else if (MapItem* item = getItem(xi, yi))
          {
-            item = getItem(xi, yi);
-
-            if (item)
+            switch (item->getType())
             {
-               switch (item->getType())
-               {
-                  case MapItem::Block:
-                     c = '#';
-                     break;
-                  case MapItem::Bomb:
-                     c = 'B';
-                     break;
-                  case MapItem::Extra:
-                     c = 'E';
-                     break;
-                  case MapItem::Stone:
-                     c = 'S';
-                     break;
-                  case MapItem::Unknown:
-                  default:
-                     c = ' ';
-                     break;
-               }
-            }
-            else
-            {
-               c = ' ';
+               case MapItem::Block:
+                  c = '#';
+                  break;
+               case MapItem::Bomb:
+                  c = 'B';
+                  break;
+               case MapItem::Extra:
+                  c = 'E';
+                  break;
+               case MapItem::Stone:
+                  c = 'S';
+                  break;
+               case MapItem::Unknown:
+               default:
+                  c = ' ';
+                  break;
             }
          }
 
          line.push_back(c);
       }
 
-      lines.push_back(line);
-   }
-
-   std::string joined;
-   for (const auto& line : lines)
-   {
       if (!joined.empty())
+      {
          joined += '\n';
+      }
+
       joined += line;
    }
 
@@ -300,6 +194,4 @@ void AStarMap::debugPath(const std::vector<AStarNode*>& path)
    std::printf("%s\n", joined.c_str());
    std::printf(" +---------------\n");
    std::printf(" | 012345678901234567890123456789\n");
-
-   delete[] map;
 }

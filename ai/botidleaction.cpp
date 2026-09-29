@@ -1,6 +1,5 @@
 #include "botidleaction.h"
 
-BotIdleAction::BotIdleAction()
+BotIdleAction::BotIdleAction() : BotAction(ActionType::ActionIdle)
 {
-   mActionType = ActionIdle;
 }

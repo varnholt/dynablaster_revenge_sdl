@@ -1,165 +1,124 @@
-// header
 #include "astarnode.h"
 
-// math
-#include <stdlib.h>
+#include <cstdlib>
 
-
-//-----------------------------------------------------------------------------
 /*!
    \param parent parent node
 */
-AStarNode::AStarNode(AStarNode* parent)
-   : mParent(parent),
-     mX(0),
-     mY(0),
-     mG(0),
-     mH(0),
-     mF(0)
+AStarNode::AStarNode(AStarNode* parent) : _parent(parent)
 {
 }
 
-
-//-----------------------------------------------------------------------------
 /*!
    \param x x position
 */
 void AStarNode::setX(int x)
 {
-   mX = x;
+   _x = x;
 }
 
-
-//-----------------------------------------------------------------------------
 /*!
    \param y y position
 */
 void AStarNode::setY(int y)
 {
-   mY = y;
+   _y = y;
 }
 
-
-//-----------------------------------------------------------------------------
 /*!
    \param parent parent node
 */
 void AStarNode::setParent(AStarNode* parent)
 {
-   mParent = parent;
+   _parent = parent;
 }
 
-
-//-----------------------------------------------------------------------------
 /*!
    \return parent node
 */
 AStarNode* AStarNode::getParent() const
 {
-   return mParent;
+   return _parent;
 }
 
-//-----------------------------------------------------------------------------
 /*!
    \return x position
 */
 int AStarNode::getX() const
 {
-   return mX;
+   return _x;
 }
 
-
-//-----------------------------------------------------------------------------
 /*!
    \return y position
 */
 int AStarNode::getY() const
 {
-   return mY;
+   return _y;
 }
 
-
-//-----------------------------------------------------------------------------
 /*!
    \param g g value
 */
 void AStarNode::setG(int g)
 {
-   mG = g;
+   _g = g;
 }
 
-
-//-----------------------------------------------------------------------------
 /*!
    \return g value
 */
 int AStarNode::getG() const
 {
-   return mG;
+   return _g;
 }
 
-
-//-----------------------------------------------------------------------------
 /*!
    \return h value
 */
 int AStarNode::getH() const
 {
-   return mH;
+   return _h;
 }
 
-
-//-----------------------------------------------------------------------------
 /*!
    \return f value
 */
 int AStarNode::getF() const
 {
-   return mF;
+   return _f;
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 void AStarNode::calcG()
 {
-   AStarNode* parent = mParent;
+   AStarNode* parent = _parent;
 
    while (parent)
    {
-      mG++;
-      parent = parent->mParent;
+      _g++;
+      parent = parent->_parent;
    }
 }
 
-
-//-----------------------------------------------------------------------------
 /*!
    \param target target node
    \return distance to given node
 */
-int AStarNode::getDistance(AStarNode *target)
+int AStarNode::getDistance(AStarNode* target)
 {
-   return abs(mX - target->getX()) + abs(mY + target->getY());;
+   // '+' on y (not '-') is the long-standing heuristic the bot behaviour is tuned on
+   return std::abs(_x - target->getX()) + std::abs(_y + target->getY());
 }
 
-
-//-----------------------------------------------------------------------------
 /*!
    \param target target to calculate h to
 */
 void AStarNode::calcH(AStarNode* target)
 {
-   mH = getDistance(target);
+   _h = getDistance(target);
 }
 
-
-//-----------------------------------------------------------------------------
-/*!
-*/
 void AStarNode::calcF()
 {
-   mF = mG + mH;
+   _f = _g + _h;
 }
-

@@ -1,52 +1,29 @@
-// header
 #include "botbombmapitem.h"
 
-
-//-----------------------------------------------------------------------------
 /*!
-   \param playerId player id
+   \param player_id player id
    \param flames number of flames
    \param id mapitem layout id
    \param x x position
    \param y y position
 */
-BotBombMapItem::BotBombMapItem(
-   int playerId,
-   int flames,
-   int id,
-   int x,
-   int y
-)
-   : BombMapItem(
-        playerId,
-        flames,
-        id,
-        x,
-        y
-     )
+BotBombMapItem::BotBombMapItem(int player_id, int flames, int id, int x, int y) : BombMapItem(player_id, flames, id, x, y)
 {
-   mDropTime = std::chrono::steady_clock::now();
 }
 
-
-
-//-----------------------------------------------------------------------------
 /*!
    \return drop time
 */
 std::chrono::steady_clock::time_point BotBombMapItem::getDropTime() const
 {
-   return mDropTime;
+   return _drop_time;
 }
 
-
-//-----------------------------------------------------------------------------
 /*!
    \param flames flame count
 */
 void BotBombMapItem::setFlameCount(int flames)
 {
-   _flames = flames;
+   // BombMapItem has no flame setter, so the protected base member is written directly
+   _flames = static_cast<int8_t>(flames);
 }
-
-

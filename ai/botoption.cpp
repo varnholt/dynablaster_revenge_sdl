@@ -1,84 +1,49 @@
 #include "botoption.h"
 
-//-----------------------------------------------------------------------------
-/*!
-*/
-BotOption::BotOption()
-   : mAction(0),
-     mScore(0),
-     mCombinable(false)
-{
-}
-
-
-//-----------------------------------------------------------------------------
-/*!
-*/
-BotOption::~BotOption()
-{
-   delete mAction;
-   mAction = 0;
-}
-
-
-//-----------------------------------------------------------------------------
 /*!
    \param score score to set
 */
 void BotOption::setScore(int score)
 {
-   mScore = score;
+   _score = score;
 }
 
-
-//-----------------------------------------------------------------------------
 /*!
    \return score
 */
 int BotOption::getScore() const
 {
-   return mScore;
+   return _score;
 }
 
-
-//-----------------------------------------------------------------------------
 /*!
    \param action bot action
 */
-void BotOption::setAction(BotAction* action)
+void BotOption::setAction(std::unique_ptr<BotAction> action)
 {
-   mAction = action;
+   _action = std::move(action);
 }
 
-
-//-----------------------------------------------------------------------------
 /*!
    \return action
 */
 BotAction* BotOption::getAction() const
 {
-   return mAction;
+   return _action.get();
 }
 
-
-//-----------------------------------------------------------------------------
 /*!
    \param combinable combinable flag
 */
 void BotOption::setCombinable(bool combinable)
 {
-   mCombinable = combinable;
+   _combinable = combinable;
 }
 
-
-//-----------------------------------------------------------------------------
 /*!
    \return combinable state
 */
 bool BotOption::isCombinable() const
 {
-   return mCombinable;
+   return _combinable;
 }
-
-
-

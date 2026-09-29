@@ -4,18 +4,19 @@
 // base
 #include "bot.h"
 
-#include <map>
+// ai
+#include "botconstants.h"
 
 // shared
 #include "constants.h"
+#include "point.h"
 
 // astar
 #include "astarpathfinding.h"
 
-// shared
-#include "point.h"
-
 #include <deque>
+#include <map>
+#include <memory>
 #include <vector>
 
 // forward declarations
@@ -27,417 +28,384 @@ class ProtoBotMemory;
 
 class ProtoBot : public Bot
 {
-   public:
+public:
+   using PlayerInfoMap = std::map<int, std::unique_ptr<BotPlayerInfo>>;
 
-      //! constructor
-      ProtoBot();
+   //! constructor
+   ProtoBot();
 
-      //! destructor
-      virtual ~ProtoBot();
+   //! destructor
+   ~ProtoBot() override;
 
-      //! debug bot's path in map
-      void debugPathWithMap();
+   //! debug bot's path in map
+   void debugPathWithMap();
 
-      //! setter for botmap
-      virtual void setBotMap(BotMap* botmap);
+   //! setter for botmap
+   void setBotMap(BotMap* bot_map) override;
 
-      //! create a map
-      virtual BotMap* createMap(int width, int height);
+   //! create a map
+   std::unique_ptr<BotMap> createMap(int width, int height) override;
 
-      //! setter for player info map
-      void setPlayerInfoMap(std::map<int, BotPlayerInfo *> *map);
+   //! setter for player info map
+   void setPlayerInfoMap(PlayerInfoMap* map);
 
-      //! getter for protobot insult message handler
-      ProtoBotInsults* getInsults();
+   //! getter for protobot insult message handler
+   ProtoBotInsults* getInsults();
 
-      //! getter for extra shake ids
-      const std::vector<int>& getExtraShakeIds() const;
+   //! getter for extra shake ids
+   const std::vector<int>& getExtraShakeIds() const;
 
-      //! getter for debug paths flag
-      bool isDebugPathsEnabled() const;
+   //! getter for debug paths flag
+   bool isDebugPathsEnabled() const;
 
-      //! setter for debug paths flag
-      void setDebugPathsEnabled(bool debug);
+   //! setter for debug paths flag
+   void setDebugPathsEnabled(bool debug);
 
-      //! getter for debug escape paths flag
-      bool isDebugEscapePathsEnabled() const;
+   //! getter for debug escape paths flag
+   bool isDebugEscapePathsEnabled() const;
 
-      //! setter for debug escape paths flag
-      void setDebugEscapePathsEnabled(bool value);
+   //! setter for debug escape paths flag
+   void setDebugEscapePathsEnabled(bool value);
 
-      //! getter for debug mapitems flag
-      bool isDebugMapItemsEnabled() const;
+   //! getter for debug mapitems flag
+   bool isDebugMapItemsEnabled() const;
 
-      //! setter for debug mapitems flag
-      void setDebugMapItemsEnabled(bool value);
+   //! setter for debug mapitems flag
+   void setDebugMapItemsEnabled(bool value);
 
-      //! getter for debug flag
-      bool isDebugScoresEnabled() const;
+   //! getter for debug flag
+   bool isDebugScoresEnabled() const;
 
-      //! setter for debug flag
-      void setDebugScoresEnabled(bool value);
+   //! setter for debug flag
+   void setDebugScoresEnabled(bool value);
 
-      //! getter for debug flag
-      bool isDebugKeysPressedEnabled() const;
+   //! getter for debug flag
+   bool isDebugKeysPressedEnabled() const;
 
-      //! setter for debug flag
-      void setDebugKeysPressedEnabled(bool value);
+   //! setter for debug flag
+   void setDebugKeysPressedEnabled(bool value);
 
-      //! getter for debug flag
-      bool isDebugPossibleActionsEnabled() const;
+   //! getter for debug flag
+   bool isDebugPossibleActionsEnabled() const;
 
-      //! setter for debug flag
-      void setDebugPossibleActionsEnabled(bool value);
+   //! setter for debug flag
+   void setDebugPossibleActionsEnabled(bool value);
 
-      //! getter for debug flag
-      bool isDebugExecutedActionsEnabled() const;
+   //! getter for debug flag
+   bool isDebugExecutedActionsEnabled() const;
 
-      //! setter for debug flag
-      void setDebugExecutedActionsEnabled(bool value);
+   //! setter for debug flag
+   void setDebugExecutedActionsEnabled(bool value);
 
-      //! getter for debug flag
-      bool isDebugCurrentHazardousEnabled() const;
+   //! getter for debug flag
+   bool isDebugCurrentHazardousEnabled() const;
 
-      //! setter for debug flag
-      void setDebugCurrentHazardousEnabled(bool value);
+   //! setter for debug flag
+   void setDebugCurrentHazardousEnabled(bool value);
 
-      //! getter for debug flag
-      bool isDebugWalkActionEnabled() const;
+   //! getter for debug flag
+   bool isDebugWalkActionEnabled() const;
 
-      //! setter for debug flag
-      void setDebugWalkActionEnabled(bool value);
+   //! setter for debug flag
+   void setDebugWalkActionEnabled(bool value);
 
-      //! getter for debug flag
-      bool isDebugBombDropEnabled() const;
+   //! getter for debug flag
+   bool isDebugBombDropEnabled() const;
 
-      //! setter for debug flag
-      void setDebugBombDropEnabled(bool value);
+   //! setter for debug flag
+   void setDebugBombDropEnabled(bool value);
 
-      //! setter for debug breakpoint flag
-      void setDebugBreakpointEnabled(bool enabled);
+   //! setter for debug breakpoint flag
+   void setDebugBreakpointEnabled(bool enabled);
 
-      //! getter for debug breakpoint flag
-      bool isDebugBreakpointEnabled() const;
+   //! getter for debug breakpoint flag
+   bool isDebugBreakpointEnabled() const;
 
-      //! check if we can kick ourselves out of here
-      bool isKickEscapePossible(int& x, int& y);
+   //! check if we can kick ourselves out of here
+   bool isKickEscapePossible(int& x, int& y);
 
-      //! getter for idle counter
-      int getIdleCounter() const;
+   //! getter for idle counter
+   int getIdleCounter() const;
 
-      //! setter for idle counter
-      void setIdleCounter(int value);
+   //! setter for idle counter
+   void setIdleCounter(int value);
 
-      //! reset idle counter
-      void resetIdleCounter();
+   //! reset idle counter
+   void resetIdleCounter();
 
-      //! increase idle counter
-      void increaseIdleCounter();
+   //! increase idle counter
+   void increaseIdleCounter();
 
+   //! setter for current position (overwritten)
+   void updatePlayerPosition(int id, float x, float y, float angle) override;
 
-   public:
+   //! overwrite extra shake handler
+   void extraShake(int item_id) override;
 
-      //! setter for current position (overwritten)
-      virtual void updatePlayerPosition(int id, float x, float y, float ang);
+   //! wake up bot
+   void wakeUp() override;
 
-      //! overwrite extra shake handler
-      virtual void extraShake(int itemId);
+   //! setter for hazardous temp milliseconds
+   void markHazardousTemporary(int x, int y, int ms, int field_count = 0) override;
 
-      //! wake up bot
-      virtual void wakeUp();
+   //! mark dead end hazardous in case we need to leave NOW
+   virtual void markHazardousDeadEnds();
 
-      //! setter for hazardous temp milliseconds
-      virtual void markHazardousTemporary(int x, int y, int ms, int fieldCount = 0);
+   //! make hazardous temp for bomb kicks
+   void bombKicked(int start_x, int start_y, Constants::Direction, int flames) override;
 
-      //! mark dead end hazardous in case we need to leave NOW
-      virtual void markHazardousDeadEnds();
+protected:
+   // inherited from bot
 
-      //! make hazardous temp for bomb kicks
-      virtual void bombKicked(
-         int startX,
-         int startY,
-         Constants::Direction,
-         int flames
-      );
+   //! compute new options
+   void think() override;
 
+   //! base overwritten
+   void decide() override;
 
-   protected:
+   //! base overwritten
+   void act() override;
 
-      // inherited from bot
+   //! reset bot
+   void reset() override;
 
-      //! compute new options
-      virtual void think();
+   // custom stuff
 
-      //! base overwritten
-      virtual void decide();
+   //! random
+   int randomize(int min, int max);
 
-      //! base overwritten
-      virtual void act();
+   //! find path to target
+   void findPath(int target_x, int target_y);
 
-      //! reset bot
-      virtual void reset();
+   //! find path to target
+   void findPathFromTo(int start_x, int start_y, int target_x, int target_y);
 
-      //! cleanup stuff after destructor call
-      virtual void cleanUpBot();
+   //! clear path when done
+   void clearPath();
 
+   //! calculate score for reachable positions
+   void scoreFields();
 
-      // custom stuff
+   //! score for kick
+   bool isKickPossible();
 
-      //! random
-      int randomize(int min, int max);
+   //! score for escape path
+   bool updateEscapeScore();
 
-      //! find path to target
-      void findPath(int targetX, int targetY);
+   //! score for extras
+   bool updateExtraScore();
 
-      //! find path to target
-      void findPathFromTo(int startX, int startY, int targetX, int targetY);
+   //! score for bomb dropping
+   bool updateBombStoneScore();
 
-      //! clear path when done
-      void clearPath();
+   //! score for attack
+   bool updateAttackScore();
 
-      //! calculate score for reachable positions
-      void scoreFields();
+   //! choose the next field to go to
+   void chooseNextField();
 
-      //! score for kick
-      bool isKickPossible();
+   //! setter for remaining bomb time
+   void setRemainingBombTime(int x, int y, int time);
 
-      //! score for escape path
-      bool updateEscapeScore();
+   //! getter for remaining bomb time
+   int getRemainingBombTime(int x, int y) const;
 
-      //! score for extras
-      bool updateExtraScore();
+   //! setter for score at x,y
+   void setScore(int x, int y, int score);
 
-      //! score for bomb dropping
-      bool updateBombStoneScore();
+   //! multiply score by factor
+   void multiplyScore(int x, int y, int factor);
 
-      //! score for attack
-      bool updateAttackScore();
+   //! get score for field at x,y
+   int getScore(int x, int y) const;
 
-      //! choose the next field to go to
-      void chooseNextField();
+   //! getter for hazardous temp milliseconds
+   int getHazardousTemporary(int x, int y) const;
 
-      //! setter for remaining bomb time
-      void setRemainingBombTime(int x, int y, int time);
+   //! update hazardous temporary array
+   void updateHazardousTemporary(int ms);
 
-      //! getter for remaining bomb time
-      int getRemainingBombTime(int x, int y) const;
+   //! reset hazardous temporary array
+   void resetHazardousTemporary();
 
-      //! setter for score at x,y
-      void setScore(int x, int y, int score);
+   //! check if a path is dangerous
+   bool isPathHazardous(const std::vector<AStarNode*>& path) const;
 
-      //! multiply score by factor
-      void multiplyScore(int x, int y, int factor);
+   //! get the number of hazardous fields per path
+   int getHazardousFieldCount(const std::vector<AStarNode*>& path) const;
 
-      //! get score for field at x,y
-      int getScore(int x, int y) const;
+   //! player is currently unable to drop bombs
+   bool isNoBombInfectionActive() const;
 
-      //! getter for hazardous temp milliseconds
-      int getHazardousTemporary(int x, int y) const;
+   //! check if player infection is active
+   bool isInfectionActive(Constants::SkullType skull_type) const;
 
-      //! update hazardous temporary array
-      void updateHazardousTemporary(int ms);
+   //! get a list of enemy positions
+   std::vector<Point> getLivingEnemyPositions() const;
 
-      //! reset hazardous temporary array
-      void resetHazardousTemporary();
+   //! get a list of future enemy positions
+   std::vector<Point> getLivingEnemyFuturePositions() const;
 
-      //! check if a path is dangerous
-      bool isPathHazardous(const std::vector<AStarNode*>& path) const;
+   //! get a list of enemies
+   std::vector<BotPlayerInfo*> getEnemies() const;
 
-      //! get the number of hazardous fields per path
-      int getHazardousFieldCount(const std::vector<AStarNode*>& path) const;
+   //! check if a bomb drop is safe for ourself
+   std::vector<Point> reachablePositionsLeft(int x, int y, int flames, const std::vector<Point>& reachable_positions) const;
 
-      //! player is currently unable to drop bombs
-      bool isNoBombInfectionActive() const;
+   // transiteration functionality
 
-      //! check if player infection is active
-      bool isInfectionActive(Constants::SkullType skullType) const;
+   //! create walk direction from next field
+   std::unique_ptr<BotWalkAction> getWalkActionInstance();
 
-      //! get a list of enemy positions
-      std::vector<Point> getLivingEnemyPositions() const;
+   //! debug output scores
+   void debugScores();
 
-      //! get a list of future enemy positions
-      std::vector<Point> getLivingEnemyFuturePositions() const;
+   //! check if attack is now possible
+   bool isAttackPossible();
 
-      //! get a list of enemies
-      std::vector<BotPlayerInfo *> getEnemies() const;
+   //! check if bomb position reached
+   bool isBombStonePossible();
 
-      //! check if a bomb drop is safe for ourself
-      std::vector<Point> reachablePositionsLeft(
-         int x,
-         int y,
-         int flames,
-         const std::vector<Point>& reachablePositions
-      ) const;
+   //! reset scores
+   void resetScores();
 
-      // transiteration functionality
+   //! mark hazardous fields
+   void markHazardousFields();
 
-      //! create walk direction from next field
-      BotWalkAction* getWalkActionInstance();
+   //! mark reachable fields
+   void markReachableFields();
 
-      //! debug output scores
-      void debugScores();
+   //! update remaining bomb times
+   void updateRemainingBombTimes();
 
-      //! check if attack is now possible
-      bool isAttackPossible();
+   //! setter for bomb stone position
+   void setBombStonePosition(const Point& weighted_point);
 
-      //! check if bomb position reached
-      bool isBombStonePossible();
+   //! getter for bomb stone position
+   Point getBombStonePosition() const;
 
-      //! reset scores
-      void resetScores();
+   //! setter for bomb stone position
+   void setBombStonePositionPrevious(const Point& previous);
 
-      //! mark hazardous fields
-      void markHazardousFields();
+   //! getter for bomb stone position
+   Point getBombStonePositionPrevious() const;
 
-      //! mark reachable fields
-      void markReachableFields();
+   //! reset bomb stone position
+   void resetBombStonePosition();
 
-      //! update remaining bomb times
-      void updateRemainingBombTimes();
+   //! reset score flags
+   void resetScoringFlags();
 
-      //! pick next field to go to
-      // void pickNextField();
+   //! evaluate long distance
+   bool evaluateLongDistance(int& next_x_field, int& next_y_field) const;
 
-      //! transiteration busy flag
-      // bool mTransiterateBusy;
+   //! check if a safe escape is possible from this point
+   bool isSafeEscapePossible();
 
-      //! setter for bomb stone position
-      void setBombStonePosition(const Point &weightedPoint);
+   //! mark the best field in case we're in a fucked up situation
+   bool updateLeastHazardousField();
 
-      //! getter for bomb stone position
-      Point getBombStonePosition() const;
+   //! check if a field is a dead end
+   std::vector<Point> analyzeDeadEnd(int x, int y, Point& end, int recursion_depth = 0, const Point& direction = Point()) const;
 
-      //! setter for bomb stone position
-      void setBombStonePositionPrevious(const Point &previous);
+   //! evaluate dead end situation
+   bool evaluateDeadEndSituation(int x, int y);
 
-      //! getter for bomb stone position
-      Point getBombStonePositionPrevious() const;
+   //! reset field bomb times
+   void resetFieldBombTimes();
 
-      //! reset bomb stone position
-      void resetBombStonePosition();
+   //! check if field score should be overriden
+   bool overrideFieldScore();
 
-      //! reset score flags
-      void resetScoringFlags();
+   // bug spotting
 
-      //! evaluate long distance
-      bool evaluateLongDistance(int &nextXField, int &nextYField) const;
+   //! track bug issue 1
+   void bugTrack1();
 
-      //! check if a safe escape is possible from this point
-      bool isSafeEscapePossible();
+   //! track bug issue 2
+   void bugTrack2();
 
-      //! mark the best field in case we're in a fucked up situation
-      bool updateLeastHazardousField();
+   //! track bug issue 3
+   void bugTrack3();
 
-      //! check if a field is a dead end
-      std::vector<Point> analyzeDeadEnd(
-         int x,
-         int y,
-         Point& end,
-         int recursionDepth = 0,
-         const Point& direction = Point()
-      ) const;
+   //! a star path finding
+   AStarPathFinding _path_finding;
 
-      //! evaluate dead end situation
-      bool evaluateDeadEndSituation(int x, int y);
+   //! best path found
+   std::vector<Point> _best_escape_path;
 
-      //! reset field bomb times
-      void resetFieldBombTimes();
+   //! best attack path
+   std::vector<Point> _best_attack_path;
 
-      //! check if field score should be overriden
-      bool overrideFieldScore();
+   //! score field
+   std::vector<int> _field_scores;
 
+   //! remaining bomb times
+   std::vector<int> _field_bomb_times;
 
-      // bug spotting
+   //! temporary hazardous
+   std::vector<int> _hazardous_temporary;
 
-      //! track bug issue 1
-      void bugTrack1();
+   //! bomb drop position
+   Point _bomb_stone_position;
 
-      //! track bug issue 2
-      void bugTrack2();
+   //! previous bomb drop position
+   Point _bomb_stone_position_previous;
 
-      //! track bug issue 3
-      void bugTrack3();
+   //! every bot has a character that defines the action's scores
+   std::unique_ptr<BotCharacter> _bot_character;
 
+   //! player info map, owned by the BotClient
+   PlayerInfoMap* _player_info_map = nullptr;
 
-      //! a star path finding
-      AStarPathFinding mPathFinding;
+   //! protobot insults
+   std::unique_ptr<ProtoBotInsults> _insults;
 
-      //! best path found
-      std::vector<Point> mBestEscapePath;
+   //! list of enemy positions (updated by scoreForAttack)
+   std::vector<Point> _enemy_positions;
 
-      //! best attack path
-      std::vector<Point> mBestAttackPath;
+   //! list of shake extras
+   std::vector<int> _extra_shake_ids;
 
-      //! score field
-      int* mFieldScores; // [13 * 11];
+   //! direction vectors
+   std::vector<Point> _directions;
 
-      //! remaining bomb times
-      int* mFieldBombTimes;
+   //! last target position
+   Point _last_target;
 
-      //! temporary hazardous
-      int* mHazardousTemorary;
+   //! bomb chain reaction evaluation
+   std::unique_ptr<BombChainReaction> _bomb_chain_reaction;
 
-      //! bomb drop position
-      Point mBombStonePosition;
+   //! bot has a memory to remember good positions and such
+   std::unique_ptr<ProtoBotMemory> _memory;
 
-      //! previous bomb drop position
-      Point mBombStonePositionPrevious;
+   //! idle counter
+   int _idle = 0;
 
-      //! every bot has a character that defines the action's scores
-      BotCharacter* mBotCharacter;
+   std::deque<Point> _last_positions;
 
-      //! player info map
-      std::map<int, BotPlayerInfo *>* mPlayerInfoMap;
+   // scoring
+   bool _scoring_current_hazardous = false;
+   bool _scoring_prepare_attack = false;
+   bool _scoring_escape = false;
+   bool _scoring_extra = false;
+   bool _scoring_prepare_bomb_stone = false;
+   bool _scoring_bomb = false;
+   bool _scoring_attack_possible = false;
+   bool _scoring_bomb_stone_possible = false;
 
-      //! protobot insults
-      ProtoBotInsults* mInsults;
-
-      //! list of enemy positions (updated by scoreForAttack)
-      std::vector<Point> mEnemyPositions;
-
-      //! list of shake extras
-      std::vector<int> mExtraShakeIds;
-
-      //! direction vectors
-      std::vector<Point> mDirections;
-
-      //! last target position
-      Point mLastTarget;
-
-      //! bomb chain reaction evaluation
-      BombChainReaction* mBombChainReaction;
-
-      //! bot has a memory to remember good positions and such
-      ProtoBotMemory* mMemory;
-
-      //! idle counter
-      int mIdle;
-
-      std::deque<Point> mLastPositions;
-
-
-      // scoring
-      bool mScoringCurrentHazardous;
-      bool mScoringPrepareAttack;
-      bool mScoringEscape;
-      bool mScoringExtra;
-      bool mScoringPrepareBombStone;
-      bool mScoringBomb;
-      bool mScoringAttackPossible;
-      bool mScoringBombStonePossible;
-
-      // debugging
-      bool mDebugBreakpoint;
-      bool mDebugPaths;
-      bool mDebugEscapePaths;
-      bool mDebugMapItems;
-      bool mDebugScores;
-      bool mDebugKeysPressed;
-      bool mDebugPossibleActions;
-      bool mDebugExecutedActions;
-      bool mDebugCurrentHazardous;
-      bool mDebugWalkAction;
-      bool mDebugBombDrop;
+   // debugging
+   bool _debug_breakpoint = false;
+   bool _debug_paths = DEBUG_PATH;
+   bool _debug_escape_paths = DEBUG_ESCAPE_PATH;
+   bool _debug_map_items = DEBUG_MAPITEMS;
+   bool _debug_scores = DEBUG_SCORES;
+   bool _debug_keys_pressed = DEBUG_KEYSPRESSED;
+   bool _debug_possible_actions = DEBUG_POSSIBLE_ACTIONS;
+   bool _debug_executed_actions = DEBUG_EXECUTED_ACTIONS;
+   bool _debug_current_hazardous = DEBUG_CURRENT_HAZARDOUS;
+   bool _debug_walk_action = DEBUG_WALK_ACTION;
+   bool _debug_bomb_drop = DEBUG_BOMB_DROP;
 };
 
-#endif // PROTOBOT_H
+#endif  // PROTOBOT_H

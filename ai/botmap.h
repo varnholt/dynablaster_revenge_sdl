@@ -14,160 +14,109 @@ class BotBombMapItem;
 
 class BotMap : public Map
 {
-   public:
+public:
+   //! constructors
+   BotMap(int width, int height);
 
-      //! constructors
-      BotMap(int width, int height);
+   //! update reachable positions
+   void updateReachablePositions(int x, int y, int iteration = 0);
 
-      //! destructor
-      virtual ~BotMap();
+   //! update reachable positions
+   void updateReachablePositionsRandomized(int x, int y, int iteration = 0);
 
-      //! get item at x, y
-      virtual MapItem* getItem(
-         int x,
-         int y
-      ) const;
+   //! update list of reachable extras, to be called after updateReachablePositions(...)
+   void updateReachableExtras();
 
-      //! set item at x, y
-      virtual void setItem(
-         int x,
-         int y,
-         MapItem*
-      );
+   //! getter for reachable positions
+   const std::vector<Point>& getReachablePositions() const;
 
-      //! update reachable positions
-      void updateReachablePositions(
-         int xStart,
-         int yStart,
-         int iteration = 0
-      );
+   //! getter for reachable extras
+   const std::vector<Point>& getReachableExtras() const;
 
-      //! update reachable positions
-      void updateReachablePositionsRandomized(
-         int xStart,
-         int yStart,
-         int iteration = 0
-      );
+   //! getter for reachable neighbor positions
+   std::vector<Point> getReachableNeighborPositions(int x, int y) const;
 
-      //! update list of reachable extras, to be called after updateReachablePositions(...)
-      void updateReachableExtras();
+   //! getter for reachable neighbor positions in randomized form
+   std::vector<Point> getReachableNeighborPositionsRandomized(int x, int y) const;
 
-      //! getter for reachable positions
-      const std::vector<Point> &getReachablePositions() const;
+   //! number of stones neighbored to the given position
+   int getStoneCountAroundPoint(int x, int y, int flame_count);
 
-      //! getter for reachable extras
-      const std::vector<Point>& getReachableExtras() const;
+   //! number of extras within stones neighbored to the given position
+   int getExtraStoneCountAroundPoint(int x, int y, int flame_count, const std::vector<int>& extras);
 
-      //! getter for reachable neighbor positions
-      std::vector<Point> getReachableNeighborPositions(int x, int y) const;
+   //! returns a map with all stones that will be destroyed soon
+   std::vector<int> getStonesToBeBombedMap();
 
-      //! getter for reachable neighbor positions in randomized form
-      std::vector<Point> getReachableNeighborPositionsRandomized(int x, int y) const;
+   //! debug output reachable positions
+   void debugTraversedMatrix();
 
-      //! number of stones neighbored to the given position
-      int getStoneCountAroundPoint(int x, int y, int flameCount);
+   //! debug output map items
+   void debugMapItems();
 
-      //! number of extras within stones neighbored to the given position
-      int getExtraStoneCountAroundPoint(int x, int y, int flameCount, const std::vector<int>& extras);
+   //! check if given position is dangerous
+   bool isPositionHazardous(int x, int y) const;
 
-      //! returns a map with all stones that will be destroyed soon
-      int* getStonesToBeBombedMap();
+   //! check if a position is blocked by a stone, block or bomb
+   bool isPositionBlocked(int x, int y) const;
 
-      //! debug output reachable positions
-      void debugTraversedMatrix();
+   //! check a single position
+   void checkPosition(int x, int y, bool& hazardous, bool& abort, int distance) const;
 
-      //! debug output map items
-      void debugMapItems();
+   //! initialize player directions
+   void initDirections();
 
-      //! check if given position is dangerous
-      bool isPositionHazardous(int x, int y) const;
+   //! check if a bomb drop could kill
+   bool isBombDropDeadly(int x, int y, int flames, const std::vector<Point>& enemies) const;
 
-      //! check if a position is blocked by a stone, block or bomb
-      bool isPositionBlocked(int x, int y) const;
+   //! get bombs placed by player id
+   std::vector<BotBombMapItem*> getBombs(int player_id = -1) const;
 
-      //! check a single position
-      void checkPosition(
-         int x,
-         int y,
-         bool& hazardous,
-         bool& abort,
-         int distance
-      ) const;
+   //! check if player has consumed all its pots
+   bool isBombAmountConsumed(int player_id, int bomb_count) const;
 
-      //! initialize player directions
-      void initDirections();
+   //! getter for directions and current list
+   const std::vector<Constants::Direction>& getDirectionsAndCurrent();
 
-      //! check if a bomb drop could kill
-      bool isBombDropDeadly(
-         int x,
-         int y,
-         int flames,
-         const std::vector<Point>& enemies
-      ) const;
+   //! a map item has been created
+   void createMapItem(MapItem* item);
 
-      //! get bombs placed by player id
-      std::vector<BotBombMapItem*> getBombs(int playerId = -1) const;
+   //! a map item has been removed
+   void removeMapItem(MapItem* remove_item);
 
-      //! check if player has consumed all its pots
-      bool isBombAmountConsumed(int playerId, int bombCount) const;
+protected:
+   //! constructors
+   BotMap();
 
-      //! getter for directions and current list
-      const std::vector<Constants::Direction>& getDirectionsAndCurrent();
+   //! get traversed flag for x, y
+   bool isTraversed(int x, int y) const;
 
+   //! set traversed flag at x, y
+   void setTraversed(int x, int y, bool);
 
-   public:
+   //! reset traversed map
+   void resetTraversedMap();
 
-      //! a map item has been created
-      void createMapItem(MapItem *item);
+   //! debug directions
+   void debugDirections(const std::vector<Constants::Direction>& list);
 
-      //! a map item has been removed
-      void removeMapItem(MapItem *item);
+   //! possible directions
+   std::vector<Constants::Direction> _directions;
 
+   //! all directions plus current location
+   std::vector<Constants::Direction> _directions_and_current;
 
-   protected:
+   //! randomized directions
+   std::vector<Constants::Direction> _directions_randomized;
 
-      //! constructors
-      BotMap();
+   //! the traversed map
+   std::vector<bool> _traversed_positions;
 
-      //! get traversed flag for x, y
-      bool isTraversed(
-         int x,
-         int y
-      ) const;
+   //! list of reachable positions
+   std::vector<Point> _reachable_positions;
 
-      //! set traversed flag at x, y
-      void setTraversed(
-         int x,
-         int y,
-         bool
-      );
-
-      //! reset traversed map
-      void resetTraversedMap();
-
-      //! debug directions
-      void debugDirections(const std::vector<Constants::Direction>& list);
-
-
-      // members
-
-      //! possible directions
-      std::vector<Constants::Direction> mDirections;
-
-      //! all directions plus current location
-      std::vector<Constants::Direction> mDirectionsAndCurrent;
-
-      //! randomized directions
-      std::vector<Constants::Direction> mDirectionsRandomized;
-
-      //! the traversed map
-      bool* mTraversedPositions;
-
-      //! list of reachable positions
-      std::vector<Point> mReachablePositions;
-
-      //! list of reachable extra positions
-      std::vector<Point> mReachableExtras;
+   //! list of reachable extra positions
+   std::vector<Point> _reachable_extras;
 };
 
-#endif // BOTMAP_H
+#endif  // BOTMAP_H
