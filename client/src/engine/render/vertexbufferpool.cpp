@@ -1,33 +1,25 @@
 #include "vertexbufferpool.h"
 #include "geometry.h"
-#include "renderdevice.h"
 #include "vertexbuffer.h"
 
-VertexBufferPool::VertexBufferPool()
+bool VertexBufferPool::contains(Geometry* geometry) const
 {
+   return _pool.contains(geometry->getID());
 }
 
-VertexBufferPool::~VertexBufferPool()
+VertexBuffer* VertexBufferPool::get(Geometry* geometry)
 {
+   const auto iterator = _pool.find(geometry->getID());
+   if (iterator != _pool.end())
+   {
+      return iterator->second;
+   }
+   return nullptr;
 }
 
-bool VertexBufferPool::contains(Geometry* geo) const
+VertexBuffer* VertexBufferPool::add(Geometry* geometry)
 {
-   return mPool.contains(geo->getID());
-}
-
-VertexBuffer* VertexBufferPool::get(Geometry* geo)
-{
-   auto it = mPool.find(geo->getID());
-   if (it != mPool.end())
-      return it->second;
-   else
-      return 0;
-}
-
-VertexBuffer* VertexBufferPool::add(Geometry* geo)
-{
-   VertexBuffer* buffer = new VertexBuffer(geo);
-   mPool[geo->getID()] = buffer;
+   auto* buffer = new VertexBuffer(geometry);
+   _pool[geometry->getID()] = buffer;
    return buffer;
 }

@@ -1,5 +1,6 @@
-#ifndef EDGE_H
-#define EDGE_H
+#pragma once
+
+#include <cstdint>
 
 class Stream;
 
@@ -8,10 +9,8 @@ class Edge
 public:
    void operator<<(Stream& stream);
 
-   unsigned short i1, i2;
-   unsigned short i3, i4;
-   int f1, f2;
-   int flags;
+   uint16_t i1, i2;
+   uint16_t i3, i4;
+   int32_t f1, f2;
+   int32_t flags;
 };
-
-#endif

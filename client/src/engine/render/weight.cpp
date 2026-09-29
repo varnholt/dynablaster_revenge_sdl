@@ -1,16 +1,7 @@
 #include "weight.h"
-#include "nodes/scenegraph.h"
 #include "tools/stream.h"
 
-Weight::Weight() : mID(-1), mWeight(0.0f)
-{
-}
-
-Weight::Weight(int id, float w) : mID(id), mWeight(w)
-{
-}
-
-Weight::~Weight()
+Weight::Weight(int32_t id, float weight) : _id(id), _weight(weight)
 {
 }
 
@@ -26,22 +17,22 @@ void Weight::operator>>(Stream& stream)
 
 float Weight::weight() const
 {
-   return mWeight;
+   return _weight;
 }
 
-int Weight::id() const
+int32_t Weight::id() const
 {
-   return mID;
+   return _id;
 }
 
 void Weight::load(Stream* stream)
 {
-   mID = stream->getWord();
-   mWeight = stream->getFloat();
+   _id = stream->getWord();
+   _weight = stream->getFloat();
 }
 
 void Weight::write(Stream* stream)
 {
-   stream->writeWord(mID);
-   stream->writeFloat(mWeight);
+   stream->writeWord(_id);
+   stream->writeFloat(_weight);
 }

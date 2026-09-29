@@ -1,68 +1,53 @@
-#ifndef VCACHE_H
-#define VCACHE_H
+#pragma once
+
+#include <algorithm>
+#include <cstdint>
+#include <vector>
 
 // cache simulation
 class VCache
 {
-private:
-   unsigned short* mData;
-   int mSize;
-
 public:
-   VCache(int size)
+   VCache(int32_t size) : _data(static_cast<size_t>(size), 0xffff)
    {
-      mData = new unsigned short[size];
-      mSize = size;
-      for (int i = 0; i < size; i++)
-         mData[i] = 0xffff;
    }
 
-   ~VCache()
+   bool add(uint16_t index)
    {
-      delete[] mData;
-   }
-
-   bool add(unsigned short index)
-   {
-      int j;
-
-      for (j = 0; j < mSize; j++)
-         if (mData[j] == index)
-            return true;
+      if (exist(index))
+      {
+         return true;
+      }
 
       // kick oldest element
-      for (j = 0; j < mSize - 1; j++)
-         mData[j] = mData[j + 1];
+      std::shift_left(_data.begin(), _data.end(), 1);
 
       // add new index
-      mData[mSize - 1] = index;
+      _data.back() = index;
 
       return false;
    }
 
-   bool exist(unsigned short index)
+   bool exist(uint16_t index) const
    {
-      int j;
-      for (j = 0; j < mSize; j++)
-         if (mData[j] == index)
-            return true;
-      return false;
+      return std::ranges::find(_data, index) != _data.end();
    }
 
-   unsigned short get(int index)
+   uint16_t get(int32_t index) const
    {
-      return mData[index];
+      return _data[index];
    }
 
-   int size()
+   int32_t size() const
    {
-      return mSize;
+      return static_cast<int32_t>(_data.size());
    }
 
-   unsigned short* data()
+   uint16_t* data()
    {
-      return mData;
+      return _data.data();
    }
+
+private:
+   std::vector<uint16_t> _data;
 };
-
-#endif

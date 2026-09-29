@@ -3,87 +3,53 @@
 #include "geometry.h"
 #include "renderdevice.h"
 
-VertexBuffer::VertexBuffer(Geometry* geo) : mGeometry(geo), mVertex(0), mIndex(0), mSize(0)
+#include <algorithm>
+
+VertexBuffer::VertexBuffer(Geometry* geometry)
+    : _geometry(geometry), _vertex_buffer(activeDevice->createBuffer()), _index_buffer(activeDevice->createBuffer())
 {
-   mVertex = activeDevice->createBuffer();
-   mIndex = activeDevice->createBuffer();
-   mSize = 0;
 }
 
 VertexBuffer::~VertexBuffer()
 {
-   activeDevice->deleteBuffer(mVertex);
-   activeDevice->deleteBuffer(mIndex);
+   activeDevice->deleteBuffer(_vertex_buffer);
+   activeDevice->deleteBuffer(_index_buffer);
 }
 
 Geometry* VertexBuffer::getGeometry() const
 {
-   return mGeometry;
+   return _geometry;
 }
 
-void VertexBuffer::setIndexBuffer(unsigned short* indices, int count)
+void VertexBuffer::setIndexBuffer(uint16_t* indices, int32_t count)
 {
-   activeDevice->allocateIndexBuffer(mIndex, count * sizeof(unsigned short));
-   unsigned short* dst = (unsigned short*)activeDevice->lockIndexBuffer(mIndex);
-   for (int i = 0; i < count; i++)
-      dst[i] = indices[i];
-   activeDevice->unlockIndexBuffer(mIndex);
-   mSize = count;
+   activeDevice->allocateIndexBuffer(_index_buffer, count * sizeof(uint16_t));
+   auto* destination = static_cast<uint16_t*>(activeDevice->lockIndexBuffer(_index_buffer));
+   std::copy_n(indices, count, destination);
+   activeDevice->unlockIndexBuffer(_index_buffer);
+   _index_count = count;
 }
 
-void VertexBuffer::update(Node** /*nodelist*/)
+void VertexBuffer::update(Node** /*node_list*/)
 {
-   /*
-      if (mWeights)
-      {
-         Vector *dst= (Vector*)activeDevice->lockVertexBuffer(mVertex);
-         Vector *src= mOrgVerts;
-
-         for (int i=0;i<mVertexCount;i++)
-         {
-            int   num= mWeights[i].size();
-
-            if (num>0)
-            {
-               int   *id= mWeights[i].mID;
-               float *w=  mWeights[i].mWeight;
-
-               Vector n(0,0,0);
-               for (int j=0;j<num;j++)
-               {
-                  Node *node= nodelist[id[j]];
-                  Matrix mat= node->getBoneTransform();
-                  n+= (mat * (src[i]) ) * w[j];
-               }
-               dst[i]= n;
-            }
-         }
-
-         Matrix m;
-         m.identity();
-         mNode->setTransform(m);
-
-         activeDevice->unlockVertexBuffer(mVertex);
-      }
-   */
 }
 
-unsigned int VertexBuffer::getVertexBuffer() const
+uint32_t VertexBuffer::getVertexBuffer() const
 {
-   return mVertex;
+   return _vertex_buffer;
 }
 
-unsigned int VertexBuffer::getIndexBuffer() const
+uint32_t VertexBuffer::getIndexBuffer() const
 {
-   return mIndex;
+   return _index_buffer;
 }
 
-int VertexBuffer::getIndexCount() const
+int32_t VertexBuffer::getIndexCount() const
 {
-   return mSize;
+   return _index_count;
 }
 
-void VertexBuffer::setIndexCount(int count)
+void VertexBuffer::setIndexCount(int32_t count)
 {
-   mSize = count;
+   _index_count = count;
 }

@@ -3,16 +3,15 @@
 #include "tools/array.h"
 #include "tools/stream.h"
 
-class IDList : public Array<int>
+#include <cstdint>
+
+class IDList : public Array<int32_t>
 {
 public:
-   IDList();
-   IDList(const IDList&);
-   virtual ~IDList();
+   IDList() = default;
+   IDList(const IDList&) = default;
 
    IDList& operator=(const IDList& other);
 
-   virtual int load(Stream* stream);
-
-private:
+   virtual int32_t load(Stream* stream);
 };

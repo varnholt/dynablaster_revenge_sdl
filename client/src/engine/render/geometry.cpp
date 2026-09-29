@@ -1,96 +1,99 @@
 #include "geometry.h"
-#include <cstring>
-#include "math/vector.h"
-#include "nodes/node.h"
-#include "vcache.h"
-// #include "edgebreaker.h"
-#include "vcache.h"
-// #include "meshcompress.h"
 #include "animation/motionmixer.h"
+#include "math/vector.h"
 #include "nodes/mesh.h"
+#include "nodes/node.h"
 #include "nodes/scenegraph.h"
 #include "tools/profiling.h"
 #include "uv.h"
 
-static int mCurrentGeoID = 0;
-static Matrix mIdentity;
+#include <algorithm>
+#include <array>
+#include <span>
 
-Geometry::Geometry(Node* parent) : Referenced(), mID(mCurrentGeoID++), mParent(parent), mVisible(true), mMatID(0), mVtxMap(0)
+namespace
+{
+int32_t _current_geometry_id = 0;
+const Matrix _identity;
+}  // namespace
+
+Geometry::Geometry(Node* parent) : _id(_current_geometry_id++), _parent(parent)
 {
 }
 
-Geometry::Geometry(const Geometry* geo)
-    : Referenced(*geo), mID(geo->getID()), mParent(geo->getParent()), mVisible(geo->isVisible()), mMatID(-1)
+Geometry::Geometry(const Geometry* geometry)
+    : Referenced(*geometry),
+      _id(geometry->getID()),
+      _parent(geometry->getParent()),
+      _visible(geometry->isVisible()),
+      _material_id(-1),
+      _vertex_map(geometry->_vertex_map)
 {
-   mIndices = geo->getIndicesList();
-   mVertice = geo->getVertexList();
-   mColor = geo->getColorList();
-   mNormal = geo->getNormalList();
-   mUV = geo->getUVList();
-   mBones = geo->getBoneList();
-   mEdge = geo->getEdgeList();
-
-   mVtxMap = (int*)geo->getVertexMap();
+   _indices = geometry->getIndicesList();
+   _vertices = geometry->getVertexList();
+   _colors = geometry->getColorList();
+   _normals = geometry->getNormalList();
+   _uv_channels = geometry->getUVList();
+   _bones = geometry->getBoneList();
+   _edges = geometry->getEdgeList();
 }
 
-Geometry::~Geometry()
+void Geometry::copy(const Geometry& geometry)
 {
-}
+   _indices.copy(geometry.getIndicesList());
+   _vertices.copy(geometry.getVertexList());
+   _colors.copy(geometry.getColorList());
+   _normals.copy(geometry.getNormalList());
 
-void Geometry::copy(const Geometry& geo)
-{
-   mIndices.copy(geo.getIndicesList());
-   mVertice.copy(geo.getVertexList());
-   mColor.copy(geo.getColorList());
-   mNormal.copy(geo.getNormalList());
-   // copy uv channels
-   mUV.init(geo.getUVList().size());
-   for (int i = 0; i < geo.getUVList().size(); i++)
+   const List<UVChannel>& uv_channels = geometry.getUVList();
+   _uv_channels.init(uv_channels.size());
+   for (int32_t i = 0; i < uv_channels.size(); i++)
    {
-      UVChannel chn;
-      const UVChannel& other = geo.getUVList()[i];
-      chn.copy(other);
-      mUV.add(chn);
+      UVChannel channel;
+      channel.copy(uv_channels[i]);
+      _uv_channels.add(channel);
    }
 
-   mBones.copy(geo.getBoneList());
-   mEdge.copy(geo.getEdgeList());
+   _bones.copy(geometry.getBoneList());
+   _edges.copy(geometry.getEdgeList());
 
-   mVtxMap = 0;
+   _vertex_map.clear();
 }
 
-int Geometry::getID() const
+int32_t Geometry::getID() const
 {
-   return mID;
+   return _id;
 }
 
 bool Geometry::isVisible() const
 {
-   return mVisible;
+   return _visible;
 }
 
 void Geometry::setVisible(bool visible)
 {
-   mVisible = visible;
+   _visible = visible;
 }
 
 bool Geometry::isMorphing() const
 {
-   return (mMorphTrack.size() > 0);
+   return (_morph_track.size() > 0);
 }
 
 void Geometry::setMorphFrame(float frame)
 {
-   if (mMorphTrack.size() > 0)
-      mMorphTrack.get(mVertice, mNormal, frame);
+   if (_morph_track.size() > 0)
+   {
+      _morph_track.get(_vertices, _normals, frame);
+   }
 }
 
 void Geometry::calcBoundingBox(Vector& min, Vector& max)
 {
-   min = max = mVertice[0];
-   for (int i = 0; i < mVertice.size(); i++)
+   min = max = _vertices[0];
+   for (int32_t i = 0; i < _vertices.size(); i++)
    {
-      const Vector& v = mVertice[i];
+      const Vector& v = _vertices[i];
       max.maximum(v);
       min.minimum(v);
    }
@@ -98,33 +101,30 @@ void Geometry::calcBoundingBox(Vector& min, Vector& max)
 
 void Geometry::createQuad(float x, float y)
 {
-   int i;
-   static unsigned short idx[6] = {0, 2, 1, 0, 3, 2};
-   static UV uvs[4] = {UV(0.0f, 1.0f), UV(1.0f, 1.0f), UV(1.0f, 0.0f), UV(0.0f, 0.0f)};
-   static Vector vtx[4] = {Vector(0.0f, 0.0f, 0.0f), Vector(x, 0.0f, 0.0f), Vector(x, y, 0.0f), Vector(0.0f, y, 0.0f)};
+   static constexpr std::array<uint16_t, 6> indices = {0, 2, 1, 0, 3, 2};
+   static std::array<UV, 4> uvs = {UV(0.0f, 1.0f), UV(1.0f, 1.0f), UV(1.0f, 0.0f), UV(0.0f, 0.0f)};
+   const std::array<Vector, 4> vertices = {Vector(0.0f, 0.0f, 0.0f), Vector(x, 0.0f, 0.0f), Vector(x, y, 0.0f), Vector(0.0f, y, 0.0f)};
 
-   for (i = 0; i < 6; i++)
-      mIndices.add(idx[i]);
-
-   for (i = 0; i < 4; i++)
+   for (const auto index : indices)
    {
-      mVertice.add(vtx[i]);
-      mNormal.add(Vector(0.0f, 0.0f, 1.0f));
-      mColor.add(Vector(1.0f, 1.0f, 1.0f));
+      _indices.add(index);
    }
 
-   mUV.add(UVChannel(1, uvs, 4));
+   for (const auto& vertex : vertices)
+   {
+      _vertices.add(vertex);
+      _normals.add(Vector(0.0f, 0.0f, 1.0f));
+      _colors.add(Vector(1.0f, 1.0f, 1.0f));
+   }
 
-   mVtxMap = new int[4];
-   for (i = 0; i < 4; i++)
-      mVtxMap[i] = i;
+   _uv_channels.add(UVChannel(1, uvs.data(), static_cast<int32_t>(uvs.size())));
+
+   _vertex_map = {0, 1, 2, 3};
 }
 
 void Geometry::createCube(float scale)
 {
-   int i;
-
-   static unsigned short tris[12 * 3] = {
+   static constexpr std::array<uint16_t, 12 * 3> triangles = {
       0, 1, 2, 1, 3, 2,  // front
       2, 3, 6, 3, 7, 6,  // right
       4, 6, 5, 5, 6, 7,  // back
@@ -133,7 +133,7 @@ void Geometry::createCube(float scale)
       1, 5, 7, 3, 1, 7   // bottom
    };
 
-   static Vector vtx[8] = {
+   static const std::array<Vector, 8> vertices = {
       Vector(-1.0f, -1.0f, -1.0f),
       Vector(-1.0f, 1.0f, -1.0f),
       Vector(1.0f, -1.0f, -1.0f),
@@ -145,282 +145,263 @@ void Geometry::createCube(float scale)
       Vector(1.0f, 1.0f, 1.0f)
    };
 
-   for (i = 0; i < 12 * 3; i++)
-      mIndices.add(tris[i]);
+   for (const auto index : triangles)
+   {
+      _indices.add(index);
+   }
 
-   for (i = 0; i < 8; i++)
-      mVertice.add(vtx[i] * scale);
+   for (const auto& vertex : vertices)
+   {
+      _vertices.add(vertex * scale);
+   }
 
-   mVtxMap = new int[8];
-   for (i = 0; i < 8; i++)
-      mVtxMap[i] = i;
+   _vertex_map = {0, 1, 2, 3, 4, 5, 6, 7};
 }
 
-const int* Geometry::getVertexMap() const
+const int32_t* Geometry::getVertexMap() const
 {
-   return mVtxMap;
+   return _vertex_map.empty() ? nullptr : _vertex_map.data();
 }
 
 const FaceList& Geometry::getIndicesList() const
 {
-   return mIndices;
+   return _indices;
 }
 
 const List<Vector>& Geometry::getVertexList() const
 {
-   return mVertice;
+   return _vertices;
 }
 
 const List<Vector>& Geometry::getColorList() const
 {
-   return mColor;
+   return _colors;
 }
 
 const List<Vector>& Geometry::getNormalList() const
 {
-   return mNormal;
+   return _normals;
 }
 
 const List<UVChannel>& Geometry::getUVList() const
 {
-   return mUV;
+   return _uv_channels;
 }
 
 const List<Bone>& Geometry::getBoneList() const
 {
-   return mBones;
+   return _bones;
 }
 
 const Array<Edge>& Geometry::getEdgeList() const
 {
-   return mEdge;
+   return _edges;
 }
 
-int Geometry::createEdges()
+int32_t Geometry::createEdges()
 {
-   int i, j;
-   unsigned short edge[3];            // matching edge-vertices
-   unsigned short* poly;              // pointer to vertex-indices
-   int numtri = mIndices.size() / 3;  // number of triangles (3 indices per triangle)
-   int nv = mVertice.size();          // number of vertices
-   int* vmap = mVtxMap;
-   int idx;
-   int nov = 0;
+   std::array<uint16_t, 3> edge{};                      // matching edge-vertices
+   const int32_t triangle_count = _indices.size() / 3;  // 3 indices per triangle
+   const int32_t vertex_count = _vertices.size();
+   const int32_t* vertex_map = _vertex_map.data();
 
    double time = getCpuTick();
 
-   for (i = 0; i < nv; i++)
-      if (vmap[i] > nov)
-         nov = vmap[i];
-   nov++;
-
-   // calculate polygon-normals
-   Vector* nrm = new Vector[numtri];
-   poly = mIndices.data();
-   for (i = 0; i < numtri; i++)
+   int32_t unique_vertex_count = 0;
+   for (int32_t i = 0; i < vertex_count; i++)
    {
-      const Vector& v1 = mVertice[*poly++];
-      const Vector& v2 = mVertice[*poly++];
-      const Vector& v3 = mVertice[*poly++];
-      nrm[i] = (v2 - v1) % (v3 - v1);
-      nrm[i].normalize();
+      unique_vertex_count = std::max(unique_vertex_count, vertex_map[i]);
+   }
+   unique_vertex_count++;
+
+   // polygon normals
+   std::vector<Vector> normals(triangle_count);
+   const uint16_t* poly = _indices.data();
+   for (int32_t i = 0; i < triangle_count; i++)
+   {
+      const Vector& v1 = _vertices[*poly++];
+      const Vector& v2 = _vertices[*poly++];
+      const Vector& v3 = _vertices[*poly++];
+      normals[i] = (v2 - v1) % (v3 - v1);
+      normals[i].normalize();
    }
 
-   IndexList* vtxConFaces = new IndexList[nov];  // for each vertex: list of connected faces
-   poly = mIndices.data();
-   for (i = 0; i < numtri; i++)
+   // for each vertex: list of connected faces
+   std::vector<IndexList> vertex_connected_faces(unique_vertex_count);
+   poly = _indices.data();
+   for (int32_t i = 0; i < triangle_count; i++)
    {
-      for (j = 0; j < 3; j++)
+      for (int32_t j = 0; j < 3; j++)
       {
-         idx = vmap[*poly++];
-         vtxConFaces[idx].add(i);
+         vertex_connected_faces[vertex_map[*poly++]].add(i);
       }
    }
 
-   IndexList* faceConFaces = new IndexList[numtri];  // for each face: list of connected faces
-   poly = mIndices.data();
-   for (i = 0; i < numtri; i++)
+   // for each face: list of connected faces
+   std::vector<IndexList> face_connected_faces(triangle_count);
+   poly = _indices.data();
+   for (int32_t i = 0; i < triangle_count; i++)
    {
-      IndexList* facelist = &faceConFaces[i];  // get list of faces (currently) connected to face i
-      for (j = 0; j < 3; j++)
+      IndexList& face_list = face_connected_faces[i];
+      for (int32_t j = 0; j < 3; j++)
       {
          // faces connected to current vertex j of this triangle
-         idx = *poly++;
-         IndexList& list = vtxConFaces[vmap[idx]];
-         facelist->merge(list);
+         face_list.merge(vertex_connected_faces[vertex_map[*poly++]]);
       }
    }
 
-   IndexList* vcon = new IndexList[nov];  // for each vertex: list of connected vertices, thus building an edge
+   // for each vertex: list of connected vertices, thus building an edge
+   std::vector<IndexList> vertex_connections(unique_vertex_count);
 
-   mEdge.init(numtri * 3);  // maximum number of edges is 3 per triangle
-   poly = mIndices.data();
-   for (i = 0; i < numtri; i++, poly += 3)
+   _edges.init(triangle_count * 3);  // maximum number of edges is 3 per triangle
+   poly = _indices.data();
+   for (int32_t i = 0; i < triangle_count; i++, poly += 3)
    {
-      int va1 = poly[0];
-      int va2 = poly[1];
-      int va3 = poly[2];
+      const int32_t va1 = poly[0];
+      const int32_t va2 = poly[1];
+      const int32_t va3 = poly[2];
 
-      int p1 = vmap[va1];
-      int p2 = vmap[va2];
-      int p3 = vmap[va3];
+      const int32_t p1 = vertex_map[va1];
+      const int32_t p2 = vertex_map[va2];
+      const int32_t p3 = vertex_map[va3];
 
-      IndexList* facelist = &faceConFaces[i];
-      for (j = 0; j < facelist->size(); j++)
+      const IndexList& face_list = face_connected_faces[i];
+      for (int32_t j = 0; j < face_list.size(); j++)
       {
-         int faceid = facelist->get(j);
-         unsigned short* test = mIndices.data() + faceid * 3;
-         int count = 0;
+         const int32_t face_id = face_list.get(j);
+         const uint16_t* test = _indices.data() + face_id * 3;
+         int32_t count = 0;
 
-         int vb1 = test[0];
-         int vb2 = test[1];
-         int vb3 = test[2];
+         const int32_t vb1 = test[0];
+         const int32_t vb2 = test[1];
+         const int32_t vb3 = test[2];
 
-         if (vmap[vb1] == p1 || vmap[vb2] == p1 || vmap[vb3] == p1)
-            edge[count++] = va1;
-         if (vmap[vb1] == p2 || vmap[vb2] == p2 || vmap[vb3] == p2)
-            edge[count++] = va2;
-         if (vmap[vb1] == p3 || vmap[vb2] == p3 || vmap[vb3] == p3)
-            edge[count++] = va3;
-
-         if (count == 2)
+         if (vertex_map[vb1] == p1 || vertex_map[vb2] == p1 || vertex_map[vb3] == p1)
          {
-            if ((edge[0] == va1 && edge[1] == va3) || (edge[0] == va2 && edge[1] == va1) || (edge[0] == va3 && edge[1] == va2))
+            edge[count++] = static_cast<uint16_t>(va1);
+         }
+         if (vertex_map[vb1] == p2 || vertex_map[vb2] == p2 || vertex_map[vb3] == p2)
+         {
+            edge[count++] = static_cast<uint16_t>(va2);
+         }
+         if (vertex_map[vb1] == p3 || vertex_map[vb2] == p3 || vertex_map[vb3] == p3)
+         {
+            edge[count++] = static_cast<uint16_t>(va3);
+         }
+
+         if (count != 2)
+         {
+            continue;
+         }
+
+         if ((edge[0] == va1 && edge[1] == va3) || (edge[0] == va2 && edge[1] == va1) || (edge[0] == va3 && edge[1] == va2))
+         {
+            const uint16_t t = edge[2];
+            edge[2] = edge[0];
+            edge[0] = edge[1];
+            edge[1] = t;
+         }
+
+         const int32_t e0 = vertex_map[edge[0]];
+         const int32_t e1 = vertex_map[edge[1]];
+
+         // skip if already connected
+         if (vertex_connections[e0].find(e1) || vertex_connections[e1].find(e0))
+         {
+            continue;
+         }
+
+         vertex_connections[e0].add(e1);
+         vertex_connections[e1].add(e0);
+
+         // compare assigned normals
+         int32_t n1 = 0;
+         int32_t n2 = 0;
+         for (int32_t k = 0; k < 3; k++)
+         {
+            const int32_t index = test[k];
+            if (e0 == vertex_map[index])
             {
-               unsigned short t = edge[2];
-               edge[2] = edge[0];
-               edge[0] = edge[1];
-               edge[1] = t;
+               n1 = index;
             }
-
-            // if not already connected
-            if (!vcon[vmap[edge[0]]].find(vmap[edge[1]]) && !vcon[vmap[edge[1]]].find(vmap[edge[0]]))
+            if (e1 == vertex_map[index])
             {
-               vcon[vmap[edge[0]]].add(vmap[edge[1]]);
-               vcon[vmap[edge[1]]].add(vmap[edge[0]]);
-
-               // compare assigned normals
-               int n1, n2, k;
-               for (k = 0; k < 3; k++)
-               {
-                  int idx = test[k];
-                  if (vmap[edge[0]] == vmap[idx])
-                     n1 = idx;
-                  if (vmap[edge[1]] == vmap[idx])
-                     n2 = idx;
-               }
-
-               int flags = 1;
-               if ((mNormal[n1] == mNormal[edge[0]]) && (mNormal[n2] == mNormal[edge[1]]))
-                  flags = 0;
-
-               // faces are coplanar? -> edge cannot be visible!
-               //               if ( flags==0 && nrm[i]*nrm[faceid] < 0.9999f ) continue;
-
-               // get "unused" vertex from each triangle
-               int vc = -1;
-               if (vmap[edge[0]] != vmap[va1] && vmap[edge[1]] != vmap[va1])
-                  vc = va1;
-               if (vmap[edge[0]] != vmap[va2] && vmap[edge[1]] != vmap[va2])
-                  vc = va2;
-               if (vmap[edge[0]] != vmap[va3] && vmap[edge[1]] != vmap[va3])
-                  vc = va3;
-
-               int vd = -1;
-               if (vmap[edge[0]] != vmap[vb1] && vmap[edge[1]] != vmap[vb1])
-                  vd = vb1;
-               if (vmap[edge[0]] != vmap[vb2] && vmap[edge[1]] != vmap[vb2])
-                  vd = vb2;
-               if (vmap[edge[0]] != vmap[vb3] && vmap[edge[1]] != vmap[vb3])
-                  vd = vb3;
-
-               if (vc != -1 && vd != -1)
-               {
-                  Edge e;
-                  e.i1 = edge[0];
-                  e.i2 = edge[1];
-                  e.i3 = vc;
-                  e.i4 = vd;
-                  e.f1 = i;
-                  e.f2 = faceid;
-                  e.flags = flags;
-                  mEdge.add(e);
-               }
+               n2 = index;
             }
+         }
+
+         int32_t flags = 1;
+         if ((_normals[n1] == _normals[edge[0]]) && (_normals[n2] == _normals[edge[1]]))
+         {
+            flags = 0;
+         }
+
+         // get "unused" vertex from each triangle
+         int32_t vc = -1;
+         if (e0 != vertex_map[va1] && e1 != vertex_map[va1])
+         {
+            vc = va1;
+         }
+         if (e0 != vertex_map[va2] && e1 != vertex_map[va2])
+         {
+            vc = va2;
+         }
+         if (e0 != vertex_map[va3] && e1 != vertex_map[va3])
+         {
+            vc = va3;
+         }
+
+         int32_t vd = -1;
+         if (e0 != vertex_map[vb1] && e1 != vertex_map[vb1])
+         {
+            vd = vb1;
+         }
+         if (e0 != vertex_map[vb2] && e1 != vertex_map[vb2])
+         {
+            vd = vb2;
+         }
+         if (e0 != vertex_map[vb3] && e1 != vertex_map[vb3])
+         {
+            vd = vb3;
+         }
+
+         if (vc != -1 && vd != -1)
+         {
+            Edge e;
+            e.i1 = edge[0];
+            e.i2 = edge[1];
+            e.i3 = static_cast<uint16_t>(vc);
+            e.i4 = static_cast<uint16_t>(vd);
+            e.f1 = i;
+            e.f2 = face_id;
+            e.flags = flags;
+            _edges.add(e);
          }
       }
    }
 
-   int add = 0;
-   poly = mIndices.data();
-   for (i = 0; i < numtri; i++, poly += 3)
+   int32_t unconnected = 0;
+   poly = _indices.data();
+   for (int32_t i = 0; i < triangle_count; i++, poly += 3)
    {
-      int index[5] = {poly[0], poly[1], poly[2], poly[0], poly[1]};
+      const std::array<int32_t, 5> index = {poly[0], poly[1], poly[2], poly[0], poly[1]};
 
-      for (j = 0; j < 3; j++)
+      for (int32_t j = 0; j < 3; j++)
       {
-         int i1 = index[j];
-         int i2 = index[j + 1];
-         // int vc= index[j+2];
-         // if not already connected
-         if (!vcon[vmap[i1]].find(vmap[i2]) && !vcon[vmap[i2]].find(vmap[i1]))
+         const int32_t m1 = vertex_map[index[j]];
+         const int32_t m2 = vertex_map[index[j + 1]];
+         if (!vertex_connections[m1].find(m2) && !vertex_connections[m2].find(m1))
          {
-            vcon[vmap[i1]].add(vmap[i2]);
-            vcon[vmap[i2]].add(vmap[i1]);
-            /*
-                        Edge e;
-                        e.i1= i1;
-                        e.i2= i2;
-                        e.i3= vc;
-                        e.i4= vc;
-                        e.f1= i;
-                        e.f2= i;
-                        e.flags= 0;
-                        mEdge.add(e);
-            */
-            add++;
+            vertex_connections[m1].add(m2);
+            vertex_connections[m2].add(m1);
+            unconnected++;
          }
       }
    }
 
    time = getCpuTick() - time;
-   //   printf("edge performance: %f \n", time);
-   //   printf("unconnected edges: %d \n", add);
 
-   delete[] vcon;
-   delete[] nrm;
-   //   delete vmap;
-
-   return mEdge.size();
-}
-
-void sortBonesByID(Bone* bones, int l, int r)
-{
-   Bone tmp;
-   if (r > l)
-   {
-      int i = l - 1;
-      int j = r;
-      while (i < j)
-      {
-         while (bones[++i].id() < bones[r].id())
-            ;
-         while (bones[--j].id() > bones[r].id() && j > i)
-            ;
-         if (i < j)
-         {
-            tmp = bones[i];
-            bones[i] = bones[j];
-            bones[j] = tmp;
-         }
-      }
-      tmp = bones[i];
-      bones[i] = bones[r];
-      bones[r] = tmp;
-
-      sortBonesByID(bones, l, i - 1);
-      sortBonesByID(bones, i + 1, r);
-   }
+   return _edges.size();
 }
 
 void Geometry::load(Stream* stream)
@@ -428,352 +409,291 @@ void Geometry::load(Stream* stream)
    Chunk chunk(stream);
 
    SceneGraph* scene = SceneGraph::instance();
-   mMatID = chunk.getInt();
-   if (mMatID >= 0 && scene)
-      mMatID += scene->getMaterialStartIndex();
+   _material_id = chunk.getInt();
+   if (_material_id >= 0 && scene)
+   {
+      _material_id += scene->getMaterialStartIndex();
+   }
 
-   mVertice << chunk;
+   _vertices << chunk;
+   _normals << chunk;
 
-   /*
-      Vector vmin( 100000, 100000, 100000);
-      Vector vmax(-100000,-100000,-100000);
-
-      for (int i=0;i<mVertice.size();i++)
-      {
-         const Vector& v= mVertice[i];
-         if (v.x < vmin.x) vmin.x= v.x;
-         if (v.y < vmin.y) vmin.y= v.y;
-         if (v.z < vmin.z) vmin.z= v.z;
-
-         if (v.x > vmax.x) vmax.x= v.x;
-         if (v.y > vmax.y) vmax.y= v.y;
-         if (v.z > vmax.z) vmax.z= v.z;
-      }
-
-      printf("bounding box: %f, %f, %f - %f,%f,%f \n", vmin.x, vmin.y, vmin.z, vmax.x, vmax.y, vmax.z);
-   */
-
-   mNormal << chunk;
-
-   if (mNormal.size() == 0)
+   if (_normals.size() == 0)
+   {
       calcNormals();
+   }
 
-   mColor << chunk;
+   _colors << chunk;
+   _uv_channels << chunk;
+   _indices << chunk;
+   _bones << chunk;
 
-   mUV << chunk;
-   //   printf(" - uv channels: %d \n", mUV.size());
-
-   mIndices << chunk;
-
-   // bones
-   mBones << chunk;
-
-   //   printf(" - bones: %d \n", mBones.size());
-
-   int rest = chunk.dataLeft();
+   const int32_t rest = chunk.dataLeft();
    if (rest > 4)
    {
-      mMorphTrack << chunk;
-      mMorphTrack.calculateNormals(mIndices);
+      _morph_track << chunk;
+      _morph_track.calculateNormals(_indices);
    }
 
    chunk.skip();
-   //   createEdges();
 }
 
 void Geometry::write(Stream* stream)
 {
    Chunk chunk(stream, 100, "Geometry");
 
-   chunk.writeInt(mMatID);
+   chunk.writeInt(_material_id);
 
-   mVertice >> chunk;
-   mNormal >> chunk;
-   mColor >> chunk;
-   mUV >> chunk;
-   mIndices >> chunk;
-   mBones >> chunk;
+   _vertices >> chunk;
+   _normals >> chunk;
+   _colors >> chunk;
+   _uv_channels >> chunk;
+   _indices >> chunk;
+   _bones >> chunk;
 }
 
 const Matrix& Geometry::getTransform() const
 {
-   if (mParent)
+   if (_parent)
    {
-      return mParent->getTransform();
+      return _parent->getTransform();
    }
-   return mIdentity;
+   return _identity;
 }
 
-int Geometry::getMaterial() const
+int32_t Geometry::getMaterial() const
 {
-   return mMatID;
+   return _material_id;
 }
 
 Node* Geometry::getParent() const
 {
-   return mParent;
+   return _parent;
 }
 
 void Geometry::setParent(Node* node)
 {
-   mParent = node;
+   _parent = node;
 }
 
-int Geometry::getIndexCount() const
+int32_t Geometry::getIndexCount() const
 {
-   return mIndices.size();
+   return _indices.size();
 }
 
-unsigned short* Geometry::getIndices() const
+uint16_t* Geometry::getIndices() const
 {
-   return mIndices.data();
+   return _indices.data();
 }
 
-int Geometry::getEdgeCount() const
+int32_t Geometry::getEdgeCount() const
 {
-   return mEdge.size();
+   return _edges.size();
 }
 
 Edge* Geometry::getEdges() const
 {
-   return (Edge*)mEdge.data();
+   return _edges.data();
 }
 
-int Geometry::getVertexCount() const
+int32_t Geometry::getVertexCount() const
 {
-   return mVertice.size();
+   return _vertices.size();
 }
 
 Vector* Geometry::getVertices() const
 {
-   return mVertice.data();
+   return _vertices.data();
 }
 
 Vector* Geometry::getNormals() const
 {
-   return mNormal.data();
+   return _normals.data();
 }
 
 Vector* Geometry::getColors() const
 {
-   return mColor.data();
+   return _colors.data();
 }
 
-UV* Geometry::getUV(int channel) const
+UV* Geometry::getUV(int32_t channel) const
 {
-   int num = mUV.size();
-   for (int i = 0; i < num; i++)
+   const int32_t count = _uv_channels.size();
+   for (int32_t i = 0; i < count; i++)
    {
-      const UVChannel& chn = mUV[i];
-      if (chn.id() == channel)
-         return chn.data();
+      const UVChannel& uv_channel = _uv_channels[i];
+      if (uv_channel.id() == channel)
+      {
+         return uv_channel.data();
+      }
    }
-   return 0;
+   return nullptr;
 }
 
-int Geometry::getBoneCount() const
+int32_t Geometry::getBoneCount() const
 {
-   return mBones.size();
+   return _bones.size();
 }
 
 Bone* Geometry::getBones() const
 {
-   return mBones.data();
+   return _bones.data();
 }
 
-const Bone& Geometry::getBone(int index) const
+const Bone& Geometry::getBone(int32_t index) const
 {
-   return mBones[index];
+   return _bones[index];
 }
 
 void Geometry::calcNormals()
 {
-   mNormal.init(mVertice.size());
+   _normals.init(_vertices.size());
 
-   for (int i = 0; i < mVertice.size(); i++)
-      mNormal.add(Vector(0.0f, 0.0f, 0.0f));
-
-   unsigned short* index = mIndices.data();
-
-   for (int i = 0; i < mIndices.size(); i += 3)
+   for (int32_t i = 0; i < _vertices.size(); i++)
    {
-      unsigned short i1 = *index++;
-      unsigned short i2 = *index++;
-      unsigned short i3 = *index++;
-
-      const Vector& v1 = mVertice[i1];
-      const Vector& v2 = mVertice[i2];
-      const Vector& v3 = mVertice[i3];
-
-      Vector normal = (v2 - v1) % (v3 - v1);
-
-      mNormal[i1] += normal;
-      mNormal[i2] += normal;
-      mNormal[i3] += normal;
+      _normals.add(Vector(0.0f, 0.0f, 0.0f));
    }
 
-   for (int i = 0; i < mNormal.size(); i++)
-      mNormal[i].normalize();
+   const uint16_t* index = _indices.data();
+
+   for (int32_t i = 0; i < _indices.size(); i += 3)
+   {
+      const uint16_t i1 = *index++;
+      const uint16_t i2 = *index++;
+      const uint16_t i3 = *index++;
+
+      const Vector& v1 = _vertices[i1];
+      const Vector& v2 = _vertices[i2];
+      const Vector& v3 = _vertices[i3];
+
+      const Vector normal = (v2 - v1) % (v3 - v1);
+
+      _normals[i1] += normal;
+      _normals[i2] += normal;
+      _normals[i3] += normal;
+   }
+
+   for (int32_t i = 0; i < _normals.size(); i++)
+   {
+      _normals[i].normalize();
+   }
 }
 
 void Geometry::createBoxMapping(bool, const Vector& min, const Vector& max, const Matrix& transform, const Matrix& gizmo)
 {
    UV* uv = getUV(1);
 
-   Vector* verts = new Vector[mVertice.size()];
-
-   for (int i = 0; i < mVertice.size(); i++)
+   std::vector<Vector> vertices(_vertices.size());
+   for (int32_t i = 0; i < _vertices.size(); i++)
    {
-      verts[i] = gizmo * (transform * mVertice[i]);
+      vertices[i] = gizmo * (transform * _vertices[i]);
    }
 
-   for (int i = 0; i < mIndices.size(); i += 3)
+   constexpr float su = 1.0f / 3.0f;
+   constexpr float sv = 1.0f / 4.0f;
+
+   for (int32_t i = 0; i < _indices.size(); i += 3)
    {
-      int i1 = mIndices[i];
-      int i2 = mIndices[i + 1];
-      int i3 = mIndices[i + 2];
+      const Vector& v1 = vertices[_indices[i]];
+      const Vector& v2 = vertices[_indices[i + 1]];
+      const Vector& v3 = vertices[_indices[i + 2]];
 
-      Vector v1 = verts[i1];
-      Vector v2 = verts[i2];
-      Vector v3 = verts[i3];
+      const Vector face_normal = (v2 - v1) % (v3 - v1);
+      const int32_t axis = face_normal.absMaxIndex();
 
-      Vector fn = (v2 - v1) % (v3 - v1);
-      int absIndex = fn.absMaxIndex();
-
-      float su = 1.0f / 3.0f;
-      float sv = 1.0f / 4.0f;
-
-      switch (absIndex)
+      for (int32_t j = 0; j < 3; j++)
       {
-         case 2:
-            if (fn.z >= 0.0)  // top *
-            {
-               for (int j = 0; j < 3; j++)
+         const int32_t index = _indices[i + j];
+         const Vector& vertex = vertices[index];
+
+         switch (axis)
+         {
+            case 2:
+               if (face_normal.z >= 0.0)  // top
                {
-                  int index = mIndices[i + j];
-                  Vector vtx = verts[index];
-                  float u = uv[index].u;
-                  float v = uv[index].v;
-                  v = (max.x - vtx.x) / (max.x - min.x);
-                  u = (max.y - vtx.y) / (max.y - min.y);
+                  const float v = (max.x - vertex.x) / (max.x - min.x);
+                  const float u = (max.y - vertex.y) / (max.y - min.y);
                   uv[index].u = u * su + su * 1;
                   uv[index].v = v * sv;
                }
-            }
-            else  // bottom *
-            {
-               for (int j = 0; j < 3; j++)
+               else  // bottom
                {
-                  int index = mIndices[i + j];
-                  Vector vtx = verts[index];
-                  float u = uv[index].u;
-                  float v = uv[index].v;
-                  v = (vtx.x - min.x) / (max.x - min.x);
-                  u = (vtx.y - min.y) / (max.y - min.y);
+                  const float v = (vertex.x - min.x) / (max.x - min.x);
+                  const float u = (vertex.y - min.y) / (max.y - min.y);
                   uv[index].u = u * su + su * 1;
                   uv[index].v = v * sv + sv * 2;
                }
-            }
-            break;
+               break;
 
-         case 1:
-            if (fn.y >= 0.0)  // right *
-            {
-               for (int j = 0; j < 3; j++)
+            case 1:
+               if (face_normal.y >= 0.0)  // right
                {
-                  int index = mIndices[i + j];
-                  Vector vtx = verts[index];
-                  float u = uv[index].u;
-                  float v = uv[index].v;
-                  u = (max.x - vtx.x) / (max.x - min.x);
-                  v = (max.z - vtx.z) / (max.z - min.z);
+                  const float u = (max.x - vertex.x) / (max.x - min.x);
+                  const float v = (max.z - vertex.z) / (max.z - min.z);
                   uv[index].u = u * su;
                   uv[index].v = v * sv + sv * 1;
                }
-            }
-            else  // left*
-            {
-               for (int j = 0; j < 3; j++)
+               else  // left
                {
-                  int index = mIndices[i + j];
-                  Vector vtx = verts[index];
-                  float u = uv[index].u;
-                  float v = uv[index].v;
-                  u = (vtx.x - min.x) / (max.x - min.x);
-                  v = (max.z - vtx.z) / (max.z - min.z);
+                  const float u = (vertex.x - min.x) / (max.x - min.x);
+                  const float v = (max.z - vertex.z) / (max.z - min.z);
                   uv[index].u = u * su + su * 2;
                   uv[index].v = v * sv + sv * 1;
                }
-            }
-            break;
+               break;
 
-         case 0:
-            if (fn.x >= 0.0)  // back*
-            {
-               for (int j = 0; j < 3; j++)
+            case 0:
+               if (face_normal.x >= 0.0)  // back
                {
-                  int index = mIndices[i + j];
-                  Vector vtx = verts[index];
-                  float u = uv[index].u;
-                  float v = uv[index].v;
-                  u = (vtx.y - min.y) / (max.y - min.y);
-                  v = (max.z - vtx.z) / (max.z - min.z);
+                  const float u = (vertex.y - min.y) / (max.y - min.y);
+                  const float v = (max.z - vertex.z) / (max.z - min.z);
                   uv[index].u = u * su + su * 1;
                   uv[index].v = v * sv + sv * 3;
                }
-            }
-            else  // front*
-            {
-               for (int j = 0; j < 3; j++)
+               else  // front
                {
-                  int index = mIndices[i + j];
-                  Vector vtx = verts[index];
-                  float u = uv[index].u;
-                  float v = uv[index].v;
-                  v = (max.z - vtx.z) / (max.z - min.z);
-                  u = (max.y - vtx.y) / (max.y - min.y);
+                  const float v = (max.z - vertex.z) / (max.z - min.z);
+                  const float u = (max.y - vertex.y) / (max.y - min.y);
                   uv[index].u = u * su + su * 1;
                   uv[index].v = v * sv + sv * 1;
                }
-            }
-            break;
+               break;
+
+            default:
+               break;
+         }
       }
    }
-   delete[] verts;
 }
 
 Array<Vector> Geometry::getSkinVertices() const
 {
-   Mesh* mesh = (Mesh*)mParent;
+   auto* mesh = static_cast<Mesh*>(_parent);
    MotionMixer* mixer = mesh->getMotionMixer();
 
-   int nv = getVertexCount();
-   Array<Vector> list(nv);
+   const int32_t vertex_count = getVertexCount();
+   Array<Vector> result(vertex_count);
 
-   Vector* vtx = getVertices();
-   Vector* vtemp = list.data();
-   std::memset(vtemp, 0, sizeof(Vector) * nv);
+   const Vector* vertices = getVertices();
+   Vector* skinned = result.data();
+   std::ranges::fill(std::span(skinned, static_cast<size_t>(vertex_count)), Vector(0.0f, 0.0f, 0.0f));
 
-   for (int b = 0; b < getBoneCount(); b++)
+   for (int32_t b = 0; b < getBoneCount(); b++)
    {
       const Bone& bone = getBone(b);
 
       Node* node = mixer->getNode(bone.id());
+      const Matrix& bone_matrix = node->getTransform();
 
-      //         Matrix bm= bone.transform() * node->getTransform();
-      const Matrix& bm = node->getTransform();
-      //      Matrix nbm= bm.normalize();
-
-      Weight* weights = bone.weights();
-      for (int v = 0; v < bone.count(); v++)
+      const Weight* weights = bone.weights();
+      for (int32_t v = 0; v < bone.count(); v++)
       {
-         int idx = weights[v].id();
-         float f = weights[v].weight();
+         const int32_t index = weights[v].id();
+         const float factor = weights[v].weight();
 
-         vtemp[idx] += (bm * vtx[idx]) * f;
-         //         ntemp[idx] += (nbm * nrm[idx]) * f;
+         skinned[index] += (bone_matrix * vertices[index]) * factor;
       }
    }
 
-   return list;
+   return result;
 }

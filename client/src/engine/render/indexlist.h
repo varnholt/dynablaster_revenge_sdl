@@ -1,70 +1,60 @@
 #pragma once
 
-class IndexList : public Array<int>
+#include "tools/array.h"
+
+#include <algorithm>
+#include <cstdint>
+#include <functional>
+#include <span>
+
+class IndexList : public Array<int32_t>
 {
 public:
+   // sorts descending
    void sort()
    {
-      sort(0, mCount - 1);
+      if (mCount > 1)
+      {
+         std::ranges::sort(std::span(mData, static_cast<size_t>(mCount)), std::ranges::greater{});
+      }
    }
 
-   bool find(int it)
+   bool find(int32_t value)
    {
-      int l = 0;
-      int r = mCount - 1;
+      int32_t l = 0;
+      int32_t r = mCount - 1;
       while (l <= r)
       {
-         int m = (l + r) >> 1;
-         if (mData[m] > it)
+         const int32_t m = (l + r) >> 1;
+         if (mData[m] > value)
+         {
             r = m - 1;
-         else if (mData[m] < it)
+         }
+         else if (mData[m] < value)
+         {
             l = m + 1;
+         }
          else
+         {
             return true;
+         }
       }
       return false;
    }
 
    // add indices (which are not yet contained) from "list" to this
-   int merge(const IndexList& list)
+   int32_t merge(const IndexList& list)
    {
-      int cursize = size();
-      int num = list.size();
-      for (int i = 0; i < num; i++)
+      const int32_t previous_size = size();
+      const int32_t count = list.size();
+      for (int32_t i = 0; i < count; i++)
       {
-         int idx = list.get(i);
-         if (!find(idx))
-            add(idx);
-      }
-      return size() - cursize;
-   }
-
-private:
-   void sort(int l, int r)
-   {
-      if (r > l)
-      {
-         int tmp;
-         int i = l - 1, j = r;
-         while (i < j)
+         const int32_t index = list.get(i);
+         if (!find(index))
          {
-            while (mData[++i] > mData[r])
-               ;
-            while (mData[--j] < mData[r] && j > i)
-               ;
-            if (i < j)
-            {
-               tmp = mData[i];
-               mData[i] = mData[j];
-               mData[j] = tmp;
-            }
+            add(index);
          }
-         tmp = mData[i];
-         mData[i] = mData[r];
-         mData[r] = tmp;
-
-         sort(l, i - 1);
-         sort(i + 1, r);
       }
+      return size() - previous_size;
    }
 };

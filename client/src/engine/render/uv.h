@@ -7,13 +7,13 @@ class Stream;
 class UV
 {
 public:
-   UV();
-   UV(float su, float sv);
+   UV() = default;
+   UV(float u, float v);
 
    operator const float*() const
    {
       return &u;
-   }  //! cast to float*
+   }
 
    void operator<<(Stream& stream);
    void operator>>(Stream& stream);
@@ -21,5 +21,6 @@ public:
    void load(Stream* stream);
    void write(Stream* stream);
 
-   float u, v;
+   float u = 0.0f;
+   float v = 0.0f;
 };

@@ -4,23 +4,25 @@
 #include "tools/stream.h"
 #include "uv.h"
 
+#include <cstdint>
+
 class UVChannel : public Streamable
 {
 public:
-   UVChannel();
-   UVChannel(int id, UV* uv, int size);
-   virtual ~UVChannel();
+   UVChannel() = default;
+   UVChannel(int32_t id, UV* uv, int32_t size);
+   virtual ~UVChannel() = default;
 
-   void load(Stream* stream);
-   void write(Stream* stream);
+   void load(Stream* stream) override;
+   void write(Stream* stream) override;
    void copy(const UVChannel& other);
    const List<UV>& getUV() const;
 
-   int id() const;
+   int32_t id() const;
 
    UV* data() const;
 
 private:
-   int mID;
-   List<UV> mUV;
+   int32_t _id = -1;
+   List<UV> _uv;
 };
