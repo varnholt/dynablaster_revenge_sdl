@@ -19,12 +19,6 @@ constexpr float PARTICLE_PIXEL_SIZE = 48.0f;
 }  // namespace
 
 FuseParticleSystem::FuseParticleSystem()
- : _vertex_buffer(0),
-   _particle_texture_id(0),
-   _shader(0),
-   _texture(0),
-   _point_size(0),
-   _projection(0)
 {
    Image image;
    image.load("data/logo/pointsprite");

@@ -40,43 +40,33 @@ GameSettings* GameSettings::s_settings = nullptr;
 
 
 GameSettings::GameSettings()
- : _development_settings(nullptr),
-   _audio_settings(nullptr),
-   _gameplay_settings(nullptr),
-   _login_settings(nullptr),
-   _video_settings(nullptr),
-   _video_settings_backup(nullptr),
-   _controller_settings(nullptr),
-   _create_game_settings_single(nullptr),
-   _create_game_settings_multi(nullptr),
-   _style_settings(nullptr)
 {
    s_settings = this;
 
    // create settings instances
-   _development_settings = new DevelopmentSettings();
-   _audio_settings = new AudioSettings();
-   _gameplay_settings = new GameplaySettings();
-   _login_settings = new LoginSettings();
-   _video_settings = new VideoSettings();
-   _video_settings_backup = new VideoSettings();
-   _controller_settings = new ControllerSettings;
-   _create_game_settings_single = new CreateGameSettings();
-   _create_game_settings_multi = new CreateGameSettings();
-   _style_settings = new StyleSettings();
+   _development_settings = std::make_unique<DevelopmentSettings>();
+   _audio_settings = std::make_unique<AudioSettings>();
+   _gameplay_settings = std::make_unique<GameplaySettings>();
+   _login_settings = std::make_unique<LoginSettings>();
+   _video_settings = std::make_unique<VideoSettings>();
+   _video_settings_backup = std::make_unique<VideoSettings>();
+   _controller_settings = std::make_unique<ControllerSettings>();
+   _create_game_settings_single = std::make_unique<CreateGameSettings>();
+   _create_game_settings_multi = std::make_unique<CreateGameSettings>();
+   _style_settings = std::make_unique<StyleSettings>();
 
    _create_game_settings_single->setSinglePlayer(true);
    _create_game_settings_multi->setSinglePlayer(false);
 
-   _settings.push_back(_development_settings);
-   _settings.push_back(_audio_settings);
-   _settings.push_back(_gameplay_settings);
-   _settings.push_back(_login_settings);
-   _settings.push_back(_video_settings);
-   _settings.push_back(_controller_settings);
-   _settings.push_back(_create_game_settings_single);
-   _settings.push_back(_create_game_settings_multi);
-   _settings.push_back(_style_settings);
+   _settings.push_back(_development_settings.get());
+   _settings.push_back(_audio_settings.get());
+   _settings.push_back(_gameplay_settings.get());
+   _settings.push_back(_login_settings.get());
+   _settings.push_back(_video_settings.get());
+   _settings.push_back(_controller_settings.get());
+   _settings.push_back(_create_game_settings_single.get());
+   _settings.push_back(_create_game_settings_multi.get());
+   _settings.push_back(_style_settings.get());
 
    // deserialize settings data
    for (SettingsPrivate* settings : _settings)
@@ -84,28 +74,7 @@ GameSettings::GameSettings()
 }
 
 
-GameSettings::~GameSettings()
-{
-   delete _development_settings;
-   delete _audio_settings;
-   delete _gameplay_settings;
-   delete _login_settings;
-   delete _video_settings;
-   delete _controller_settings;
-   delete _create_game_settings_single;
-   delete _create_game_settings_multi;
-   delete _style_settings;
-
-   _development_settings = nullptr;
-   _audio_settings = nullptr;
-   _gameplay_settings = nullptr;
-   _login_settings = nullptr;
-   _video_settings = nullptr;
-   _controller_settings = nullptr;
-   _create_game_settings_single = nullptr;
-   _create_game_settings_multi = nullptr;
-   _style_settings = nullptr;
-}
+GameSettings::~GameSettings() = default;
 
 
 GameSettings* GameSettings::getInstance()
@@ -148,61 +117,61 @@ void GameSettings::SettingsPrivate::restoreDefaults()
 
 GameSettings::DevelopmentSettings *GameSettings::getDevelopmentSettings()
 {
-   return _development_settings;
+   return _development_settings.get();
 }
 
 
 GameSettings::StyleSettings *GameSettings::getStyleSettings()
 {
-   return _style_settings;
+   return _style_settings.get();
 }
 
 
 GameSettings::GameplaySettings *GameSettings::getGameplaySettings()
 {
-   return _gameplay_settings;
+   return _gameplay_settings.get();
 }
 
 
 GameSettings::AudioSettings *GameSettings::getAudioSettings()
 {
-   return _audio_settings;
+   return _audio_settings.get();
 }
 
 
 GameSettings::LoginSettings *GameSettings::getLoginSettings()
 {
-   return _login_settings;
+   return _login_settings.get();
 }
 
 
 GameSettings::VideoSettings *GameSettings::getVideoSettings()
 {
-   return _video_settings;
+   return _video_settings.get();
 }
 
 
 GameSettings::VideoSettings *GameSettings::getVideoSettingsBackup()
 {
-   return _video_settings_backup;
+   return _video_settings_backup.get();
 }
 
 
 GameSettings::CreateGameSettings *GameSettings::getCreateGameSettingsSingle()
 {
-   return _create_game_settings_single;
+   return _create_game_settings_single.get();
 }
 
 
 GameSettings::CreateGameSettings *GameSettings::getCreateGameSettingsMulti()
 {
-   return _create_game_settings_multi;
+   return _create_game_settings_multi.get();
 }
 
 
 GameSettings::ControllerSettings *GameSettings::getControllerSettings()
 {
-   return _controller_settings;
+   return _controller_settings.get();
 }
 
 
@@ -216,13 +185,6 @@ void GameSettings::serialize()
 
 
 GameSettings::AudioSettings::AudioSettings()
- : _volume_sfx(0.0f),
-   _volume_music(0.0f),
-   _volume_sfx_default(0.0f),
-   _volume_music_default(0.0f),
-   _shuffle_music(true),
-   _shuffle1st_track_only(false),
-   _music_player_visible(true)
 {
 }
 
@@ -377,12 +339,6 @@ void GameSettings::AudioSettings::setMusicPlayerVisibile(bool value)
 
 
 GameSettings::DevelopmentSettings::DevelopmentSettings()
- : _skip_menu(false),
-   _show_splash(false),
-   _music_enabled(false),
-   _dry_run_enabled(false),
-   _game_recording_enabled(false),
-   _joysticks_enabled(true)
 {
 }
 
@@ -676,17 +632,6 @@ void GameSettings::LoginSettings::setPlayer2Nick(const std::string &value)
 
 
 GameSettings::CreateGameSettings::CreateGameSettings()
- : _single_player(false),
-   _rounds(0),
-   _duration(0),
-   _max_players(0),
-   _bot_count(0),
-   _extra_bombs(false),
-   _extra_flames(false),
-   _extra_speed_ups(false),
-   _extra_kicks(false),
-   _extra_skulls(false),
-   _dimensions(Constants::DimensionInvalid)
 {
 
 }
@@ -1343,19 +1288,6 @@ void GameSettings::StyleSettings::initDefaultMap()
 
 
 GameSettings::VideoSettings::VideoSettings()
- : _width(-1),
-   _height(-1),
-   _resolution(1),
-   _antialias(1),
-   _fullscreen(false),
-   _brightness(2.2f),
-   _v_sync(1),
-   _show_fps(true),
-   _zoom(1.0f),
-   _border_left(0),
-   _border_top(0),
-   _border_right(0),
-   _border_bottom(0)
 {
 }
 
@@ -1589,8 +1521,6 @@ void GameSettings::VideoSettings::setBorderBottom(int bottom)
 
 
 GameSettings::GameplaySettings::GameplaySettings()
- : _camera_shake_intensity(1.0f),
-   _camera_follows_player(true)
 {
 }
 

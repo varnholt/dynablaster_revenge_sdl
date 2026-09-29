@@ -33,13 +33,6 @@ struct ArrowVertex
 }  // namespace
 
 GamePlayerNameDisplay::GamePlayerNameDisplay()
-    : _font(nullptr),
-      _show_arrow(false),
-      _arrow_shader(0),
-      _arrow_vertex_buffer(0),
-      _arrow_index_buffer(0),
-      _arrow_param_texture(-1),
-      _arrow_param_alpha(-1)
 {
 }
 
@@ -129,8 +122,8 @@ void GamePlayerNameDisplay::initialize()
    vtx[3] = {-width, 0.0f, -height, 0.0f, 1.0f};
    activeDevice->unlockVertexBuffer(_arrow_vertex_buffer);
 
-   _arrow_index_buffer = activeDevice->createIndexBuffer(6 * sizeof(unsigned short));
-   unsigned short* idx = (unsigned short*)activeDevice->lockIndexBuffer(_arrow_index_buffer);
+   _arrow_index_buffer = activeDevice->createIndexBuffer(6 * sizeof(uint16_t));
+   uint16_t* idx = (uint16_t*)activeDevice->lockIndexBuffer(_arrow_index_buffer);
    idx[0] = 0;
    idx[1] = 1;
    idx[2] = 2;

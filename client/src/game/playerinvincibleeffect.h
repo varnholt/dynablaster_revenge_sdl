@@ -5,6 +5,7 @@
 
 #include <memory>
 #include <unordered_map>
+#include <cstdint>
 
 class Material;
 class Matrix;
@@ -31,29 +32,29 @@ private:
 
    std::unordered_map<Material*, std::unique_ptr<PlayerInvincibleInstance>> _players;
    Texture _displacement_texture;
-   float _radius;
+   float _radius = 0.0f;
    float _kernel[32];
 
-   unsigned int _blur_h_shader;
-   int _blur_h_texture;
-   int _blur_h_texel_offset;
-   int _blur_h_radius;
-   int _blur_h_kernel;
+   uint32_t _blur_h_shader = 0;
+   int _blur_h_texture = -1;
+   int _blur_h_texel_offset = -1;
+   int _blur_h_radius = -1;
+   int _blur_h_kernel = -1;
 
-   unsigned int _blur_v_shader;
-   int _blur_v_texture;
-   int _blur_v_texel_offset;
-   int _blur_v_radius;
-   int _blur_v_kernel;
+   uint32_t _blur_v_shader = 0;
+   int _blur_v_texture = -1;
+   int _blur_v_texel_offset = -1;
+   int _blur_v_radius = -1;
+   int _blur_v_kernel = -1;
 
-   unsigned int _displace_shader;
-   int _displace_texture1;
-   int _displace_texture2;
-   int _displace_texel_offset;
-   int _displace_offset;
-   int _displace_source_rect;
-   int _displace_fade;
-   int _display_center;
+   uint32_t _displace_shader = 0;
+   int _displace_texture1 = -1;
+   int _displace_texture2 = -1;
+   int _displace_texel_offset = -1;
+   int _displace_offset = -1;
+   int _displace_source_rect = -1;
+   int _displace_fade = -1;
+   int _display_center = -1;
 
-   FrameBuffer* _scratch_buffer;
+   std::unique_ptr<FrameBuffer> _scratch_buffer;
 };

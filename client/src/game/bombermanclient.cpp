@@ -81,22 +81,6 @@ BombermanClient* BombermanClient::_instance = nullptr;
 /*!
  */
 BombermanClient::BombermanClient(/*const std::string& host, const std::string& nick*/)
-    : _keys_pressed(0),
-      _bomb_released(true),
-      _socket(nullptr),
-      _address(nullptr),
-      _block_size(0),
-      _id(-1),
-      _game_id(-1),
-      _dead(true),
-      _connected(false),
-      _login_after_connect(false),
-      _server(nullptr),
-      _current_player_info(nullptr),
-      _position_interpolation(nullptr),
-      _ingame_messaging_active(false),
-      _main_menu_active(false),
-      _bot_factory(nullptr)
 {
    _instance = this;
 
@@ -141,7 +125,8 @@ BombermanClient::~BombermanClient()
       _server_thread.join();
    }
 
-   delete _server;
+   // only after the server thread stopped using it
+   _server.reset();
 }
 
 //-----------------------------------------------------------------------------
@@ -195,18 +180,8 @@ bool BombermanClient::isGameIdValid() const
 */
 GameInformation* BombermanClient::getGameInformation(int id) const
 {
-   GameInformation* game_info = nullptr;
-
-   for (int i = 0; i < _games.size(); i++)
-   {
-      if (_games.at(i).getId() == id)
-      {
-         game_info = &_games[i];
-         break;
-      }
-   }
-
-   return game_info;
+   const auto game = std::ranges::find_if(_games, [id](const GameInformation& info) { return info.getId() == id; });
+   return (game != _games.end()) ? &*game : nullptr;
 }
 
 //-----------------------------------------------------------------------------
@@ -869,7 +844,7 @@ bool BombermanClient::isConnected() const
 */
 bool BombermanClient::isHosting() const
 {
-   return _server;
+   return _server.get();
 }
 
 //-----------------------------------------------------------------------------
@@ -2127,7 +2102,7 @@ void BombermanClient::host()
 {
    if (!_server)
    {
-      _server = new Server();
+      _server = std::make_unique<Server>();
 
       if (_server->isListening())
       {
@@ -2159,8 +2134,7 @@ void BombermanClient::host()
       {
          HelpManager::getInstance()->addMessage("", TEXT_ERROR_UNABLE_TO_BIND, Constants::HelpSeverityError);
 
-         delete _server;
-         _server = nullptr;
+         _server.reset();
       }
    }
 }

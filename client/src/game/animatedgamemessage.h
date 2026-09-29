@@ -17,9 +17,9 @@ public:
 
    float getAlpha() const;
 
-   virtual void initialize();
+   void initialize() override;
 
 protected:
-   float _alpha;
+   float _alpha = 1.0f;
    Array<Vertex> _vertices;
 };

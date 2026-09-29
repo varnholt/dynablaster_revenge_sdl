@@ -12,18 +12,7 @@
 MapItemAnimation::MapItemAnimation(
    Constants::Direction dir,
    float speed
-)
- : _direction(dir),
-   _speed(speed),
-   _x(0.0f),
-   _y(0.0f),
-   _z(0.0f),
-   _z_prev(0.0f),
-   _nominal_x(-1),
-   _nominal_y(-1),
-   _time(0.0f),
-   _tick(false),
-   _factor(1.0f)
+) : _direction(dir), _speed(speed)
 {
 }
 

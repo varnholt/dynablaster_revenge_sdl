@@ -41,15 +41,7 @@
 #define CURSOR_UPDATE_TIME 0.5f
 #define MESSAGE_FIELD_WIDTH 80
 
-GameMessagingDrawable::GameMessagingDrawable(RenderDevice* dev)
-    : Drawable(dev),
-      _line_edit_say_layer(nullptr),
-      _player_name_layer(nullptr),
-      _font(nullptr),
-      _active(false),
-      _cursor_position(0),
-      _cursor_texture(0),
-      _cursor_vertex_buffer(0)
+GameMessagingDrawable::GameMessagingDrawable(RenderDevice* dev) : Drawable(dev)
 {
    _filename = "data/game/messaging_bar.psd";
 
@@ -57,14 +49,7 @@ GameMessagingDrawable::GameMessagingDrawable(RenderDevice* dev)
    GameStateMachine::getInstance()->stateChangedSignal.connect([this]() { gameStateChanged(); });
 }
 
-GameMessagingDrawable::~GameMessagingDrawable()
-{
-   for (auto* layer : _psd_layers)
-   {
-      delete layer;
-   }
-   _psd_layers.clear();
-}
+GameMessagingDrawable::~GameMessagingDrawable() = default;
 
 void GameMessagingDrawable::messageReceived(int /*sender_id*/, const std::string& text, bool typing_finished)
 {
@@ -392,9 +377,8 @@ bool GameMessagingDrawable::drawMessageOverlay()
 
    fully_visible = (offset == MESSAGE_LAYER_POSITION);
 
-   for (int layer_index = 0; layer_index < _psd_layers.size(); layer_index++)
+   for (const auto& layer : _psd_layers)
    {
-      PSDLayer* layer = _psd_layers[layer_index];
       layer->render(0, static_cast<float>(offset), 1.0f - factor);
    }
 
@@ -436,9 +420,10 @@ void GameMessagingDrawable::initializeLayers()
    for (int l = 0; l < _psd.getLayerCount(); l++)
    {
       PSD::Layer* layer = _psd.getLayer(l);
-      PSDLayer* render_layer = new PSDLayer(layer);
+      auto owned_layer = std::make_unique<PSDLayer>(layer);
+      PSDLayer* render_layer = owned_layer.get();
 
-      _psd_layers.push_back(render_layer);
+      _psd_layers.push_back(std::move(owned_layer));
 
       if (layer->getName() == std::string(LINEEDIT_SAY))
       {
@@ -503,7 +488,7 @@ void GameMessagingDrawable::drawCursor()
 
    if (_cursor_texture == 0)
    {
-      unsigned int white = 0xFFFFFFFF;
+      uint32_t white = 0xFFFFFFFF;
       _cursor_texture = activeDevice->createTexture(&white, 1, 1, 0);
    }
 

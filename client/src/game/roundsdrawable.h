@@ -15,11 +15,11 @@ class RoundsDrawable : public Drawable
 {
 public:
    RoundsDrawable(RenderDevice* dev);
-   virtual ~RoundsDrawable();
+   ~RoundsDrawable() override;
 
-   void initializeGL();
-   void paintGL();
-   void animate(float time);
+   void initializeGL() override;
+   void paintGL() override;
+   void animate(float time) override;
 
    void showGame();
 
@@ -32,21 +32,21 @@ protected:
    PSD _psd;
    std::vector<std::unique_ptr<PSDLayer>> _psd_layers;
 
-   PSDLayer* _layer_round;
-   PSDLayer* _layer_round_final;
-   PSDLayer* _layer_round1;
-   PSDLayer* _layer_round2;
-   PSDLayer* _layer_round3;
-   PSDLayer* _layer_round4;
-   PSDLayer* _layer_round5;
+   PSDLayer* _layer_round = nullptr;
+   PSDLayer* _layer_round_final = nullptr;
+   PSDLayer* _layer_round1 = nullptr;
+   PSDLayer* _layer_round2 = nullptr;
+   PSDLayer* _layer_round3 = nullptr;
+   PSDLayer* _layer_round4 = nullptr;
+   PSDLayer* _layer_round5 = nullptr;
 
    std::string _filename;
 
-   float _time;
-   float _start_time;
-   bool _initialize_time;
+   float _time = 0.0f;
+   float _start_time = 0.0f;
+   bool _initialize_time = false;
 
-   MotionBlurFilter* _motion_blur_filter;
+   std::unique_ptr<MotionBlurFilter> _motion_blur_filter;
 
-   float _max_layer_width;
+   float _max_layer_width = 0.0f;
 };

@@ -1,6 +1,7 @@
 #include "wordwrap.h"
 
 #include "stringutils.h"
+#include <cstddef>
 
 
 
@@ -25,9 +26,9 @@ std::vector<std::string> WordWrap::wrap(const std::string& line, int allowed_cha
          const std::string a = test.substr(0, static_cast<size_t>(allowed_chars_per_line));
          const std::string b = test.substr(static_cast<size_t>(allowed_chars_per_line) + 1);
 
-         split.erase(split.begin() + static_cast<long>(i));
-         split.insert(split.begin() + static_cast<long>(i), a);
-         split.insert(split.begin() + static_cast<long>(i) + 1, b);
+         split.erase(split.begin() + static_cast<std::ptrdiff_t>(i));
+         split.insert(split.begin() + static_cast<std::ptrdiff_t>(i), a);
+         split.insert(split.begin() + static_cast<std::ptrdiff_t>(i) + 1, b);
       }
    }
 
@@ -35,9 +36,8 @@ std::vector<std::string> WordWrap::wrap(const std::string& line, int allowed_cha
    std::string tmp_line;
 
    // iterate through every word
-   for (size_t i = 0; i < split.size(); i++)
+   for (const std::string& next_word : split)
    {
-      const std::string& next_word = split[i];
 
       if (static_cast<int>(tmp_line.size() + next_word.size() + 1) < allowed_chars_per_line)
       {

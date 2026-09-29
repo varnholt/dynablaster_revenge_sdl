@@ -38,7 +38,6 @@
 #include "image/image.h"
 
 PlayerDeathEffect::PlayerDeathEffect()
-   : _particle_texture_id(0), _points_shader(0), _points_texture(0), _deferred_buffer(nullptr)
 {
    Image image;
    image.load("data/game/flowfield_pointsprite");
@@ -74,7 +73,6 @@ PlayerDeathEffect::PlayerDeathEffect()
 PlayerDeathEffect::~PlayerDeathEffect()
 {
    clear();
-   delete _deferred_buffer;
 }
 
 void PlayerDeathEffect::clear()
@@ -94,11 +92,11 @@ void PlayerDeathEffect::add(Material* material)
    const int height = activeDevice->getHeight();
 
    if (!_deferred_buffer)
-      _deferred_buffer = new FrameBuffer(width, height, 0, FrameBuffer::DepthTexture);
+      _deferred_buffer = std::make_unique<FrameBuffer>(width, height, 0, FrameBuffer::DepthTexture);
    else if (_deferred_buffer->resolutionChanged(width, height))
       _deferred_buffer->setResolution(width, height);
 
-   FrameBuffer::push(_deferred_buffer);
+   FrameBuffer::push(_deferred_buffer.get());
 
    // TODO: clear relevant area only!
    // transparent black (the original's global clear color): this is the particles' color map,
@@ -118,7 +116,7 @@ void PlayerDeathEffect::add(Material* material)
    auto animation = std::make_unique<DeathFlowFieldAnimation>();
    animation->setCenter(center);
 
-   animation->initialize(_deferred_buffer, min, max);
+   animation->initialize(_deferred_buffer.get(), min, max);
 
    activeDevice->setShader(_flow_init_pos_shader);
    activeDevice->bindSampler(_flow_init_pos_depth, 0);

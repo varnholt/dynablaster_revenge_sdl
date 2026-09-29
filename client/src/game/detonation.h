@@ -22,5 +22,5 @@ private:
    int _right;
    int _top;
    int _bottom;
-   float _start_time;
+   float _start_time = 0.0f;
 };

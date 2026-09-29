@@ -14,7 +14,7 @@ public:
    Skull(Mesh* reference, float x, float y);
 
    //! destructor
-   virtual ~Skull();
+   ~Skull() override;
 
    //! getter for reference mesh
    Mesh* getReference() const;

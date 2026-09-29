@@ -14,6 +14,8 @@
 // shared
 #include "constants.h"
 #include "settings.h"
+#include <cstdint>
+#include <memory>
 
 class GameSettings
 {
@@ -30,7 +32,7 @@ class GameSettings
             SettingsPrivate();
 
             //! destructor
-            virtual ~SettingsPrivate();
+            ~SettingsPrivate() override;
 
             //! deserialize data
             virtual void deserialize();
@@ -52,10 +54,10 @@ class GameSettings
             StyleSettings();
 
             //! deserialize data
-            void deserialize();
+            void deserialize() override;
 
             //! serialize map
-            void serialize();
+            void serialize() override;
 
             //! getter for color
             Color getColor(Constants::Color color) const;
@@ -97,7 +99,7 @@ class GameSettings
             DevelopmentSettings();
 
             //! deserialize data
-            void deserialize();
+            void deserialize() override;
 
             //! getter for skip menu flag
             bool isSkipMenuEnabled();
@@ -151,25 +153,25 @@ class GameSettings
       protected:
 
             //! skip menu
-            bool _skip_menu;
+            bool _skip_menu = false;
 
             //! show splash screen
-            bool _show_splash;
+            bool _show_splash = false;
 
             //! music enabled flag
-            bool _music_enabled;
+            bool _music_enabled = false;
 
             //! preselected level
             std::string _level;
 
             //! dryrun
-            bool _dry_run_enabled;
+            bool _dry_run_enabled = false;
 
             //! game recording enabled
-            bool _game_recording_enabled;
+            bool _game_recording_enabled = false;
 
             //! joysticks enabled
-            bool _joysticks_enabled;
+            bool _joysticks_enabled = true;
 
             //! pouet page
             std::string _page_pouet;
@@ -191,13 +193,13 @@ class GameSettings
             GameplaySettings();
 
             //! serialize audio settings
-            void serialize();
+            void serialize() override;
 
             //! deserialize audio settings
-            void deserialize();
+            void deserialize() override;
 
             //! restore audio settings
-            void restoreDefaults();
+            void restoreDefaults() override;
 
             //! getter for shake intensity
             float getCameraShakeIntensity() const;
@@ -215,10 +217,10 @@ class GameSettings
       protected:
 
             //! camera shake intensity
-            float _camera_shake_intensity;
+            float _camera_shake_intensity = 1.0f;
 
             //! camera follows player
-            bool _camera_follows_player;
+            bool _camera_follows_player = true;
       };
 
 
@@ -231,13 +233,13 @@ class GameSettings
             AudioSettings();
 
             //! serialize audio settings
-            void serialize();
+            void serialize() override;
 
             //! deserialize audio settings
-            void deserialize();
+            void deserialize() override;
 
             //! restore audio settings
-            void restoreDefaults();
+            void restoreDefaults() override;
 
             //! getter for music volume
             float getVolumeMusic() const;
@@ -287,25 +289,25 @@ class GameSettings
             // options
 
             //! sfx volume
-            float _volume_sfx;
+            float _volume_sfx = 0.0f;
 
             //! music volume
-            float _volume_music;
+            float _volume_music = 0.0f;
 
             //! sfx volume default
-            float _volume_sfx_default;
+            float _volume_sfx_default = 0.0f;
 
             //! music volume default
-            float _volume_music_default;
+            float _volume_music_default = 0.0f;
 
             //! checked if music is shuffled
-            bool _shuffle_music;
+            bool _shuffle_music = true;
 
             //! checked if 1st track is shuffled
-            bool _shuffle1st_track_only;
+            bool _shuffle1st_track_only = false;
 
             //! checked if music player shall be shown
-            bool _music_player_visible;
+            bool _music_player_visible = true;
       };
 
       class LoginSettings : public SettingsPrivate
@@ -313,10 +315,10 @@ class GameSettings
          public:
 
             //! serialize audio settings
-            void serialize();
+            void serialize() override;
 
             //! deserialize audio settings
-            void deserialize();
+            void deserialize() override;
 
             //! setter for nick
             void setNick(const std::string& nick);
@@ -430,16 +432,16 @@ class GameSettings
             VideoSettings();
 
             //! serialize video settings
-            void serialize();
+            void serialize() override;
 
             //! deserialize video settings
-            void deserialize();
+            void deserialize() override;
 
             //! backup video settings
             static void duplicate(VideoSettings* dest, VideoSettings* src);
 
             //! restore video settings
-            void restoreDefaults();
+            void restoreDefaults() override;
 
             //! setter for video mode width
             void setWidth(int width);
@@ -509,37 +511,37 @@ class GameSettings
          protected:
 
             //! window width
-            int _width;
+            int _width = -1;
 
             //! window height
-            int _height;
+            int _height = -1;
 
             //! rendering resolution (eg 1x1, 2x2, ...)
-            int _resolution;
+            int _resolution = 1;
 
             //! antialias samples
-            int _antialias;
+            int _antialias = 1;
 
             //! fullscreen flag
-            bool _fullscreen;
+            bool _fullscreen = false;
 
             //! brightness
-            float _brightness;
+            float _brightness = 2.2f;
 
             //! vsync
-            int _v_sync;
+            int _v_sync = 1;
 
             //! show fps
-            bool _show_fps;
+            bool _show_fps = true;
 
             //! camera zoom factor
-            float _zoom;
+            float _zoom = 1.0f;
 
             //! screen border compensation
-            int _border_left;
-            int _border_top;
-            int _border_right;
-            int _border_bottom;
+            int _border_left = 0;
+            int _border_top = 0;
+            int _border_right = 0;
+            int _border_bottom = 0;
       };
 
 
@@ -551,13 +553,13 @@ class GameSettings
             ControllerSettings();
 
             //! serialize controller settings
-            void serialize();
+            void serialize() override;
 
             //! deserialize controller settings
-            void deserialize();
+            void deserialize() override;
 
             //! restore controller settings
-            void restoreDefaults();
+            void restoreDefaults() override;
 
             //! setter for keymap
             void setKeyMap(const std::unordered_map<Constants::Key, int>& key_map);
@@ -623,10 +625,10 @@ class GameSettings
             CreateGameSettings();
 
             //! serialize creategame settings
-            void serialize();
+            void serialize() override;
 
             //! deserialize creategame settings
-            void deserialize();
+            void deserialize() override;
 
             //! setter for game name
             void setGameName(const std::string&);
@@ -710,7 +712,7 @@ class GameSettings
       protected:
 
             //! single player flag
-            bool _single_player;
+            bool _single_player = false;
 
             //! game name
             std::string _game_name;
@@ -719,34 +721,34 @@ class GameSettings
             int _level_index;
 
             //! number of rounds
-            int _rounds;
+            int _rounds = 0;
 
             //! duration
-            int _duration;
+            int _duration = 0;
 
             //! maximum player count
-            int _max_players;
+            int _max_players = 0;
 
             //! bot count
-            int _bot_count;
+            int _bot_count = 0;
 
             //! extra flag: bombs
-            bool _extra_bombs;
+            bool _extra_bombs = false;
 
             //! extra flag: flames
-            bool _extra_flames;
+            bool _extra_flames = false;
 
             //! extra flag: speedups
-            bool _extra_speed_ups;
+            bool _extra_speed_ups = false;
 
             //! extra flag: kicks
-            bool _extra_kicks;
+            bool _extra_kicks = false;
 
             //! extra flag: skulls
-            bool _extra_skulls;
+            bool _extra_skulls = false;
 
             //! dimensions
-            Constants::Dimension _dimensions;
+            Constants::Dimension _dimensions = Constants::DimensionInvalid;
       };
 
 
@@ -796,34 +798,34 @@ class GameSettings
       GameSettings();
 
       //! development setting
-      DevelopmentSettings* _development_settings;
+      std::unique_ptr<DevelopmentSettings> _development_settings;
 
       //! audio settings
-      AudioSettings* _audio_settings;
+      std::unique_ptr<AudioSettings> _audio_settings;
 
       //! gameplay settings
-      GameplaySettings* _gameplay_settings;
+      std::unique_ptr<GameplaySettings> _gameplay_settings;
 
       //! login settings
-      LoginSettings* _login_settings;
+      std::unique_ptr<LoginSettings> _login_settings;
 
       //! video settings
-      VideoSettings* _video_settings;
+      std::unique_ptr<VideoSettings> _video_settings;
 
       //! video settings backup
-      VideoSettings* _video_settings_backup;
+      std::unique_ptr<VideoSettings> _video_settings_backup;
 
       //! controller settings
-      ControllerSettings* _controller_settings;
+      std::unique_ptr<ControllerSettings> _controller_settings;
 
       //! creategame settings for single player
-      CreateGameSettings* _create_game_settings_single;
+      std::unique_ptr<CreateGameSettings> _create_game_settings_single;
 
       //! creategame settings for multi player
-      CreateGameSettings* _create_game_settings_multi;
+      std::unique_ptr<CreateGameSettings> _create_game_settings_multi;
 
       //! design settings
-      StyleSettings* _style_settings;
+      std::unique_ptr<StyleSettings> _style_settings;
 
       //! singleton instance
       static GameSettings* s_settings;

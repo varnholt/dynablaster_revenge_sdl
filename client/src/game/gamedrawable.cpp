@@ -50,44 +50,7 @@
 //-----------------------------------------------------------------------------
 /*!
 */
-GameDrawable::GameDrawable(RenderDevice* device)
- : Drawable(device),
-   _level(nullptr),
-   _playfield(nullptr),
-   _level_scene_graph(nullptr),
-   _players(nullptr),
-   _destruct_anim(),
-   _detonations(nullptr),
-   _player_death_effect(nullptr),
-   _player_infected_effect(nullptr),
-   _player_name_display(nullptr),
-   _fuse_particle_system(nullptr),
-   _player_invincible_effect(nullptr),
-   _star_talers_factory(nullptr),
-   _time(0.0f),
-   _time_prev(0.0f),
-   _stones(nullptr),
-   _blocks(nullptr),
-   _skulls(nullptr),
-   _destruction(nullptr),
-   _extra_flame(nullptr),
-   _extra_bomb(nullptr),
-   _extra_speedup(nullptr),
-   _extra_kick(nullptr),
-   _extra_skull(nullptr),
-   _bombs(nullptr),
-   _shadow_billboards(nullptr),
-   _shadow_blocks(nullptr),
-   _player_id(-1),
-   _bounce(0.0),
-   _playfield_scale_x(1.0),
-   _playfield_scale_y(1.0),
-   _camera_anim(0.0f),
-   _camera_zoom(1.0f),
-   _time_reset(true),
-   _win_animation_started(false),
-   _camera_follows_player(true),
-   _camera_shake_intensity(1.0)
+GameDrawable::GameDrawable(RenderDevice* device) : Drawable(device)
 {
    // load animations
    MotionMixer::addAnimation("player-idle.hjb");
@@ -108,13 +71,6 @@ GameDrawable::~GameDrawable()
    MotionMixer::cleanup();
 
    deleteLevelData();
-   delete _detonations;
-   delete _player_death_effect;
-   delete _player_infected_effect;
-   delete _player_name_display;
-   delete _fuse_particle_system;
-   delete _player_invincible_effect;
-   delete _star_talers_factory;
 }
 
 
@@ -397,19 +353,19 @@ void GameDrawable::loadLevel(const std::string& level_path)
 */
 void GameDrawable::initializeGL()
 {
-   _detonations= new DetonationManager();
+   _detonations = std::make_unique<DetonationManager>();
    _detonations->init();
 
-   _player_death_effect = new PlayerDeathEffect();
-   _player_infected_effect = new PlayerInfectedEffect();
+   _player_death_effect = std::make_unique<PlayerDeathEffect>();
+   _player_infected_effect = std::make_unique<PlayerInfectedEffect>();
 
-   _player_name_display = new GamePlayerNameDisplay();
+   _player_name_display = std::make_unique<GamePlayerNameDisplay>();
    _player_name_display->initialize();
 
-   _fuse_particle_system = new FuseParticleSystem();
-   _player_invincible_effect = new PlayerInvincibleEffect();
+   _fuse_particle_system = std::make_unique<FuseParticleSystem>();
+   _player_invincible_effect = std::make_unique<PlayerInvincibleEffect>();
 
-   _star_talers_factory = new StarTalersFactory();
+   _star_talers_factory = std::make_unique<StarTalersFactory>();
    _star_talers_factory->initialize();
 
    _mushroom_animation = std::make_unique<MushroomAnimation>();
@@ -1272,21 +1228,20 @@ void GameDrawable::animate(float time)
       _bounce= 0.0f;
 
    // rotational rotation is rotating:
-   for (auto it= _meshes.begin(); it != _meshes.end(); it++)
+   for (const auto& [item, item_mesh] : _meshes)
    {
-      MapItem *item= it->first;
       switch (item->getType())
       {
          case MapItem::Extra:
          {
-            Extra *extra= dynamic_cast<Extra*>(it->second);
+            Extra *extra= dynamic_cast<Extra*>(item_mesh);
             extra->animate(time);
          }
          break;
 
          case MapItem::Bomb:
          {
-            Mesh *mesh= it->second;
+            Mesh *mesh= item_mesh;
             float t= time * 0.1f + mesh->getAnimationFrame();
 
             Vector pos= mesh->getTransform().translation();

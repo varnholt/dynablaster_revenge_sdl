@@ -2,7 +2,7 @@
 
 #include "animatedgamemessage.h"
 
-AnimatedGameMessage::AnimatedGameMessage() : GameMessage(), _alpha(1.0f)
+AnimatedGameMessage::AnimatedGameMessage() : GameMessage()
 {
 }
 

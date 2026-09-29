@@ -11,9 +11,9 @@
 
 // static
 Texture GameLogoPointSprite::sTexture;
-unsigned int GameLogoPointSprite::sShader = 0;
+uint32_t GameLogoPointSprite::sShader = 0;
 int GameLogoPointSprite::sTextureParam = -1;
-unsigned int GameLogoPointSprite::sVertexBuffer = 0;
+uint32_t GameLogoPointSprite::sVertexBuffer = 0;
 Array<Vector> GameLogoPointSprite::_positions;
 Array<float> GameLogoPointSprite::_glow_values;
 

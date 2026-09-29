@@ -69,7 +69,7 @@ void PositionInterpolation::moveMapItem(
    }
    else
    {
-      MapItemAnimation* animation = 0;
+      MapItemAnimation* animation = nullptr;
 
       if (std::find(_map_items.begin(), _map_items.end(), item) != _map_items.end())
       {

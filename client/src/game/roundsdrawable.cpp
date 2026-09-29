@@ -21,28 +21,14 @@ constexpr float FADE_OUT_DURATION = 1.0f * 62.5f;
 constexpr float BLUR_FACTOR = 0.15f;
 }  // namespace
 
-RoundsDrawable::RoundsDrawable(RenderDevice* dev)
-   : Drawable(dev),
-     _layer_round(nullptr),
-     _layer_round_final(nullptr),
-     _layer_round1(nullptr),
-     _layer_round2(nullptr),
-     _layer_round3(nullptr),
-     _layer_round4(nullptr),
-     _layer_round5(nullptr),
-     _time(0.0f),
-     _start_time(0.0f),
-     _initialize_time(false),
-     _motion_blur_filter(nullptr),
-     _max_layer_width(0.0f)
+RoundsDrawable::RoundsDrawable(RenderDevice* dev) : Drawable(dev)
 {
    _filename = "data/game/rounds.psd";
-   _motion_blur_filter = new MotionBlurFilter();
+   _motion_blur_filter = std::make_unique<MotionBlurFilter>();
 }
 
 RoundsDrawable::~RoundsDrawable()
 {
-   delete _motion_blur_filter;
 }
 
 void RoundsDrawable::initializeGL()

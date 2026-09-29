@@ -1,7 +1,6 @@
 #include "playerboundingrect.h"
 
 PlayerBoundingRect::PlayerBoundingRect()
- : _player_item(0)
 {
 }
 

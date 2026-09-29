@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <vector>
+#include <cstdint>
 
 namespace
 {
@@ -102,21 +103,6 @@ Vector4 gradient(float x)
 }  // namespace
 
 DetonationManager::DetonationManager()
-: _time(0.0f),
-  _shader(0),
-  _noise_map(0),
-  _gradient_map(0),
-  _param_time(0),
-  _param_cam_pos(0),
-  _param_top(0),
-  _param_bottom(0),
-  _param_left(0),
-  _param_right(0),
-  _param_bound_min(0),
-  _param_bound_max(0),
-  _param_noise_map(0),
-  _param_gradient_map(0),
-  _box_vertex_buffer(0)
 {
 }
 
@@ -160,7 +146,7 @@ void DetonationManager::init()
    // internal format: GL_ALPHA isn't part of GLES3's texImage3D format table, R8 is the modern
    // single-channel equivalent (read back via .r instead of .a in the shader).
    const int size = 32;
-   std::vector<unsigned char> noise_map(static_cast<size_t>(size) * size * size);
+   std::vector<uint8_t> noise_map(static_cast<size_t>(size) * size * size);
    for (int z = 0; z < size; z++)
    {
       const float scale = 1.0f / size;
@@ -170,7 +156,7 @@ void DetonationManager::init()
          {
             Vector p(x*scale, y*scale, z*scale);
             float n1 = noise(p);
-            noise_map[static_cast<size_t>((z*size+y)*size+x)] = static_cast<unsigned char>(n1*127.0f+128.0f);
+            noise_map[static_cast<size_t>((z*size+y)*size+x)] = static_cast<uint8_t>(n1*127.0f+128.0f);
          }
       }
    }
@@ -221,22 +207,12 @@ void DetonationManager::addDetonation(int x, int y, int top, int bottom, int lef
 void DetonationManager::update(float time)
 {
    _time= time;
-   std::vector<std::unique_ptr<Detonation>>::iterator it;
-   for (it=_detonations.begin(); it!=_detonations.end(); )
-   {
-      Detonation *det= it->get();
-      if (det->elapsed(time) > 2.0f)
-      {
-         it= _detonations.erase(it);
-      }
-      else
-         it++;
-   }
+   std::erase_if(_detonations, [time](const std::unique_ptr<Detonation>& detonation) { return detonation->elapsed(time) > 2.0f; });
 }
 
 void DetonationManager::drawBox(float x, float y, float z, float left, float right, float bottom, float top, int sides)
 {
-   static const unsigned char tris[5*3*2]= {
+   static const uint8_t tris[5*3*2]= {
       2,6,7,  3,2,7, // back   +y
       0,1,4,  1,5,4, // front  -y
       0,4,6,  0,6,2, // left   -x

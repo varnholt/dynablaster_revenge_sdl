@@ -1,6 +1,7 @@
 #pragma once
 
 #include <unordered_map>
+#include <cstdint>
 
 class InvisibilityMaterial;
 class PlayerItem;
@@ -32,5 +33,5 @@ private:
 
    SceneGraph* _scene = nullptr;
    std::unordered_map<PlayerItem*, float> _start_times;
-   unsigned int _background_texture = 0;
+   uint32_t _background_texture = 0;
 };

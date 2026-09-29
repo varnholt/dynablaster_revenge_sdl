@@ -56,22 +56,7 @@ void drawQuad(const float* verts, int floats_per_vertex)
 }
 }  // namespace
 
-InfectedFlowFieldAnimation::InfectedFlowFieldAnimation()
-   : _initialized(false),
-     _width(0),
-     _height(0),
-     _vertex_pos_buffer(0),
-     _vertex_color_buffer(0),
-     _vertex_param_texture(0),
-     _param_target(0),
-     _vertex_color_texture(0),
-     _color_target(0),
-     _page(0),
-     _center(0.0f, 0.0f, 0.0f),
-     _flow_scale(0.2f),
-     _particle_size(0.0f),
-     _elapsed(0.0f),
-     _stop(false)
+InfectedFlowFieldAnimation::InfectedFlowFieldAnimation() : _center(0.0f, 0.0f, 0.0f)
 {
    _positions[0] = _positions[1] = 0;
    _pos_target[0] = _pos_target[1] = 0;
@@ -204,7 +189,7 @@ void InfectedFlowFieldAnimation::initialize()
    glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
-void InfectedFlowFieldAnimation::initializePositions(unsigned int depth_map, const Vector& min, const Vector& max)
+void InfectedFlowFieldAnimation::initializePositions(uint32_t depth_map, const Vector& min, const Vector& max)
 {
    glBindFramebuffer(GL_FRAMEBUFFER, _pos_target[1]);
    glViewport(0, 0, _width, _height);
@@ -218,7 +203,7 @@ void InfectedFlowFieldAnimation::initializePositions(unsigned int depth_map, con
    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void InfectedFlowFieldAnimation::initializeParams(unsigned int depth_map, const Vector& min, const Vector& max)
+void InfectedFlowFieldAnimation::initializeParams(uint32_t depth_map, const Vector& min, const Vector& max)
 {
    glBindFramebuffer(GL_FRAMEBUFFER, _param_target);
    glViewport(0, 0, _width, _height);

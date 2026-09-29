@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "image/psd.h"
+#include <cstdint>
 
 class PSDLayer;
 
@@ -18,11 +19,11 @@ class CountdownDrawable : public Drawable
 {
 public:
    CountdownDrawable(RenderDevice* dev);
-   virtual ~CountdownDrawable();
+   ~CountdownDrawable() override;
 
-   void initializeGL();
-   void paintGL();
-   void animate(float time);
+   void initializeGL() override;
+   void paintGL() override;
+   void animate(float time) override;
 
    void countdown(int left);
 
@@ -37,15 +38,15 @@ protected:
    std::vector<float> _layer_alphas;
    std::string _filename;
 
-   int _time_left;
-   float _animation_start_time;
-   bool _animation_active;
-   float _delta_time;
-   float _time;
-   bool _delta_time_initialized;
+   int _time_left = 0;
+   float _animation_start_time = -1.0f;
+   bool _animation_active = false;
+   float _delta_time = 0.0f;
+   float _time = 0.0f;
+   bool _delta_time_initialized = false;
 
    // GLES3 port addition - the shared per-item menu shader (see menus/defaultshader.h), bound
    // once per paintGL() call instead of the original's `_device->setShader(0)` (desktop GL's
    // fixed-function fallback, which GLES3 has no equivalent of).
-   unsigned int _shader;
+   uint32_t _shader = 0;
 };

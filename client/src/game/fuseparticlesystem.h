@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "math/vector.h"
+#include <cstdint>
 
 class MapItem;
 
@@ -57,10 +58,10 @@ private:
    std::unordered_map<MapItem*, Emitter> _emitters;
 
    std::vector<float> _upload_buffer;
-   unsigned int _vertex_buffer;
-   unsigned int _particle_texture_id;
-   unsigned int _shader;
-   int _texture;
-   int _point_size;
-   int _projection;
+   uint32_t _vertex_buffer = 0;
+   uint32_t _particle_texture_id = 0;
+   uint32_t _shader = 0;
+   int _texture = 0;
+   int _point_size = 0;
+   int _projection = 0;
 };

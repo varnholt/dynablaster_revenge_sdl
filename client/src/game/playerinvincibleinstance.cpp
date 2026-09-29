@@ -3,11 +3,6 @@
 #include "framework/gldevice.h"
 
 PlayerInvincibleInstance::PlayerInvincibleInstance()
-   : _material(nullptr),
-     _width(256),
-     _height(256),
-     _fade(0.0f),
-     _remove(false)
 {
    for (int i = 0; i < 2; i++)
    {
@@ -110,7 +105,7 @@ int PlayerInvincibleInstance::height() const
    return _height;
 }
 
-unsigned int PlayerInvincibleInstance::texture(int id) const
+uint32_t PlayerInvincibleInstance::texture(int id) const
 {
    return _texture[id];
 }

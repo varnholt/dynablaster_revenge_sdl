@@ -23,7 +23,7 @@ class GameStateMachine
 
       GameStateMachine();
 
-      Constants::GameState _state;
+      Constants::GameState _state = Constants::GameStopped;
 
       static GameStateMachine* s_instance;
 

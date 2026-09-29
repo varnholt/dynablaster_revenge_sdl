@@ -67,19 +67,13 @@ void computeTextureOffset(float& u, float& v)
 }
 }  // namespace
 
-StarTalersFactory::Burst::Burst(const Vector& field_position, const Vector& color)
- : _vertex_buffer(0),
-   _index_buffer(0),
-   _index_count(0),
-   _time(0.0f),
-   _field_position(field_position),
-   _color(color)
+StarTalersFactory::Burst::Burst(const Vector& field_position, const Vector& color) : _field_position(field_position), _color(color)
 {
    int vertex_count = STAR_COUNT * 12;
    _index_count = STAR_COUNT * 18;
 
    _vertex_buffer = activeDevice->createVertexBuffer(vertex_count * static_cast<int>(sizeof(StarTalersVertex)));
-   _index_buffer = activeDevice->createIndexBuffer(_index_count * static_cast<int>(sizeof(unsigned short)));
+   _index_buffer = activeDevice->createIndexBuffer(_index_count * static_cast<int>(sizeof(uint16_t)));
 
    auto* vtx = static_cast<StarTalersVertex*>(activeDevice->lockVertexBuffer(_vertex_buffer));
 
@@ -145,34 +139,34 @@ StarTalersFactory::Burst::Burst(const Vector& field_position, const Vector& colo
 
    activeDevice->unlockVertexBuffer(_vertex_buffer);
 
-   auto* idx = static_cast<unsigned short*>(activeDevice->lockIndexBuffer(_index_buffer));
+   auto* idx = static_cast<uint16_t*>(activeDevice->lockIndexBuffer(_index_buffer));
 
    index = 0;
    for (int i = 0; i < _index_count; i += 18)
    {
-      idx[i] = static_cast<unsigned short>(0 + index);
-      idx[i + 1] = static_cast<unsigned short>(1 + index);
-      idx[i + 2] = static_cast<unsigned short>(3 + index);
+      idx[i] = static_cast<uint16_t>(0 + index);
+      idx[i + 1] = static_cast<uint16_t>(1 + index);
+      idx[i + 2] = static_cast<uint16_t>(3 + index);
 
-      idx[i + 3] = static_cast<unsigned short>(3 + index);
-      idx[i + 4] = static_cast<unsigned short>(1 + index);
-      idx[i + 5] = static_cast<unsigned short>(2 + index);
+      idx[i + 3] = static_cast<uint16_t>(3 + index);
+      idx[i + 4] = static_cast<uint16_t>(1 + index);
+      idx[i + 5] = static_cast<uint16_t>(2 + index);
 
-      idx[i + 6] = static_cast<unsigned short>(4 + index);
-      idx[i + 7] = static_cast<unsigned short>(5 + index);
-      idx[i + 8] = static_cast<unsigned short>(7 + index);
+      idx[i + 6] = static_cast<uint16_t>(4 + index);
+      idx[i + 7] = static_cast<uint16_t>(5 + index);
+      idx[i + 8] = static_cast<uint16_t>(7 + index);
 
-      idx[i + 9] = static_cast<unsigned short>(7 + index);
-      idx[i + 10] = static_cast<unsigned short>(5 + index);
-      idx[i + 11] = static_cast<unsigned short>(6 + index);
+      idx[i + 9] = static_cast<uint16_t>(7 + index);
+      idx[i + 10] = static_cast<uint16_t>(5 + index);
+      idx[i + 11] = static_cast<uint16_t>(6 + index);
 
-      idx[i + 12] = static_cast<unsigned short>(8 + index);
-      idx[i + 13] = static_cast<unsigned short>(9 + index);
-      idx[i + 14] = static_cast<unsigned short>(11 + index);
+      idx[i + 12] = static_cast<uint16_t>(8 + index);
+      idx[i + 13] = static_cast<uint16_t>(9 + index);
+      idx[i + 14] = static_cast<uint16_t>(11 + index);
 
-      idx[i + 15] = static_cast<unsigned short>(11 + index);
-      idx[i + 16] = static_cast<unsigned short>(9 + index);
-      idx[i + 17] = static_cast<unsigned short>(10 + index);
+      idx[i + 15] = static_cast<uint16_t>(11 + index);
+      idx[i + 16] = static_cast<uint16_t>(9 + index);
+      idx[i + 17] = static_cast<uint16_t>(10 + index);
 
       index += 12;
    }
@@ -227,13 +221,6 @@ void StarTalersFactory::Burst::render(int field_param, int color_param, int time
 }
 
 StarTalersFactory::StarTalersFactory()
- : _shader(0),
-   _texture_id(0),
-   _field_param(-1),
-   _color_param(-1),
-   _time_param(-1),
-   _camera_param(-1),
-   _texture_param(-1)
 {
    _color_bomb.set(0.047f, 0.49f, 0.012f);
    _color_flame.set(1.0f, 0.518f, 0.0f);
