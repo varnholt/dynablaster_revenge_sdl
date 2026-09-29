@@ -30,7 +30,7 @@ public:
    virtual bool isVisible() const;
 
 protected:
-   // kept as mDevice/mVisible: derived classes outside framework/ access them directly
-   RenderDevice* mDevice = nullptr;  // render device (not owned)
-   bool mVisible = false;            // visibility flag
+   // kept as _device/_visible: derived classes outside framework/ access them directly
+   RenderDevice* _device = nullptr;  // render device (not owned)
+   bool _visible = false;            // visibility flag
 };

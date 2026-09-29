@@ -257,11 +257,11 @@ void Game::initializeMap()
    int stones = 0;
 
    float extra_count = 0.0f;
-   int extra_bombs = static_cast<int32_t>(_create_game_data.mExtraBombEnabled);
-   int extra_flames = static_cast<int32_t>(_create_game_data.mExtraFlameEnabled);
-   int extra_kicks = static_cast<int32_t>(_create_game_data.mExtraKickEnabled);
-   int extra_speed_ups = static_cast<int32_t>(_create_game_data.mExtraSpeedupEnabled);
-   int extra_skulls = static_cast<int32_t>(_create_game_data.mExtraSkullsEnabled);
+   int extra_bombs = static_cast<int32_t>(_create_game_data._extra_bomb_enabled);
+   int extra_flames = static_cast<int32_t>(_create_game_data._extra_flame_enabled);
+   int extra_kicks = static_cast<int32_t>(_create_game_data._extra_kick_enabled);
+   int extra_speed_ups = static_cast<int32_t>(_create_game_data._extra_speedup_enabled);
+   int extra_skulls = static_cast<int32_t>(_create_game_data._extra_skulls_enabled);
 
    const float extra_sum = (extra_bombs * SERVER_WEIGHT_BOMBS) + (extra_flames * SERVER_WEIGHT_FLAMES) +
                            (extra_kicks * SERVER_WEIGHT_KICKS) + (extra_speed_ups * SERVER_WEIGHT_SPEEDUPS) +
@@ -273,7 +273,7 @@ void Game::initializeMap()
    // create default map
    std::vector<Point> start_positions;
 
-   if (_create_game_data.mDimension == Constants::Dimension13x11)
+   if (_create_game_data._dimension == Constants::Dimension13x11)
    {
       extra_count = 16.0f;
 
@@ -283,7 +283,7 @@ void Game::initializeMap()
 
       start_positions = {Point(0, 0), Point(12, 10), Point(12, 0), Point(0, 10), Point(6, 5)};
    }
-   else if (_create_game_data.mDimension == Constants::Dimension19x17)
+   else if (_create_game_data._dimension == Constants::Dimension19x17)
    {
       extra_count = 32.0f;
 
@@ -304,7 +304,7 @@ void Game::initializeMap()
          Point(12, 12),  // center quad bottom right
       };
    }
-   else if (_create_game_data.mDimension == Constants::Dimension25x21)
+   else if (_create_game_data._dimension == Constants::Dimension25x21)
    {
       extra_count = 32.0f;
 
@@ -390,7 +390,7 @@ void Game::initializeMap()
       loop++;
    }
 
-   _map.reset(Map::generateMap(
+   _map = Map::generateMap(
       width,            // width
       height,           // height
       stones,           // stones
@@ -400,7 +400,7 @@ void Game::initializeMap()
       extra_kicks,      // kicks
       extra_skulls,     // skulls
       start_positions   // start positions
-   ));
+   );
 
    _immune_times.assign(static_cast<size_t>(width * height), 0);
 }
@@ -1077,7 +1077,7 @@ void Game::updateExtras()
 void Game::updateInfections()
 {
    // it is only required to go through here if skulls are used
-   if (!_create_game_data.mExtraSkullsEnabled)
+   if (!_create_game_data._extra_skulls_enabled)
    {
       return;
    }
@@ -2283,12 +2283,12 @@ int Game::getId() const
 
 const std::string& Game::getName() const
 {
-   return _create_game_data.mName;
+   return _create_game_data._name;
 }
 
 const std::string& Game::getLevelName() const
 {
-   return _create_game_data.mLevel;
+   return _create_game_data._level;
 }
 
 int Game::getPlayerCount() const
@@ -2308,7 +2308,7 @@ void Game::setCreateGameData(const CreateGameData& data)
 
 void Game::setName(const std::string& name)
 {
-   _create_game_data.mName = name;
+   _create_game_data._name = name;
 }
 
 bool Game::joinGame(Player* player, NET_StreamSocket* player_socket)
@@ -2463,7 +2463,7 @@ void Game::addOutgoingPacket(std::unique_ptr<Packet> packet)
 
 int Game::getTimeLeft()
 {
-   return static_cast<int32_t>(_create_game_data.mDuration - (_game_time.elapsed() * 0.001f));
+   return static_cast<int32_t>(_create_game_data._duration - (_game_time.elapsed() * 0.001f));
 }
 
 void Game::processGameTime()
@@ -2559,7 +2559,7 @@ Map* Game::getMap() const
 
 Constants::Dimension Game::getMapDimension() const
 {
-   return _create_game_data.mDimension;
+   return _create_game_data._dimension;
 }
 
 void Game::broadcastMessage(const std::string& message)
@@ -2571,27 +2571,27 @@ int Game::getExtras() const
 {
    int extras = 0;
 
-   if (_create_game_data.mExtraBombEnabled)
+   if (_create_game_data._extra_bomb_enabled)
    {
       extras |= Constants::ExtraBomb;
    }
 
-   if (_create_game_data.mExtraFlameEnabled)
+   if (_create_game_data._extra_flame_enabled)
    {
       extras |= Constants::ExtraFlame;
    }
 
-   if (_create_game_data.mExtraSpeedupEnabled)
+   if (_create_game_data._extra_speedup_enabled)
    {
       extras |= Constants::ExtraSpeedup;
    }
 
-   if (_create_game_data.mExtraKickEnabled)
+   if (_create_game_data._extra_kick_enabled)
    {
       extras |= Constants::ExtraKick;
    }
 
-   if (_create_game_data.mExtraSkullsEnabled)
+   if (_create_game_data._extra_skulls_enabled)
    {
       extras |= Constants::ExtraSkull;
    }
@@ -2601,7 +2601,7 @@ int Game::getExtras() const
 
 int Game::getDuration() const
 {
-   return _create_game_data.mDuration;
+   return _create_game_data._duration;
 }
 
 void Game::bombKickedAnimation(BombMapItem* item, Constants::Direction direction, float speed)

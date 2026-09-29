@@ -1328,7 +1328,7 @@ void GameDrawable::paintGL()
 
    // start flow fields when a player got killed (and the kill anim is over) - matches the
    // original's own "player_mesh->getFrame() > 10000.0f" convention: PlayerItem::animate() only
-   // wraps the frame counter back to 0 while alive, so it climbs unbounded once mKilled is set,
+   // wraps the frame counter back to 0 while alive, so it climbs unbounded once _killed is set,
    // naturally crossing 10000 once the one-shot death animation has long finished playing.
    for (const auto& [player_id, player] : _player_list)
    {

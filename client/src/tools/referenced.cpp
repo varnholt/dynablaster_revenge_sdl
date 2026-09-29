@@ -1,15 +1,15 @@
 #include "referenced.h"
 
-Referenced::Referenced() : mReferences(new int32_t(1))
+Referenced::Referenced() : _references(new int32_t(1))
 {
 }
 
-Referenced::Referenced(const Referenced& other) : mReferences(other.getRef())
+Referenced::Referenced(const Referenced& other) : _references(other.getRef())
 {
    addRef();
 }
 
-Referenced::Referenced(const Referenced* other) : mReferences(other->getRef())
+Referenced::Referenced(const Referenced* other) : _references(other->getRef())
 {
    addRef();
 }
@@ -18,28 +18,28 @@ Referenced::~Referenced()
 {
    if (!deref())
    {
-      delete mReferences;
-      mReferences = nullptr;
+      delete _references;
+      _references = nullptr;
    }
 }
 
 void Referenced::addRef() const
 {
-   (*mReferences)++;
+   (*_references)++;
 }
 
 bool Referenced::deref()
 {
-   (*mReferences)--;
-   return (*mReferences != 0);
+   (*_references)--;
+   return (*_references != 0);
 }
 
 bool Referenced::copyRef()
 {
-   if (*mReferences > 1)
+   if (*_references > 1)
    {
-      (*mReferences)--;
-      mReferences = new int32_t(1);
+      (*_references)--;
+      _references = new int32_t(1);
       return true;
    }
 
@@ -48,10 +48,10 @@ bool Referenced::copyRef()
 
 int32_t Referenced::getRefCount() const
 {
-   return *mReferences;
+   return *_references;
 }
 
 int32_t* Referenced::getRef() const
 {
-   return mReferences;
+   return _references;
 }

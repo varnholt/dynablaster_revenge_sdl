@@ -11,18 +11,18 @@ public:
    CreateGameData() = default;
    virtual ~CreateGameData() = default;
 
-   std::string mName;
-   std::string mLevel;
-   int32_t mRounds = 0;
+   std::string _name;
+   std::string _level;
+   int32_t _rounds = 0;
 
    // game duration (s)
-   int32_t mDuration = 0;
+   int32_t _duration = 0;
 
-   int32_t mMaxPlayers = 0;
-   bool mExtraBombEnabled = false;
-   bool mExtraFlameEnabled = false;
-   bool mExtraSpeedupEnabled = false;
-   bool mExtraKickEnabled = false;
-   bool mExtraSkullsEnabled = false;
-   Constants::Dimension mDimension = Constants::Dimension13x11;
+   int32_t _max_players = 0;
+   bool _extra_bomb_enabled = false;
+   bool _extra_flame_enabled = false;
+   bool _extra_speedup_enabled = false;
+   bool _extra_kick_enabled = false;
+   bool _extra_skulls_enabled = false;
+   Constants::Dimension _dimension = Constants::Dimension13x11;
 };

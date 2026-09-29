@@ -84,9 +84,11 @@ void BitmapFont::setColor(float r, float g, float b, float a)
 
 BitmapFont::Parameter* BitmapFont::getCharParameter(char c) const
 {
-   if (c >= 0)
+   // only 7-bit ascii has glyphs; char is unsigned on some platforms (ARM)
+   const auto code = static_cast<uint8_t>(c);
+   if (code < 128)
    {
-      return &_description[static_cast<uint8_t>(c)];
+      return &_description[code];
    }
 
    return nullptr;

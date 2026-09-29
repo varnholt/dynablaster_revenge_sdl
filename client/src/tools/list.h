@@ -20,9 +20,9 @@ public:
       // shared with another array: detach instead of overwriting (or freeing) the shared items
       if (this->copyRef())
       {
-         this->mData = nullptr;
-         this->mSize = 0;
-         this->mCount = 0;
+         this->_data = nullptr;
+         this->_size = 0;
+         this->_count = 0;
       }
 
       const int32_t size = stream->getInt();
@@ -34,20 +34,20 @@ public:
       }
 
       // current array not big enough (or not yet initialized): create new
-      if (size > this->mSize)
+      if (size > this->_size)
       {
-         delete[] this->mData;
-         this->mData = new Item[size];
-         this->mSize = size;
+         delete[] this->_data;
+         this->_data = new Item[size];
+         this->_size = size;
       }
 
       for (int32_t i = 0; i < size; i++)
       {
-         Item& item = this->mData[i];
+         Item& item = this->_data[i];
          item << *stream;
       }
 
-      this->mCount = size;
+      this->_count = size;
    }
 
    void write(Stream* stream) override
@@ -56,7 +56,7 @@ public:
 
       for (int32_t i = 0; i < this->size(); i++)
       {
-         Item& item = this->mData[i];
+         Item& item = this->_data[i];
          item >> *stream;
       }
    }

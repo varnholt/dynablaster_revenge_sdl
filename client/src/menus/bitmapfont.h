@@ -13,7 +13,7 @@ class BitmapFont
 public:
    struct Parameter
    {
-      char c;
+      int16_t c;
       uint16_t x;
       uint16_t y;
       uint16_t width;

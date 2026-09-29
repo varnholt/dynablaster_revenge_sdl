@@ -337,7 +337,7 @@ void Server::processCreateGameRequest(NET_StreamSocket* tcp_socket, Packet* pack
    Game* game = game_owner.get();
    game->setCreateGameData(request->getData());
    game->setCreator(findPlayer(tcp_socket));
-   game->getGameRound()->setCount(request->getData().mRounds);
+   game->getGameRound()->setCount(request->getData()._rounds);
 
    game->forceLeaveGameSignal.connect([this](NET_StreamSocket* socket) { processPlayerLeavesGame(socket); });
 

@@ -24,36 +24,36 @@ CreateGameRequestPacket::CreateGameRequestPacket(
 {
    _packet_name = PACKETNAME;
 
-   _data.mName = name;
-   _data.mLevel = level;
-   _data.mRounds = rounds;
-   _data.mDuration = duration;
-   _data.mMaxPlayers = max_players;
-   _data.mExtraBombEnabled = extra_bomb_enabled;
-   _data.mExtraFlameEnabled = extra_flame_enabled;
-   _data.mExtraSpeedupEnabled = extra_speedup_enabled;
-   _data.mExtraKickEnabled = extra_kick_enabled;
-   _data.mExtraSkullsEnabled = extra_skulls_enabled;
-   _data.mDimension = dimension;
+   _data._name = name;
+   _data._level = level;
+   _data._rounds = rounds;
+   _data._duration = duration;
+   _data._max_players = max_players;
+   _data._extra_bomb_enabled = extra_bomb_enabled;
+   _data._extra_flame_enabled = extra_flame_enabled;
+   _data._extra_speedup_enabled = extra_speedup_enabled;
+   _data._extra_kick_enabled = extra_kick_enabled;
+   _data._extra_skulls_enabled = extra_skulls_enabled;
+   _data._dimension = dimension;
 }
 
 CreateGameRequestPacket::CreateGameRequestPacket() : Packet(Packet::CREATEGAMEREQUEST)
 {
    _packet_name = PACKETNAME;
 
-   _data.mRounds = 1;
-   _data.mDuration = 180;
-   _data.mMaxPlayers = 5;
-   _data.mExtraBombEnabled = false;
-   _data.mExtraFlameEnabled = false;
-   _data.mExtraSpeedupEnabled = false;
-   _data.mExtraKickEnabled = false;
-   _data.mExtraSkullsEnabled = false;
+   _data._rounds = 1;
+   _data._duration = 180;
+   _data._max_players = 5;
+   _data._extra_bomb_enabled = false;
+   _data._extra_flame_enabled = false;
+   _data._extra_speedup_enabled = false;
+   _data._extra_kick_enabled = false;
+   _data._extra_skulls_enabled = false;
 }
 
 std::string CreateGameRequestPacket::getName() const
 {
-   return _data.mName;
+   return _data._name;
 }
 
 CreateGameData CreateGameRequestPacket::getData() const
@@ -63,19 +63,19 @@ CreateGameData CreateGameRequestPacket::getData() const
 
 void CreateGameRequestPacket::enqueue(BinaryWriter& out)
 {
-   out << _data.mName << _data.mLevel << _data.mRounds << _data.mDuration << _data.mMaxPlayers << _data.mExtraBombEnabled
-       << _data.mExtraFlameEnabled << _data.mExtraSpeedupEnabled << _data.mExtraKickEnabled << _data.mExtraSkullsEnabled
-       << static_cast<int32_t>(_data.mDimension);
+   out << _data._name << _data._level << _data._rounds << _data._duration << _data._max_players << _data._extra_bomb_enabled
+       << _data._extra_flame_enabled << _data._extra_speedup_enabled << _data._extra_kick_enabled << _data._extra_skulls_enabled
+       << static_cast<int32_t>(_data._dimension);
 }
 
 void CreateGameRequestPacket::dequeue(BinaryReader& in)
 {
    int32_t dimension = 0;
 
-   in >> _data.mName >> _data.mLevel >> _data.mRounds >> _data.mDuration >> _data.mMaxPlayers >> _data.mExtraBombEnabled >>
-      _data.mExtraFlameEnabled >> _data.mExtraSpeedupEnabled >> _data.mExtraKickEnabled >> _data.mExtraSkullsEnabled >> dimension;
+   in >> _data._name >> _data._level >> _data._rounds >> _data._duration >> _data._max_players >> _data._extra_bomb_enabled >>
+      _data._extra_flame_enabled >> _data._extra_speedup_enabled >> _data._extra_kick_enabled >> _data._extra_skulls_enabled >> dimension;
 
-   _data.mDimension = static_cast<Constants::Dimension>(dimension);
+   _data._dimension = static_cast<Constants::Dimension>(dimension);
 }
 
 void CreateGameRequestPacket::debug()
@@ -93,16 +93,16 @@ void CreateGameRequestPacket::debug()
       "- extra kick enabled: %d"
       "- extra skulls enabled: %d"
       "- dimension: %d",
-      _data.mName.c_str(),
-      _data.mLevel.c_str(),
-      _data.mRounds,
-      _data.mDuration,
-      _data.mMaxPlayers,
-      _data.mExtraBombEnabled,
-      _data.mExtraFlameEnabled,
-      _data.mExtraSpeedupEnabled,
-      _data.mExtraKickEnabled,
-      _data.mExtraSkullsEnabled,
-      _data.mDimension
+      _data._name.c_str(),
+      _data._level.c_str(),
+      _data._rounds,
+      _data._duration,
+      _data._max_players,
+      _data._extra_bomb_enabled,
+      _data._extra_flame_enabled,
+      _data._extra_speedup_enabled,
+      _data._extra_kick_enabled,
+      _data._extra_skulls_enabled,
+      _data._dimension
    );
 }

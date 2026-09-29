@@ -474,6 +474,9 @@ foreach(dynablaster_target dynablaster_revenge dynablaster_revenge_harness)
     )
 endforeach()
 
+# both executables copy into the same directory; serialize them so the copies never overlap
+add_dependencies(dynablaster_revenge_harness dynablaster_revenge)
+
 enable_testing()
 add_test(NAME selftest_smoke
     COMMAND dynablaster_revenge_harness --selftest --screenshot=${CMAKE_BINARY_DIR}/selftest.png

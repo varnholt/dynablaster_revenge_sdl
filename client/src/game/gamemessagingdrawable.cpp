@@ -53,7 +53,7 @@ GameMessagingDrawable::~GameMessagingDrawable() = default;
 
 void GameMessagingDrawable::messageReceived(int /*sender_id*/, const std::string& text, bool typing_finished)
 {
-   if (mVisible)
+   if (_visible)
    {
       if (StringUtils::trim(text).empty())
          return;
