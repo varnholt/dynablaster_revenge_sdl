@@ -1,58 +1,46 @@
 #include "image.h"
-#include <cmath>
+
 #include <algorithm>
+#include <cmath>
 #include <cstring>
+#include <string>
+
 #include "image/imagepool.h"
 #include "tga.h"
 #include "tools/filestream.h"
 
-// construct null image
-Image::Image() : Referenced(), mData(0), mWidth(0), mHeight(0)
+// construct empty (black, transparent) image x*y
+Image::Image(int32_t x, int32_t y) : _width(x), _height(y)
 {
+   _data = new uint32_t[static_cast<size_t>(_width) * _height]();
 }
-
-// construct empty image x*y
-Image::Image(int x, int y) : Referenced(), mData(0), mWidth(x), mHeight(y)
-{
-   mData = new unsigned int[mWidth * mHeight];
-   std::memset(mData, 0, x * y * 4);
-}
-
-/*
-Image::Image(unsigned int *data, int x, int y)
-: Referenced()
-, mData(data)
-, mWidth(x)
-, mHeight(y)
-{
-}
-*/
 
 // construct image from file
-Image::Image(const char* filename) : Referenced(), mData(0), mWidth(0), mHeight(0)
+Image::Image(const char* filename)
 {
    load(filename);
 }
 
-// construct references
-Image::Image(const Image& image) : Referenced(image), mData(image.getData()), mWidth(image.getWidth()), mHeight(image.getHeight())
+// construct reference
+Image::Image(const Image& image) : Referenced(image), _data(image.getData()), _width(image.getWidth()), _height(image.getHeight())
 {
 }
 
-// destructor
 Image::~Image()
 {
-   // if this is the last instance to the referenced data: delte it
+   // last instance referencing the data: delete it
    if (getRefCount() == 1)
+   {
       discard();
+   }
 }
 
-// assignment operator: create reference
+// create reference
 const Image& Image::operator=(const Image& image)
 {
    if (this != &image)
    {
-      // if this is the last instance to the referenced data: delte it
+      // last instance referencing the data: delete it
       if (getRefCount() == 1)
       {
          discard();
@@ -61,9 +49,9 @@ const Image& Image::operator=(const Image& image)
 
       mReferences = image.getRef();
       addRef();
-      mWidth = image.getWidth();
-      mHeight = image.getHeight();
-      mData = image.getData();
+      _width = image.getWidth();
+      _height = image.getHeight();
+      _data = image.getData();
    }
 
    return *this;
@@ -71,283 +59,126 @@ const Image& Image::operator=(const Image& image)
 
 void Image::discard()
 {
-   if (mData)
-      delete[] mData;
+   delete[] _data;
+   _data = nullptr;
    ImagePool::Instance()->remove(this);
 }
 
-// save image to file
 void Image::save(const char* filename)
 {
    savetga(filename, getData(), getWidth(), getHeight());
 }
 
-// load image from file
 void Image::load(const char* filename)
 {
    // data is not referenced by another object? delete it.
    if (!copyRef())
-      discard();
-
-   if (loadtga(filename, (void**)&mData, &mWidth, &mHeight))
    {
-      char name[256];
-      std::strcpy(name, filename);
-      std::strcat(name, ".tga");
+      discard();
+   }
+
+   void* data = nullptr;
+   const bool loaded = loadtga(filename, &data, &_width, &_height) != 0;
+   _data = static_cast<uint32_t*>(data);
+
+   if (loaded)
+   {
+      const std::string name = std::string(filename) + ".tga";
       FileStream stream;
-      if (stream.open(name))
+      if (stream.open(name.c_str()))
       {
-         mPath = stream.getPath();
-         mFilename = filename;
+         _path = stream.getPath();
+         _filename = filename;
          stream.close();
       }
    }
 }
 
-// get image width
-int Image::getWidth() const
+int32_t Image::getWidth() const
 {
-   return mWidth;
+   return _width;
 }
 
-// get image height
-int Image::getHeight() const
+int32_t Image::getHeight() const
 {
-   return mHeight;
+   return _height;
 }
 
-// get scanline
-unsigned int* Image::getScanline(int y) const
+uint32_t* Image::getScanline(int32_t y) const
 {
-   return mData + y * mWidth;
+   return _data + y * _width;
 }
 
-// get data
-unsigned int* Image::getData() const
+uint32_t* Image::getData() const
 {
-   return mData;
+   return _data;
 }
 
 const String& Image::path() const
 {
-   return mPath;
+   return _path;
 }
 
 const String& Image::filename() const
 {
-   return mFilename;
+   return _filename;
 }
 
-unsigned int Image::getPixel(float u, float v) const
+uint32_t Image::getPixel(float u, float v) const
 {
-   int x = (int)std::floor(u * (mWidth - 1));
-   int y = (int)std::floor(v * (mHeight - 1));
-   return mData[y * mWidth + x];
+   const auto x = static_cast<int32_t>(std::floor(u * (_width - 1)));
+   const auto y = static_cast<int32_t>(std::floor(v * (_height - 1)));
+   return _data[y * _width + x];
 }
 
 // halve resolution
 Image Image::downsample() const
 {
-   int nx = mWidth >> 1;
-   int ny = mHeight >> 1;
+   const int32_t next_width = _width >> 1;
+   const int32_t next_height = _height >> 1;
 
-   Image image(nx, ny);
+   Image image(next_width, next_height);
 
-   for (int y = 0; y < ny; y++)
+   for (int32_t y = 0; y < next_height; y++)
    {
-      unsigned int* dst = image.getScanline(y);
+      uint32_t* destination = image.getScanline(y);
 
-      unsigned int* src1 = getScanline(y * 2);
-      unsigned int* src2 = getScanline(y * 2 + 1);
+      const uint32_t* source1 = getScanline(y * 2);
+      const uint32_t* source2 = getScanline(y * 2 + 1);
 
-      for (int x = 0; x < nx; x++)
+      for (int32_t x = 0; x < next_width; x++)
       {
-         unsigned int c1 = *src1++;
-         unsigned int c2 = *src1++;
-         unsigned int c3 = *src2++;
-         unsigned int c4 = *src2++;
+         const uint32_t c1 = *source1++;
+         const uint32_t c2 = *source1++;
+         const uint32_t c3 = *source2++;
+         const uint32_t c4 = *source2++;
 
-         int a = ((c1 >> 24 & 0xff) + (c2 >> 24 & 0xff) + (c3 >> 24 & 0xff) + (c4 >> 24 & 0xff)) >> 2;
-         int r = ((c1 >> 16 & 0xff) + (c2 >> 16 & 0xff) + (c3 >> 16 & 0xff) + (c4 >> 16 & 0xff)) >> 2;
-         int g = ((c1 >> 8 & 0xff) + (c2 >> 8 & 0xff) + (c3 >> 8 & 0xff) + (c4 >> 8 & 0xff)) >> 2;
-         int b = ((c1 & 0xff) + (c2 & 0xff) + (c3 & 0xff) + (c4 & 0xff)) >> 2;
+         const uint32_t a = ((c1 >> 24 & 0xff) + (c2 >> 24 & 0xff) + (c3 >> 24 & 0xff) + (c4 >> 24 & 0xff)) >> 2;
+         const uint32_t r = ((c1 >> 16 & 0xff) + (c2 >> 16 & 0xff) + (c3 >> 16 & 0xff) + (c4 >> 16 & 0xff)) >> 2;
+         const uint32_t g = ((c1 >> 8 & 0xff) + (c2 >> 8 & 0xff) + (c3 >> 8 & 0xff) + (c4 >> 8 & 0xff)) >> 2;
+         const uint32_t b = ((c1 & 0xff) + (c2 & 0xff) + (c3 & 0xff) + (c4 & 0xff)) >> 2;
 
-         *dst++ = (a << 24) + (r << 16) + (g << 8) + b;
+         *destination++ = (a << 24) + (r << 16) + (g << 8) + b;
       }
    }
 
    return image;
 }
 
-// linear blend between c1 & c2
-unsigned int blend(unsigned int c1, unsigned int c2, unsigned char f)
+namespace
 {
-   unsigned char a = (c1 >> 24 & 0xff) + (((c2 >> 24 & 0xff) - (c1 >> 24 & 0xff)) * f >> 8);
-   unsigned char r = (c1 >> 16 & 0xff) + (((c2 >> 16 & 0xff) - (c1 >> 16 & 0xff)) * f >> 8);
-   unsigned char g = (c1 >> 8 & 0xff) + (((c2 >> 8 & 0xff) - (c1 >> 8 & 0xff)) * f >> 8);
-   unsigned char b = (c1 & 0xff) + (((c2 & 0xff) - (c1 & 0xff)) * f >> 8);
+// linear blend between c1 & c2
+uint32_t blend(uint32_t c1, uint32_t c2, uint8_t f)
+{
+   const uint8_t a = (c1 >> 24 & 0xff) + (((c2 >> 24 & 0xff) - (c1 >> 24 & 0xff)) * f >> 8);
+   const uint8_t r = (c1 >> 16 & 0xff) + (((c2 >> 16 & 0xff) - (c1 >> 16 & 0xff)) * f >> 8);
+   const uint8_t g = (c1 >> 8 & 0xff) + (((c2 >> 8 & 0xff) - (c1 >> 8 & 0xff)) * f >> 8);
+   const uint8_t b = (c1 & 0xff) + (((c2 & 0xff) - (c1 & 0xff)) * f >> 8);
 
    return (a << 24) | (r << 16) | (g << 8) | b;
 }
 
-// create scaled version of given image
-void Image::scaled(const Image& image) const
-{
-   int w = image.getWidth();
-   int h = image.getHeight();
-
-   int dx = (w << 16) / mWidth;
-   int dy = (h << 16) / mHeight;
-
-   int iy = 0;
-   for (int dstY = 0; dstY < mHeight; dstY++)
-   {
-      int y = iy >> 16;
-      int sy = iy >> 8 & 0xff;
-
-      unsigned int* dst = getScanline(dstY);
-      unsigned int *src1, *src2;
-      src1 = image.getScanline(y);
-      if (y == h - 1)
-         src2 = image.getScanline(y);
-      else
-         src2 = image.getScanline(y + 1);  // don't exceed image boundaries
-
-      int ix = 0;
-      for (int dstX = 0; dstX < mWidth - 1; dstX++)
-      {
-         int x = ix >> 16;
-         int sx = ix >> 8 & 0xff;
-
-         unsigned int c1 = src1[x];
-         unsigned int c2 = src1[x + 1];
-         unsigned int c3 = src2[x];
-         unsigned int c4 = src2[x + 1];
-
-         c1 = blend(c1, c2, sx);
-         c2 = blend(c3, c4, sx);
-
-         dst[dstX] = blend(c1, c2, sy);
-
-         ix += dx;
-      }
-      dst[mWidth - 1] = blend(src1[w - 1], src2[w - 1], sy);
-
-      iy += dy;
-   }
-}
-
-void Image::premultiplyAlpha()
-{
-   for (int y = 0; y < mHeight; y++)
-   {
-      unsigned int* dst = getScanline(y);
-
-      for (int x = 0; x < mWidth; x++)
-      {
-         unsigned int c1 = dst[x];
-
-         unsigned char a = (c1 >> 24 & 0xff);
-         if (a != 255)
-         {
-            unsigned char r = (c1 >> 16 & 0xff);
-            unsigned char g = (c1 >> 8 & 0xff);
-            unsigned char b = (c1 & 0xff);
-
-            r = (r * a) >> 8;
-            g = (g * a) >> 8;
-            b = (b * a) >> 8;
-
-            dst[x] = (a << 24) + (r << 16) + (g << 8) + b;
-         }
-      }
-   }
-}
-
-void Image::minimum(const Image& image)
-{
-   int width = std::min<int>(mWidth, image.getWidth());
-   int height = std::min<int>(mHeight, image.getHeight());
-
-   for (int y = 0; y < height; y++)
-   {
-      unsigned int* dst = getScanline(y);
-      unsigned int* src = image.getScanline(y);
-
-      for (int x = 0; x < width; x++)
-      {
-         unsigned int c1 = src[x];
-         unsigned int c2 = dst[x];
-
-         unsigned char a1 = (c1 >> 24 & 0xff);
-         unsigned char r1 = (c1 >> 16 & 0xff);
-         unsigned char g1 = (c1 >> 8 & 0xff);
-         unsigned char b1 = (c1 & 0xff);
-
-         unsigned char a2 = (c2 >> 24 & 0xff);
-         unsigned char r2 = (c2 >> 16 & 0xff);
-         unsigned char g2 = (c2 >> 8 & 0xff);
-         unsigned char b2 = (c2 & 0xff);
-
-         if (a2 < a1)
-            a1 = a2;
-         if (r2 < r1)
-            r1 = r2;
-         if (g2 < g1)
-            g1 = g2;
-         if (b2 < b1)
-            b1 = b2;
-
-         dst[x] = (a1 << 24) + (r1 << 16) + (g1 << 8) + b1;
-      }
-   }
-}
-
-void Image::clear(unsigned int argb)
-{
-   for (int y = 0; y < mHeight; y++)
-   {
-      unsigned int* dst = getScanline(y);
-      for (int x = 0; x < mWidth; x++)
-         dst[x] = argb;
-   }
-}
-void Image::copy(int posX, int posY, const Image& image, int replicate)
-{
-   int width = std::min<int>(mWidth - posX, image.getWidth());
-   int height = std::min<int>(mHeight - posY, image.getHeight());
-
-   int endx = mWidth - posX;
-   int endy = mHeight - posY;
-
-   for (int y = 0; y < height; y++)
-   {
-      unsigned int* dst = getScanline(y + posY) + posX;
-      unsigned int* src = image.getScanline(y);
-
-      for (int x = 0; x < width; x++)
-      {
-         dst[x] = src[x];
-      }
-
-      // replicate last pixel
-      for (int x = 0; x < endx - width && x < replicate; x++)
-         dst[width + x] = src[width - 1];
-   }
-
-   // replicate last scanline
-   if (replicate > 0)
-   {
-      unsigned int* src = getScanline(height - 1);
-      for (int y = 0; y < endy - height && y < replicate; y++)
-      {
-         unsigned int* dst = getScanline(y + height) + posX;
-         std::memcpy(dst, src, endx * 4);
-      }
-   }
-}
-
-unsigned int calcNormal(int z, unsigned int x0, unsigned int x1, unsigned int y0, unsigned int y1)
+uint32_t calcNormal(int32_t z, uint32_t x0, uint32_t x1, uint32_t y0, uint32_t y1)
 {
    // height= red + green + blue;
    x0 = (x0 >> 16 & 255) + (x0 >> 8 & 255) + (x0 & 255);
@@ -355,89 +186,211 @@ unsigned int calcNormal(int z, unsigned int x0, unsigned int x1, unsigned int y0
    y0 = (y0 >> 16 & 255) + (y0 >> 8 & 255) + (y0 & 255);
    y1 = (y1 >> 16 & 255) + (y1 >> 8 & 255) + (y1 & 255);
 
-   int x = (x0 - x1);
-   int y = (y0 - y1);
+   int32_t x = static_cast<int32_t>(x0 - x1);
+   int32_t y = static_cast<int32_t>(y0 - y1);
 
-   int mag = x * x + y * y + z * z;
-   float t = 128.0f / std::sqrt((double)mag);
-   x = 128 + x * t;
-   if (x < 0)
-      x = 0;
-   if (x > 255)
-      x = 255;
-   y = 128 - y * t;
-   if (y < 0)
-      y = 0;
-   if (y > 255)
-      y = 255;
-   z = 128 + z * t;
-   if (z < 0)
-      z = 0;
-   if (z > 255)
-      z = 255;
+   const int32_t magnitude = x * x + y * y + z * z;
+   const auto t = static_cast<float>(128.0f / std::sqrt(static_cast<double>(magnitude)));
+   x = std::clamp(static_cast<int32_t>(128 + x * t), 0, 255);
+   y = std::clamp(static_cast<int32_t>(128 - y * t), 0, 255);
+   z = std::clamp(static_cast<int32_t>(128 + z * t), 0, 255);
 
-   return (255 << 24) | (x << 16) | (y << 8) | z;
+   return (255u << 24) | (x << 16) | (y << 8) | z;
+}
+}  // namespace
+
+// fill this image with a bilinearly scaled version of "image"
+void Image::scaled(const Image& image) const
+{
+   const int32_t width = image.getWidth();
+   const int32_t height = image.getHeight();
+
+   const int32_t dx = (width << 16) / _width;
+   const int32_t dy = (height << 16) / _height;
+
+   int32_t iy = 0;
+   for (int32_t destination_y = 0; destination_y < _height; destination_y++)
+   {
+      const int32_t y = iy >> 16;
+      const auto sy = static_cast<uint8_t>(iy >> 8 & 0xff);
+
+      uint32_t* destination = getScanline(destination_y);
+      const uint32_t* source1 = image.getScanline(y);
+      // do not exceed image boundaries
+      const uint32_t* source2 = (y == height - 1) ? image.getScanline(y) : image.getScanline(y + 1);
+
+      int32_t ix = 0;
+      for (int32_t destination_x = 0; destination_x < _width - 1; destination_x++)
+      {
+         const int32_t x = ix >> 16;
+         const auto sx = static_cast<uint8_t>(ix >> 8 & 0xff);
+
+         const uint32_t top = blend(source1[x], source1[x + 1], sx);
+         const uint32_t bottom = blend(source2[x], source2[x + 1], sx);
+
+         destination[destination_x] = blend(top, bottom, sy);
+
+         ix += dx;
+      }
+      destination[_width - 1] = blend(source1[width - 1], source2[width - 1], sy);
+
+      iy += dy;
+   }
 }
 
-void Image::buildNormalMap(int z)
+void Image::premultiplyAlpha()
 {
-   unsigned int* src = mData;
-   unsigned int* src0 = mData + (mHeight - 1) * mWidth;
-   unsigned int* src1 = mData;
-   unsigned int* src2 = mData + mWidth;
-   unsigned int* dst = mData = new unsigned int[mWidth * mHeight];
-
-   for (int y = 0; y < mHeight; y++)
+   for (int32_t y = 0; y < _height; y++)
    {
-      dst[0] = calcNormal(z, src1[mWidth - 1], src1[1], src0[0], src2[0]);
-      for (int x = 1; x < mWidth - 1; x++)
-      {
-         dst[x] = calcNormal(z, src1[x - 1], src1[x + 1], src0[x], src2[x]);
-      }
-      dst[mWidth - 1] = calcNormal(z, src1[mWidth - 2], src1[0], src0[mWidth - 1], src2[mWidth - 1]);
+      uint32_t* destination = getScanline(y);
 
-      dst += mWidth;
-      src0 = src1;
-      src1 = src2;
-      if (y < mHeight - 2)
-         src2 += mWidth;
-      else
-         src2 = mData;
+      for (int32_t x = 0; x < _width; x++)
+      {
+         const uint32_t c1 = destination[x];
+
+         const uint8_t a = (c1 >> 24 & 0xff);
+         if (a != 255)
+         {
+            uint8_t r = (c1 >> 16 & 0xff);
+            uint8_t g = (c1 >> 8 & 0xff);
+            uint8_t b = (c1 & 0xff);
+
+            r = (r * a) >> 8;
+            g = (g * a) >> 8;
+            b = (b * a) >> 8;
+
+            destination[x] = (a << 24) + (r << 16) + (g << 8) + b;
+         }
+      }
+   }
+}
+
+// per-channel minimum with "image"
+void Image::minimum(const Image& image)
+{
+   const int32_t width = std::min(_width, image.getWidth());
+   const int32_t height = std::min(_height, image.getHeight());
+
+   for (int32_t y = 0; y < height; y++)
+   {
+      uint32_t* destination = getScanline(y);
+      const uint32_t* source = image.getScanline(y);
+
+      for (int32_t x = 0; x < width; x++)
+      {
+         const uint32_t c1 = source[x];
+         const uint32_t c2 = destination[x];
+
+         const uint32_t a = std::min(c1 >> 24 & 0xff, c2 >> 24 & 0xff);
+         const uint32_t r = std::min(c1 >> 16 & 0xff, c2 >> 16 & 0xff);
+         const uint32_t g = std::min(c1 >> 8 & 0xff, c2 >> 8 & 0xff);
+         const uint32_t b = std::min(c1 & 0xff, c2 & 0xff);
+
+         destination[x] = (a << 24) + (r << 16) + (g << 8) + b;
+      }
+   }
+}
+
+void Image::clear(uint32_t argb)
+{
+   for (int32_t y = 0; y < _height; y++)
+   {
+      std::fill_n(getScanline(y), _width, argb);
+   }
+}
+
+void Image::copy(int32_t position_x, int32_t position_y, const Image& image, int32_t replicate)
+{
+   const int32_t width = std::min(_width - position_x, image.getWidth());
+   const int32_t height = std::min(_height - position_y, image.getHeight());
+
+   const int32_t end_x = _width - position_x;
+   const int32_t end_y = _height - position_y;
+
+   for (int32_t y = 0; y < height; y++)
+   {
+      uint32_t* destination = getScanline(y + position_y) + position_x;
+      const uint32_t* source = image.getScanline(y);
+
+      for (int32_t x = 0; x < width; x++)
+      {
+         destination[x] = source[x];
+      }
+
+      // replicate last pixel
+      for (int32_t x = 0; x < end_x - width && x < replicate; x++)
+      {
+         destination[width + x] = source[width - 1];
+      }
    }
 
-   delete[] src;
+   // replicate last scanline
+   if (replicate > 0)
+   {
+      const uint32_t* source = getScanline(height - 1);
+      for (int32_t y = 0; y < end_y - height && y < replicate; y++)
+      {
+         uint32_t* destination = getScanline(y + height) + position_x;
+         std::memcpy(destination, source, end_x * sizeof(uint32_t));
+      }
+   }
+}
+
+void Image::buildNormalMap(int32_t z)
+{
+   uint32_t* source = _data;
+   const uint32_t* source0 = _data + (_height - 1) * _width;
+   const uint32_t* source1 = _data;
+   const uint32_t* source2 = _data + _width;
+   uint32_t* destination = _data = new uint32_t[static_cast<size_t>(_width) * _height];
+
+   for (int32_t y = 0; y < _height; y++)
+   {
+      destination[0] = calcNormal(z, source1[_width - 1], source1[1], source0[0], source2[0]);
+      for (int32_t x = 1; x < _width - 1; x++)
+      {
+         destination[x] = calcNormal(z, source1[x - 1], source1[x + 1], source0[x], source2[x]);
+      }
+      destination[_width - 1] = calcNormal(z, source1[_width - 2], source1[0], source0[_width - 1], source2[_width - 1]);
+
+      destination += _width;
+      source0 = source1;
+      source1 = source2;
+      // wrap around to the first source row
+      source2 = (y < _height - 2) ? source2 + _width : source;
+   }
+
+   delete[] source;
 }
 
 void Image::buildDeltaMap()
 {
-   unsigned int* temp = mData;
+   uint32_t* source = _data;
 
-   unsigned int* src0 = mData + (mHeight - 1) * mWidth;
-   unsigned int* src1 = mData;
-   unsigned int* src2 = mData + mWidth;
-   unsigned int* dst = mData = new unsigned int[mWidth * mHeight];
-   int s = 2;
+   const uint32_t* source0 = _data + (_height - 1) * _width;
+   const uint32_t* source1 = _data;
+   const uint32_t* source2 = _data + _width;
+   uint32_t* destination = _data = new uint32_t[static_cast<size_t>(_width) * _height];
+   const uint32_t s = 2;
 
-   for (int y = 0; y < mHeight; y++)
+   const auto delta = [s](uint32_t left, uint32_t right, uint32_t up, uint32_t down)
+   { return ((128 + (left & 0xff) * s - (right & 0xff) * s) << 16) | ((128 + (up & 0xff) * s - (down & 0xff) * s) << 8); };
+
+   for (int32_t y = 0; y < _height; y++)
    {
-      dst[0] =
-         ((128 + (src1[mWidth - 1] & 0xff) * s - (src1[1] & 0xff) * s) << 16) | ((128 + (src0[0] & 0xff) * s - (src2[0] & 0xff) * s) << 8);
-      for (int x = 1; x < mWidth - 1; x++)
+      destination[0] = delta(source1[_width - 1], source1[1], source0[0], source2[0]);
+      for (int32_t x = 1; x < _width - 1; x++)
       {
-         dst[x] = ((128 + (src1[x - 1] & 0xff) * s - (src1[x + 1] & 0xff) * s) << 16) |
-                  ((128 + (src0[x] & 0xff) * s - (src2[x] & 0xff) * s) << 8);
+         destination[x] = delta(source1[x - 1], source1[x + 1], source0[x], source2[x]);
       }
-      dst[mWidth - 1] = ((128 + (src1[mWidth - 2] & 0xff) * s - (src1[0] & 0xff) * s) << 16) |
-                        ((128 + (src0[mWidth - 1] & 0xff) * s - (src2[mWidth - 1] & 0xff) * s) << 8);
+      destination[_width - 1] = delta(source1[_width - 2], source1[0], source0[_width - 1], source2[_width - 1]);
 
-      dst += mWidth;
-      src0 = src1;
-      src1 = src2;
-      if (y < mHeight - 2)
-         src2 += mWidth;
-      else
-         src2 = mData;
+      destination += _width;
+      source0 = source1;
+      source1 = source2;
+      // wrap around to the first source row
+      source2 = (y < _height - 2) ? source2 + _width : source;
    }
 
-   delete[] temp;
+   delete[] source;
 }

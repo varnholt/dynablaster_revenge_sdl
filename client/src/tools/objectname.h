@@ -5,10 +5,10 @@
 class ObjectName
 {
 public:
-   ObjectName();
-   ObjectName(const ObjectName& other);
+   ObjectName() = default;
+   ObjectName(const ObjectName& other) = default;
    ObjectName(const String& name);
-   virtual ~ObjectName();
+   virtual ~ObjectName() = default;
 
    const String& name() const;
    void setName(const String& name);
@@ -17,5 +17,5 @@ public:
    void write(Stream* stream);
 
 protected:
-   String mName;
+   String _name;
 };

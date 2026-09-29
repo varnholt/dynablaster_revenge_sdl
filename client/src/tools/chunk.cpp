@@ -1,109 +1,111 @@
 #include "chunk.h"
+
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 
-#define BUFFERSIZE 3111
-
-Chunk::Chunk(Stream* stream) : Stream(), mStream(stream), mMode(chunkRead), mID(0), mSize(0), mChunkPos(0), mBuffer(0), mBufferPos(0)
+Chunk::Chunk(Stream* stream) : _stream(stream)
 {
-   mID = mStream->getInt();
-   if (mID != 0xffff)
+   _id = _stream->getInt();
+   if (_id != 0xffff)
    {
-      ObjectName::load(mStream);
-      mSize = mStream->getInt();
-      if (mSize < 0)
-         printf("break!\n");
+      ObjectName::load(_stream);
+      _size = _stream->getInt();
+      if (_size < 0)
+      {
+         std::printf("break!\n");
+      }
    }
    else
    {
-      mSize = 0;
+      _size = 0;
    }
 
-   mChunkPos = mStream->pos();
+   _chunk_position = _stream->pos();
 }
 
-Chunk::Chunk(Stream* stream, int id, const String& name)
-    : Stream(), ObjectName(name), mStream(stream), mMode(chunkWrite), mID(id), mSize(0), mChunkPos(0), mBuffer(0), mBufferPos(0)
+Chunk::Chunk(Stream* stream, int32_t id, const String& name) : ObjectName(name), _stream(stream), _mode(AccessMode::Write), _id(id)
 {
 }
 
 Chunk::~Chunk()
 {
-   if (mMode == chunkWrite)
+   if (_mode != AccessMode::Write)
    {
-      mStream->writeInt(mID);
-      ObjectName::write(mStream);
-      int size = 0;
-      for (int i = 0; i < mBuffers.size(); i++)
-      {
-         // char* buffer= mBuffers[i];
-         if (i != mBuffers.size() - 1)
-            size += BUFFERSIZE;
-         else
-            size += mBufferPos;
-      }
-      if (size < 0)
-         printf("break!\n");
-      mStream->writeInt(size);
-      for (int i = 0; i < mBuffers.size(); i++)
-      {
-         char* buffer = mBuffers[i];
-         if (i != mBuffers.size() - 1)
-            mStream->writeData(buffer, BUFFERSIZE);
-         else
-            mStream->writeData(buffer, mBufferPos);
-         delete[] buffer;
-      }
+      return;
+   }
+
+   _stream->writeInt(_id);
+   ObjectName::write(_stream);
+
+   // every buffer but the last is full; the last one is only partially filled unless it filled up exactly
+   const auto buffer_length = [this](size_t index)
+   {
+      const bool last = (index == _buffers.size() - 1);
+      return (last && _buffer) ? _buffer_position : kBufferSize;
+   };
+
+   int32_t size = 0;
+   for (size_t i = 0; i < _buffers.size(); i++)
+   {
+      size += buffer_length(i);
+   }
+   if (size < 0)
+   {
+      std::printf("break!\n");
+   }
+   _stream->writeInt(size);
+
+   for (size_t i = 0; i < _buffers.size(); i++)
+   {
+      _stream->writeData(_buffers[i]->data(), buffer_length(i));
    }
 }
 
-int Chunk::id() const
+int32_t Chunk::id() const
 {
-   return mID;
+   return _id;
 }
 
-int Chunk::dataLeft() const
+int32_t Chunk::dataLeft() const
 {
-   return mSize - mStream->pos() + mChunkPos;
+   return _size - _stream->pos() + _chunk_position;
 }
 
 void Chunk::skip()
 {
-   mStream->skip(mSize - mStream->pos() + mChunkPos);
+   _stream->skip(_size - _stream->pos() + _chunk_position);
 }
 
-void Chunk::getData(void* src, int size)
+void Chunk::getData(void* destination, int32_t size)
 {
-   mStream->getData(src, size);
-   mPosition += size;
+   _stream->getData(destination, size);
+   _position += size;
 }
 
-void Chunk::writeData(void* data, int size)
+void Chunk::writeData(void* data, int32_t size)
 {
-   char* src = (char*)data;
+   const auto* source = static_cast<const char*>(data);
    while (size > 0)
    {
-      if (!mBuffer)
+      if (!_buffer)
       {
-         mBuffer = new char[BUFFERSIZE];
-         mBufferPos = 0;
-         mBuffers.add(mBuffer);
+         _buffers.push_back(std::make_unique<Buffer>());
+         _buffer = _buffers.back().get();
+         _buffer_position = 0;
       }
 
-      int len = size;
-      int avail = BUFFERSIZE - mBufferPos;
-      if (len > avail)
-         len = avail;
-      std::memcpy(mBuffer + mBufferPos, src, len);
-      src += len;
-      mBufferPos += len;
+      const int32_t length = std::min(size, kBufferSize - _buffer_position);
+      std::memcpy(_buffer->data() + _buffer_position, source, length);
+      source += length;
+      _buffer_position += length;
 
-      if (mBufferPos >= BUFFERSIZE)
+      if (_buffer_position >= kBufferSize)
       {
-         mBuffer = 0;
-         mBufferPos = 0;
+         _buffer = nullptr;
+         _buffer_position = 0;
       }
 
-      size -= len;
+      size -= length;
    }
 }

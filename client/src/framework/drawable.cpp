@@ -1,14 +1,10 @@
 #include "drawable.h"
 
-Drawable::Drawable(RenderDevice* dev, bool visible) : mDevice(dev), mVisible(visible)
+Drawable::Drawable(RenderDevice* device, bool visible) : mDevice(device), mVisible(visible)
 {
 }
 
-Drawable::~Drawable()
-{
-}
-
-void Drawable::animate(float /*time*/)
+void Drawable::animate(float /*global_time*/)
 {
 }
 
@@ -16,11 +12,11 @@ void Drawable::resizeGL()
 {
 }
 
-void Drawable::mousePressEvent(int /*x*/, int /*y*/)
+void Drawable::mousePressEvent(int32_t /*x*/, int32_t /*y*/)
 {
 }
 
-void Drawable::mouseMoveEvent(int /*x*/, int /*y*/)
+void Drawable::mouseMoveEvent(int32_t /*x*/, int32_t /*y*/)
 {
 }
 

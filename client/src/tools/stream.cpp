@@ -1,28 +1,10 @@
 #include "stream.h"
-#include <cstring>
+
+#include <algorithm>
+#include <array>
+#include <utility>
+
 #include "string.h"
-
-int Stream::mMachineEndian = -1;
-
-Stream::Stream() : mEndian(0), mPosition(0)
-{
-   if (mMachineEndian < 0)
-   {
-      // test endian coding
-      unsigned int test = 0x01020304;
-      unsigned char* data = (unsigned char*)&test;
-
-      if (data[0] == 4 && data[1] == 3 && data[2] == 2 && data[3] == 1)
-         mMachineEndian = 0;  // little endian
-      if (data[0] == 1 && data[1] == 2 && data[2] == 3 && data[3] == 4)
-         mMachineEndian = 1;  // big endian
-   }
-}
-
-//! destructor
-Stream::~Stream()
-{
-}
 
 const String& Stream::getPath() const
 {
@@ -30,157 +12,134 @@ const String& Stream::getPath() const
    return dummy;
 }
 
-Stream& operator<<(Stream& stream, float& v)
+Stream& operator<<(Stream& stream, float& value)
 {
-   v = stream.getFloat();
+   value = stream.getFloat();
    return stream;
 }
 
-void operator<<(float& v, Stream& stream)
+void operator<<(float& value, Stream& stream)
 {
-   v = stream.getFloat();
+   value = stream.getFloat();
 }
 
-Stream& operator<<(Stream& stream, int& i)
+Stream& operator<<(Stream& stream, int32_t& value)
 {
-   i = stream.getInt();
+   value = stream.getInt();
    return stream;
 }
 
-void operator>>(float& f, Stream& stream)
+void operator>>(float& value, Stream& stream)
 {
-   stream.writeFloat(f);
+   stream.writeFloat(value);
 }
 
-//! endian conversion
 void Stream::swap16(void* data)
 {
-   unsigned char* src = (unsigned char*)data;
-   unsigned char t;
-   t = src[0];
-   src[0] = src[1];
-   src[1] = t;
+   auto* bytes = static_cast<uint8_t*>(data);
+   std::swap(bytes[0], bytes[1]);
 }
 
-//! endian conversion
 void Stream::swap32(void* data)
 {
-   unsigned char* src = (unsigned char*)data;
-   unsigned char t;
-   t = src[0];
-   src[0] = src[3];
-   src[3] = t;
-   t = src[1];
-   src[1] = src[2];
-   src[2] = t;
+   auto* bytes = static_cast<uint8_t*>(data);
+   std::swap(bytes[0], bytes[3]);
+   std::swap(bytes[1], bytes[2]);
 }
 
-//! get current endian mode
-int Stream::getEndian() const
+int32_t Stream::getEndian() const
 {
-   return mEndian;
+   return _endian;
 }
 
-//! set endian mode
-void Stream::setEndian(int big)
+void Stream::setEndian(int32_t big_endian)
 {
-   mEndian = big;
+   _endian = big_endian;
 }
 
-//! get char
 char Stream::getChar()
 {
-   char c;
+   char c = 0;
    getData(&c, sizeof(char));
    return c;
 }
 
-//! get byte
-unsigned char Stream::getByte()
+uint8_t Stream::getByte()
 {
-   unsigned char c;
-   getData(&c, sizeof(char));
+   uint8_t c = 0;
+   getData(&c, sizeof(uint8_t));
    return c;
 }
 
-//! get int
-int Stream::getInt()
+int32_t Stream::getInt()
 {
-   int i;
-   getData(&i, sizeof(int));
-   if (mEndian != mMachineEndian)
-      swap32(&i);
-   return i;
+   int32_t value = 0;
+   getData(&value, sizeof(int32_t));
+   if (_endian != kMachineEndian)
+   {
+      swap32(&value);
+   }
+   return value;
 }
 
-//! get word
-int Stream::getWord()
+int32_t Stream::getWord()
 {
-   unsigned short w;
-   getData(&w, sizeof(short));
-   if (mEndian != mMachineEndian)
-      swap16(&w);
-   return (int)w;
+   uint16_t word = 0;
+   getData(&word, sizeof(uint16_t));
+   if (_endian != kMachineEndian)
+   {
+      swap16(&word);
+   }
+   return word;
 }
 
-//! get short
-short Stream::getShort()
+int16_t Stream::getShort()
 {
-   short w;
-   getData(&w, sizeof(short));
-   if (mEndian != mMachineEndian)
-      swap16(&w);
-   return (int)w;
+   int16_t word = 0;
+   getData(&word, sizeof(int16_t));
+   if (_endian != kMachineEndian)
+   {
+      swap16(&word);
+   }
+   return word;
 }
 
-//! get float
 float Stream::getFloat()
 {
-   float v;
-   getData(&v, sizeof(float));
-   if (mEndian != mMachineEndian)
-      swap32(&v);
-   return v;
-}
-
-//! get string, pascal style (leading number of bytes)
-char* Stream::getString()
-{
-   // strings in .hjb are garanteed to be <=256 byte
-   char temp[256];
-   char c;
-   int size = 0;
-
-   // read chars until (inclusive) 0-terminator
-   do
+   float value = 0.0f;
+   getData(&value, sizeof(float));
+   if (_endian != kMachineEndian)
    {
-      c = getChar();
-      temp[size++] = c;
-   } while (c != 0);
-
-   // allocate and copy string
-   char* str = new char[size];
-   std::memcpy(str, temp, size);
-
-   return str;
+      swap32(&value);
+   }
+   return value;
 }
 
-void Stream::skip(int size)
+std::string Stream::getString()
 {
-   char dummy[256];
+   // read chars until (exclusive) 0-terminator
+   std::string result;
+   for (char c = getChar(); c != 0; c = getChar())
+   {
+      result.push_back(c);
+   }
+   return result;
+}
+
+void Stream::skip(int32_t size)
+{
+   std::array<char, 256> dummy{};
    while (size > 0)
    {
-      int len = size;
-      if (len > 256)
-         len = 256;
-      getData(dummy, len);
-      size -= len;
+      const int32_t length = std::min<int32_t>(size, static_cast<int32_t>(dummy.size()));
+      getData(dummy.data(), length);
+      size -= length;
    }
 }
 
-int Stream::pos() const
+int32_t Stream::pos() const
 {
-   return mPosition;
+   return _position;
 }
 
 void Stream::writeChar(char c)
@@ -188,49 +147,55 @@ void Stream::writeChar(char c)
    writeData(&c, sizeof(char));
 }
 
-void Stream::writeByte(unsigned char b)
+void Stream::writeByte(uint8_t value)
 {
-   writeData(&b, sizeof(unsigned char));
+   writeData(&value, sizeof(uint8_t));
 }
 
-void Stream::writeWord(unsigned short w)
+void Stream::writeWord(uint16_t word)
 {
-   if (mEndian != mMachineEndian)
-      swap16(&w);
-   writeData(&w, sizeof(unsigned short));
+   if (_endian != kMachineEndian)
+   {
+      swap16(&word);
+   }
+   writeData(&word, sizeof(uint16_t));
 }
 
-void Stream::writeShort(short w)
+void Stream::writeShort(int16_t word)
 {
-   if (mEndian != mMachineEndian)
-      swap16(&w);
-   writeData(&w, sizeof(short));
+   if (_endian != kMachineEndian)
+   {
+      swap16(&word);
+   }
+   writeData(&word, sizeof(int16_t));
 }
 
-void Stream::writeInt(int i)
+void Stream::writeInt(int32_t value)
 {
-   if (mEndian != mMachineEndian)
-      swap32(&i);
-   writeData(&i, sizeof(int));
+   if (_endian != kMachineEndian)
+   {
+      swap32(&value);
+   }
+   writeData(&value, sizeof(int32_t));
 }
 
-void Stream::writeFloat(float f)
+void Stream::writeFloat(float value)
 {
-   if (mEndian != mMachineEndian)
-      swap32(&f);
-   writeData(&f, sizeof(float));
+   if (_endian != kMachineEndian)
+   {
+      swap32(&value);
+   }
+   writeData(&value, sizeof(float));
 }
 
 void Stream::writeString(const char* data)
 {
    if (data)
    {
-      int pos = 0;
-      while (data[pos])
+      for (const char* c = data; *c; ++c)
       {
-         writeChar(data[pos]);
-         pos++;
-      };
+         writeChar(*c);
+      }
    }
    writeChar(0);
 }

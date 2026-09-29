@@ -2,43 +2,33 @@
 
 #include <SDL3/SDL.h>
 
+#include <algorithm>
+
 namespace
 {
-// SDL_GetTicks() instead of the Windows-only GetTickCount() - same millisecond tick, works on
-// every platform SDL supports.
-unsigned int GetTickCount()
+uint32_t GetTickCount()
 {
-   return static_cast<unsigned int>(SDL_GetTicks());
+   return static_cast<uint32_t>(SDL_GetTicks());
 }
 }  // namespace
 
-FPS::FPS(int period)
-{
-   if (period <= 0)
-      period = 1;
-   mPeriod = period;
-   mCurFPS = 0.0f;
-   mFrame = 0;
-   mTime = 0;
-}
-
-FPS::~FPS()
+FPS::FPS(int32_t period) : _period(std::max(period, 1))
 {
 }
 
 void FPS::next()
 {
-   mFrame++;
-   if (mFrame >= mPeriod)
+   _frame++;
+   if (_frame >= _period)
    {
-      int curTime = GetTickCount();
-      mCurFPS = (float)mFrame * 1000 / (curTime - mTime);
-      mTime = curTime;
-      mFrame = 0;
+      const auto current_time = static_cast<int32_t>(GetTickCount());
+      _current_fps = static_cast<float>(_frame) * 1000 / (current_time - _time);
+      _time = current_time;
+      _frame = 0;
    }
 }
 
 float FPS::get()
 {
-   return mCurFPS;
+   return _current_fps;
 }

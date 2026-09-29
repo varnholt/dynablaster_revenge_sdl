@@ -1,56 +1,47 @@
 #include "bmp.h"
+
+#include <array>
+
 #include "tools/filestream.h"
 
+namespace
+{
 #pragma pack(push, 1)
 
 struct BMPInfoHeader
 {
-   BMPInfoHeader(int x, int y)
-       : mSize(sizeof(BMPInfoHeader)),
-         mWidth(x),
-         mHeight(y),
-         mPlanes(1),
-         mBitCount(24),
-         mCompression(0),
-         mImageSize(x * y * 3),
-         mXPelsPerMeter(0),
-         mYPelsPerMeter(0),
-         mClrUsed(0),
-         mClrImportant(0)
+   BMPInfoHeader(int32_t x, int32_t y) : _width(x), _height(y), _image_size(x * y * 3)
    {
    }
 
-   unsigned int mSize;
-   int mWidth;
-   int mHeight;
-   unsigned short mPlanes;
-   unsigned short mBitCount;
-   unsigned int mCompression;
-   unsigned int mImageSize;
-   int mXPelsPerMeter;
-   int mYPelsPerMeter;
-   unsigned int mClrUsed;
-   unsigned int mClrImportant;
+   uint32_t _size = 40;  // sizeof(BMPInfoHeader)
+   int32_t _width = 0;
+   int32_t _height = 0;
+   uint16_t _planes = 1;
+   uint16_t _bit_count = 24;
+   uint32_t _compression = 0;
+   uint32_t _image_size = 0;
+   int32_t _x_pels_per_meter = 0;
+   int32_t _y_pels_per_meter = 0;
+   uint32_t _colors_used = 0;
+   uint32_t _colors_important = 0;
 };
 
 struct BMPFileHeader
 {
-   BMPFileHeader() : mSize(0), mReserved(0), mOffset(0)
-   {
-      mHead[0] = 'B';
-      mHead[1] = 'M';
-      mOffset = sizeof(BMPFileHeader) + sizeof(BMPInfoHeader);
-   }
-
-   char mHead[2];
-   unsigned int mSize;
-   unsigned int mReserved;
-   unsigned int mOffset;
+   std::array<char, 2> _head = {'B', 'M'};
+   uint32_t _size = 0;
+   uint32_t _reserved = 0;
+   uint32_t _offset = 14 + 40;  // sizeof(BMPFileHeader) + sizeof(BMPInfoHeader)
 };
 
 #pragma pack(pop)
 
-int saveBmp(char* filename, unsigned int* data, int width, int height)
+static_assert(sizeof(BMPInfoHeader) == 40);
+static_assert(sizeof(BMPFileHeader) == 14);
+}  // namespace
+
+int32_t saveBmp(char* filename, uint32_t* data, int32_t width, int32_t height)
 {
    FileStream stream;
    stream.open(filename, true);
@@ -61,26 +52,28 @@ int saveBmp(char* filename, unsigned int* data, int width, int height)
    BMPInfoHeader info(width, height);
    stream.writeData(&info, sizeof(BMPInfoHeader));
 
-   int padding = (4 - width * 3) & 3;
+   const int32_t padding = (4 - width * 3) & 3;
 
-   for (int y = 0; y < height; y++)
+   for (int32_t y = 0; y < height; y++)
    {
-      unsigned int* src = data + y * width;
-      for (int x = 0; x < width; x++)
+      const uint32_t* source = data + y * width;
+      for (int32_t x = 0; x < width; x++)
       {
-         unsigned int col = src[x];
+         const uint32_t color = source[x];
 
-         unsigned char r = col >> 16 & 255;
-         unsigned char g = col >> 8 & 255;
-         unsigned char b = col & 255;
+         const uint8_t r = color >> 16 & 255;
+         const uint8_t g = color >> 8 & 255;
+         const uint8_t b = color & 255;
 
          stream.writeByte(b);
          stream.writeByte(g);
          stream.writeByte(r);
       }
 
-      for (int p = 0; p < padding; p++)
+      for (int32_t p = 0; p < padding; p++)
+      {
          stream.writeByte(0);
+      }
    }
 
    stream.close();

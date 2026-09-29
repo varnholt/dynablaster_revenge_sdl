@@ -1,66 +1,43 @@
 #pragma once
 
+#include <memory>
 #include <string>
 #include <unordered_map>
 
+// owns every item added to it
 template <class Item>
 class Pool
 {
 public:
-   //! construct empty pool
-   Pool();
+   virtual ~Pool() = default;
 
-   //! destructor
-   virtual ~Pool();
-
-   //! get item method
    Item* get(const char* id) const;
 
-   //! add item
+   // takes ownership of "item" when added; returns false (ownership stays with the caller) if "id" exists
    bool add(const char* id, Item* item);
 
 private:
-   std::unordered_map<std::string, Item*> mData;
+   std::unordered_map<std::string, std::unique_ptr<Item>> _data;
 };
 
-//! construct empty pool
-template <class Item>
-Pool<Item>::Pool()
-{
-}
-
-//! destructor
-template <class Item>
-Pool<Item>::~Pool()
-{
-   for (auto& [id, item] : mData)
-   {
-      delete item;
-   }
-   mData.clear();
-}
-
-//! get item from pool with given "id"
 template <class Item>
 Item* Pool<Item>::get(const char* id) const
 {
-   auto it = mData.find(id);
-   if (it != mData.end())
-      return it->second;
-   else
-      return 0;
+   const auto iterator = _data.find(id);
+   if (iterator != _data.end())
+   {
+      return iterator->second.get();
+   }
+   return nullptr;
 }
 
-//! add item to pool with given "id"
 template <class Item>
 bool Pool<Item>::add(const char* id, Item* item)
 {
-   bool result = false;
-   auto it = mData.find(id);
-   if (it == mData.end())
+   if (_data.contains(id))
    {
-      mData.insert({std::string(id), item});
-      result = true;
+      return false;
    }
-   return result;
+   _data.emplace(std::string(id), std::unique_ptr<Item>(item));
+   return true;
 }

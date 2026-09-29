@@ -1,18 +1,18 @@
 #include "globaltime.h"
 
-GlobalTime* GlobalTime::mInstance = 0;
+GlobalTime* GlobalTime::_instance = nullptr;
 
 GlobalTime::GlobalTime()
 {
-   mInstance = this;
+   _instance = this;
 }
 
 GlobalTime::~GlobalTime()
 {
-   mInstance = 0;
+   _instance = nullptr;
 }
 
 GlobalTime* GlobalTime::Instance()
 {
-   return mInstance;
+   return _instance;
 }

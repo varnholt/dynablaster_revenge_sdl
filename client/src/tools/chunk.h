@@ -7,7 +7,11 @@
 
 #pragma once
 
-#include "array.h"
+#include <array>
+#include <cstdint>
+#include <memory>
+#include <vector>
+
 #include "objectname.h"
 #include "stream.h"
 #include "string.h"
@@ -15,32 +19,36 @@
 class Chunk : public Stream, public ObjectName
 {
 public:
-   enum AccessMode
+   enum class AccessMode
    {
-      chunkRead = 0,
-      chunkWrite = 1,
+      Read,
+      Write,
    };
 
    Chunk(Stream* stream);
-   Chunk(Stream* stream, int id, const String& name);
-   ~Chunk();
+   Chunk(Stream* stream, int32_t id, const String& name);
+   ~Chunk() override;
 
-   void getData(void* src, int size);
-   void writeData(void* src, int size);
+   void getData(void* destination, int32_t size) override;
+   void writeData(void* source, int32_t size) override;
 
-   int id() const;
+   int32_t id() const;
 
-   int dataLeft() const;
+   int32_t dataLeft() const;
    void skip();
 
 private:
-   Stream* mStream;
-   AccessMode mMode;
-   int mID;
-   int mSize;
-   int mChunkPos;
+   static constexpr int32_t kBufferSize = 3111;
+   using Buffer = std::array<char, kBufferSize>;
 
-   char* mBuffer;
-   Array<char*> mBuffers;
-   int mBufferPos;
+   Stream* _stream = nullptr;  // not owned
+   AccessMode _mode = AccessMode::Read;
+   int32_t _id = 0;
+   int32_t _size = 0;
+   int32_t _chunk_position = 0;
+
+   // write mode: data is collected here and flushed to "_stream" (with id, name and size) on destruction
+   std::vector<std::unique_ptr<Buffer>> _buffers;
+   Buffer* _buffer = nullptr;  // buffer currently being filled, null when full
+   int32_t _buffer_position = 0;
 };

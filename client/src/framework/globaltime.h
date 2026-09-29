@@ -7,12 +7,12 @@ class GlobalTime
 {
 public:
    GlobalTime();
-   ~GlobalTime();
+   virtual ~GlobalTime();
 
    static GlobalTime* Instance();
 
    virtual float getTime() const = 0;
 
 private:
-   static GlobalTime* mInstance;
+   static GlobalTime* _instance;
 };

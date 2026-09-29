@@ -1,12 +1,11 @@
-#ifndef RECT_H
-#define RECT_H
+#pragma once
 
 #include "math/vector2.h"
 
 class Rect
 {
 public:
-   Rect();
+   Rect() = default;
    Rect(float x1, float y1, float x2, float y2);
    Rect(const Vector2& min, const Vector2& max);
 
@@ -25,9 +24,7 @@ public:
    const Vector2& getMax() const;
 
 protected:
-   Vector2 mMin;
-   Vector2 mMax;
-   bool mValid;
+   Vector2 _min{0.0f, 0.0f};
+   Vector2 _max{0.0f, 0.0f};
+   bool _valid = false;
 };
-
-#endif  // RECT_H

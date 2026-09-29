@@ -1,30 +1,29 @@
 #include "profiling.h"
 
+#include <cstdint>
+
 #ifdef _MSC_VER
 #include <intrin.h>
 #endif
 
 double getCpuTick()
 {
-   double t = 0.0;
+   double tick = 0.0;
 
 #ifdef _MSC_VER
 #ifdef WIN32
-   t = __rdtsc();
+   tick = static_cast<double>(__rdtsc());
 #endif
 #endif
 
 #ifdef _LINUX_
-   unsigned int a, d;
-   asm volatile("rdtsc"    // read timestamp counter (64bit) into edx:eax (2x 32bit registers)
-                : "=a"(a)  // store eax to "a"
-                  ,
-                  "=d"(d)  // store edx to "d"
-   );
-   // combine two 32bit integers into 64bit long
-   long long count = ((long long)a) | (((long long)d) << 32);
-   t = count;
+   uint32_t low = 0;
+   uint32_t high = 0;
+   // read timestamp counter (64bit) into edx:eax
+   asm volatile("rdtsc" : "=a"(low), "=d"(high));
+   const int64_t count = static_cast<int64_t>(low) | (static_cast<int64_t>(high) << 32);
+   tick = static_cast<double>(count);
 #endif
 
-   return t;
+   return tick;
 }

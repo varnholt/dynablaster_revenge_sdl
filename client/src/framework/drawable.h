@@ -1,36 +1,28 @@
 #pragma once
 
+#include <cstdint>
+
 #include "keyevent.h"
 
 class RenderDevice;
 
-/// \brief GLES3 port of client/src/framework/drawable.cpp.
-///
-/// The legacy constructor/destructor auto-registered with MainDrawable::getInstance() (a global
-/// list MainDrawable's own paintGL()/animate() loop walked each frame). MainDrawable - the
-/// QGLWidget hosting the real game - isn't part of this port; main.cpp drives the render loop
-/// itself and calls each Drawable it owns (MenuDrawable, MenuMouseCursor, ...) directly, so that
-/// registration is dropped rather than resurrecting MainDrawable just to keep a list nothing
-/// reads.
+// base class for everything main.cpp renders and forwards input events to
 class Drawable
 {
 public:
-   Drawable(RenderDevice* dev, bool visible = false);
-   virtual ~Drawable();
+   Drawable(RenderDevice* device, bool visible = false);
+   virtual ~Drawable() = default;
 
    virtual void initializeGL() = 0;
    virtual void paintGL() = 0;
    virtual void resizeGL();
 
-   virtual void animate(float globalTime);
+   virtual void animate(float global_time);
 
-   //! mouse events
-   virtual void mousePressEvent(int x, int y);
-
-   virtual void mouseMoveEvent(int x, int y);
+   virtual void mousePressEvent(int32_t x, int32_t y);
+   virtual void mouseMoveEvent(int32_t x, int32_t y);
    virtual void mouseReleaseEvent();
 
-   //! keyboard events
    virtual void keyPressEvent(const KeyEvent& event);
    virtual void keyReleaseEvent(const KeyEvent& event);
 
@@ -38,6 +30,7 @@ public:
    virtual bool isVisible() const;
 
 protected:
-   RenderDevice* mDevice;  //!< render device
-   bool mVisible;          //!< visibility flag
+   // kept as mDevice/mVisible: derived classes outside framework/ access them directly
+   RenderDevice* mDevice = nullptr;  // render device (not owned)
+   bool mVisible = false;            // visibility flag
 };

@@ -2,33 +2,35 @@
 #include "globaltime.h"
 #include "timerhandler.h"
 
-FrameTimer::FrameTimer() : mStarted(false), mSingleShot(false), mStartTime(0.0f), mInterval(0.0f), mDelete(false)
-{
-}
-
 FrameTimer::FrameTimer(const FrameTimer& other)
-    : mStarted(other.mStarted), mSingleShot(other.mSingleShot), mStartTime(other.mStartTime), mInterval(other.mInterval), mDelete(false)
+    : _started(other._started), _single_shot(other._single_shot), _start_time(other._start_time), _interval(other._interval)
 {
-   if (mStarted)
+   if (_started)
+   {
       TimerHandler::Instance()->addTimer(this);
+   }
 }
 
 FrameTimer::~FrameTimer()
 {
-   if (mStarted)
+   if (_started)
+   {
       TimerHandler::Instance()->removeTimer(this);
+   }
 }
 
 FrameTimer& FrameTimer::operator=(const FrameTimer& other)
 {
    if (&other != this)
    {
-      mStarted = other.mStarted;
-      mSingleShot = other.mSingleShot;
-      mStartTime = other.mStartTime;
-      mInterval = other.mInterval;
-      if (mStarted)
+      _started = other._started;
+      _single_shot = other._single_shot;
+      _start_time = other._start_time;
+      _interval = other._interval;
+      if (_started)
+      {
          TimerHandler::Instance()->addTimer(this);
+      }
    }
    return *this;
 }
@@ -36,48 +38,48 @@ FrameTimer& FrameTimer::operator=(const FrameTimer& other)
 FrameTimer FrameTimer::currentTime()
 {
    FrameTimer time;
-   time.mStartTime = GlobalTime::Instance()->getTime();
+   time._start_time = GlobalTime::Instance()->getTime();
    return time;
 }
 
 bool FrameTimer::isValid() const
 {
-   return mStarted;
+   return _started;
 }
 
-void FrameTimer::setSingleShot(bool singleShot)
+void FrameTimer::setSingleShot(bool single_shot)
 {
-   mSingleShot = singleShot;
+   _single_shot = single_shot;
 }
 
 FrameTimer FrameTimer::addMSecs(float ms) const
 {
    FrameTimer time;
-   time.mStartTime = mStartTime + ms * 0.001f;
+   time._start_time = _start_time + ms * 0.001f;
    return time;
 }
 
 float FrameTimer::msecsTo(const FrameTimer& other) const
 {
-   return (other.mStartTime - mStartTime) * 1000.0f;
+   return (other._start_time - _start_time) * 1000.0f;
 }
 
 void FrameTimer::setInterval(float interval)
 {
-   mInterval = interval * 0.001f;
+   _interval = interval * 0.001f;
 }
 
 float FrameTimer::interval() const
 {
-   return mInterval * 1000.0f;
+   return _interval * 1000.0f;
 }
 
 void FrameTimer::start()
 {
-   mStartTime = GlobalTime::Instance()->getTime();
-   if (!mStarted)
+   _start_time = GlobalTime::Instance()->getTime();
+   if (!_started)
    {
-      mStarted = true;
+      _started = true;
       TimerHandler::Instance()->addTimer(this);
    }
 }
@@ -95,39 +97,37 @@ void FrameTimer::restart()
 
 void FrameTimer::stop()
 {
-   if (mStarted)
+   if (_started)
    {
-      mStarted = false;
+      _started = false;
       TimerHandler::Instance()->removeTimer(this);
    }
 }
 
 float FrameTimer::elapsed() const
 {
-   if (mStarted)
+   if (_started)
    {
-      float curTime = GlobalTime::Instance()->getTime();
-      return (curTime - mStartTime) * 1000.0f;
+      const float current_time = GlobalTime::Instance()->getTime();
+      return (current_time - _start_time) * 1000.0f;
    }
-   else
-      return 0.0f;
+   return 0.0f;
 }
 
 bool FrameTimer::update()
 {
-   if (mStarted && mInterval > 0.0f)
+   if (_started && _interval > 0.0f)
    {
-      float curTime = GlobalTime::Instance()->getTime();
-      if (curTime >= mStartTime + mInterval)
+      const float current_time = GlobalTime::Instance()->getTime();
+      if (current_time >= _start_time + _interval)
       {
          timeoutSignal();
-         if (mSingleShot)
+         if (_single_shot)
          {
-            mStarted = false;
+            _started = false;
             return true;
          }
-         else
-            mStartTime = curTime;
+         _start_time = current_time;
       }
    }
    return false;

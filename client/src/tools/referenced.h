@@ -1,24 +1,24 @@
-#ifndef REFERENCED_H
-#define REFERENCED_H
+#pragma once
 
+#include <cstdint>
+
+// intrusive, shared reference counter for the copy-on-write containers (Array, String, Image, ...)
 class Referenced
 {
 public:
    Referenced();
-   Referenced(const Referenced& r);
-   Referenced(const Referenced* r);
-   Referenced(Referenced* r);
+   Referenced(const Referenced& other);
+   Referenced(const Referenced* other);
    virtual ~Referenced();
 
-   void addRef() const;  //! add reference
-   bool deref();         //! remove reference
-   bool copyRef();       //! copy reference if required
+   void addRef() const;  // add reference
+   bool deref();         // remove reference
+   bool copyRef();       // copy reference if required
 
-   int getRefCount() const;  //! get number of referencing objects
-   int* getRef() const;      //! get reference pointer
+   int32_t getRefCount() const;  // get number of referencing objects
+   int32_t* getRef() const;      // get reference pointer
 
 protected:
-   int* mReferences;
+   // kept as mReferences: derived classes outside tools/ access it directly
+   int32_t* mReferences = nullptr;
 };
-
-#endif

@@ -1,91 +1,72 @@
 #include "renderdevice.h"
 
 // static render-device object
-RenderDevice* activeDevice = NULL;
+RenderDevice* activeDevice = nullptr;
 
 RenderDevice::RenderDevice()
-    : mWidth(0),
-      mHeight(0),
-      mAspect(16.0f / 9.0f),
-      mActive(0),
-      mAbort(0),
-      mTime(0),
-      mCurShader(0),
-      mBorderLeft(0),
-      mBorderTop(0),
-      mBorderRight(0),
-      mBorderBottom(0)
 {
-   for (int i = 0; i < 256; i++)
-      keys[i] = 0;
-
    activeDevice = this;
-   mAbort = 0;
 }
 
-RenderDevice::~RenderDevice()
+int32_t RenderDevice::getBorderLeft() const
 {
+   return _border_left;
 }
 
-int RenderDevice::getBorderLeft() const
+int32_t RenderDevice::getBorderBottom() const
 {
-   return mBorderLeft;
+   return _border_bottom;
 }
 
-int RenderDevice::getBorderBottom() const
+void RenderDevice::setKey(int32_t num, int32_t state)
 {
-   return mBorderBottom;
+   _keys[num] = state;
 }
 
-void RenderDevice::setKey(int num, int state)
+int32_t RenderDevice::getKey(int32_t num)
 {
-   keys[num] = state;
-}
-
-int RenderDevice::getKey(int num)
-{
-   return keys[num];
+   return _keys[num];
 }
 
 void RenderDevice::setAbort()
 {
-   mAbort = 1;
+   _abort = 1;
 }
 
 void RenderDevice::setActive(bool state)
 {
-   mActive = state;
+   _active = state;
 }
 
 bool RenderDevice::active()
 {
-   return (mActive != 0);
+   return (_active != 0);
 }
 
 bool RenderDevice::abort()
 {
-   return (mAbort != 0);
+   return (_abort != 0);
 }
 
 Matrix RenderDevice::getCameraMatrix() const
 {
-   return mCamera;
+   return _camera;
 }
 
-void RenderDevice::setBorder(int left, int top, int right, int bottom)
+void RenderDevice::setBorder(int32_t left, int32_t top, int32_t right, int32_t bottom)
 {
-   mBorderLeft = left;
-   mBorderTop = top;
-   mBorderRight = right;
-   mBorderBottom = bottom;
+   _border_left = left;
+   _border_top = top;
+   _border_right = right;
+   _border_bottom = bottom;
 }
 
 float RenderDevice::getWidth() const
 {
-   return (float)mWidth - mBorderLeft - mBorderRight;
+   return static_cast<float>(_width) - _border_left - _border_right;
 }
 
 float RenderDevice::getHeight() const
 {
-   return (float)mHeight - mBorderTop - mBorderBottom;
+   return static_cast<float>(_height) - _border_top - _border_bottom;
 }

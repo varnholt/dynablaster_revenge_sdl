@@ -8,7 +8,10 @@
 
 #pragma once
 
-#include <stdio.h>
+#include <cstdint>
+#include <cstdio>
+#include <vector>
+
 #include "stream.h"
 #include "string.h"
 
@@ -16,33 +19,34 @@ class FileStream : public Stream
 {
 public:
    FileStream();
-   ~FileStream();
+   ~FileStream() override;
+
+   FileStream(const FileStream&) = delete;
+   FileStream& operator=(const FileStream&) = delete;
 
    static void addPath(const String& path);
    static void removePath(const String& path);
 
-   int open(const String& name, bool write = false);  //! open file "name"
-   void close();                                      //! close stream
+   int32_t open(const String& name, bool write = false);  // open file "name"
+   void close();                                          // close stream
 
-   const String& getPath() const;
+   const String& getPath() const override;
 
-   // implementation of actual reading and writing functions
-   void getData(void* dst, int size);    //! get "size" bytes and store in "dst"
-   void writeData(void* dst, int size);  //! write "size" bytes
+   void getData(void* destination, int32_t size) override;  // get "size" bytes and store in "destination"
+   void writeData(void* source, int32_t size) override;     // write "size" bytes
 
-   void skip(int size);  //! skip "size" bytes
-   int size() const;     //! total size of the input file
-   int pos() const;      //! current position in the input file
+   void skip(int32_t size) override;  // skip "size" bytes
+   int32_t size() const;              // total size of the input file
+   int32_t pos() const override;      // current position in the input file
 
 private:
-   int refill();  //! refill buffer
+   int32_t refill();  // refill cache
 
-   // members
-   FILE* mFile;               //! source file
-   unsigned char* mCacheBuf;  //! input cache
-   int mCachePos;             //! current position in cache
-   int mCacheLeft;            //! data left in cache
-   int mGlobalPos;            //! absolute position in file (including cache position)
-   int mSize;                 //! size of the file
-   String mPath;
+   FILE* _file = nullptr;               // source file
+   std::vector<uint8_t> _cache_buffer;  // input cache
+   int32_t _cache_position = 0;         // current position in cache
+   int32_t _cache_left = 0;             // data left in cache
+   int32_t _global_position = 0;        // absolute position in file (including cache position)
+   int32_t _size = 0;                   // size of the file
+   String _path;
 };

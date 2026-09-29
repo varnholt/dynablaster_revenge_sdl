@@ -1,62 +1,51 @@
 #include "memorystream.h"
+
 #include <cstring>
-#include "array.h"
 
-//! construct empty stream
-MemoryStream::MemoryStream() : Stream(), mBuffer(0), mSize(0)
-{
-}
-
-//! close stream
 void MemoryStream::close()
 {
-   mBuffer = 0;
-   mPosition = 0;
-   mSize = 0;
+   _buffer = nullptr;
+   _position = 0;
+   _size = 0;
 }
 
-//! open file
-int MemoryStream::open(void* data, int size)
+int32_t MemoryStream::open(void* data, int32_t size)
 {
-   mBuffer = (unsigned char*)data;
-   mSize = size;
-   mPosition = 0;
+   _buffer = static_cast<uint8_t*>(data);
+   _size = size;
+   _position = 0;
 
    return 1;
 }
 
-//! get file size
-int MemoryStream::size() const
+int32_t MemoryStream::size() const
 {
-   return mSize;
+   return _size;
 }
 
-//! get current position in file
-int MemoryStream::pos() const
+int32_t MemoryStream::pos() const
 {
-   return mPosition;
+   return _position;
 }
 
-//! read buffer
-void MemoryStream::getData(void* buf, int size)
+void MemoryStream::getData(void* destination, int32_t size)
 {
-   unsigned char* dst = (unsigned char*)buf;
-   int avail = mSize - mPosition;
-   if (size > avail)
-      size = avail;
-   std::memcpy(buf, mBuffer + mPosition, size);
-   mPosition += size;
+   const int32_t available = _size - _position;
+   if (size > available)
+   {
+      size = available;
+   }
+   std::memcpy(destination, _buffer + _position, size);
+   _position += size;
 }
 
-//! write buffer
-void MemoryStream::writeData(void* buf, int size)
+void MemoryStream::writeData(void* source, int32_t size)
 {
-   std::memcpy(mBuffer + mPosition, buf, size);
-   mPosition += size;
+   std::memcpy(_buffer + _position, source, size);
+   _position += size;
 }
 
-//! skip number of bytes
-void MemoryStream::skip(int size)
+void MemoryStream::skip(int32_t size)
 {
-   mPosition += size;
+   _position += size;
 }

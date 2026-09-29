@@ -1,12 +1,9 @@
 #pragma once
 
-#include "tools/array.h"
+#include <cstdint>
+#include <vector>
 
-/// \brief GLES3 port of client/src/framework/framebuffer.cpp.
-///
-/// The legacy multisample-resolve path (EXT_framebuffer_object era) and copyTexture() are
-/// dropped - unused by any real caller so far. DepthTexture (needed by PlayerDeathEffect, which
-/// samples a dying player's depth buffer to seed its particle positions) is ported for real.
+// offscreen render target (color texture plus optional depth renderbuffer or sampleable depth texture)
 class FrameBuffer
 {
 public:
@@ -16,24 +13,26 @@ public:
       DepthTexture = 2
    };
 
-   FrameBuffer(int width, int height, int multiSample = 0, int formatFlags = 0);
+   FrameBuffer(int32_t width, int32_t height, int32_t multi_sample = 0, int32_t format_flags = 0);
    ~FrameBuffer();
 
-   static void push(FrameBuffer* fb = 0);
+   FrameBuffer(const FrameBuffer&) = delete;
+   FrameBuffer& operator=(const FrameBuffer&) = delete;
+
+   static void push(FrameBuffer* frame_buffer = nullptr);
    static void pop();
    static FrameBuffer* Instance();
 
-   int width() const;
-   int height() const;
-   // matches the original's mWidth * sqrt(mSamples) / refWidth - this port has no multisampling
-   // (mSamples is always effectively 1), so the sqrt(mSamples) term simplifies away.
-   float getSizeFactor(float refWidth) const;
-   bool setResolution(int width, int height);
-   bool resolutionChanged(int width, int height) const;
-   unsigned int texture() const;
-   unsigned int target() const;
-   unsigned int depthTexture() const;
-   void bind(int width = 0, int height = 0);
+   int32_t width() const;
+   int32_t height() const;
+   // width / refWidth (no multisampling, so no sqrt(samples) factor)
+   float getSizeFactor(float reference_width) const;
+   bool setResolution(int32_t width, int32_t height);
+   bool resolutionChanged(int32_t width, int32_t height) const;
+   uint32_t texture() const;
+   uint32_t target() const;
+   uint32_t depthTexture() const;
+   void bind(int32_t width = 0, int32_t height = 0);
    void unbind();
 
    void draw(float alpha);
@@ -41,19 +40,17 @@ public:
 private:
    void discard();
 
-   unsigned int mTarget;
-   unsigned int mTexture;
-   unsigned int mDepthBuffer;
-   unsigned int mDepthTexture;
-   int mWidth;
-   int mHeight;
-   int mFormatFlags;
+   uint32_t _target = 0;
+   uint32_t _texture = 0;
+   uint32_t _depth_buffer = 0;
+   uint32_t _depth_texture = 0;
+   int32_t _width = 0;
+   int32_t _height = 0;
+   int32_t _format_flags = 0;
 
-   static FrameBuffer* mInstance;
-   static Array<FrameBuffer*> mStack;
+   static inline FrameBuffer* _instance = nullptr;
+   static inline std::vector<FrameBuffer*> _stack;
 
-   // shared full-screen quad used by draw() - lazily created, never torn down (mirrors the
-   // process-lifetime GL objects the rest of the engine already keeps around, e.g. shader
-   // programs in GLDevice's shader table).
-   static unsigned int mQuadVertexBuffer;
+   // full-screen quad used by draw(), lazily created, kept for the process lifetime
+   static inline uint32_t _quad_vertex_buffer = 0;
 };

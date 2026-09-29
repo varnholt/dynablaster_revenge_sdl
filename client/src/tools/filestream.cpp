@@ -1,183 +1,161 @@
 #include "filestream.h"
-#include <cstdlib>
+
+#include <algorithm>
 #include <cstring>
-#include "array.h"
-#include "string.h"
+#include <vector>
 
-#define STREAMCACHESIZE (4096)
-
-static Array<String> pathList;
-
-//! construct empty stream
-FileStream::FileStream() : Stream(), mFile(0), mCacheBuf(0), mCachePos(0), mCacheLeft(0), mGlobalPos(0), mSize(0)
+namespace
 {
-   // allocate buffer for cache
-   mCacheBuf = (unsigned char*)std::malloc(STREAMCACHESIZE);
+constexpr int32_t kStreamCacheSize = 4096;
 
-   if (pathList.size() == 0)
+std::vector<String> path_list;
+}  // namespace
+
+FileStream::FileStream() : _cache_buffer(kStreamCacheSize)
+{
+   if (path_list.empty())
    {
       addPath(".");
    }
 }
 
-//! destroy stream
 FileStream::~FileStream()
 {
    close();
-   if (mCacheBuf)
-   {
-      std::free(mCacheBuf);
-      mCacheBuf = 0;
-   }
 }
 
 const String& FileStream::getPath() const
 {
-   return mPath;
+   return _path;
 }
 
 void FileStream::addPath(const String& path)
 {
-   pathList.add(path);
+   path_list.push_back(path);
 }
 
 void FileStream::removePath(const String& path)
 {
-   for (int i = 0; i < pathList.size();)
-   {
-      if (pathList[i] == path)
-         pathList.erase(i);
-      else
-         i++;
-   }
+   std::erase(path_list, path);
 }
 
 void FileStream::close()
 {
-   if (mFile)
+   if (_file)
    {
-      fclose(mFile);
-      mFile = 0;
+      std::fclose(_file);
+      _file = nullptr;
    }
 
-   mCachePos = 0;
-   mCacheLeft = 0;
-   mGlobalPos = 0;
-   mSize = 0;
+   _cache_position = 0;
+   _cache_left = 0;
+   _global_position = 0;
+   _size = 0;
 }
 
-//! open file
-int FileStream::open(const String& name, bool write)
+int32_t FileStream::open(const String& name, bool write)
 {
-   //   printf("open: %s \n", name);
-
-   mFile = 0;
+   _file = nullptr;
 
    if (write)
    {
-      mFile = fopen(name, "wb");
-      return mFile != 0;
+      _file = std::fopen(name, "wb");
+      return _file != nullptr;
    }
 
-   // alle pfade probieren (letzter zuerst)
-   for (int i = pathList.size() - 1; (i >= 0 && !mFile); i--)
+   // try all paths (last one first)
+   for (auto path = path_list.rbegin(); path != path_list.rend() && !_file; ++path)
    {
-      mPath = pathList[i] + "/" + name;
-      mFile = fopen(mPath, "rb");
+      _path = *path + "/" + name;
+      _file = std::fopen(_path, "rb");
    }
 
-   if (!mFile)
+   if (!_file)
    {
-      mPath = name;
-      mFile = fopen(mPath, "rb");
-      if (!mFile)
+      _path = name;
+      _file = std::fopen(_path, "rb");
+      if (!_file)
+      {
          return 0;
+      }
    }
 
-   fseek(mFile, 0, SEEK_END);
-   mSize = ftell(mFile);
-   fseek(mFile, 0, SEEK_SET);
+   std::fseek(_file, 0, SEEK_END);
+   _size = static_cast<int32_t>(std::ftell(_file));
+   std::fseek(_file, 0, SEEK_SET);
 
-   mCachePos = 0;
-   mCacheLeft = 0;
-   mGlobalPos = 0;
+   _cache_position = 0;
+   _cache_left = 0;
+   _global_position = 0;
    refill();
 
    return 1;
 }
 
-//! get file size
-int FileStream::size() const
+int32_t FileStream::size() const
 {
-   return mSize;
+   return _size;
 }
 
-//! get current position in file
-int FileStream::pos() const
+int32_t FileStream::pos() const
 {
-   return mGlobalPos + mCachePos;
+   return _global_position + _cache_position;
 }
 
-//! read buffer
-void FileStream::getData(void* buf, int size)
+void FileStream::getData(void* buffer, int32_t size)
 {
-   unsigned char* dst = (unsigned char*)buf;
+   auto* destination = static_cast<uint8_t*>(buffer);
    while (size > 0)
    {
-      int len = size;
-      if (len > mCacheLeft)
-         len = mCacheLeft;
-      std::memcpy(dst, mCacheBuf + mCachePos, len);
-      dst += len;
-      mCachePos += len;
-      mCacheLeft -= len;
-      if (mCacheLeft <= 0)
+      const int32_t length = std::min(size, _cache_left);
+      std::memcpy(destination, _cache_buffer.data() + _cache_position, length);
+      destination += length;
+      _cache_position += length;
+      _cache_left -= length;
+      if (_cache_left <= 0)
+      {
          refill();
-      size -= len;
+      }
+      size -= length;
    }
 }
 
-//! read buffer
-void FileStream::writeData(void* buf, int size)
+void FileStream::writeData(void* buffer, int32_t size)
 {
-   fwrite(buf, 1, size, mFile);
+   std::fwrite(buffer, 1, size, _file);
 }
 
-//! skip number of bytes
-void FileStream::skip(int size)
+void FileStream::skip(int32_t size)
 {
    while (size > 0)
    {
-      int len = mCacheLeft;
-      if (len > size)
-         len = size;
-      mCachePos += len;
-      mCacheLeft -= len;
-      size -= len;
-      if (mCacheLeft <= 0)
+      const int32_t length = std::min(_cache_left, size);
+      _cache_position += length;
+      _cache_left -= length;
+      size -= length;
+      if (_cache_left <= 0)
+      {
          refill();
+      }
    }
 }
 
-//! refill cache from file
-int FileStream::refill()
+int32_t FileStream::refill()
 {
-   mGlobalPos += mCachePos;
+   _global_position += _cache_position;
 
-   if (mCacheLeft)
+   if (_cache_left)
    {
-      // copy remaining data to front
-      std::memcpy(mCacheBuf, mCacheBuf + mCachePos, mCacheLeft);
-      // fill up the remaining space
-      mCacheLeft += (int)fread(mCacheBuf + mCacheLeft, 1, STREAMCACHESIZE - mCacheLeft, mFile);
+      // copy remaining data to front, then fill up the remaining space
+      std::memmove(_cache_buffer.data(), _cache_buffer.data() + _cache_position, _cache_left);
+      _cache_left += static_cast<int32_t>(std::fread(_cache_buffer.data() + _cache_left, 1, kStreamCacheSize - _cache_left, _file));
    }
    else
    {
-      // fill completely
-      mCacheLeft = (int)fread(mCacheBuf, 1, STREAMCACHESIZE, mFile);
+      _cache_left = static_cast<int32_t>(std::fread(_cache_buffer.data(), 1, kStreamCacheSize, _file));
    }
 
-   mCachePos = 0;
+   _cache_position = 0;
 
-   return mCacheLeft;
+   return _cache_left;
 }

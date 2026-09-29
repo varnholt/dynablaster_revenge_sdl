@@ -1,43 +1,31 @@
 // string class
-// holds a single \0-terminated character string
+// holds a single \0-terminated character string, shared copy-on-write between copies
 
 #pragma once
 
+#include <cstdint>
 #include <cstring>
+
 #include "referenced.h"
 #include "streamable.h"
 
 class String : public Referenced, public Streamable
 {
 public:
-   //! construct empty string
    String();
-
-   //! construct string from given "text"
    String(const char* text);
+   String(const String& other);  // references "other"
+   ~String() override;
 
-   //! construct reference of given string "other"
-   String(const String& other);
+   String& operator=(const String& other);  // references "other"
 
-   //! delete the string
-   virtual ~String();
-
-   //! assignment operator: reference given array
-   String& operator=(const String& other);
-
-   //! cast to char*
    operator const char*() const;
 
-   //! get char at index
-   char operator[](int index) const;
+   char operator[](int32_t index) const;
 
-   //! concat two strings, return new string
    String operator+(const String& other) const;
-
-   //! append string
    void operator+=(const String& other);
 
-   //! comparism
    bool operator==(const String& other) const;
    bool operator==(const char* other) const;
    bool operator!=(const String& other) const;
@@ -46,41 +34,29 @@ public:
 
    String& operator<<(Stream& stream);
 
-   //! is empty string?
    bool isEmpty() const;
-
-   //! clear the string
    void clear();
-
-   //! apend string
    void append(const String& other);
 
-   //! get index of substring "other"
-   int indexOf(const String& other) const;
+   // index of substring "other", -1 if not found
+   int32_t indexOf(const String& other) const;
 
-   //! get middle part of string
-   String mid(int start, int end) const;
+   // characters [start, end)
+   String mid(int32_t start, int32_t end) const;
 
-   //! get char at index
-   char get(int index) const;
-
-   //! get char pointer
+   char get(int32_t index) const;
    const char* data() const;
+   int32_t size() const;
 
-   //! return size of string
-   int size() const;
-
-   //! load string from stream
-   void load(Stream* stream);
-
-   //! write string to stream
-   void write(Stream* stream);
+   void load(Stream* stream) override;
+   void write(Stream* stream) override;
 
 private:
-   void alloc(int size);
+   void alloc(int32_t size);
    void dealloc();
    char* dataIntern() const;
-   void setSize(int size);
+   void setSize(int32_t size);
 
-   char* mData;  //!< string data (null pointer for empty strings)
+   // text, preceded by an int32_t length field in the same allocation (null for empty strings)
+   char* _data = nullptr;
 };

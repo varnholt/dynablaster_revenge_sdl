@@ -13,134 +13,135 @@ public:
    {
    public:
       // constructor
-      Node(const KeyType& key, const ValueType& value) : mLeft(0), mRight(0), mParent(0), mColor(0), mKey(key), mValue(value)
+      Node(const KeyType& key, const ValueType& value) : _key(key), _value(value)
       {
       }
 
       bool isBlack() const
       {
-         return mColor == 'B';
+         return _color == 'B';
       }
 
       bool isRed() const
       {
-         return mColor == 'R';
+         return _color == 'R';
       }
 
       void setRed()
       {
-         mColor = 'R';
+         _color = 'R';
       }
 
       void setBlack()
       {
-         mColor = 'B';
+         _color = 'B';
       }
 
       void setColor(char color)
       {
-         mColor = color;
+         _color = color;
       }
 
       char color() const
       {
-         return mColor;
+         return _color;
       }
 
       Node* next()
       {
-         Node* x = (Node*)this;
-         if (x->mRight && x->mRight->mParent != 0)
+         Node* x = this;
+         if (x->_right && x->_right->_parent != nullptr)
          {
-            x = x->mRight;
+            x = x->_right;
 
-            while (x->mLeft && x->mLeft->mParent != 0)
+            while (x->_left && x->_left->_parent != nullptr)
             {
-               x = x->mLeft;
+               x = x->_left;
             }
 
             return x;
          }
 
-         Node* y = x->mParent;
+         Node* y = x->_parent;
 
-         while (y->mParent != 0 && x == y->mRight)
+         while (y->_parent != nullptr && x == y->_right)
          {
             x = y;
-            y = y->mParent;
+            y = y->_parent;
          }
 
-         if (y->mKey > mKey)
+         if (y->_key > _key)
+         {
             return y;
-         else
-            return 0;
+         }
+         return nullptr;
       }
 
-      Node* mLeft;
-      Node* mRight;
-      Node* mParent;
-      char mColor;
-      KeyType mKey;
-      ValueType mValue;
+      Node* _left = nullptr;
+      Node* _right = nullptr;
+      Node* _parent = nullptr;
+      char _color = 0;
+      KeyType _key;
+      ValueType _value;
    };
 
    class Iterator
    {
    public:
-      Iterator() : mNode(0)
-      {
-      }
+      Iterator() = default;
 
-      Iterator(Node* node) : mNode(node)
+      Iterator(Node* node) : _node(node)
       {
       }
 
       const KeyType& key() const
       {
-         return mNode->mKey;
+         return _node->_key;
       }
 
       const ValueType& value() const
       {
-         return mNode->mValue;
+         return _node->_value;
       }
 
       Node* node() const
       {
-         return mNode;
+         return _node;
       }
 
       Iterator& operator++(int)
       {
-         mNode = mNode->next();
+         _node = _node->next();
          return *this;
       }
 
       bool operator!=(const Iterator& other)
       {
-         return (mNode != other.node());
+         return (_node != other.node());
       }
 
    private:
-      Node* mNode;
+      Node* _node = nullptr;
    };
 
    // constructor
-   RbTreeMap() : mRoot(0)
-   {
-   }
+   RbTreeMap() = default;
+   RbTreeMap(const RbTreeMap&) = delete;
+   RbTreeMap& operator=(const RbTreeMap&) = delete;
 
    // destructor
    ~RbTreeMap()
    {
-      postOrderDelete(mRoot);
+      postOrderDelete(_root);
    }
 
    Iterator begin() const
    {
-      Node* node = mRoot;
-      while (node->mLeft)
-         node = node->mLeft;
+      Node* node = _root;
+      while (node->_left)
+      {
+         node = node->_left;
+      }
       return Iterator(node);
    }
 
@@ -152,16 +153,14 @@ public:
 
    Iterator end() const
    {
-      //      Node *node= mRoot;
-      //      while (node->mRight) node= node->mRight;
-      return Iterator(0);
+      return Iterator(nullptr);
    }
 
    // get list of values
    Array<ValueType> valueList() const
    {
       Array<ValueType> list;
-      traverseValues(mRoot, list);
+      traverseValues(_root, list);
       return list;
    }
 
@@ -169,7 +168,7 @@ public:
    Array<KeyType> keyList() const
    {
       Array<KeyType> list;
-      traverseKeys(mRoot, list);
+      traverseKeys(_root, list);
       return list;
    }
 
@@ -177,7 +176,7 @@ public:
    bool contains(const KeyType& key)
    {
       Node* x = findNode(key);
-      return (x != 0);
+      return (x != nullptr);
    }
 
    // insert key
@@ -185,35 +184,45 @@ public:
    {
       Node *x, *y, *z;
 
-      y = 0;
-      x = mRoot;
+      y = nullptr;
+      x = _root;
 
-      while (x != 0)
+      while (x != nullptr)
       {
          y = x;
-         if (key < x->mKey)
-            x = x->mLeft;
-         else if (key > x->mKey)
-            x = x->mRight;
+         if (key < x->_key)
+         {
+            x = x->_left;
+         }
+         else if (key > x->_key)
+         {
+            x = x->_right;
+         }
          else
          {
-            x->mValue = value;
+            x->_value = value;
             return false;
          }
       }
 
       z = new Node(key, value);
-      z->mParent = y;
+      z->_parent = y;
       z->setRed();
 
-      if (y == 0)
-         mRoot = z;
+      if (y == nullptr)
+      {
+         _root = z;
+      }
       else
       {
-         if (key < y->mKey)
-            y->mLeft = z;
+         if (key < y->_key)
+         {
+            y->_left = z;
+         }
          else
-            y->mRight = z;
+         {
+            y->_right = z;
+         }
       }
 
       fixup(z);
@@ -225,28 +234,37 @@ public:
    bool remove(const KeyType& key)
    {
       Node* x = findNode(key);
-      if (x == 0)
+      if (x == nullptr)
+      {
          return false;
+      }
       remove(x);
       delete x;
+      return true;
    }
 
 private:
    Node* findNode(const KeyType& key) const
    {
-      Node* x = mRoot;
+      Node* x = _root;
 
-      while (x != 0)
+      while (x != nullptr)
       {
-         if (key < x->mKey)
-            x = x->mLeft;
-         else if (key > x->mKey)
-            x = x->mRight;
+         if (key < x->_key)
+         {
+            x = x->_left;
+         }
+         else if (key > x->_key)
+         {
+            x = x->_right;
+         }
          else
+         {
             return x;
+         }
       }
 
-      return 0;
+      return nullptr;
    }
 
    // delete key
@@ -254,32 +272,50 @@ private:
    {
       Node *x, *y;
 
-      if (z->mLeft == 0 || z->mRight == 0)
+      if (z->_left == nullptr || z->_right == nullptr)
+      {
          y = z;
-      else
-         y = z->next();
-
-      if (y->mLeft != 0)
-         x = y->mLeft;
-      else
-         x = y->mRight;
-
-      x->mParent = y->mParent;
-      if (y->mParent == 0)
-         mRoot = x;
+      }
       else
       {
-         if (y == y->mParent->mLeft)
-            y->mParent->mLeft = x;
+         y = z->next();
+      }
+
+      if (y->_left != nullptr)
+      {
+         x = y->_left;
+      }
+      else
+      {
+         x = y->_right;
+      }
+
+      x->_parent = y->_parent;
+      if (y->_parent == nullptr)
+      {
+         _root = x;
+      }
+      else
+      {
+         if (y == y->_parent->_left)
+         {
+            y->_parent->_left = x;
+         }
          else
-            y->mParent->mRight = x;
+         {
+            y->_parent->_right = x;
+         }
       }
 
       if (y != z)
+      {
          y->set(z);
+      }
 
       if (y->isBlack())
+      {
          delete_fixup(x);
+      }
 
       return true;
    }
@@ -288,20 +324,28 @@ private:
    int leftRotate(Node* x)
    {
       Node* y;
-      y = x->mRight;
-      x->mRight = y->mLeft;
-      if (y->mLeft)
-         y->mLeft->mParent = x;
-      y->mParent = x->mParent;
+      y = x->_right;
+      x->_right = y->_left;
+      if (y->_left)
+      {
+         y->_left->_parent = x;
+      }
+      y->_parent = x->_parent;
 
-      if (x->mParent == 0)
-         mRoot = y;
-      else if (x == x->mParent->mLeft)
-         x->mParent->mLeft = y;
+      if (x->_parent == nullptr)
+      {
+         _root = y;
+      }
+      else if (x == x->_parent->_left)
+      {
+         x->_parent->_left = y;
+      }
       else
-         x->mParent->mRight = y;
-      y->mLeft = x;
-      x->mParent = y;
+      {
+         x->_parent->_right = y;
+      }
+      y->_left = x;
+      x->_parent = y;
       return 0;
    }
 
@@ -310,20 +354,28 @@ private:
    {
       Node* y;
 
-      y = x->mLeft;
-      x->mLeft = y->mRight;
-      if (y->mRight)
-         y->mRight->mParent = x;
-      y->mParent = x->mParent;
+      y = x->_left;
+      x->_left = y->_right;
+      if (y->_right)
+      {
+         y->_right->_parent = x;
+      }
+      y->_parent = x->_parent;
 
-      if (x->mParent == 0)
-         mRoot = y;
-      else if (x == x->mParent->mRight)
-         x->mParent->mRight = y;
+      if (x->_parent == nullptr)
+      {
+         _root = y;
+      }
+      else if (x == x->_parent->_right)
+      {
+         x->_parent->_right = y;
+      }
       else
-         x->mParent->mLeft = y;
-      y->mRight = x;
-      x->mParent = y;
+      {
+         x->_parent->_left = y;
+      }
+      y->_right = x;
+      x->_parent = y;
       return 0;
    }
 
@@ -332,61 +384,59 @@ private:
    {
       Node* y;
 
-      while (z->mParent && z->mParent->isRed())
+      while (z->_parent && z->_parent->isRed())
       {
-         if (z->mParent == z->mParent->mParent->mLeft)
+         if (z->_parent == z->_parent->_parent->_left)
          {
-            y = z->mParent->mParent->mRight;
+            y = z->_parent->_parent->_right;
 
             if (y && y->isRed())
             {
-               z->mParent->setBlack();
+               z->_parent->setBlack();
                y->setBlack();
-               z->mParent->mParent->setRed();
-               z = z->mParent->mParent;
+               z->_parent->_parent->setRed();
+               z = z->_parent->_parent;
             }
             else
             {
-               if (z == z->mParent->mRight)
+               if (z == z->_parent->_right)
                {
-                  z = z->mParent;
+                  z = z->_parent;
                   leftRotate(z);
                }
 
-               z->mParent->setBlack();
-               z->mParent->mParent->setRed();
-               ;
-               rightRotate(z->mParent->mParent);
+               z->_parent->setBlack();
+               z->_parent->_parent->setRed();
+               rightRotate(z->_parent->_parent);
             }
          }
          else
          {
-            y = z->mParent->mParent->mLeft;
+            y = z->_parent->_parent->_left;
 
             if (y && y->isRed())
             {
-               z->mParent->setBlack();
+               z->_parent->setBlack();
                y->setBlack();
-               z->mParent->mParent->setRed();
-               z = z->mParent->mParent;
+               z->_parent->_parent->setRed();
+               z = z->_parent->_parent;
             }
             else
             {
-               if (z == z->mParent->mLeft)
+               if (z == z->_parent->_left)
                {
-                  z = z->mParent;
+                  z = z->_parent;
                   rightRotate(z);
                }
-               z->mParent->setBlack();
-               z->mParent->mParent->setRed();
-               leftRotate(z->mParent->mParent);
+               z->_parent->setBlack();
+               z->_parent->_parent->setRed();
+               leftRotate(z->_parent->_parent);
             }
          }
       }
 
-      mRoot->setBlack();
+      _root->setBlack();
 
-      y = 0;
       return 0;
    }
 
@@ -395,69 +445,69 @@ private:
    {
       Node* w;
 
-      while (x != mRoot && x->isBlack())
+      while (x != _root && x->isBlack())
       {
-         if (x == x->mParent->mLeft)
+         if (x == x->_parent->_left)
          {
-            w = x->mParent->mRight;
+            w = x->_parent->_right;
 
             if (w->isRed())
             {
                w->setBlack();
-               x->mParent->setRed();
-               leftRotate(x->mParent);
-               w = x->mParent->mRight;
+               x->_parent->setRed();
+               leftRotate(x->_parent);
+               w = x->_parent->_right;
             }
 
-            if (w->mLeft->isBlack() && w->mRight->isBlack())
+            if (w->_left->isBlack() && w->_right->isBlack())
             {
                w->setRed();
-               x = x->mParent;
+               x = x->_parent;
             }
-            else if (w->mRight->isBlack())
+            else if (w->_right->isBlack())
             {
-               w->mLeft->setBlack();
+               w->_left->setBlack();
                w->setRed();
                rightRotate(w);
-               w = x->mParent->mRight;
+               w = x->_parent->_right;
             }
 
-            w->setColor(x->mParent->color());
-            x->mParent->setBlack();
-            w->mRight->setBlack();
-            leftRotate(x->mParent);
-            x = mRoot;
+            w->setColor(x->_parent->color());
+            x->_parent->setBlack();
+            w->_right->setBlack();
+            leftRotate(x->_parent);
+            x = _root;
          }
          else
          {
-            w = x->mParent->mLeft;
+            w = x->_parent->_left;
 
             if (w->isRed())
             {
                w->setBlack();
-               x->mParent->setRed();
-               rightRotate(x->mParent);
-               w = x->mParent->mLeft;
+               x->_parent->setRed();
+               rightRotate(x->_parent);
+               w = x->_parent->_left;
             }
 
-            if (w->mRight->isBlack() && w->mLeft->isBlack())
+            if (w->_right->isBlack() && w->_left->isBlack())
             {
                w->setRed();
-               x = x->mParent;
+               x = x->_parent;
             }
-            else if (w->mLeft->isBlack())
+            else if (w->_left->isBlack())
             {
-               w->mRight->setBlack();
+               w->_right->setBlack();
                w->setRed();
                leftRotate(w);
-               w = x->mParent->mLeft;
+               w = x->_parent->_left;
             }
 
-            w->setColor(x->mParent->color());
-            x->mParent->setBlack();
-            w->mLeft->setBlack();
-            rightRotate(x->mParent);
-            x = mRoot;
+            w->setColor(x->_parent->color());
+            x->_parent->setBlack();
+            w->_left->setBlack();
+            rightRotate(x->_parent);
+            x = _root;
          }
       }
 
@@ -469,36 +519,36 @@ private:
    // in-order traverse
    void traverseValues(Node* n, Array<ValueType>& list) const
    {
-      if (n != 0)
+      if (n != nullptr)
       {
-         traverseValues(n->mLeft, list);
-         list.add(n->mValue);
-         traverseValues(n->mRight, list);
+         traverseValues(n->_left, list);
+         list.add(n->_value);
+         traverseValues(n->_right, list);
       }
    }
 
    // in-order traverse
    void traverseKeys(Node* n, Array<KeyType>& list) const
    {
-      if (n != 0)
+      if (n != nullptr)
       {
-         traverseKeys(n->mLeft, list);
-         list.add(n->mKey);
-         traverseKeys(n->mRight, list);
+         traverseKeys(n->_left, list);
+         list.add(n->_key);
+         traverseKeys(n->_right, list);
       }
    }
 
    // recursive delete of all nodes
    void postOrderDelete(Node* n)
    {
-      if (n != 0)
+      if (n != nullptr)
       {
-         postOrderDelete(n->mLeft);
-         postOrderDelete(n->mRight);
+         postOrderDelete(n->_left);
+         postOrderDelete(n->_right);
          delete n;
       }
    }
 
 private:
-   Node* mRoot; /*root*/
+   Node* _root = nullptr;
 };

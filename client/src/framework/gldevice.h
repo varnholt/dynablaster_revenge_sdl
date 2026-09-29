@@ -1,155 +1,120 @@
 #pragma once
 
-// Materials call raw gl* functions directly (not just through activeDevice->), the same way
-// they did when the legacy gldevice.h pulled in framework/glext.h for that exact reason - so
-// this exposes the GLES3 declarations too, rather than making every material .cpp add its own
-// include.
+// materials call raw gl* functions directly, so the GLES3 declarations are exposed here too
 #include "../gles3.h"
 #include "renderdevice.h"
 
+#include <cstdint>
 #include <map>
 
-/// \brief GLES3 replacement for the legacy desktop-GL/ARB-shader-object device.
-///
-/// The legacy implementation drove OpenGL's fixed-function matrix stack (glMatrixMode /
-/// glFrustum / glMultMatrixf / glLoadMatrixf) and relied on shaders reading it back implicitly
-/// through compatibility-profile built-ins (gl_ModelViewMatrix, gl_ProjectionMatrix,
-/// gl_NormalMatrix, gl_Vertex, gl_MultiTexCoord0). None of that exists in GLES3, so this version
-/// computes the same matrices on the CPU (using the engine's own Matrix class, which already had
-/// frustum()/ortho() helpers) and uploads them as plain uniforms - "u_modelView", "u_projection",
-/// "u_normalMatrix" and "u_modelViewProjection" - to whichever of those names a given shader
-/// happens to declare. Materials keep calling activeDevice->push()/pop()/setCamera() exactly as
-/// before; only the internals changed.
-///
-/// setMaterial() (fixed-function per-vertex lighting via glMaterialfv) and uploadTexture1D()
-/// (GL_TEXTURE_1D, which GLES has no equivalent for) are both already dead in practice - every
-/// call site is commented out except one, itself inside code that still needs its immediate-mode
-/// draw calls ported - so they are stubs here rather than real implementations.
-///
-/// Materials also used to call glEnable/glDisable(GL_TEXTURE_2D) and glEnable/glDisable(
-/// GL_ALPHA_TEST) before every glBindTexture - neither is a real capability in GLES3 (texturing
-/// is implicit via shaders, alpha test is gone, `discard` in the fragment shader instead). Native
-/// GLES3 drivers silently ignore the invalid enum; WebGL2 raises INVALID_ENUM on it every frame.
-/// Removed tree-wide (blockmaterial/bombexplosionshader/destructionmaterial/displacementmaterial/
-/// environment*material/invisibilitymaterial/playermaterial/shadowbillboard/skullmaterial) -
-/// glBindTexture is the only call that ever did anything.
+// GLES3 render device. The matrices are computed on the CPU and uploaded as the uniforms
+// "u_modelView", "u_projection", "u_normalMatrix" and "u_modelViewProjection" to whichever of those
+// a shader declares. The camera matrix is folded into the projection slot (see setCamera()).
 class GLDevice : public RenderDevice
 {
 public:
-   bool init();
+   bool init() override;
 
-   void resize(int x, int y);
-   void setViewPort(int x, int y, int width, int height);
-   void getViewPort(int* x, int* y, int* width, int* height);
-   void convertFromViewPort(int* x, int* y, int targetWidth, int targetHeight);
-   void clear();
+   void resize(int32_t x, int32_t y) override;
+   void setViewPort(int32_t x, int32_t y, int32_t width, int32_t height) override;
+   void getViewPort(int32_t* x, int32_t* y, int32_t* width, int32_t* height) override;
+   void convertFromViewPort(int32_t* x, int32_t* y, int32_t target_width, int32_t target_height) override;
+   void clear() override;
 
-   /// \brief clears the currently bound framebuffer with an explicit color, then restores the
-   /// device's default clear color. Needed by offscreen compositing passes (SphereFragmentsDrawable's
-   /// mEarthFb/mAuraFb/mBombFb) that must clear to alpha=0 - clear() alone always reuses the global
-   /// opaque (alpha=1) clear color set in init(), which is correct for the main screen but wrong for
-   /// a buffer that gets alpha-blended onto something else afterward.
+   // clears with an explicit color (e.g. alpha=0 for offscreen buffers blended later),
+   // then restores the default clear color
    void clear(float r, float g, float b, float a);
 
-   void setPerspective(float fov, float aspect, float zNear = 1.0f, float zFar = 5000.0f);
-   void setCamera(const Matrix& m, float fov, float zNear = 1.0f, float zFar = 1000.0f, bool perspective = true);
-   void push(const Matrix& mat);
-   void pop();
+   void setPerspective(float fov, float aspect, float z_near = 1.0f, float z_far = 5000.0f) override;
+   void setCamera(const Matrix& matrix, float fov, float z_near = 1.0f, float z_far = 1000.0f, bool perspective = true) override;
+   void push(const Matrix& matrix) override;
+   void pop() override;
 
-   /// \brief reads the combined projection*view matrix setCamera() last computed.
-   /// replaces the legacy glGetFloatv(GL_PROJECTION_MATRIX, ...) readback a few materials used
-   /// to pull the shadow camera's matrix out after a temporary setCamera() call.
+   // combined projection*view matrix computed by the last setCamera()
    Matrix getProjectionMatrix() const
    {
-      return mProjectionMatrix;
+      return _projection_matrix;
    }
 
-   /// \brief saves the current projection matrix (single slot - callers don't nest this).
-   /// pairs with popProjection() to protect the main camera's projection across a material's
-   /// temporary setCamera() call for its own shadow camera, mirroring the legacy
-   /// glMatrixMode(GL_PROJECTION)/glPushMatrix()/glPopMatrix() bracket.
+   // single-slot save/restore of the projection matrix around a temporary setCamera() (not nestable)
    void pushProjection()
    {
-      mSavedProjectionMatrix = mProjectionMatrix;
+      _saved_projection_matrix = _projection_matrix;
    }
 
    void popProjection()
    {
-      mProjectionMatrix = mSavedProjectionMatrix;
+      _projection_matrix = _saved_projection_matrix;
    }
 
-   /// \brief directly assigns the projection matrix, bypassing setCamera()'s 3D frustum/ortho
-   /// computation - used by 2D screen-space rendering (the menu system) which builds its own
-   /// pixel-space ortho matrix via Matrix::ortho() instead.
-   void setProjectionMatrix(const Matrix& mat)
+   // assigns the projection matrix directly, used by 2D screen-space rendering
+   void setProjectionMatrix(const Matrix& matrix)
    {
-      mProjectionMatrix = mat;
+      _projection_matrix = matrix;
    }
 
-   unsigned int createVertexBuffer(int size, bool dynamic = false);
-   void allocateVertexBuffer(unsigned int buffer, int size, bool dyn = false);
-   void* lockVertexBuffer(unsigned int handle, int size = 0);
-   void unlockVertexBuffer(unsigned int buf);
+   uint32_t createVertexBuffer(int32_t size, bool dynamic = false) override;
+   void allocateVertexBuffer(uint32_t buffer, int32_t size, bool dynamic = false) override;
+   void* lockVertexBuffer(uint32_t handle, int32_t size = 0) override;
+   void unlockVertexBuffer(uint32_t buffer) override;
 
-   unsigned int createIndexBuffer(int size, bool dyn = false);
-   void allocateIndexBuffer(unsigned int buf, int size, bool dyn = false);
-   void* lockIndexBuffer(unsigned int handle, int size = 0);
-   void unlockIndexBuffer(unsigned int buf);
-   void setCulling(bool state);
-   void setMaterial(const Vector& amb, const Vector& dif, const Vector& spc, float shine);
+   uint32_t createIndexBuffer(int32_t size, bool dynamic = false) override;
+   void allocateIndexBuffer(uint32_t buffer, int32_t size, bool dynamic = false) override;
+   void* lockIndexBuffer(uint32_t handle, int32_t size = 0) override;
+   void unlockIndexBuffer(uint32_t buffer) override;
+   void setCulling(bool state) override;
+   void setMaterial(const Vector& ambient, const Vector& diffuse, const Vector& specular, float shine) override;
 
-   void drawLine(Vector* v);
+   void drawLine(Vector* vertices) override;
 
-   unsigned int createTexture(void* data, int x, int y, int flags = 3);
-   void deleteTexture(unsigned int textureId);
-   void updateTexture(void* data, int x, int y, int flags);
+   uint32_t createTexture(void* data, int32_t x, int32_t y, int32_t flags = 3) override;
+   void deleteTexture(uint32_t texture_id) override;
+   void updateTexture(void* data, int32_t x, int32_t y, int32_t flags) override;
 
-   unsigned int uploadTexture1D(void* data, int x, int flags = 0);
-   unsigned int loadShader(const char* vname, const char* pname);
-   void setShader(unsigned int shader);
-   int getParameterIndex(const char* name);
-   void bindSampler(int pos, int unit);
-   void setParameter(int pos, float* data, int size);
-   void setParameter(int pos, const Vector& vector);
-   void setParameter(int pos, const Vector2& vector);
-   void setParameter(int pos, const Vector4& vector);
-   void setParameter(int pos, const Matrix& mat);
-   void setParameter(int pos, const Matrix* mat, int count);
-   void setParameter(int pos, float f);
+   uint32_t uploadTexture1D(void* data, int32_t x, int32_t flags = 0) override;
+   uint32_t loadShader(const char* vertex_name, const char* fragment_name) override;
+   void setShader(uint32_t shader) override;
+   int32_t getParameterIndex(const char* name) override;
+   void bindSampler(int32_t position, int32_t unit) override;
+   void setParameter(int32_t position, float* data, int32_t size) override;
+   void setParameter(int32_t position, const Vector& vector) override;
+   void setParameter(int32_t position, const Vector2& vector) override;
+   void setParameter(int32_t position, const Vector4& vector) override;
+   void setParameter(int32_t position, const Matrix& matrix) override;
+   void setParameter(int32_t position, const Matrix* matrix, int32_t count) override;
+   void setParameter(int32_t position, float value) override;
 
-   unsigned int createBuffer();
-   void deleteBuffer(unsigned int buffer);
+   uint32_t createBuffer() override;
+   void deleteBuffer(uint32_t buffer) override;
 
-   void setSwapInterval(int interval);
+   void setSwapInterval(int32_t interval) override;
 
 private:
-   /// \brief a linked program plus the reserved-name uniform locations push()/setCamera() feed.
+   // a linked program plus the reserved-name uniform locations push()/setCamera() feed
    struct ShaderInfo
    {
-      unsigned int program = 0;
-      int locModelView = -1;
-      int locProjection = -1;
-      int locNormalMatrix = -1;
-      int locModelViewProjection = -1;
+      uint32_t program = 0;
+      int32_t model_view_location = -1;
+      int32_t projection_location = -1;
+      int32_t normal_matrix_location = -1;
+      int32_t model_view_projection_location = -1;
    };
 
    void uploadTransformUniforms();
 
-   std::map<unsigned int, ShaderInfo> mShaderTable;
-   unsigned int mShaderAllocIndex = 0;
+   std::map<uint32_t, ShaderInfo> _shader_table;
+   uint32_t _shader_alloc_index = 0;
 
-   int mViewPortX = 0;
-   int mViewPortY = 0;
-   int mViewPortWidth = 0;
-   int mViewPortHeight = 0;
+   int32_t _viewport_x = 0;
+   int32_t _viewport_y = 0;
+   int32_t _viewport_width = 0;
+   int32_t _viewport_height = 0;
 
-   Matrix mProjectionMatrix;
-   Matrix mSavedProjectionMatrix;
-   Matrix mWorldTransform;
+   Matrix _projection_matrix;
+   Matrix _saved_projection_matrix;
+   Matrix _world_transform;
 
-   // lock*Buffer() is always called right after the matching allocate*Buffer() with no size
-   // argument of its own (mirroring the legacy glMapBuffer() call, which mapped the whole
-   // buffer); glMapBufferRange() needs an explicit length, so the last allocated size is cached.
-   int mLastVertexBufferSize = 0;
-   int mLastIndexBufferSize = 0;
+   // glMapBufferRange() needs an explicit length; lock*Buffer() without a size maps the last allocated size
+   int32_t _last_vertex_buffer_size = 0;
+   int32_t _last_index_buffer_size = 0;
 };
