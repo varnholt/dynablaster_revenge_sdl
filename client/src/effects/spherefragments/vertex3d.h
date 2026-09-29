@@ -2,18 +2,16 @@
 
 #include "math/vector.h"
 
-class Vertex3D
+// interleaved vbo layout, uploaded as-is
+struct Vertex3D
 {
-public:
-   Vertex3D() : mU(0.0f), mV(0.0f), mIndex(0.0f), mBlend(0.0f)
-   {
-   }
-
-   Vector mPosition;
-   Vector mNormal;
-   float mU;
-   float mV;
-   float mIndex;
-   float mBlend;
-   Vector mTangent;
+   Vector position;
+   Vector normal;
+   float u = 0.0f;
+   float v = 0.0f;
+   float index = 0.0f;
+   float blend = 0.0f;
+   Vector tangent;
 };
+
+static_assert(sizeof(Vertex3D) == 13 * sizeof(float));

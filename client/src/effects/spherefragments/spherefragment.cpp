@@ -10,174 +10,157 @@
 #include "tools/random.h"
 #include "vertex3d.h"
 
-// cmath
+#include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <numbers>
+
 namespace
 {
-// MSVC only defines M_PI when _USE_MATH_DEFINES is set before every <math.h> include site
-// (fragile project-wide), so this is a self-contained local constant instead - same pattern
-// already established in menus/menupagefadeanimation.cpp.
-constexpr float kPi = 3.14159265358979323846f;
+constexpr float PI = std::numbers::pi_v<float>;
 }  // namespace
 
-SphereFragment::SphereFragment(const Array<Mesh*>& meshList, Image* orderImage) : mVertexBuffer(0), mIndexBuffer(0)
+SphereFragment::SphereFragment(const std::vector<Mesh*>& meshes, const Image* order_image)
 {
-   mMatrix.init(meshList.size());
+   _matrix.reserve(meshes.size());
 
-   mVertexCount = 0;
-   mIndexCount = 0;
-
-   for (int mIndex = 0; mIndex < meshList.size(); mIndex++)
+   for (const Mesh* mesh : meshes)
    {
-      Mesh* mesh = meshList[mIndex];
-      const Matrix& mat = mesh->getTransform();
-      Geometry* geo = mesh->getPart(0);
+      const Matrix& matrix = mesh->getTransform();
+      const Geometry* geometry = mesh->getPart(0);
 
-      float order = 0.0f;
-
-      Vector pos = mat.translation();
-
-      Vector p = pos;
+      Vector p = matrix.translation();
       p.normalize();
       p += Vector(0, 0, 1);
 
-      float m = 0.5f / std::sqrt(p * p);
-      float u = 0.5f + p.x * m;
-      float v = 0.5f + p.y * m;
+      const float m = 0.5f / std::sqrt(p * p);
+      const float u = 0.5f + p.x * m;
+      const float v = 0.5f + p.y * m;
 
-      unsigned int rgb = orderImage->getPixel(u, v);
-      order = ((rgb >> 16 & 255) + (rgb >> 8 & 255) + (rgb & 255)) / 96.0f;
+      const uint32_t rgb = order_image->getPixel(u, v);
+      const float order = ((rgb >> 16 & 255) + (rgb >> 8 & 255) + (rgb & 255)) / 96.0f;
 
-      mVertexCount += geo->getVertexCount();
-      mIndexCount += geo->getIndexCount();
-      mMatrix.add(mat);
+      _vertex_count += geometry->getVertexCount();
+      _index_count += geometry->getIndexCount();
+      _matrix.push_back(matrix);
 
-      mRandom.add(frand(1.0f));
-      mModelView.add(Matrix());
-      mFresnelFactors.add(1.0f);
-      mTime.add(order);
+      _random.push_back(frand(1.0f));
+      _model_view.emplace_back();
+      _fresnel_factors.push_back(1.0f);
+      _time.push_back(order);
    }
 
    // create vertex and index buffer
-   mVertexBuffer = activeDevice->createVertexBuffer(mVertexCount * sizeof(Vertex3D));
+   _vertex_buffer = activeDevice->createVertexBuffer(_vertex_count * sizeof(Vertex3D));
 
    // fill vertex buffer
-   Vertex3D* vtx = (Vertex3D*)activeDevice->lockVertexBuffer(mVertexBuffer);
+   auto* vertex = static_cast<Vertex3D*>(activeDevice->lockVertexBuffer(_vertex_buffer));
 
-   for (int m = 0; m < meshList.size(); m++)
+   for (size_t m = 0; m < meshes.size(); m++)
    {
-      Mesh* mesh = meshList[m];
-      const Matrix& mat = mesh->getTransform();
-      Matrix norm = mat.get3x3();
-      Geometry* geo = mesh->getPart(0);
-      Vector* vertices = geo->getVertices();
-      Vector* normals = geo->getNormals();
-      UV* uvs = geo->getUV(1);
+      const Mesh* mesh = meshes[m];
+      const Matrix& matrix = mesh->getTransform();
+      const Matrix normal_matrix = matrix.get3x3();
+      const Geometry* geometry = mesh->getPart(0);
+      const Vector* vertices = geometry->getVertices();
+      const Vector* normals = geometry->getNormals();
+      const UV* uvs = geometry->getUV(1);
 
-      for (int v = 0; v < geo->getVertexCount(); v++)
+      for (int32_t v = 0; v < geometry->getVertexCount(); v++)
       {
          const Vector& p = vertices[v];
          const Vector& n = normals[v];
 
-         Vector surface = mat * p;
-         Vector nrm = norm * n;
+         Vector surface = matrix * p;
+         const Vector normal = normal_matrix * n;
          surface.normalize();
 
-         float orientation = (nrm * surface);
-         if (orientation < 0.0f)
-            orientation = 0.0f;
+         const float orientation = std::max(normal * surface, 0.0f);
 
-         vtx->mPosition.x = p.x;
-         vtx->mPosition.y = p.y;
-         vtx->mPosition.z = p.z;
-         vtx->mNormal.x = n.x;
-         vtx->mNormal.y = n.y;
-         vtx->mNormal.z = n.z;
-         vtx->mU = uvs[v].u;
-         vtx->mV = uvs[v].v;
-         vtx->mIndex = (float)m;
-         vtx->mBlend = orientation * orientation;
-         vtx->mTangent.x = -n.y;
-         vtx->mTangent.y = n.x;
-         vtx->mTangent.z = 0.0f;
-         vtx++;
+         vertex->position.x = p.x;
+         vertex->position.y = p.y;
+         vertex->position.z = p.z;
+         vertex->normal.x = n.x;
+         vertex->normal.y = n.y;
+         vertex->normal.z = n.z;
+         vertex->u = uvs[v].u;
+         vertex->v = uvs[v].v;
+         vertex->index = static_cast<float>(m);
+         vertex->blend = orientation * orientation;
+         vertex->tangent.x = -n.y;
+         vertex->tangent.y = n.x;
+         vertex->tangent.z = 0.0f;
+         vertex++;
       }
    }
 
-   activeDevice->unlockVertexBuffer(mVertexBuffer);
+   activeDevice->unlockVertexBuffer(_vertex_buffer);
 
    // fill index buffer
-   mIndexBuffer = activeDevice->createIndexBuffer(mIndexCount * sizeof(unsigned short));
-   unsigned short* idx = (unsigned short*)activeDevice->lockIndexBuffer(mIndexBuffer);
-   unsigned short offset = 0;
-   for (int i = 0; i < meshList.size(); i++)
+   _index_buffer = activeDevice->createIndexBuffer(_index_count * sizeof(uint16_t));
+   auto* index = static_cast<uint16_t*>(activeDevice->lockIndexBuffer(_index_buffer));
+   uint16_t offset = 0;
+   for (const Mesh* mesh : meshes)
    {
-      Mesh* mesh = meshList[i];
-      Geometry* geo = mesh->getPart(0);
-      unsigned short* indices = geo->getIndices();
-      for (int v = 0; v < geo->getIndexCount(); v++)
+      const Geometry* geometry = mesh->getPart(0);
+      const uint16_t* indices = geometry->getIndices();
+      for (int32_t i = 0; i < geometry->getIndexCount(); i++)
       {
-         unsigned short index = indices[v];
-         *idx++ = offset + index;
+         *index++ = offset + indices[i];
       }
-      offset += geo->getVertexCount();
+      offset += geometry->getVertexCount();
    }
-   activeDevice->unlockIndexBuffer(mIndexBuffer);
+   activeDevice->unlockIndexBuffer(_index_buffer);
 }
 
-int SphereFragment::getPartCount() const
+int32_t SphereFragment::getPartCount() const
 {
-   return mMatrix.size();
+   return static_cast<int32_t>(_matrix.size());
 }
 
-Matrix* SphereFragment::getMatrices() const
+const Matrix* SphereFragment::getMatrices() const
 {
-   return mModelView.data();
+   return _model_view.data();
 }
 
-float* SphereFragment::getFresnelFactors() const
+float* SphereFragment::getFresnelFactors()
 {
-   return mFresnelFactors.data();
+   return _fresnel_factors.data();
 }
 
 void SphereFragment::animate(float time, const Matrix& rotation)
 {
-   for (int i = 0; i < mMatrix.size(); i++)
+   for (size_t i = 0; i < _matrix.size(); i++)
    {
-      const Matrix& mat = mMatrix[i];
-      Vector pos = mat.translation();
-      Matrix rot = mat.get3x3();
+      const Matrix& matrix = _matrix[i];
+      const Vector position = matrix.translation();
+      Matrix fragment_matrix = matrix.get3x3();
 
       // 4 * PI
       // => one loop of action
       // => another loop of idle
-      float t = fmodf(time * 2.5f + mTime[i], kPi * 4.0f);
+      const float t = std::min(std::fmod(time * 2.5f + _time[i], PI * 4.0f), PI * 2.0f);
 
-      if (t > kPi * 2.0f)
-         t = kPi * 2.0f;
-
-      float timeGrowth = std::sin(t + 1.5f * kPi);
-      float posScale = 0.1f * (1.0f + timeGrowth);
-
-      posScale = 1.0f + mRandom[i] * posScale;
+      const float time_growth = std::sin(t + 1.5f * PI);
+      const float position_scale = 1.0f + _random[i] * (0.1f * (1.0f + time_growth));
 
       // scale down during extension
-      float size = 0.5f * (1.0f + timeGrowth);
+      float size = 0.5f * (1.0f + time_growth);
       size = 1.0f - 0.2f * size;
       size *= size;
 
       // 0..1
-      float amount = std::sin(t * 0.5f - kPi * 0.5f) * 0.5f + 0.5f;
+      const float amount = std::sin(t * 0.5f - PI * 0.5f) * 0.5f + 0.5f;
 
       // 0..2pi
-      float r = amount * kPi * 2.0f;
-      Matrix fragmentRotation = Matrix::scale(size, size, size) * Matrix::rotateX(r) * Matrix::rotateY(r);
+      const float r = amount * PI * 2.0f;
+      const Matrix fragment_rotation = Matrix::scale(size, size, size) * Matrix::rotateX(r) * Matrix::rotateY(r);
 
-      rot.translate(pos * posScale);
+      fragment_matrix.translate(position * position_scale);
 
-      mModelView[i] = fragmentRotation * rot * rotation;
+      _model_view[i] = fragment_rotation * fragment_matrix * rotation;
 
-      mFresnelFactors[i] = 1.0f - std::sin(t * 0.5f);
+      _fresnel_factors[i] = 1.0f - std::sin(t * 0.5f);
    }
 }
 
@@ -188,14 +171,14 @@ void SphereFragment::draw()
    glEnableVertexAttribArray(2);
    glEnableVertexAttribArray(3);
 
-   glBindBuffer(GL_ARRAY_BUFFER, mVertexBuffer);
-   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3D), (GLvoid*)0);
-   glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3D), (GLvoid*)(3 * sizeof(float)));
-   glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex3D), (GLvoid*)(6 * sizeof(float)));
-   glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3D), (GLvoid*)(10 * sizeof(float)));
+   glBindBuffer(GL_ARRAY_BUFFER, _vertex_buffer);
+   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3D), nullptr);
+   glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3D), reinterpret_cast<const void*>(offsetof(Vertex3D, normal)));
+   glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex3D), reinterpret_cast<const void*>(offsetof(Vertex3D, u)));
+   glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3D), reinterpret_cast<const void*>(offsetof(Vertex3D, tangent)));
 
-   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mIndexBuffer);
-   glDrawElements(GL_TRIANGLES, mIndexCount, GL_UNSIGNED_SHORT, 0);  // render
+   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _index_buffer);
+   glDrawElements(GL_TRIANGLES, _index_count, GL_UNSIGNED_SHORT, nullptr);
 
    glDisableVertexAttribArray(3);
    glDisableVertexAttribArray(2);

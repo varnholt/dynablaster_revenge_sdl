@@ -27,8 +27,8 @@ public:
 protected:
    std::string _message;
    FrameTimer _time;
-   int _sender_id;
-   int _receiver_id;
+   int _sender_id = -1;
+   int _receiver_id = -1;
    std::string _sender_name;
    std::string _receiver_name;
 

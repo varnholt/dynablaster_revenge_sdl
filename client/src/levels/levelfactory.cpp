@@ -1,4 +1,3 @@
-// header
 #include "levelfactory.h"
 
 // levels
@@ -12,48 +11,34 @@
 #include <array>
 #include <filesystem>
 
-LevelFactory* LevelFactory::sInstance = 0;
-
+LevelFactory* LevelFactory::_instance = nullptr;
 
 LevelFactory::LevelFactory()
 {
-   sInstance = this;
+   _instance = this;
 }
 
-
-LevelFactory *LevelFactory::getFactoryInstance()
+LevelFactory* LevelFactory::getFactoryInstance()
 {
-   return sInstance ? sInstance : new LevelFactory();
+   return _instance ? _instance : new LevelFactory();
 }
 
-
-Level *LevelFactory::getLevelInstance(Level::LevelType levelType)
+std::unique_ptr<Level> LevelFactory::getLevelInstance(Level::LevelType type)
 {
-   Level* level = 0;
-
-   switch (levelType)
+   switch (type)
    {
       case Level::LevelCastle:
-         level = new LevelCastle();
-         break;
-
+         return std::make_unique<LevelCastle>();
       case Level::LevelMansion:
-         level = new LevelMansion();
-         break;
-
+         return std::make_unique<LevelMansion>();
       case Level::LevelSpace:
-         level = new LevelSpace();
-         break;
-
+         return std::make_unique<LevelSpace>();
       default:
-         break;
+         return nullptr;
    }
-
-   return level;
 }
 
-
-Level *LevelFactory::getLevelInstance(const std::string &levelName)
+std::unique_ptr<Level> LevelFactory::getLevelInstance(const std::string& level_name)
 {
    Level::LevelType level_type = Level::LevelCastle;
 
@@ -62,7 +47,7 @@ Level *LevelFactory::getLevelInstance(const std::string &levelName)
       const auto directory = Level::getLevelDirectoryName(type);
 
       // a build can leave level data out (the web build only ships the castle)
-      if (levelName.ends_with(directory) && std::filesystem::exists("data/" + directory + "/level.hjb"))
+      if (level_name.ends_with(directory) && std::filesystem::exists("data/" + directory + "/level.hjb"))
       {
          level_type = type;
          break;

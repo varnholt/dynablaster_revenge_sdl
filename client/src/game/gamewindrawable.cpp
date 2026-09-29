@@ -69,26 +69,7 @@ public:
 };
 }  // namespace
 
-GameWinDrawable::GameWinDrawable(RenderDevice* dev, bool visible)
-    : Drawable(dev, visible),
-      _color_enum(Constants::ColorWhite),
-      _large_font(nullptr),
-      _default_font(nullptr),
-      _scene(nullptr),
-      _render_time(0.0f),
-      _time(0.0f),
-      _delta_time(0.0f),
-      _start_time(0.0f),
-      _draw_game(false),
-      _blur(nullptr),
-      _backdrop_fb(nullptr),
-      _scene_fb(nullptr),
-      _snapshot_texture(0),
-      _game_information(nullptr),
-      _player_item(nullptr),
-      _motion_mixer(nullptr),
-      _player_mesh(nullptr),
-      _player_material(nullptr)
+GameWinDrawable::GameWinDrawable(RenderDevice* dev, bool visible) : Drawable(dev, visible)
 {
    _filename = "data/game/results.psd";
 
@@ -97,18 +78,10 @@ GameWinDrawable::GameWinDrawable(RenderDevice* dev, bool visible)
 
 GameWinDrawable::~GameWinDrawable()
 {
+   // deletes _player_mesh too
    delete _player_item;
    delete _motion_mixer;
    delete _player_material;
-   delete _blur;
-   delete _backdrop_fb;
-   delete _scene_fb;
-
-   // _player_mesh is not deleted here - it's owned by _scene (part of the player item)
-
-   for (PSDLayer* layer : _psd_layers)
-      delete layer;
-   _psd_layers.clear();
 }
 
 void GameWinDrawable::initializeGL()
@@ -131,7 +104,7 @@ void GameWinDrawable::initializeGL()
 
    FileStream::removePath("data/cup");
 
-   _blur = new BlurFilter();
+   _blur = std::make_unique<BlurFilter>();
    _blur->init();
 
    glGenTextures(1, &_snapshot_texture);
@@ -346,7 +319,7 @@ void GameWinDrawable::drawBackBuffer(float alpha)
    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
    if (!_backdrop_fb)
-      _backdrop_fb = new FrameBuffer(width, height, 0, FrameBuffer::NoDepthBuffer);
+      _backdrop_fb = std::make_unique<FrameBuffer>(width, height, 0, FrameBuffer::NoDepthBuffer);
    else
       _backdrop_fb->setResolution(width, height);
 
@@ -397,7 +370,7 @@ void GameWinDrawable::drawSceneToFramebuffer(float alpha)
    const int height = activeDevice->getHeight();
 
    if (!_scene_fb)
-      _scene_fb = new FrameBuffer(width, height, 0, 0);
+      _scene_fb = std::make_unique<FrameBuffer>(width, height, 0, 0);
    else
       _scene_fb->setResolution(width, height);
 
@@ -669,10 +642,11 @@ void GameWinDrawable::initializeLayers()
 
    for (int l = 0; l < _psd.getLayerCount(); l++)
    {
-      PSDLayer* layer = new PSDLayer(_psd.getLayer(l));
+      auto owned_layer = std::make_unique<PSDLayer>(_psd.getLayer(l));
+      PSDLayer* layer = owned_layer.get();
       std::string layer_name = layer->getLayer()->getName();
 
-      _psd_layers.push_back(layer);
+      _psd_layers.push_back(std::move(owned_layer));
 
       auto rank_iterator = ranks.find(layer_name);
       if (rank_iterator != ranks.end())

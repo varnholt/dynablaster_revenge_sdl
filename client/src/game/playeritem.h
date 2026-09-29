@@ -51,17 +51,17 @@ private:
    int _id;
    Constants::Color _color;
    std::string _nick;
-   Mesh *_mesh;
-   Material *_material;
+   Mesh *_mesh = nullptr;
+   Material *_material = nullptr;
    Vector _pos;
-   float _rot;
-   float _speed;
-   float _anim_blend;
-   float _stand_blend;
-   bool  _killed;
-   bool  _win;
-   bool  _left_foot;
-   float _flash;
+   float _rot = 0;
+   float _speed = 0.0f;
+   float _anim_blend = 0.0f;
+   float _stand_blend = 0.0f;
+   bool  _killed = false;
+   bool  _win = false;
+   bool  _left_foot = false;
+   float _flash = 0.0f;
 };
 
 #endif

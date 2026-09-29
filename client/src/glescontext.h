@@ -5,9 +5,7 @@
 #include <cstdint>
 #include <string>
 
-/// \brief owns the SDL window and GLES3 context. replaces the legacy client's
-/// framework/gldevice.cpp + QGLWidget pairing with a plain SDL3 window and an explicitly
-/// requested ES profile context.
+/// \brief owns the SDL window and its GLES 3.0 context.
 class GlesContext
 {
 public:

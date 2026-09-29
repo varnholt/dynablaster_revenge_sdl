@@ -43,11 +43,11 @@ private:
    std::vector<Reveal> _reveals;
    std::vector<Destroyed> _destroyed;
 
-   unsigned int _frustum_texture = 0;
-   unsigned int _ring_texture = 0;
-   unsigned int _vertex_buffer = 0;
+   uint32_t _frustum_texture = 0;
+   uint32_t _ring_texture = 0;
+   uint32_t _vertex_buffer = 0;
 
-   unsigned int _reveal_shader = 0;
+   uint32_t _reveal_shader = 0;
    int32_t _reveal_color_param = -1;
    int32_t _reveal_scroll_param = -1;
    int32_t _reveal_texture_param = -1;

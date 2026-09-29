@@ -6,43 +6,60 @@
 #include "render/geometry.h"
 #include "render/uv.h"
 
-GeometryVbo::GeometryVbo() : mVertexBuffer(0), mIndexBuffer(0), mGeometry(0)
+#include <cstddef>
+
+GeometryVbo::GeometryVbo(Geometry* geometry) : _geometry(geometry)
 {
 }
 
-GeometryVbo::~GeometryVbo()
-{
-   // TODO: delete buffers
-}
-
+// TODO: the vertex and index buffers are never deleted
 void GeometryVbo::initialize()
 {
    // create vertex and index buffer
-   mVertexBuffer = activeDevice->createVertexBuffer(mGeometry->getVertexCount() * sizeof(Vertex3D));
-   mIndexBuffer = activeDevice->createIndexBuffer(mGeometry->getIndexCount() * sizeof(unsigned short));
+   _vertex_buffer = activeDevice->createVertexBuffer(_geometry->getVertexCount() * sizeof(Vertex3D));
+   _index_buffer = activeDevice->createIndexBuffer(_geometry->getIndexCount() * sizeof(uint16_t));
 
-   Vector* vertices = mGeometry->getVertices();
-   Vector* normals = mGeometry->getNormals();
-   UV* uvs = mGeometry->getUV(1);
-   unsigned short* indices = mGeometry->getIndices();
+   const Vector* vertices = _geometry->getVertices();
+   const Vector* normals = _geometry->getNormals();
+   const UV* uvs = _geometry->getUV(1);
+   const uint16_t* indices = _geometry->getIndices();
 
    // fill vertex buffer
-   Vertex3D* vtx = (Vertex3D*)activeDevice->lockVertexBuffer(mVertexBuffer);
-   for (int i = 0; i < mGeometry->getVertexCount(); i++)
+   auto* vertex = static_cast<Vertex3D*>(activeDevice->lockVertexBuffer(_vertex_buffer));
+   for (int32_t i = 0; i < _geometry->getVertexCount(); i++)
    {
-      vtx[i].mPosition = vertices[i];
-      vtx[i].mNormal = normals[i];
-      vtx[i].mU = uvs[i].u;
-      vtx[i].mV = uvs[i].v;
-      vtx[i].mIndex = 0.0f;
+      vertex[i].position = vertices[i];
+      vertex[i].normal = normals[i];
+      vertex[i].u = uvs[i].u;
+      vertex[i].v = uvs[i].v;
+      vertex[i].index = 0.0f;
    }
-   activeDevice->unlockVertexBuffer(mVertexBuffer);
+   activeDevice->unlockVertexBuffer(_vertex_buffer);
 
    // fill index buffer
-   unsigned short* idx = (unsigned short*)activeDevice->lockIndexBuffer(mIndexBuffer);
-   for (int i = 0; i < mGeometry->getIndexCount(); i++)
+   auto* index = static_cast<uint16_t*>(activeDevice->lockIndexBuffer(_index_buffer));
+   for (int32_t i = 0; i < _geometry->getIndexCount(); i++)
    {
-      *idx++ = indices[i];
+      *index++ = indices[i];
    }
-   activeDevice->unlockIndexBuffer(mIndexBuffer);
+   activeDevice->unlockIndexBuffer(_index_buffer);
+}
+
+void GeometryVbo::drawGeometry()
+{
+   glEnableVertexAttribArray(0);
+   glEnableVertexAttribArray(1);
+   glEnableVertexAttribArray(2);
+
+   glBindBuffer(GL_ARRAY_BUFFER, _vertex_buffer);
+   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3D), nullptr);
+   glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3D), reinterpret_cast<const void*>(offsetof(Vertex3D, normal)));
+   glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex3D), reinterpret_cast<const void*>(offsetof(Vertex3D, u)));
+
+   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _index_buffer);
+   glDrawElements(GL_TRIANGLES, _geometry->getIndexCount(), GL_UNSIGNED_SHORT, nullptr);
+
+   glDisableVertexAttribArray(0);
+   glDisableVertexAttribArray(1);
+   glDisableVertexAttribArray(2);
 }

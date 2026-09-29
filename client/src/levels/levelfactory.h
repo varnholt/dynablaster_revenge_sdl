@@ -1,25 +1,21 @@
-#ifndef LEVELFACTORY_H
-#define LEVELFACTORY_H
+#pragma once
 
 // game
 #include "level.h"
 
+#include <memory>
 #include <string>
 
 class LevelFactory
 {
-   public:
+public:
+   LevelFactory();
 
-      LevelFactory();
+   static LevelFactory* getFactoryInstance();
 
-      static LevelFactory* getFactoryInstance();
+   static std::unique_ptr<Level> getLevelInstance(Level::LevelType type);
+   static std::unique_ptr<Level> getLevelInstance(const std::string& level_name);
 
-      static Level* getLevelInstance(Level::LevelType type);
-      static Level* getLevelInstance(const std::string& typeName);
-
-   private:
-
-      static LevelFactory* sInstance;
+private:
+   static LevelFactory* _instance;
 };
-
-#endif // LEVELFACTORY_H

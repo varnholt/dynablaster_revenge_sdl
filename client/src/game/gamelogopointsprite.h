@@ -5,6 +5,7 @@
 #include "math/vector.h"
 #include "render/texture.h"
 #include "tools/array.h"
+#include <cstdint>
 
 class GameLogoPointSprite
 {
@@ -26,12 +27,12 @@ protected:
    static Texture sTexture;
 
    //! shader + uniform locations
-   static unsigned int sShader;
+   static uint32_t sShader;
    static int sTextureParam;
 
    //! dynamic quad-batch vertex buffer (position + texcoord per vertex, 6 verts/sprite -
    //! rebuilt every draw() call since positions/glow values change every frame)
-   static unsigned int sVertexBuffer;
+   static uint32_t sVertexBuffer;
 
    //! vector singleton
    static Array<Vector> _positions;

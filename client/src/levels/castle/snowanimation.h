@@ -47,8 +47,8 @@ private:
    float _start_time = 0.0f;
 
    Texture _texture;
-   unsigned int _vertex_buffer = 0;
-   unsigned int _shader = 0;
+   uint32_t _vertex_buffer = 0;
+   uint32_t _shader = 0;
    int32_t _texture_param = -1;
    int32_t _size_factor_param = -1;
 };

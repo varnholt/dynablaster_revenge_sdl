@@ -5,7 +5,7 @@
 
 int GameMessage::sDisplayTime = 10000;
 
-GameMessage::GameMessage() : _sender_id(-1), _receiver_id(-1)
+GameMessage::GameMessage()
 {
    _time = FrameTimer::currentTime();
 

@@ -2,10 +2,9 @@
 // exactly the same engine/menu/effects code as the real game (src/main.cpp), but wraps it with
 // CLI flags for headless screenshot verification (--selftest), scripted/synthetic input
 // (--click, --realclick), page inspection (--dumplayer, --page, --dumppsd for a standalone PSD
-// asset not part of the menu system), an isolated-effect view (--logo3d), and a standalone
-// castle-level demo (the default mode with no flags at all) - none of which belong in the real
-// game binary. See CMakeLists.txt for how this and dynablaster_revenge share the same
-// dynablaster_core library.
+// asset not part of the menu system), an isolated-effect view (--logo3d), the effect lab
+// (--effect) and a standalone castle-level demo (the default mode with no flags at all). See
+// CMakeLists.txt for how this and dynablaster_revenge share the same dynablaster_core library.
 #include "gles3.h"
 #include "glescontext.h"
 #include "inputinjector.h"
@@ -38,7 +37,11 @@
 
 #include <SDL3/SDL.h>
 
+#include <algorithm>
+#include <array>
+#include <cstdint>
 #include <cstdlib>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -46,10 +49,7 @@ namespace
 {
 
 /// \brief logs Menu::actionRequest so scripted button-click selftests (see --click/--dumplayer)
-/// have real, observable proof that MenuPageItem::activated() -> action(std::string) ->
-/// MenuPage::actionRequestFromItem -> Menu::actionRequest fired, not just "no crash". Real
-/// GameMenuWorkflow (the actual button->network-request handler) is a later phase - this only
-/// verifies the menu-item click pipeline itself.
+/// have observable proof that the menu-item click pipeline fired, not just "no crash".
 struct ActionLogger
 {
    void onActionRequest(const std::string& page, const std::string& action)
@@ -70,28 +70,84 @@ std::vector<InputInjector::Step> makeSelftestScript()
 
 std::string argValue(const std::vector<std::string>& args, const std::string& prefix)
 {
-   for (const auto& arg : args)
+   const auto arg = std::ranges::find_if(args, [&prefix](const std::string& value) { return value.starts_with(prefix); });
+   if (arg == args.end())
    {
-      if (arg.rfind(prefix, 0) == 0)
-      {
-         return arg.substr(prefix.size());
-      }
+      return {};
    }
 
-   return {};
+   return arg->substr(prefix.size());
 }
 
 bool hasFlag(const std::vector<std::string>& args, const std::string& flag)
 {
-   for (const auto& arg : args)
+   return std::ranges::find(args, flag) != args.end();
+}
+
+//! parses "x,y", leaves x and y untouched without a comma
+void parseCoordinates(const std::string& text, int32_t& x, int32_t& y)
+{
+   const size_t comma = text.find(',');
+   if (comma != std::string::npos)
    {
-      if (arg == flag)
+      x = std::atoi(text.substr(0, comma).c_str());
+      y = std::atoi(text.substr(comma + 1).c_str());
+   }
+}
+
+void dumpLayerPixels(const Image& image)
+{
+   const int32_t w = image.getWidth();
+   const int32_t h = image.getHeight();
+   const std::array<std::array<int32_t, 2>, 5> samples = {
+      {{w / 2, h / 2}, {w / 4, h / 4}, {(3 * w) / 4, (3 * h) / 4}, {5, 5}, {w - 5, h - 5}}
+   };
+   for (const auto& sample : samples)
+   {
+      const uint32_t px = image.getScanline(sample[1])[sample[0]];
+      SDL_Log(
+         "  pixel(%d,%d): a=%d r=%d g=%d b=%d", sample[0], sample[1], (px >> 24) & 0xff, (px >> 16) & 0xff, (px >> 8) & 0xff, px & 0xff
+      );
+   }
+
+   // scan row 0 for the first non-zero-alpha pixel and print its color.
+   const uint32_t* row0 = image.getScanline(0);
+   for (int32_t x = 0; x < w; x++)
+   {
+      const uint32_t px = row0[x];
+      const uint32_t a = (px >> 24) & 0xff;
+      if (a > 0)
       {
-         return true;
+         SDL_Log("  first non-zero-alpha in row0 at x=%d: a=%d r=%d g=%d b=%d", x, a, (px >> 16) & 0xff, (px >> 8) & 0xff, px & 0xff);
+         break;
       }
    }
 
-   return false;
+   const auto has_alpha = [](uint32_t px) { return ((px >> 24) & 0xff) > 0; };
+
+   // count how many pixels in row 0 have non-zero alpha, for density context.
+   const auto non_zero = std::count_if(row0, row0 + w, has_alpha);
+   SDL_Log("  row0 non-zero-alpha pixel count: %d / %d", static_cast<int32_t>(non_zero), w);
+
+   // row 0 might just be a sparse top margin - check density + an example color at
+   // several more representative rows across the image.
+   for (const int32_t check_y : {100, 300, 540, 800, 1000})
+   {
+      const uint32_t* row = image.getScanline(check_y);
+      const auto count = std::count_if(row, row + w, has_alpha);
+      const uint32_t* example = std::find_if(row, row + w, has_alpha);
+      const uint32_t example_pixel = (example != row + w) ? *example : 0;
+      SDL_Log(
+         "  row %d: non-zero count=%d/%d example a=%d r=%d g=%d b=%d",
+         check_y,
+         static_cast<int32_t>(count),
+         w,
+         (example_pixel >> 24) & 0xff,
+         (example_pixel >> 16) & 0xff,
+         (example_pixel >> 8) & 0xff,
+         example_pixel & 0xff
+      );
+   }
 }
 
 }  // namespace
@@ -100,11 +156,9 @@ int main(int argc, char** argv)
 {
    const std::vector<std::string> args(argv + 1, argv + argc);
    const bool selftest = hasFlag(args, "--selftest");
-   const bool menuMode = hasFlag(args, "--menu");
-   // isolated verification harness for the sphere-fragments "exploding earth/bomb" effect
-   // (GameLogoDrawable's real engine) before it gets wired into the actual menu composition -
-   // see project memory on GameLogoDrawable scoping.
-   const bool logo3dMode = hasFlag(args, "--logo3d");
+   const bool menu_mode = hasFlag(args, "--menu");
+   // isolated view of the sphere-fragments "exploding earth/bomb" effect
+   const bool logo3d_mode = hasFlag(args, "--logo3d");
    const std::string screenshot_path = argValue(args, "--screenshot=");
    const std::string click_arg = argValue(args, "--click=");
    const std::string dump_layer = argValue(args, "--dumplayer=");
@@ -128,19 +182,19 @@ int main(int argc, char** argv)
          return 1;
       }
       SDL_Log("psd %s: %dx%d layers=%d", dump_psd.c_str(), psd.getWidth(), psd.getHeight(), psd.getLayerCount());
-      for (int i = 0; i < psd.getLayerCount(); i++)
+      for (int32_t i = 0; i < psd.getLayerCount(); i++)
       {
-         PSD::Layer* l = psd.getLayer(i);
+         PSD::Layer* layer = psd.getLayer(i);
          SDL_Log(
             "  [%d] name=%s left=%d top=%d w=%d h=%d opacity=%d visible=%d",
             i,
-            l->getName() ? l->getName() : "(null)",
-            l->getLeft(),
-            l->getTop(),
-            l->getWidth(),
-            l->getHeight(),
-            l->getOpacity(),
-            l->isVisible()
+            layer->getName() ? layer->getName() : "(null)",
+            layer->getLeft(),
+            layer->getTop(),
+            layer->getWidth(),
+            layer->getHeight(),
+            layer->getOpacity(),
+            layer->isVisible()
          );
       }
       return 0;
@@ -173,79 +227,67 @@ int main(int argc, char** argv)
    SDL_Log("GL_SHADING_LANGUAGE_VERSION: %s", glGetString(GL_SHADING_LANGUAGE_VERSION));
 
    InputInjector injector;
-   if (selftest && !menuMode && !logo3dMode)
+   if (selftest && !menu_mode && !logo3d_mode)
    {
       injector.queue(makeSelftestScript());
    }
 
-   // materials that animate off a running clock (DisplacementMaterial's flag-wave shader) read
-   // GlobalTime::Instance() - the original game got that from MainDrawable (the QGLWidget
-   // itself, see client/src/framework/maindrawable.h); this is that clock's replacement here.
-   SdlGlobalTime globalTime;
+   // animated materials and effects read this clock via GlobalTime::Instance()
+   SdlGlobalTime global_time;
 
-   // real level data: the actual castle level (client/data/level-castle/level.hjb) with its
-   // real textures, loaded through the real (ported, not reimplemented) SceneGraph::load().
-   // DemoMaterialFactory mirrors the real material-ID dispatch the original game used for this
-   // exact level (LevelCastle::createMaterial) - unlike the block.hjb prop, this level ships its
-   // own Camera node, so SceneGraph::setupCamera() has real data to frame instead of falling
-   // back to the identity camera.
-   //
-   // Skipped entirely in --menu mode: the menu-system demo below renders through the same
-   // GLDevice/activeDevice but has nothing to do with the level scene.
+   // default mode: the castle level loaded through SceneGraph::load(), with the same material-ID
+   // dispatch as LevelCastle::createMaterial. unused in --menu and --logo3d mode.
    SceneGraph scene;
    DemoMaterialFactory factory;
-   MenuDrawable* menuDrawable = nullptr;
-   MenuMouseCursor* menuCursor = nullptr;
-   GameLogoDrawable* logoDrawable = nullptr;
-   SphereFragmentsDrawable* logo3d = nullptr;
 
-   if (logo3dMode)
+   // declared in reverse destruction order: cursor, logo, menu, logo3d
+   std::unique_ptr<SphereFragmentsDrawable> logo3d;
+   std::unique_ptr<MenuDrawable> menu_drawable;
+   std::unique_ptr<GameLogoDrawable> logo_drawable;
+   std::unique_ptr<MenuMouseCursor> menu_cursor;
+
+   if (logo3d_mode)
    {
-      logo3d = new SphereFragmentsDrawable(&device);
+      logo3d = std::make_unique<SphereFragmentsDrawable>(&device);
       logo3d->initializeGL();
       logo3d->setVisible(true);
    }
-   else if (menuMode)
+   else if (menu_mode)
    {
       registerGameFonts();
 
-      menuDrawable = new MenuDrawable(&device);
-      menuDrawable->initializeGL();
-      menuDrawable->setVisible(true);
+      menu_drawable = std::make_unique<MenuDrawable>(&device);
+      menu_drawable->initializeGL();
+      menu_drawable->setVisible(true);
 
-      menuCursor = new MenuMouseCursor(&device);
-      menuCursor->initializeGL();
-      menuCursor->setVisible(true);
+      menu_cursor = std::make_unique<MenuMouseCursor>(&device);
+      menu_cursor->initializeGL();
+      menu_cursor->setVisible(true);
 
       // the menu draws its own cursor (above, MenuMouseCursor) - hide the OS cursor so the two
       // don't overlap on screen.
       SDL_HideCursor();
 
-      // the animated main-menu logo (sphere-fragments earth/bomb effect + "Dynablaster"/"Revenge"
-      // PSD text overlay + spark sparks) - only actually visible while the main menu page is
-      // showing (see GameLogoDrawable::pageChanged()), matching the original's own
-      // showMenuShowEnableMenu()/showGame() wiring (client/src/game/bombermanview.cpp).
-      logoDrawable = new GameLogoDrawable(&device);
-      logoDrawable->initializeGL();
-      logoDrawable->setVisible(true);
-      menuDrawable->pageChangedSignal.connect([logoDrawable](const std::string& page) { logoDrawable->pageChanged(page); });
+      // the animated main-menu logo, only visible on the main menu page (see GameLogoDrawable::pageChanged())
+      logo_drawable = std::make_unique<GameLogoDrawable>(&device);
+      logo_drawable->initializeGL();
+      logo_drawable->setVisible(true);
+      menu_drawable->pageChangedSignal.connect([logo = logo_drawable.get()](const std::string& page) { logo->pageChanged(page); });
 
-      // --page=<psd path>: jump straight to a real page for a static verification screenshot,
-      // bypassing full click-driven navigation (which needs GameMenuWorkflow - a later phase).
-      // Real page switches also drive a fade animation via MenuDrawable's page-change path; this
-      // just flips isActive() directly since a static screenshot doesn't need the transition.
+      // --page=<psd path>: jump straight to a page for a static verification screenshot. flips
+      // isActive() directly, a static screenshot doesn't need the page transition.
       if (!page_name.empty())
       {
-         MenuPage* targetPage = menuDrawable->getMenu()->getPageByName(page_name.c_str());
-         if (targetPage)
+         MenuPage* target_page = menu_drawable->getMenu()->getPageByName(page_name.c_str());
+         if (target_page)
          {
-            MenuPage* previous = menuDrawable->getMenu()->getCurrentPage();
-            if (previous && previous != targetPage)
+            MenuPage* previous = menu_drawable->getMenu()->getCurrentPage();
+            if (previous && previous != target_page)
             {
                previous->setActive(false);
             }
-            targetPage->setActive(true);
-            menuDrawable->getMenu()->setCurrentPage(targetPage);
+            target_page->setActive(true);
+            menu_drawable->getMenu()->setCurrentPage(target_page);
          }
          else
          {
@@ -258,10 +300,10 @@ int main(int argc, char** argv)
       // own layers - not just page items - are queryable by name).
       if (!dump_layer.empty())
       {
-         PSD::Layer* layer = menuDrawable->getMenu()->getCurrentPage()->getLayer(dump_layer.c_str());
+         PSD::Layer* layer = menu_drawable->getMenu()->getCurrentPage()->getLayer(dump_layer.c_str());
          if (!layer)
          {
-            layer = menuDrawable->getMenu()->getBackground()->getLayer(dump_layer.c_str());
+            layer = menu_drawable->getMenu()->getBackground()->getLayer(dump_layer.c_str());
          }
          if (layer)
          {
@@ -277,160 +319,70 @@ int main(int argc, char** argv)
                layer->getOpacity()
             );
 
-            // temporary diagnostic: sample decoded pixel alpha at several points to check for a
-            // real PSD alpha-channel decode bug vs. a shader/blending issue (2026-09-20).
-            Image* image = layer->getImage();
-            if (image)
+            // decoded pixel alpha at several points, separates psd decode issues from blending issues
+            if (const Image* image = layer->getImage())
             {
-               const int w = image->getWidth();
-               const int h = image->getHeight();
-               const int samples[][2] = {{w / 2, h / 2}, {w / 4, h / 4}, {(3 * w) / 4, (3 * h) / 4}, {5, 5}, {w - 5, h - 5}};
-               for (auto& s : samples)
-               {
-                  unsigned int px = image->getScanline(s[1])[s[0]];
-                  SDL_Log(
-                     "  pixel(%d,%d): a=%d r=%d g=%d b=%d", s[0], s[1], (px >> 24) & 0xff, (px >> 16) & 0xff, (px >> 8) & 0xff, px & 0xff
-                  );
-               }
-
-               // scan row 0 for the first non-zero-alpha pixel and print its color.
-               unsigned int* row0 = image->getScanline(0);
-               for (int x = 0; x < w; x++)
-               {
-                  unsigned int px = row0[x];
-                  unsigned int a = (px >> 24) & 0xff;
-                  if (a > 0)
-                  {
-                     SDL_Log(
-                        "  first non-zero-alpha in row0 at x=%d: a=%d r=%d g=%d b=%d", x, a, (px >> 16) & 0xff, (px >> 8) & 0xff, px & 0xff
-                     );
-                     break;
-                  }
-               }
-
-               // count how many pixels in row 0 have non-zero alpha, for density context.
-               int nonZero = 0;
-               for (int x = 0; x < w; x++)
-                  if (((row0[x] >> 24) & 0xff) > 0)
-                     nonZero++;
-               SDL_Log("  row0 non-zero-alpha pixel count: %d / %d", nonZero, w);
-
-               // row 0 might just be a sparse top margin - check density + an example color at
-               // several more representative rows across the image.
-               for (int checkY : {100, 300, 540, 800, 1000})
-               {
-                  unsigned int* row = image->getScanline(checkY);
-                  int count = 0;
-                  unsigned int examplePixel = 0;
-                  for (int x = 0; x < w; x++)
-                  {
-                     if (((row[x] >> 24) & 0xff) > 0)
-                     {
-                        count++;
-                        if (examplePixel == 0)
-                           examplePixel = row[x];
-                     }
-                  }
-                  SDL_Log(
-                     "  row %d: non-zero count=%d/%d example a=%d r=%d g=%d b=%d",
-                     checkY,
-                     count,
-                     w,
-                     (examplePixel >> 24) & 0xff,
-                     (examplePixel >> 16) & 0xff,
-                     (examplePixel >> 8) & 0xff,
-                     examplePixel & 0xff
-                  );
-               }
+               dumpLayerPixels(*image);
             }
 
-            // check the actual GL texture id the render path uses for this item, vs. a known-good
-            // one, to rule out a texture-id mixup between the CPU decode (checked above) and GPU.
-            MenuPageItem* bgItem = menuDrawable->getMenu()->getBackground()->getPageItem("background_active");
-            if (bgItem)
+            // the gl texture ids the render path uses, to rule out a texture id mixup
+            MenuPageItem* background_item = menu_drawable->getMenu()->getBackground()->getPageItem("background_active");
+            if (background_item)
             {
-               SDL_Log("  background page item's active-layer texture id=%u", bgItem->getActiveLayer()->getTexture());
+               SDL_Log("  background page item's active-layer texture id=%u", background_item->getActiveLayer()->getTexture());
             }
-            MenuPageItem* loginItem = menuDrawable->getMenu()->getCurrentPage()->getPageItem("login_window");
-            if (loginItem)
+            MenuPageItem* login_item = menu_drawable->getMenu()->getCurrentPage()->getPageItem("login_window");
+            if (login_item)
             {
-               SDL_Log("  login_window page item's active-layer texture id=%u", loginItem->getActiveLayer()->getTexture());
+               SDL_Log("  login_window page item's active-layer texture id=%u", login_item->getActiveLayer()->getTexture());
             }
          }
          else
          {
             SDL_Log("layer %s: not found", dump_layer.c_str());
          }
-         delete menuCursor;
-         delete menuDrawable;
          return 0;
       }
 
-      static ActionLogger actionLogger;
-      menuDrawable->getMenu()->actionRequestSignal.connect([](const std::string& page, const std::string& action)
-                                                           { actionLogger.onActionRequest(page, action); });
+      static ActionLogger action_logger;
+      menu_drawable->getMenu()->actionRequestSignal.connect([](const std::string& page, const std::string& action)
+                                                            { action_logger.onActionRequest(page, action); });
 
-      // the host-address dropdown normally lists previously-used server IPs, loaded from saved
-      // settings (a networking concern out of scope for the menu-rendering phase) - a couple of
-      // placeholder entries here are just so the dropdown has real rows to render when opened,
-      // rather than testing against a permanently-empty list.
-      MenuPageItem* hostTableItem = menuDrawable->getMenu()->getCurrentPage()->getPageItem("editablecombobox_host_table");
-      if (auto* hostTable = dynamic_cast<MenuPageEditableComboBoxItem*>(hostTableItem))
+      // placeholder rows so the host-address dropdown has something to render when opened
+      MenuPageItem* host_table_item = menu_drawable->getMenu()->getCurrentPage()->getPageItem("editablecombobox_host_table");
+      if (auto* host_table = dynamic_cast<MenuPageEditableComboBoxItem*>(host_table_item))
       {
-         hostTable->appendItem("127.0.0.1");
-         hostTable->appendItem("192.168.1.1");
-         hostTable->appendItem("10.0.0.5");
+         host_table->appendItem("127.0.0.1");
+         host_table->appendItem("192.168.1.1");
+         host_table->appendItem("10.0.0.5");
       }
    }
    else
    {
-      const int loaded = scene.load("level.hjb", &factory, nullptr);
+      const int32_t loaded = scene.load("level.hjb", &factory, nullptr);
       SDL_Log("scene.load(\"level.hjb\") -> %d, materials=%d", loaded, scene.getMaterialCount());
    }
 
-   int clickX = -1;
-   int clickY = -1;
-   if (!click_arg.empty())
-   {
-      const size_t comma = click_arg.find(',');
-      if (comma != std::string::npos)
-      {
-         clickX = std::atoi(click_arg.substr(0, comma).c_str());
-         clickY = std::atoi(click_arg.substr(comma + 1).c_str());
-      }
-   }
+   int32_t click_x = -1;
+   int32_t click_y = -1;
+   parseCoordinates(click_arg, click_x, click_y);
 
-   // --realclick=x,y (WINDOW-space pixels, unlike --click which is page-space and calls
-   // menuDrawable's handlers directly) - pushes genuine SDL_Event structs via SDL_PushEvent so
-   // they flow through the exact same SDL_PollEvent loop and convertFromViewPort() conversion a
-   // real OS mouse click would, instead of bypassing that path like --click does. Diagnostic tool
-   // for the "buttons don't react to real mouse clicks" bug - see project memory (seventeenth
-   // session) - isolates whether the real-event code path itself is broken, independent of
-   // whether this environment can generate genuine OS input events at all.
+   // --realclick=x,y (WINDOW-space pixels, unlike --click which is page-space and calls the menu
+   // handlers directly) - pushes genuine SDL_Event structs via SDL_PushEvent so they flow
+   // through the same SDL_PollEvent loop and convertFromViewPort() conversion a real OS mouse
+   // click would.
    const std::string realclick_arg = argValue(args, "--realclick=");
-   int realClickX = -1;
-   int realClickY = -1;
-   if (!realclick_arg.empty())
-   {
-      const size_t comma = realclick_arg.find(',');
-      if (comma != std::string::npos)
-      {
-         realClickX = std::atoi(realclick_arg.substr(0, comma).c_str());
-         realClickY = std::atoi(realclick_arg.substr(comma + 1).c_str());
-      }
-   }
+   int32_t real_click_x = -1;
+   int32_t real_click_y = -1;
+   parseCoordinates(realclick_arg, real_click_x, real_click_y);
 
    bool running = true;
-   int frame = 0;
+   int32_t frame = 0;
 
-   // --selftest runs frames back-to-back as fast as the host can render, not paced by a real
-   // display's vsync - SDL_GL_SetSwapInterval(1) doesn't throttle a headless/offscreen context
-   // the way it does a real window. MenuDrawable's fade-in (mAlpha, driven by wall-clock dt via
-   // animate()) would then take an enormous number of real frames to reach 1.0 and unblock
-   // input, since dt stays near zero. Feed it a fixed synthetic 60fps timestep instead so the
-   // selftest's timing-dependent behavior (fade-in completing, cursor click able to reach the
-   // menu) is deterministic regardless of how fast this host actually renders.
-   float menuTimeMs = 0.0f;
+   // --selftest renders frames as fast as the host can, swap interval doesn't throttle a
+   // headless context. MenuDrawable's fade-in is driven by wall-clock dt, so feed it a fixed
+   // synthetic 60fps timestep to keep the selftest deterministic.
+   float menu_time_ms = 0.0f;
 
    while (running)
    {
@@ -447,13 +399,9 @@ int main(int argc, char** argv)
             running = false;
          }
 
-         if (menuMode && menuDrawable)
+         if (menu_mode && menu_drawable)
          {
-            // menu items live in 1920x1080 page space (see mainmenu.psd/background.psd), not
-            // window space - the original (client/src/game/bombermanview.cpp) converted every
-            // mouse event through activeDevice->convertFromViewPort() before handing it to a
-            // Drawable, and this port needs the exact same conversion now that main.cpp is doing
-            // bombermanview's old job of dispatching events to each Drawable directly.
+            // menu items live in 1920x1080 page space, not window space
             switch (event.type)
             {
                case SDL_EVENT_MOUSE_MOTION:
@@ -461,9 +409,11 @@ int main(int argc, char** argv)
                   int x = static_cast<int>(event.motion.x);
                   int y = static_cast<int>(event.motion.y);
                   device.convertFromViewPort(&x, &y, 1920, 1080);
-                  menuDrawable->mouseMoveEvent(x, y);
-                  if (menuCursor)
-                     menuCursor->mouseMoveEvent(x, y);
+                  menu_drawable->mouseMoveEvent(x, y);
+                  if (menu_cursor)
+                  {
+                     menu_cursor->mouseMoveEvent(x, y);
+                  }
                   break;
                }
                case SDL_EVENT_MOUSE_BUTTON_DOWN:
@@ -471,15 +421,19 @@ int main(int argc, char** argv)
                   int x = static_cast<int>(event.button.x);
                   int y = static_cast<int>(event.button.y);
                   device.convertFromViewPort(&x, &y, 1920, 1080);
-                  menuDrawable->mousePressEvent(x, y);
-                  if (menuCursor)
-                     menuCursor->mousePressEvent(x, y);
+                  menu_drawable->mousePressEvent(x, y);
+                  if (menu_cursor)
+                  {
+                     menu_cursor->mousePressEvent(x, y);
+                  }
                   break;
                }
                case SDL_EVENT_MOUSE_BUTTON_UP:
-                  menuDrawable->mouseReleaseEvent();
-                  if (menuCursor)
-                     menuCursor->mouseReleaseEvent();
+                  menu_drawable->mouseReleaseEvent();
+                  if (menu_cursor)
+                  {
+                     menu_cursor->mouseReleaseEvent();
+                  }
                   break;
                default:
                   break;
@@ -487,7 +441,7 @@ int main(int argc, char** argv)
          }
       }
 
-      if (selftest && !menuMode && !logo3dMode)
+      if (selftest && !menu_mode && !logo3d_mode)
       {
          injector.advance();
       }
@@ -496,111 +450,113 @@ int main(int argc, char** argv)
       // (so hover/focus state updates the same way a real mouse would), then press+release a
       // couple frames later so the item's activated()/mousePressed() path is exercised for real
       // rather than skipped.
-      if (menuMode && menuDrawable && clickX >= 0)
+      if (menu_mode && menu_drawable && click_x >= 0)
       {
          if (frame == 15)
          {
-            menuDrawable->mouseMoveEvent(clickX, clickY);
-            if (menuCursor)
-               menuCursor->mouseMoveEvent(clickX, clickY);
+            menu_drawable->mouseMoveEvent(click_x, click_y);
+            if (menu_cursor)
+            {
+               menu_cursor->mouseMoveEvent(click_x, click_y);
+            }
          }
          else if (frame == 20)
          {
-            menuDrawable->mousePressEvent(clickX, clickY);
-            if (menuCursor)
-               menuCursor->mousePressEvent(clickX, clickY);
+            menu_drawable->mousePressEvent(click_x, click_y);
+            if (menu_cursor)
+            {
+               menu_cursor->mousePressEvent(click_x, click_y);
+            }
          }
          else if (frame == 22)
          {
-            menuDrawable->mouseReleaseEvent();
-            if (menuCursor)
-               menuCursor->mouseReleaseEvent();
+            menu_drawable->mouseReleaseEvent();
+            if (menu_cursor)
+            {
+               menu_cursor->mouseReleaseEvent();
+            }
          }
       }
 
-      // --realclick=x,y: same frame schedule as --click above, but injects genuine SDL_Event
-      // structs (window-space coordinates) via SDL_PushEvent instead of calling menuDrawable's
-      // handlers directly - exercises the real SDL_PollEvent switch-case above, including
-      // convertFromViewPort(), exactly like a real OS mouse click would.
-      if (menuMode && realClickX >= 0)
+      // --realclick=x,y: same frame schedule as --click above, but through genuine SDL events
+      if (menu_mode && real_click_x >= 0)
       {
-         const SDL_WindowID windowId = SDL_GetWindowID(context.window());
+         const SDL_WindowID window_id = SDL_GetWindowID(context.window());
 
          if (frame == 15)
          {
-            SDL_Event motionEvent{};
-            motionEvent.type = SDL_EVENT_MOUSE_MOTION;
-            motionEvent.motion.windowID = windowId;
-            motionEvent.motion.x = static_cast<float>(realClickX);
-            motionEvent.motion.y = static_cast<float>(realClickY);
-            SDL_PushEvent(&motionEvent);
+            SDL_Event motion_event{};
+            motion_event.type = SDL_EVENT_MOUSE_MOTION;
+            motion_event.motion.windowID = window_id;
+            motion_event.motion.x = static_cast<float>(real_click_x);
+            motion_event.motion.y = static_cast<float>(real_click_y);
+            SDL_PushEvent(&motion_event);
          }
          else if (frame == 20)
          {
-            SDL_Event downEvent{};
-            downEvent.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
-            downEvent.button.windowID = windowId;
-            downEvent.button.button = SDL_BUTTON_LEFT;
-            downEvent.button.down = true;
-            downEvent.button.clicks = 1;
-            downEvent.button.x = static_cast<float>(realClickX);
-            downEvent.button.y = static_cast<float>(realClickY);
-            SDL_PushEvent(&downEvent);
+            SDL_Event down_event{};
+            down_event.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
+            down_event.button.windowID = window_id;
+            down_event.button.button = SDL_BUTTON_LEFT;
+            down_event.button.down = true;
+            down_event.button.clicks = 1;
+            down_event.button.x = static_cast<float>(real_click_x);
+            down_event.button.y = static_cast<float>(real_click_y);
+            SDL_PushEvent(&down_event);
          }
          else if (frame == 22)
          {
-            SDL_Event upEvent{};
-            upEvent.type = SDL_EVENT_MOUSE_BUTTON_UP;
-            upEvent.button.windowID = windowId;
-            upEvent.button.button = SDL_BUTTON_LEFT;
-            upEvent.button.down = false;
-            upEvent.button.clicks = 1;
-            upEvent.button.x = static_cast<float>(realClickX);
-            upEvent.button.y = static_cast<float>(realClickY);
-            SDL_PushEvent(&upEvent);
+            SDL_Event up_event{};
+            up_event.type = SDL_EVENT_MOUSE_BUTTON_UP;
+            up_event.button.windowID = window_id;
+            up_event.button.button = SDL_BUTTON_LEFT;
+            up_event.button.down = false;
+            up_event.button.clicks = 1;
+            up_event.button.x = static_cast<float>(real_click_x);
+            up_event.button.y = static_cast<float>(real_click_y);
+            SDL_PushEvent(&up_event);
          }
       }
 
       device.clear();
 
-      if (logo3dMode && logo3d)
+      if (logo3d_mode && logo3d)
       {
-         globalTime.update();
+         global_time.update();
          logo3d->paintGL();
       }
-      else if (menuMode && menuDrawable)
+      else if (menu_mode && menu_drawable)
       {
          if (selftest)
-            menuTimeMs += 16.6667f;
-         else
-            menuTimeMs = static_cast<float>(SDL_GetTicks());
-
-         menuDrawable->animate(menuTimeMs);
-         menuDrawable->paintGL();
-
-         if (menuCursor && menuCursor->isVisible())
          {
-            menuCursor->animate(menuTimeMs);
-            menuCursor->paintGL();
+            menu_time_ms += 16.6667f;
+         }
+         else
+         {
+            menu_time_ms = static_cast<float>(SDL_GetTicks());
          }
 
-         if (logoDrawable && logoDrawable->isVisible())
+         menu_drawable->animate(menu_time_ms);
+         menu_drawable->paintGL();
+
+         if (menu_cursor && menu_cursor->isVisible())
          {
-            // GameLogoDrawable's own fade/spark timing (FADE_IN_LENGTH etc.) is calibrated
-            // against the original engine's Drawable::animate() convention (real seconds * 62.5,
-            // see client/src/game/bombermanview.cpp) - menuTimeMs is real/synthetic
-            // milliseconds, so convert (ms/1000)*62.5 == ms*0.0625 to keep the fade durations
-            // meaning what they say. The earth/bomb sphere's own rotation reads GlobalTime
-            // directly (see SphereFragmentsDrawable/SphereGeometryVbo) - update it here too so
-            // the logo actually animates during real (non-selftest) play, not just once at t=0.
-            globalTime.update();
-            logoDrawable->animate(menuTimeMs * 0.0625f);
-            logoDrawable->paintGL();
+            menu_cursor->animate(menu_time_ms);
+            menu_cursor->paintGL();
+         }
+
+         if (logo_drawable && logo_drawable->isVisible())
+         {
+            // the logo animates in real seconds * 62.5 (ms * 0.0625), its sphere rotation reads
+            // GlobalTime directly
+            global_time.update();
+            logo_drawable->animate(menu_time_ms * 0.0625f);
+            logo_drawable->paintGL();
          }
       }
       else
       {
-         globalTime.update();
+         global_time.update();
          scene.render();
       }
 
@@ -608,9 +564,9 @@ int main(int argc, char** argv)
 
       ++frame;
 
-      const bool selftestDone = (menuMode || logo3dMode) ? (selftest && frame > 40) : (selftest && injector.finished() && frame > 40);
+      const bool selftest_done = (menu_mode || logo3d_mode) ? (selftest && frame > 40) : (selftest && injector.finished() && frame > 40);
 
-      if (selftestDone)
+      if (selftest_done)
       {
          if (!screenshot_path.empty())
          {
@@ -620,11 +576,6 @@ int main(int argc, char** argv)
          running = false;
       }
    }
-
-   delete menuCursor;
-   delete logoDrawable;
-   delete menuDrawable;
-   delete logo3d;
 
    return 0;
 }

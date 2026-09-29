@@ -31,8 +31,8 @@ protected:
 
    static GamePlayback* s_instance;
 
-   bool _recording;
-   bool _replaying;
+   bool _recording = false;
+   bool _replaying = false;
 };
 
 #endif // GAMEPLAYBACK_H

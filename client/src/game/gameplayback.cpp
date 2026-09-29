@@ -3,8 +3,6 @@
 GamePlayback* GamePlayback::s_instance = nullptr;
 
 GamePlayback::GamePlayback()
-   : _recording(false)
-   , _replaying(false)
 {
    s_instance = this;
 }

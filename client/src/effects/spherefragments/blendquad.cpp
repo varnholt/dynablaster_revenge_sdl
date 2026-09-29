@@ -1,26 +1,26 @@
 #include "blendquad.h"
 #include "gldevice.h"
 
-BlendQuad::BlendQuad() : mShader(0), mColorParam(-1), mScaleParam(-1), mOffsetParam(-1)
+BlendQuad::BlendQuad()
 {
-   mShader = activeDevice->loadShader("blendquad-vert.glsl", "blendquad-frag.glsl");
+   _shader = activeDevice->loadShader("blendquad-vert.glsl", "blendquad-frag.glsl");
 
-   mColorParam = activeDevice->getParameterIndex("color");
-   mScaleParam = activeDevice->getParameterIndex("scale");
-   mOffsetParam = activeDevice->getParameterIndex("offset");
+   _color_param = activeDevice->getParameterIndex("color");
+   _scale_param = activeDevice->getParameterIndex("scale");
+   _offset_param = activeDevice->getParameterIndex("offset");
 }
 
-void BlendQuad::process(unsigned int texture, const Vector4& color, float scale, const Vector& offset)
+void BlendQuad::process(uint32_t texture, const Vector4& color, float scale, const Vector& offset)
 {
-   activeDevice->setShader(mShader);
+   activeDevice->setShader(_shader);
    glDisable(GL_DEPTH_TEST);
    glDepthMask(GL_FALSE);
-   activeDevice->setParameter(mColorParam, color);
-   activeDevice->setParameter(mScaleParam, scale);
-   activeDevice->setParameter(mOffsetParam, offset);
+   activeDevice->setParameter(_color_param, color);
+   activeDevice->setParameter(_scale_param, scale);
+   activeDevice->setParameter(_offset_param, offset);
    glBindTexture(GL_TEXTURE_2D, texture);
 
-   mQuad.drawUnit();
+   _quad.drawUnit();
 
    activeDevice->setShader(0);
    glDepthMask(GL_TRUE);

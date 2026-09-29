@@ -13,38 +13,6 @@
 #include "image/image.h"
 
 PlayerInfectedEffect::PlayerInfectedEffect()
-   : _delta(0.0f),
-     _particle_texture_id(0),
-     _flow_field_texture_id(0),
-     _points_shader(0),
-     _points_texture(0),
-     _points_size(0),
-     _points_projection(0),
-     _flow_update_pos_shader(0),
-     _flow_depth_texture(0),
-     _flow_vertex_pos_texture(0),
-     _flow_vertex_param_texture(0),
-     _flow_field_texture(0),
-     _flow_center(0),
-     _flow_field_scale(0),
-     _flow_time_delta(0),
-     _flow_src_rect(0),
-     _flow_inv_proj(0),
-     _flow_stop(0),
-     _flow_init_pos_shader(0),
-     _flow_init_pos_depth(0),
-     _flow_init_pos_inv_proj(0),
-     _flow_init_src_rect(0),
-     _flow_init_param_shader(0),
-     _flow_init_param_depth(0),
-     _flow_init_param_inv_proj(0),
-     _flow_init_param_center(0),
-     _flow_update_col_shader(0),
-     _flow_update_col_color_map(0),
-     _flow_update_col_position_map(0),
-     _flow_update_col_proj(0),
-     _flow_update_col_stop(0),
-     _deferred_buffer(nullptr)
 {
    Image image;
    image.load("data/game/flowfield_pointsprite");
@@ -90,7 +58,6 @@ PlayerInfectedEffect::PlayerInfectedEffect()
 PlayerInfectedEffect::~PlayerInfectedEffect()
 {
    clear();
-   delete _deferred_buffer;
 }
 
 void PlayerInfectedEffect::clear()
@@ -126,17 +93,7 @@ void PlayerInfectedEffect::animate(float delta)
 {
    _delta = delta;
 
-   for (auto it = _flow_animations.begin(); it != _flow_animations.end();)
-   {
-      if (it->animation->isElapsed())
-      {
-         it = _flow_animations.erase(it);
-      }
-      else
-      {
-         ++it;
-      }
-   }
+   std::erase_if(_flow_animations, [](const Flow& flow) { return flow.animation->isElapsed(); });
 }
 
 void PlayerInfectedEffect::render()
@@ -149,7 +106,7 @@ void PlayerInfectedEffect::render()
 
    if (!_deferred_buffer)
    {
-      _deferred_buffer = new FrameBuffer(width, height, 0, FrameBuffer::DepthTexture);
+      _deferred_buffer = std::make_unique<FrameBuffer>(width, height, 0, FrameBuffer::DepthTexture);
    }
    else if (_deferred_buffer->resolutionChanged(width, height))
    {
@@ -170,7 +127,7 @@ void PlayerInfectedEffect::render()
       // must still be on here: the particle passes below unproject from this depth texture.
       // Clear to transparent black (the original's global clear color): respawning particles
       // that sample the background must get alpha 0 so the color pass leaves them alone.
-      FrameBuffer::push(_deferred_buffer);
+      FrameBuffer::push(_deferred_buffer.get());
       static_cast<GLDevice*>(activeDevice)->clear(0.0f, 0.0f, 0.0f, 0.0f);
 
       Vector min;

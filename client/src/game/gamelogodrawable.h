@@ -10,7 +10,9 @@
 #include "math/vector.h"
 #include "tools/array.h"
 
+#include <memory>
 #include <string>
+#include <vector>
 
 class PSDLayer;
 
@@ -39,19 +41,19 @@ public:
    GameLogoDrawable(RenderDevice* dev, bool visible = false);
 
    //! destructor
-   virtual ~GameLogoDrawable();
+   ~GameLogoDrawable() override;
 
    //! initialize
-   void initializeGL();
+   void initializeGL() override;
 
    //! draw
-   void paintGL();
+   void paintGL() override;
 
    //! animate
-   void animate(float time);
+   void animate(float time) override;
 
    //! overwrite base
-   void setVisible(bool visible);
+   void setVisible(bool visible) override;
 
    //!
    void pageChanged(const std::string& page);
@@ -84,13 +86,13 @@ protected:
    void initSpark(Spark& spark);
 
    //
-   bool _main_menu_visible;
+   bool _main_menu_visible = true;
 
    // animation
 
    //! time
-   float _delta_time;
-   float _time;
+   float _delta_time = 0.0f;
+   float _time = 0.0f;
 
    // overlay members
 
@@ -101,21 +103,21 @@ protected:
    std::string _filename;
 
    //! font texture
-   PSDLayer* _layer_dynablaster;
+   PSDLayer* _layer_dynablaster = nullptr;
 
    //! font texture
-   PSDLayer* _layer_revenge;
+   PSDLayer* _layer_revenge = nullptr;
 
-   //! all layers (owns them - see destructor)
-   Array<PSDLayer*> _layers;
+   //! all layers
+   std::vector<std::unique_ptr<PSDLayer>> _layers;
 
    //
-   float _fade_in_end;
-   float _fade_out_end;
+   float _fade_in_end = 0.0f;
+   float _fade_out_end = 0.0f;
 
    // spark point sprites
 
    Array<Spark> _sparks;
    Vector _spark_origin;
-   bool _spark_times_initialized;
+   bool _spark_times_initialized = false;
 };

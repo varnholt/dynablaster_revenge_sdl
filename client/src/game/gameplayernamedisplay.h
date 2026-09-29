@@ -9,6 +9,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <cstdint>
 
 class BitmapFont;
 class PlayerItem;
@@ -36,13 +37,13 @@ private:
    FrameTimer _active_time;
    std::vector<Vector> _positions;
    std::vector<std::string> _names;
-   BitmapFont* _font;
-   bool _show_arrow;
+   BitmapFont* _font = nullptr;
+   bool _show_arrow = false;
    Texture _arrow_texture;
    Vector _arrow_position;
-   unsigned int _arrow_shader;
-   unsigned int _arrow_vertex_buffer;
-   unsigned int _arrow_index_buffer;
-   int _arrow_param_texture;
-   int _arrow_param_alpha;
+   uint32_t _arrow_shader = 0;
+   uint32_t _arrow_vertex_buffer = 0;
+   uint32_t _arrow_index_buffer = 0;
+   int _arrow_param_texture = -1;
+   int _arrow_param_alpha = -1;
 };

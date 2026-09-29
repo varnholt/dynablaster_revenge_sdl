@@ -4,6 +4,7 @@
 
 #include <memory>
 #include <vector>
+#include <cstdint>
 
 class Detonation;
 
@@ -25,24 +26,24 @@ private:
    void drawExplosion(Detonation* det, float time);
    void drawBox(float x, float y, float z, float left, float right, float bottom, float top, int sides);
 
-   float _time;
-   unsigned int _shader;
+   float _time = 0.0f;
+   uint32_t _shader = 0;
 
-   unsigned int _noise_map;
-   unsigned int _gradient_map;
+   uint32_t _noise_map = 0;
+   uint32_t _gradient_map = 0;
 
-   int _param_time;
-   int _param_cam_pos;
-   int _param_top;
-   int _param_bottom;
-   int _param_left;
-   int _param_right;
-   int _param_bound_min;
-   int _param_bound_max;
-   int _param_noise_map;
-   int _param_gradient_map;
+   int _param_time = 0;
+   int _param_cam_pos = 0;
+   int _param_top = 0;
+   int _param_bottom = 0;
+   int _param_left = 0;
+   int _param_right = 0;
+   int _param_bound_min = 0;
+   int _param_bound_max = 0;
+   int _param_noise_map = 0;
+   int _param_gradient_map = 0;
 
-   unsigned int _box_vertex_buffer;
+   uint32_t _box_vertex_buffer = 0;
 
    std::vector<std::unique_ptr<Detonation>> _detonations;
 };

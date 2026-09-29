@@ -12,7 +12,7 @@ class Extra : public Mesh
 {
 public:
    Extra(Constants::ExtraType type, Geometry *geo, float x, float y);
-   virtual ~Extra();
+   ~Extra() override;
    void animate(float time);
 
 private:

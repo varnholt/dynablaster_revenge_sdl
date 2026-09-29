@@ -2,6 +2,7 @@
 
 #include "math/vector.h"
 #include "math/vector4.h"
+#include <cstdint>
 
 class InfectedFlowFieldAnimation
 {
@@ -10,8 +11,8 @@ public:
    ~InfectedFlowFieldAnimation();
 
    void initialize();
-   void initializePositions(unsigned int depth_map, const Vector& min, const Vector& max);
-   void initializeParams(unsigned int depth_map, const Vector& min, const Vector& max);
+   void initializePositions(uint32_t depth_map, const Vector& min, const Vector& max);
+   void initializeParams(uint32_t depth_map, const Vector& min, const Vector& max);
 
    bool initialized() const;
    void setInitialized(bool init);
@@ -37,23 +38,23 @@ public:
    bool stopped() const;
 
 private:
-   bool _initialized;
-   int _width;
-   int _height;
-   unsigned int _vertex_pos_buffer;
-   unsigned int _vertex_color_buffer;
-   unsigned int _vertex_param_texture;
-   unsigned int _param_target;
-   unsigned int _vertex_color_texture;
-   unsigned int _color_target;
-   unsigned int _positions[2];
-   unsigned int _pos_target[2];
-   int _page;
+   bool _initialized = false;
+   int _width = 0;
+   int _height = 0;
+   uint32_t _vertex_pos_buffer = 0;
+   uint32_t _vertex_color_buffer = 0;
+   uint32_t _vertex_param_texture = 0;
+   uint32_t _param_target = 0;
+   uint32_t _vertex_color_texture = 0;
+   uint32_t _color_target = 0;
+   uint32_t _positions[2];
+   uint32_t _pos_target[2];
+   int _page = 0;
 
    Vector _center;
-   float _flow_scale;
-   float _particle_size;
+   float _flow_scale = 0.2f;
+   float _particle_size = 0.0f;
 
-   float _elapsed;
-   bool _stop;
+   float _elapsed = 0.0f;
+   bool _stop = false;
 };

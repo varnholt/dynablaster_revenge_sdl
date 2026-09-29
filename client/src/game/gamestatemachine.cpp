@@ -1,11 +1,10 @@
 #include "gamestatemachine.h"
 
 
-GameStateMachine* GameStateMachine::s_instance = 0;
+GameStateMachine* GameStateMachine::s_instance = nullptr;
 
 
 GameStateMachine::GameStateMachine()
- : _state(Constants::GameStopped)
 {
    s_instance = this;
 }

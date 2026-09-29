@@ -21,7 +21,7 @@ public:
 
 protected:
 
-   PlayerItem* _player_item;
+   PlayerItem* _player_item = nullptr;
 };
 
 #endif // PLAYERBOUNDINGRECT_H

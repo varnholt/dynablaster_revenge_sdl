@@ -27,7 +27,9 @@ void InputInjector::queue(const std::vector<Step>& steps)
 void InputInjector::advance()
 {
    if (finished())
+   {
       return;
+   }
 
    if (_frames_in_current_step == 0)
    {

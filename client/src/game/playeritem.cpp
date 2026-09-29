@@ -4,20 +4,10 @@
 #include "animation/motionmixer.h"
 
 PlayerItem::PlayerItem(int id, const std::string& nick, Constants::Color color)
-: _id(id)
-, _color(color)
-, _nick(nick)
-, _mesh(0)
-, _material(0)
-, _pos(0,0,0)
-, _rot(0)
-, _speed(0.0f)
-, _anim_blend(0.0f)
-, _stand_blend(0.0f)
-, _killed(false)
-, _win(false)
-, _left_foot(false)
-, _flash(0.0f)
+    : _id(id),
+      _color(color),
+      _nick(nick),
+      _pos(0,0,0)
 {
 }
 

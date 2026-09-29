@@ -11,15 +11,7 @@
 
 #define FADE_FACTOR 0.009f
 
-CountdownDrawable::CountdownDrawable(RenderDevice* dev)
-   : Drawable(dev),
-     _time_left(0),
-     _animation_start_time(-1.0f),
-     _animation_active(false),
-     _delta_time(0.0f),
-     _time(0.0f),
-     _delta_time_initialized(false),
-     _shader(0)
+CountdownDrawable::CountdownDrawable(RenderDevice* dev) : Drawable(dev)
 {
    _filename = "data/menus/countdown.psd";
 }
@@ -53,14 +45,11 @@ void CountdownDrawable::animate(float time)
 
    // decrease alpha
    bool done = true;
-   float val = 0.0f;
-   for (int i = 0; i < _layer_alphas.size(); i++)
+   for (auto& alpha : _layer_alphas)
    {
-      val = _layer_alphas[i];
-
-      if (val > 0.0f)
+      if (alpha > 0.0f)
       {
-         _layer_alphas[i] = val - (FADE_FACTOR * _delta_time);
+         alpha = alpha - (FADE_FACTOR * _delta_time);
          done = false;
       }
    }

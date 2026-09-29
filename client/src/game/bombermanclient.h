@@ -19,6 +19,7 @@
 // game
 #include "gameinformation.h"
 #include "playerinfo.h"
+#include <cstdint>
 
 // foward declarations
 class BotFactory;
@@ -384,16 +385,16 @@ private:
    // members
 
    //! keys currently pressed
-   int _keys_pressed;
+   int _keys_pressed = 0;
 
    //! flag indicating bomb key was released
-   bool _bomb_released;
+   bool _bomb_released = true;
 
    //! stream socket to server, null unless connected or connecting
-   NET_StreamSocket* _socket;
+   NET_StreamSocket* _socket = nullptr;
 
    //! host address pending resolution, null once resolved (or if not resolving)
-   NET_Address* _address;
+   NET_Address* _address = nullptr;
 
    //! drives poll() once per tick
    Timer _poll_timer;
@@ -402,16 +403,16 @@ private:
    PacketStreamBuffer _buffer;
 
    //! blocksize of packet which is received from server
-   uint16_t _block_size;
+   uint16_t _block_size = 0;
 
    //! player id
-   int _id;
+   int _id = -1;
 
    //! game id
-   int _game_id;
+   int _game_id = -1;
 
    //! player alive
-   bool _dead;
+   bool _dead = true;
 
    //! map items
    std::unordered_map<int, MapItem*> _map_items;
@@ -426,13 +427,13 @@ private:
    mutable std::vector<GameInformation> _games;
 
    //! connected flag
-   bool _connected;
+   bool _connected = false;
 
    //! login is requested after connect to host
-   bool _login_after_connect;
+   bool _login_after_connect = false;
 
    //! server
-   Server* _server;
+   std::unique_ptr<Server> _server;
 
    //! server's own tick thread
    std::jthread _server_thread;
@@ -446,7 +447,7 @@ private:
    //! current player info - raw, non-owning: _player_info owns it. clearPlayerInfoMap()/
    //! removePlayerInfo() explicitly null this out if they're about to delete the object it
    //! points at, same explicit-invalidation pattern as Game::_spectators.
-   PlayerInfo* _current_player_info;
+   PlayerInfo* _current_player_info = nullptr;
 
    //! getter for client singleton
    static BombermanClient* _instance;
@@ -455,10 +456,10 @@ private:
    std::unique_ptr<PositionInterpolation> _position_interpolation;
 
    //! typing activated
-   bool _ingame_messaging_active;
+   bool _ingame_messaging_active = false;
 
    //! main menu active
-   bool _main_menu_active;
+   bool _main_menu_active = false;
 
    //! bot factory
    std::unique_ptr<BotFactory> _bot_factory;

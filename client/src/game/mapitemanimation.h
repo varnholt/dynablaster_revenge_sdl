@@ -20,15 +20,15 @@ class MapItemAnimation
 
       Constants::Direction _direction;
       float _speed;
-      float _x;
-      float _y;
-      float _z;
-      float _z_prev;
-      int _nominal_x;
-      int _nominal_y;
-      float _time;
-      bool _tick;
-      float _factor;
+      float _x = 0.0f;
+      float _y = 0.0f;
+      float _z = 0.0f;
+      float _z_prev = 0.0f;
+      int _nominal_x = -1;
+      int _nominal_y = -1;
+      float _time = 0.0f;
+      bool _tick = false;
+      float _factor = 1.0f;
 
       Signal<> bounce_signal;
 };

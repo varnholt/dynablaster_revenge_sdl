@@ -42,7 +42,7 @@ void drawQuad(const float* verts, int pos_components, int uv_components)
       }
    }
 
-   static unsigned int quad_vertex_buffer = 0;
+   static uint32_t quad_vertex_buffer = 0;
    if (quad_vertex_buffer == 0)
    {
       glGenBuffers(1, &quad_vertex_buffer);
@@ -167,26 +167,6 @@ void backProject(Vector* dst, const Vector& min2d, const Vector& max2d, const Ma
 }  // namespace
 
 PlayerInvincibleEffect::PlayerInvincibleEffect()
-   : _radius(0.0f),
-     _blur_h_shader(0),
-     _blur_h_texture(-1),
-     _blur_h_texel_offset(-1),
-     _blur_h_radius(-1),
-     _blur_h_kernel(-1),
-     _blur_v_shader(0),
-     _blur_v_texture(-1),
-     _blur_v_texel_offset(-1),
-     _blur_v_radius(-1),
-     _blur_v_kernel(-1),
-     _displace_shader(0),
-     _displace_texture1(-1),
-     _displace_texture2(-1),
-     _displace_texel_offset(-1),
-     _displace_offset(-1),
-     _displace_source_rect(-1),
-     _displace_fade(-1),
-     _display_center(-1),
-     _scratch_buffer(nullptr)
 {
    _displacement_texture = TexturePool::Instance()->getTexture("data/game/displace");
 
@@ -217,7 +197,6 @@ PlayerInvincibleEffect::PlayerInvincibleEffect()
 PlayerInvincibleEffect::~PlayerInvincibleEffect()
 {
    clear();
-   delete _scratch_buffer;
 }
 
 void PlayerInvincibleEffect::setRadius(float radius)
@@ -420,14 +399,14 @@ void PlayerInvincibleEffect::render()
 
    if (!_scratch_buffer)
    {
-      _scratch_buffer = new FrameBuffer(width, height, 0, FrameBuffer::NoDepthBuffer);
+      _scratch_buffer = std::make_unique<FrameBuffer>(width, height, 0, FrameBuffer::NoDepthBuffer);
    }
    else if (_scratch_buffer->resolutionChanged(width, height))
    {
       _scratch_buffer->setResolution(width, height);
    }
 
-   blurPlayers(_scratch_buffer, proj);
+   blurPlayers(_scratch_buffer.get(), proj);
 
    glDepthMask(GL_FALSE);
    glEnable(GL_BLEND);

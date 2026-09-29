@@ -44,38 +44,12 @@ constexpr int TRACK_LINE_2_CORRECTION_OFFSET_X = 0;
 constexpr int TRACK_LINE_2_CORRECTION_OFFSET_Y = 2;
 }  // namespace
 
-MusicPlayerDrawable::MusicPlayerDrawable(RenderDevice* dev)
-    : Drawable(dev),
-      _font(nullptr),
-      _animation_factor(0.0f),
-      _fade_in(false),
-      _idle(false),
-      _fade_out(false),
-      _max_width(-1),
-      _font_offset_artist_x(0),
-      _font_offset_artist_y(0),
-      _font_offset_artist_height(0),
-      _font_offset_album_x(0),
-      _font_offset_album_y(0),
-      _font_offset_album_height(0),
-      _font_offset_track_line1_x(0),
-      _font_offset_track_line1_y(0),
-      _font_offset_track_line1_height(0),
-      _font_offset_track_line2_x(0),
-      _font_offset_track_line2_y(0),
-      _font_offset_track_line2_height(0),
-      _animating(false),
-      _in_game(false)
+MusicPlayerDrawable::MusicPlayerDrawable(RenderDevice* dev) : Drawable(dev)
 {
    _filename = "data/musicplayer/player.psd";
 }
 
-MusicPlayerDrawable::~MusicPlayerDrawable()
-{
-   for (PSDLayer* layer : _psd_layers)
-      delete layer;
-   _psd_layers.clear();
-}
+MusicPlayerDrawable::~MusicPlayerDrawable() = default;
 
 void MusicPlayerDrawable::initializeGL()
 {
@@ -126,7 +100,7 @@ void MusicPlayerDrawable::initializeLayers()
       if (layer->getWidth() + layer->getLeft() > _max_width)
          _max_width = layer->getWidth() + layer->getLeft();
 
-      _psd_layers.push_back(new PSDLayer(layer));
+      _psd_layers.push_back(std::make_unique<PSDLayer>(layer));
    }
 }
 

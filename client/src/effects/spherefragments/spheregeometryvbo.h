@@ -1,10 +1,10 @@
 #pragma once
 
-// base
 #include "geometryvbo.h"
 
-// engine
 #include "render/texture.h"
+
+#include <cstdint>
 
 class Geometry;
 class Vector4;
@@ -12,9 +12,9 @@ class Vector4;
 class SphereGeometryVbo : public GeometryVbo
 {
 public:
-   SphereGeometryVbo(Geometry* geo);
+   explicit SphereGeometryVbo(Geometry* geometry);
 
-   virtual void initialize();
+   void initialize() override;
 
    void draw(const Vector4& color);
 
@@ -23,12 +23,8 @@ public:
    void cleanupGlParameter();
 
 protected:
-   //! sphere texture
-   Texture mTexture;
+   Texture _texture;
 
-   //! shader
-   unsigned int mShader;
-
-   //! uniform locations
-   int mColorParam;
+   uint32_t _shader = 0;
+   int32_t _color_param = -1;
 };

@@ -3,7 +3,9 @@
 // engine
 #include "math/matrix.h"
 #include "math/vector.h"
-#include "tools/array.h"
+
+#include <cstdint>
+#include <vector>
 
 class Mesh;
 class Image;
@@ -11,28 +13,27 @@ class Image;
 class SphereFragment
 {
 public:
-   //! constructor
-   SphereFragment(const Array<Mesh*>& meshList, Image* orderImage);
+   SphereFragment(const std::vector<Mesh*>& meshes, const Image* order_image);
 
-   int getPartCount() const;
+   int32_t getPartCount() const;
 
    void animate(float time, const Matrix& rotation);
 
-   Matrix* getMatrices() const;
+   const Matrix* getMatrices() const;
 
-   float* getFresnelFactors() const;
+   float* getFresnelFactors();
 
    //! draw single fragment
    void draw();
 
 protected:
-   unsigned int mVertexBuffer;
-   unsigned int mIndexBuffer;
-   int mVertexCount;
-   int mIndexCount;
-   Array<Matrix> mMatrix;
-   Array<float> mRandom;
-   Array<float> mTime;
-   Array<Matrix> mModelView;
-   Array<float> mFresnelFactors;
+   uint32_t _vertex_buffer = 0;
+   uint32_t _index_buffer = 0;
+   int32_t _vertex_count = 0;
+   int32_t _index_count = 0;
+   std::vector<Matrix> _matrix;
+   std::vector<float> _random;
+   std::vector<float> _time;
+   std::vector<Matrix> _model_view;
+   std::vector<float> _fresnel_factors;
 };

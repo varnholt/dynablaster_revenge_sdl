@@ -1,6 +1,7 @@
 #pragma once
 
 #include "math/vector.h"
+#include <cstdint>
 
 class Material;
 
@@ -20,7 +21,7 @@ public:
    int width() const;
    int height() const;
 
-   unsigned int texture(int id) const;
+   uint32_t texture(int id) const;
    void bind(int id);
    void unbind();
 
@@ -35,15 +36,15 @@ public:
    float getFade() const;
 
 private:
-   Material* _material;
-   int _width;
-   int _height;
-   unsigned int _texture[2];
-   unsigned int _target[2];
+   Material* _material = nullptr;
+   int _width = 256;
+   int _height = 256;
+   uint32_t _texture[2];
+   uint32_t _target[2];
 
    Vector _min;
    Vector _max;
    Vector _center;
-   float _fade;
-   bool _remove;
+   float _fade = 0.0f;
+   bool _remove = false;
 };

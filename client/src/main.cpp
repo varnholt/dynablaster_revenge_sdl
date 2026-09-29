@@ -1,7 +1,5 @@
-// dynablaster_revenge - the real game entry point. Launches straight into the actual main menu with
-// real window/mouse input, no CLI flags and no test/diagnostic scaffolding - that all lives in
-// the separate dynablaster_revenge_harness binary (src/main_harness.cpp), which builds against the
-// same dynablaster_core library. See CMakeLists.txt.
+// dynablaster_revenge - the game entry point. test/diagnostic modes live in the separate
+// dynablaster_revenge_harness binary (main_harness.cpp), built from the same dynablaster_core library.
 #include "gles3.h"
 #include "glescontext.h"
 
@@ -69,18 +67,10 @@ SDL_Keycode mapEditingKey(SDL_Keycode key)
    }
 }
 
-/// \brief allow-lists the movement/bomb/zoom/start keys BombermanClient::keyPressed() checks against
-/// GameSettings::ControllerSettings' default keymap (client/src/game/gamesettings.cpp -
-/// initializeDefaultMap(): Up/Down/Left/Right arrows, Space for bomb, [ ] for zoom, F10 for
-/// start), plus Return/Enter/Escape - not part of that remappable keymap, but hardcoded special
-/// cases BombermanClient::processKeyPressed() checks directly (client/src/game/bombermanclient.cpp:
-/// Return/Enter toggles in-game chat, Escape closes chat if open or otherwise leaves the game).
-/// Separate from mapEditingKey() above (menu text-field navigation) - only one of
-/// menuDrawable/gameDrawable is visible and receives key events at a time. Backspace/Delete/Home/End
-/// are for GameMessagingDrawable's own in-game chat text editing - same key event reaches both
-/// BombermanClient and GameMessagingDrawable each frame (matches the original's
-/// GameView::keyPressEvent(), which forwards to every visible Drawable), each independently gated
-/// on its own "chat active" flag.
+/// \brief allow-lists the keys the game side handles: the default keymap of
+/// GameSettings::ControllerSettings (arrows, space, [ ], F10), the hardcoded Return/Enter/Escape
+/// chat and leave keys of BombermanClient::processKeyPressed(), and the chat editing keys of
+/// GameMessagingDrawable. both receive every key event, each gated on its own "chat active" flag.
 SDL_Keycode mapGameKey(SDL_Keycode key)
 {
    switch (key)
@@ -125,17 +115,12 @@ int main(int /*argc*/, char** /*argv*/)
 #endif
    }
 
-   // BombermanClient (client/src/game/bombermanclient.cpp, copied in as-is - see project memory,
-   // Phase 4) owns Server construction itself now, on demand via host() (matches the real
-   // client/src/game/bombermanclientgui.cpp construction order - "new BombermanClient()" then
-   // initialize()). Superseded the earlier always-on "Server server;" proof-of-concept from before
-   // BombermanClient existed in this port.
-   BombermanClient bombermanClient;
-   bombermanClient.initialize();
+   // creates the embedded Server on demand via host()
+   BombermanClient bomberman_client;
+   bomberman_client.initialize();
 
    GlesContext context;
-   // matches the real original client's own DEFAULT_VIDEO_WIDTH/HEIGHT (client/src/game/gamesettings.cpp)
-   // - 16:9, same aspect as the menu system's own 1920x1080 page space (mainmenu.psd etc.).
+   // DEFAULT_VIDEO_WIDTH/HEIGHT, same 16:9 aspect as the menu's 1920x1080 page space
    if (!context.init("Dynablaster Revenge", 1024, 576))
    {
       NET_Quit();
@@ -164,184 +149,146 @@ int main(int /*argc*/, char** /*argv*/)
    SDL_Log("GL_RENDERER: %s", glGetString(GL_RENDERER));
    SDL_Log("GL_SHADING_LANGUAGE_VERSION: %s", glGetString(GL_SHADING_LANGUAGE_VERSION));
 
-   // materials that animate off a running clock (DisplacementMaterial's flag-wave shader,
-   // SphereFragmentsDrawable's earth/bomb rotation) read GlobalTime::Instance() - the original
-   // game got that from MainDrawable (the QGLWidget itself, see client/src/framework/maindrawable.h);
-   // this is that clock's replacement here.
-   SdlGlobalTime globalTime;
+   // animated materials and effects read this clock via GlobalTime::Instance()
+   SdlGlobalTime global_time;
 
    registerGameFonts();
 
-   MenuDrawable menuDrawable(&device);
-   menuDrawable.initializeGL();
-   menuDrawable.setVisible(true);
+   MenuDrawable menu_drawable(&device);
+   menu_drawable.initializeGL();
+   menu_drawable.setVisible(true);
 
-   MenuMouseCursor menuCursor(&device);
-   menuCursor.initializeGL();
-   menuCursor.setVisible(true);
+   MenuMouseCursor menu_cursor(&device);
+   menu_cursor.initializeGL();
+   menu_cursor.setVisible(true);
 
    // the menu draws its own cursor (above, MenuMouseCursor) - hide the OS cursor so the two
    // don't overlap on screen.
    SDL_HideCursor();
 
-   // the animated main-menu logo (sphere-fragments earth/bomb effect + "Dynablaster"/"Revenge"
-   // PSD text overlay + spark sparks) - only actually visible while the main menu page is
-   // showing (see GameLogoDrawable::pageChanged()), matching the original's own
-   // showMenuShowEnableMenu()/showGame() wiring (client/src/game/bombermanview.cpp).
-   GameLogoDrawable logoDrawable(&device);
-   logoDrawable.initializeGL();
-   logoDrawable.setVisible(true);
-   menuDrawable.pageChangedSignal.connect([&](const std::string& page) { logoDrawable.pageChanged(page); });
+   // the animated main-menu logo, only visible on the main menu page (see GameLogoDrawable::pageChanged())
+   GameLogoDrawable logo_drawable(&device);
+   logo_drawable.initializeGL();
+   logo_drawable.setVisible(true);
+   menu_drawable.pageChangedSignal.connect([&](const std::string& page) { logo_drawable.pageChanged(page); });
 
-   // turns button clicks (Menu::actionRequest) into actual page navigation - see
-   // menupagenavigator.h for exactly what this does and doesn't handle yet (no networking).
-   // pageChangeRequest is now a plain public method - no more Qt-reflection access-control bypass
-   // needed to reach it from here.
+   // turns button clicks (Menu::actionRequest) into page navigation
    MenuPageNavigator navigator;
-   menuDrawable.getMenu()->actionRequestSignal.connect([&](const std::string& page, const std::string& action)
-                                                       { navigator.onActionRequest(page, action); });
-   navigator.pageChangeRequestSignal.connect([&](const std::string& page) { menuDrawable.pageChangeRequest(page); });
+   menu_drawable.getMenu()->actionRequestSignal.connect([&](const std::string& page, const std::string& action)
+                                                        { navigator.onActionRequest(page, action); });
+   navigator.pageChangeRequestSignal.connect([&](const std::string& page) { menu_drawable.pageChangeRequest(page); });
 
-   // matches GameMenuWorkflow::pageChanged() - populates GAME_CREATE's dropdowns/checkboxes once
-   // the page actually becomes current (see MenuPageNavigator::onPageChanged()).
-   menuDrawable.pageChangedSignal.connect([&](const std::string& page) { navigator.onPageChanged(page); });
+   // populates GAME_CREATE's dropdowns/checkboxes once the page becomes current
+   menu_drawable.pageChangedSignal.connect([&](const std::string& page) { navigator.onPageChanged(page); });
 
-   // menu hover/click sound feedback - matches bombermanclientgui.cpp's own wiring. Qt's
-   // Qt::QueuedConnection deferral wasn't load-bearing (this app is single-threaded/poll-based) -
-   // dispatch synchronously instead.
-   menuDrawable.getMenu()->layerFocussedSignal.connect([](const std::string& page, const std::string& item)
-                                                       { SoundManager::getInstance()->playSoundMouseOver(page, item); });
-   menuDrawable.pageChangedSignal.connect([](const std::string& page) { SoundManager::getInstance()->playSoundMouseClick(page); });
+   // menu hover/click sound feedback
+   menu_drawable.getMenu()->layerFocussedSignal.connect([](const std::string& page, const std::string& item)
+                                                        { SoundManager::getInstance()->playSoundMouseOver(page, item); });
+   menu_drawable.pageChangedSignal.connect([](const std::string& page) { SoundManager::getInstance()->playSoundMouseClick(page); });
 
-   // GameDrawable (Phase 5, see project memory) - the real in-game rendering (map/players/bombs/
-   // extras). Starts hidden; BombermanClient::showGame()/showMenu() (see below) toggle it on/off
-   // against the menu, matching client/src/game/bombermanview.cpp's GameView::showGame()/
-   // showMenu() (that class itself isn't ported - main.cpp already does its job of owning/
-   // dispatching to each Drawable directly, same as it already does for the menu system).
-   GameDrawable gameDrawable(&device);
-   gameDrawable.initializeGL();
-   gameDrawable.setVisible(false);
+   // in-game rendering, starts hidden; showGame/showMenu below toggle it against the menu
+   GameDrawable game_drawable(&device);
+   game_drawable.initializeGL();
+   game_drawable.setVisible(false);
 
-   // in-game chat (client/src/game/gamemessagingdrawable.cpp) - toggled visible/hidden together
-   // with GameDrawable (see showGame/showMenuAgain below), matching GameView::showGame()/
-   // showMenuDisableGame().
-   GameMessagingDrawable gameMessagingDrawable(&device);
-   gameMessagingDrawable.initializeGL();
-   gameMessagingDrawable.setVisible(false);
+   // in-game chat, toggled together with the game drawable
+   GameMessagingDrawable game_messaging_drawable(&device);
+   game_messaging_drawable.initializeGL();
+   game_messaging_drawable.setVisible(false);
 
-   // pre-round countdown HUD overlay (client/src/game/countdowndrawable.cpp) - drawn on top of
-   // GameDrawable each frame while a countdown is in progress, matching GameView's own draw
-   // order (CountdownDrawable is constructed/registered last in the original's GameView, so it
-   // renders after GameDrawable's own main scene).
-   CountdownDrawable countdownDrawable(&device);
-   countdownDrawable.initializeGL();
+   // pre-round countdown overlay, drawn on top of the game scene
+   CountdownDrawable countdown_drawable(&device);
+   countdown_drawable.initializeGL();
 
-   // "ROUND X" slide-in text (client/src/game/roundsdrawable.cpp), shown at the start of each round
-   RoundsDrawable roundsDrawable(&device);
-   roundsDrawable.initializeGL();
+   // "ROUND X" slide-in text, shown at the start of each round
+   RoundsDrawable rounds_drawable(&device);
+   rounds_drawable.initializeGL();
 
-   // win/trophy screen (client/src/game/gamewindrawable.cpp) - self-governs its own visibility
-   // via GameStateMachine's stateChanged signal (connected in its own constructor), so it needs
-   // no explicit wiring here beyond construction + the animate/paintGL calls below.
-   GameWinDrawable gameWinDrawable(&device);
-   gameWinDrawable.initializeGL();
+   // win/trophy screen, drives its own visibility off GameStateMachine's state changes
+   GameWinDrawable game_win_drawable(&device);
+   game_win_drawable.initializeGL();
 
-   // bottom-left "now playing" slide-in notification (client/src/game/musicplayerdrawable.cpp) -
-   // self-governs its own visibility via its own fade in/idle/out timers, starting hidden until
-   // SoundManager's first track change (below) schedules its startup-delayed reveal.
-   MusicPlayerDrawable musicPlayerDrawable(&device);
-   musicPlayerDrawable.initializeGL();
+   // "now playing" notification, drives its own visibility off its fade timers
+   MusicPlayerDrawable music_player_drawable(&device);
+   music_player_drawable.initializeGL();
 
-   // client<->game wiring - mirrors client/src/game/bombermanclientgui.cpp's
-   // BombermanClientGui::initConnections() (only the connections relevant to what's actually
-   // ported here; chat/stats/rounds/joystick wiring is still out of scope).
-   SoundManager::getInstance()->trackChangedSignal.connect(
-      [&](const std::string& artist, const std::string& album, const std::string& track)
-      { musicPlayerDrawable.showCurrentlyPlaying(artist, album, track); }
+   // client <-> game wiring
+   SoundManager::getInstance()->trackChangedSignal.connect([&](
+                                                              const std::string& artist, const std::string& album, const std::string& track
+                                                           ) { music_player_drawable.showCurrentlyPlaying(artist, album, track); });
+   game_drawable.level_loaded_signal.connect([&](const std::string& path) { bomberman_client.levelLoaded(path); });
+   bomberman_client.loadLevelSignal.connect([&](const std::string& level) { game_drawable.loadLevel(level); });
+   bomberman_client.shakeBlockSignal.connect([&](MapItem* item) { game_drawable.shakeBlock(item); });
+   bomberman_client.setPlayerPositionSignal.connect([&](int id, float x, float y, float ang)
+                                                    { game_drawable.setPlayerPosition(id, x, y, ang); });
+   bomberman_client.setPlayerSpeedSignal.connect([&](int id, float x, float y, float ang) { game_drawable.setPlayerSpeed(id, x, y, ang); });
+   bomberman_client.getPositionInterpolation()->setPlayerPositionSignal.connect([&](int id, float x, float y, float ang)
+                                                                                { game_drawable.setPlayerPosition(id, x, y, ang); });
+   bomberman_client.getPositionInterpolation()->setPlayerSpeedSignal.connect([&](int id, float x, float y, float ang)
+                                                                             { game_drawable.setPlayerSpeed(id, x, y, ang); });
+   bomberman_client.getPositionInterpolation()->setMapItemPositionSignal.connect([&](MapItem* item, float x, float y, float z)
+                                                                                 { game_drawable.setMapItemPosition(item, x, y, z); });
+   bomberman_client.removeMapItemSignal.connect([&](MapItem* item) { bomberman_client.getPositionInterpolation()->removeMapItem(item); });
+   bomberman_client.playfieldScaleSignal.connect([&](float x, float y) { game_drawable.setPlayfieldScale(x, y); });
+   bomberman_client.playfieldSizeSignal.connect([&](int width, int height) { game_drawable.setPlayfieldSize(width, height); });
+   game_drawable.key_pressed_signal.connect([&](const KeyEvent& event) { bomberman_client.keyPressed(event); });
+   game_drawable.key_released_signal.connect([&](const KeyEvent& event) { bomberman_client.keyReleased(event); });
+   bomberman_client.createMapItemSignal.connect([&](MapItem* item) { game_drawable.createMapItem(item); });
+   bomberman_client.removeMapItemSignal.connect([&](MapItem* item) { game_drawable.removeMapItem(item); });
+   bomberman_client.destroyMapItemSignal.connect([&](MapItem* item, float flame_count) { game_drawable.destroyMapItem(item, flame_count); }
    );
-   gameDrawable.level_loaded_signal.connect([&](const std::string& path) { bombermanClient.levelLoaded(path); });
-   bombermanClient.loadLevelSignal.connect([&](const std::string& level) { gameDrawable.loadLevel(level); });
-   bombermanClient.shakeBlockSignal.connect([&](MapItem* item) { gameDrawable.shakeBlock(item); });
-   bombermanClient.setPlayerPositionSignal.connect([&](int id, float x, float y, float ang)
-                                                   { gameDrawable.setPlayerPosition(id, x, y, ang); });
-   bombermanClient.setPlayerSpeedSignal.connect([&](int id, float x, float y, float ang) { gameDrawable.setPlayerSpeed(id, x, y, ang); });
-   bombermanClient.getPositionInterpolation()->setPlayerPositionSignal.connect(
-      [&](int id, float x, float y, float ang) { gameDrawable.setPlayerPosition(id, x, y, ang); }
-   );
-   bombermanClient.getPositionInterpolation()->setPlayerSpeedSignal.connect(
-      [&](int id, float x, float y, float ang) { gameDrawable.setPlayerSpeed(id, x, y, ang); }
-   );
-   bombermanClient.getPositionInterpolation()->setMapItemPositionSignal.connect(
-      [&](MapItem* item, float x, float y, float z) { gameDrawable.setMapItemPosition(item, x, y, z); }
-   );
-   bombermanClient.removeMapItemSignal.connect([&](MapItem* item) { bombermanClient.getPositionInterpolation()->removeMapItem(item); });
-   bombermanClient.playfieldScaleSignal.connect([&](float x, float y) { gameDrawable.setPlayfieldScale(x, y); });
-   bombermanClient.playfieldSizeSignal.connect([&](int width, int height) { gameDrawable.setPlayfieldSize(width, height); });
-   gameDrawable.key_pressed_signal.connect([&](const KeyEvent& event) { bombermanClient.keyPressed(event); });
-   gameDrawable.key_released_signal.connect([&](const KeyEvent& event) { bombermanClient.keyReleased(event); });
-   bombermanClient.createMapItemSignal.connect([&](MapItem* item) { gameDrawable.createMapItem(item); });
-   bombermanClient.removeMapItemSignal.connect([&](MapItem* item) { gameDrawable.removeMapItem(item); });
-   bombermanClient.destroyMapItemSignal.connect([&](MapItem* item, float flameCount) { gameDrawable.destroyMapItem(item, flameCount); });
-   bombermanClient.addPlayerSignal.connect([&](int id, const std::string& nick, Constants::Color color)
-                                           { gameDrawable.addPlayer(id, nick, color); });
-   bombermanClient.removePlayerSignal.connect([&](int id) { gameDrawable.removePlayer(id); });
-   bombermanClient.extraRemovedSignal.connect([&](int x, int y, bool destroyed, Constants::ExtraType extra, int playerId)
-                                              { gameDrawable.extraRemoved(x, y, destroyed, extra, playerId); });
-   bombermanClient.detonationSignal.connect([&](int x, int y, int up, int down, int left, int right, float intense)
-                                            { gameDrawable.addDetonation(x, y, up, down, left, right, intense); });
-   bombermanClient.playerInfectedSignal.connect([&](int id, Constants::SkullType skull, int infectorId, int extraX, int extraY)
-                                                { gameDrawable.playerInfected(id, skull, infectorId, extraX, extraY); });
-   bombermanClient.playerIdSignal.connect([&](int id) { gameDrawable.setPlayerId(id); });
-   bombermanClient.countdownSignal.connect([&](int left) { countdownDrawable.countdown(left); });
-   bombermanClient.messageReceivedSignal.connect(
-      [&](int senderId, const std::string& message, bool finished)
-      { gameMessagingDrawable.messageReceived(senderId, message, finished); }
-   );
+   bomberman_client.addPlayerSignal.connect([&](int id, const std::string& nick, Constants::Color color)
+                                            { game_drawable.addPlayer(id, nick, color); });
+   bomberman_client.removePlayerSignal.connect([&](int id) { game_drawable.removePlayer(id); });
+   bomberman_client.extraRemovedSignal.connect([&](int x, int y, bool destroyed, Constants::ExtraType extra, int player_id)
+                                               { game_drawable.extraRemoved(x, y, destroyed, extra, player_id); });
+   bomberman_client.detonationSignal.connect([&](int x, int y, int up, int down, int left, int right, float intense)
+                                             { game_drawable.addDetonation(x, y, up, down, left, right, intense); });
+   bomberman_client.playerInfectedSignal.connect([&](int id, Constants::SkullType skull, int infector_id, int extra_x, int extra_y)
+                                                 { game_drawable.playerInfected(id, skull, infector_id, extra_x, extra_y); });
+   bomberman_client.playerIdSignal.connect([&](int id) { game_drawable.setPlayerId(id); });
+   bomberman_client.countdownSignal.connect([&](int left) { countdown_drawable.countdown(left); });
+   bomberman_client.messageReceivedSignal.connect([&](int sender_id, const std::string& message, bool finished)
+                                                  { game_messaging_drawable.messageReceived(sender_id, message, finished); });
 
-   // menu<->game visibility switch - matches GameView::showGame()/showMenu() exactly (minus the
-   // still-deferred GameStatsDrawable/GameHelpDrawable).
-   bombermanClient.showGameSignal.connect(
+   // menu <-> game visibility switch
+   bomberman_client.showGameSignal.connect(
       [&]()
       {
-         menuDrawable.setVisible(false);
-         logoDrawable.setVisible(false);
-         menuCursor.setVisible(false);
-         gameDrawable.setVisible(true);
-         gameMessagingDrawable.setVisible(true);
-         musicPlayerDrawable.setInGame(true);
-         roundsDrawable.showGame();
+         menu_drawable.setVisible(false);
+         logo_drawable.setVisible(false);
+         menu_cursor.setVisible(false);
+         game_drawable.setVisible(true);
+         game_messaging_drawable.setVisible(true);
+         music_player_drawable.setInGame(true);
+         rounds_drawable.showGame();
       }
    );
-   auto showMenuAgain = [&]()
+   auto show_menu_again = [&]()
    {
-      gameDrawable.setVisible(false);
-      gameMessagingDrawable.setVisible(false);
-      countdownDrawable.setVisible(false);
-      roundsDrawable.setVisible(false);
-      menuDrawable.setVisible(true);
-      logoDrawable.setVisible(true);
-      menuCursor.setVisible(true);
-      musicPlayerDrawable.setInGame(false);
+      game_drawable.setVisible(false);
+      game_messaging_drawable.setVisible(false);
+      countdown_drawable.setVisible(false);
+      rounds_drawable.setVisible(false);
+      menu_drawable.setVisible(true);
+      logo_drawable.setVisible(true);
+      menu_cursor.setVisible(true);
+      music_player_drawable.setInGame(false);
    };
-   bombermanClient.showMenuSignal.connect(showMenuAgain);
-   // matches GameView::showMenuWithDelay(): a round ending naturally shows the win/trophy screen
-   // first (GameWinDrawable, still rendered on top of the - now blurred - game scene), only
-   // switching to the menu once its own fade-out sequence finishes. showMenu() above (early
-   // leave/ESC, no valid game id) stays an immediate switch - matches GameWinDrawable's own
-   // isGameIdValid() gate, which skips showing itself in exactly that case.
-   bombermanClient.gameStoppedSignal.connect([&]() { Timer::singleShot(SHOW_WINNER_TIME_SUM, showMenuAgain); });
-   bombermanClient.showMainMenuSignal.connect([&]() { menuDrawable.pageChangeRequest("data/menus/mainmenu.psd"); });
+   bomberman_client.showMenuSignal.connect(show_menu_again);
+   // a finished game shows the win screen first and switches to the menu once it faded out;
+   // showMenu() above (early leave, no valid game id) switches immediately
+   bomberman_client.gameStoppedSignal.connect([&]() { Timer::singleShot(SHOW_WINNER_TIME_SUM, show_menu_again); });
+   bomberman_client.showMainMenuSignal.connect([&]() { menu_drawable.pageChangeRequest("data/menus/mainmenu.psd"); });
 
-   // matches BombermanClientGui's own startup sequence (SoundManager::getInstance()->
-   // startPlaylist(), called once real init is done) - background music.
+   // background music
    SoundManager::getInstance()->startPlaylist();
 
    bool running = true;
    navigator.quitRequestSignal.connect([&running]() { running = false; });
 
-   // wrapped in a std::function rather than the plain while(running) loop running its body
-   // inline, because a real blocking loop would freeze the browser tab under Emscripten (single
-   // JS thread, no return-to-browser between frames) - see the __EMSCRIPTEN__ branch below.
+   // a std::function so Emscripten can drive it from requestAnimationFrame, a blocking loop
+   // would freeze the browser tab
    std::function<void()> frame = [&]()
    {
 #ifdef __EMSCRIPTEN__
@@ -360,30 +307,22 @@ int main(int /*argc*/, char** /*argv*/)
             running = false;
          }
 
-         // Alt+Enter toggles fullscreen - matches the original's own global QShortcut
-         // (client/src/game/bombermanclientgui.cpp: mShortcutFullscreen->setKey(Qt::ALT +
-         // Qt::Key_Return)), works regardless of menu/game state, same as there.
+         // Alt+Enter toggles fullscreen, regardless of menu/game state
          if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_RETURN && (event.key.mod & SDL_KMOD_ALT))
          {
-            const bool isFullscreen = (SDL_GetWindowFlags(context.window()) & SDL_WINDOW_FULLSCREEN) != 0;
-            SDL_SetWindowFullscreen(context.window(), !isFullscreen);
+            const bool is_fullscreen = (SDL_GetWindowFlags(context.window()) & SDL_WINDOW_FULLSCREEN) != 0;
+            SDL_SetWindowFullscreen(context.window(), !is_fullscreen);
             continue;  // don't also forward the plain Return key to the menu/game below
          }
 
-         // nothing previously re-queried the window's actual pixel size or re-ran
-         // device.resize() after startup, so a fullscreen toggle (or any window resize) kept
-         // rendering into the old, smaller viewport in a corner of the now-larger window.
+         // follow fullscreen toggles and window resizes
          if (event.type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED)
          {
             context.updateSize();
             device.resize(context.width(), context.height());
          }
 
-         // menu items live in 1920x1080 page space (see mainmenu.psd/background.psd), not window
-         // space - the original (client/src/game/bombermanview.cpp) converted every mouse event
-         // through activeDevice->convertFromViewPort() before handing it to a Drawable, and this
-         // port needs the exact same conversion now that main.cpp is doing bombermanview's old
-         // job of dispatching events to each Drawable directly.
+         // menu items live in 1920x1080 page space, not window space
          switch (event.type)
          {
             case SDL_EVENT_MOUSE_MOTION:
@@ -391,8 +330,8 @@ int main(int /*argc*/, char** /*argv*/)
                int x = static_cast<int>(event.motion.x);
                int y = static_cast<int>(event.motion.y);
                device.convertFromViewPort(&x, &y, 1920, 1080);
-               menuDrawable.mouseMoveEvent(x, y);
-               menuCursor.mouseMoveEvent(x, y);
+               menu_drawable.mouseMoveEvent(x, y);
+               menu_cursor.mouseMoveEvent(x, y);
                break;
             }
             case SDL_EVENT_MOUSE_BUTTON_DOWN:
@@ -400,28 +339,26 @@ int main(int /*argc*/, char** /*argv*/)
                int x = static_cast<int>(event.button.x);
                int y = static_cast<int>(event.button.y);
                device.convertFromViewPort(&x, &y, 1920, 1080);
-               menuDrawable.mousePressEvent(x, y);
-               menuCursor.mousePressEvent(x, y);
+               menu_drawable.mousePressEvent(x, y);
+               menu_cursor.mousePressEvent(x, y);
                break;
             }
             case SDL_EVENT_MOUSE_BUTTON_UP:
-               menuDrawable.mouseReleaseEvent();
-               menuCursor.mouseReleaseEvent();
+               menu_drawable.mouseReleaseEvent();
+               menu_cursor.mouseReleaseEvent();
                break;
             case SDL_EVENT_KEY_DOWN:
             {
-               if (gameDrawable.isVisible())
+               if (game_drawable.isVisible())
                {
                   const SDL_Keycode key = mapGameKey(event.key.key);
                   if (key != SDLK_UNKNOWN)
                   {
-                     // same key event reaches both - matches GameView::keyPressEvent() forwarding
-                     // to every visible Drawable; each side's own "chat active" gate (see
-                     // BombermanClient::processKeyPressed()/GameMessagingDrawable::isActive())
-                     // keeps movement and chat text entry from double-handling it.
-                     KeyEvent keyEvent(key, std::string(), event.key.repeat);
-                     gameDrawable.keyPressEvent(keyEvent);
-                     gameMessagingDrawable.keyPressEvent(keyEvent);
+                     // both get the event, each side's "chat active" gate keeps movement and
+                     // chat text entry from double-handling it
+                     KeyEvent key_event(key, std::string(), event.key.repeat);
+                     game_drawable.keyPressEvent(key_event);
+                     game_messaging_drawable.keyPressEvent(key_event);
                   }
                }
                else
@@ -429,33 +366,37 @@ int main(int /*argc*/, char** /*argv*/)
                   const SDL_Keycode key = mapEditingKey(event.key.key);
                   if (key != SDLK_UNKNOWN)
                   {
-                     KeyEvent keyEvent(key, std::string(), false);
-                     menuDrawable.keyPressEvent(keyEvent);
+                     KeyEvent key_event(key, std::string(), false);
+                     menu_drawable.keyPressEvent(key_event);
                   }
                }
                break;
             }
             case SDL_EVENT_KEY_UP:
             {
-               if (gameDrawable.isVisible())
+               if (game_drawable.isVisible())
                {
                   const SDL_Keycode key = mapGameKey(event.key.key);
                   if (key != SDLK_UNKNOWN)
                   {
-                     KeyEvent keyEvent(key, std::string(), event.key.repeat);
-                     gameDrawable.keyReleaseEvent(keyEvent);
+                     KeyEvent key_event(key, std::string(), event.key.repeat);
+                     game_drawable.keyReleaseEvent(key_event);
                   }
                }
                break;
             }
             case SDL_EVENT_TEXT_INPUT:
             {
-               KeyEvent keyEvent(SDLK_UNKNOWN, std::string(event.text.text), false);
+               KeyEvent key_event(SDLK_UNKNOWN, std::string(event.text.text), false);
 
-               if (gameDrawable.isVisible())
-                  gameMessagingDrawable.keyPressEvent(keyEvent);
+               if (game_drawable.isVisible())
+               {
+                  game_messaging_drawable.keyPressEvent(key_event);
+               }
                else
-                  menuDrawable.keyPressEvent(keyEvent);
+               {
+                  menu_drawable.keyPressEvent(key_event);
+               }
 
                break;
             }
@@ -469,75 +410,66 @@ int main(int /*argc*/, char** /*argv*/)
 
       device.clear();
 
-      // must run before menuDrawable.paintGL() - the page cross-fade animation reads GlobalTime
-      // (via FrameTimer), so updating it after paintGL() makes every frame's fade calc use last
-      // frame's stale time instead of this frame's.
-      globalTime.update();
+      // must run before the menu's paintGL(), its page cross-fade reads GlobalTime via FrameTimer
+      global_time.update();
 
-      // drives every FrameTimer's timeout() signal (client/src/game/bombermanview.cpp:385's
-      // TimerHandler::Instance()->update() - never carried over to this port). Without this,
-      // FrameTimer::start()'s timer never fires at all - broke PositionInterpolation's own
-      // FrameTimer-based update loop, which is why kicked bombs never visually moved.
+      // drives every FrameTimer's timeout() signal (e.g. PositionInterpolation's update loop)
       TimerHandler::Instance()->update();
 
-      const float timeMs = static_cast<float>(SDL_GetTicks());
+      const float time_ms = static_cast<float>(SDL_GetTicks());
 
-      if (menuDrawable.isVisible())
+      if (menu_drawable.isVisible())
       {
-         menuDrawable.animate(timeMs);
-         menuDrawable.paintGL();
+         menu_drawable.animate(time_ms);
+         menu_drawable.paintGL();
       }
 
-      if (menuCursor.isVisible())
+      if (menu_cursor.isVisible())
       {
-         menuCursor.animate(timeMs);
-         menuCursor.paintGL();
+         menu_cursor.animate(time_ms);
+         menu_cursor.paintGL();
       }
 
-      if (logoDrawable.isVisible())
+      // drawables animate in real seconds * 62.5
+      if (logo_drawable.isVisible())
       {
-         // real seconds * 62.5, matching client/src/game/bombermanview.cpp's Drawable::animate() convention.
-         logoDrawable.animate(timeMs * 0.0625f);
-         logoDrawable.paintGL();
+         logo_drawable.animate(time_ms * 0.0625f);
+         logo_drawable.paintGL();
       }
 
-      if (gameDrawable.isVisible())
+      if (game_drawable.isVisible())
       {
-         // real seconds * 62.5, matching client/src/game/bombermanview.cpp's Drawable::animate() convention.
-         gameDrawable.animate(timeMs * 0.0625f);
-         gameDrawable.paintGL();
+         game_drawable.animate(time_ms * 0.0625f);
+         game_drawable.paintGL();
       }
 
-      if (gameMessagingDrawable.isVisible())
+      if (game_messaging_drawable.isVisible())
       {
-         gameMessagingDrawable.paintGL();
+         game_messaging_drawable.paintGL();
       }
 
-      if (countdownDrawable.isVisible())
+      if (countdown_drawable.isVisible())
       {
-         // real seconds * 62.5, matching client/src/game/bombermanview.cpp's Drawable::animate() convention.
-         countdownDrawable.animate(timeMs * 0.0625f);
-         countdownDrawable.paintGL();
+         countdown_drawable.animate(time_ms * 0.0625f);
+         countdown_drawable.paintGL();
       }
 
-      if (roundsDrawable.isVisible())
+      if (rounds_drawable.isVisible())
       {
-         roundsDrawable.animate(timeMs * 0.0625f);
-         roundsDrawable.paintGL();
+         rounds_drawable.animate(time_ms * 0.0625f);
+         rounds_drawable.paintGL();
       }
 
-      if (gameWinDrawable.isVisible())
+      if (game_win_drawable.isVisible())
       {
-         // real seconds * 62.5, matching client/src/game/bombermanview.cpp's Drawable::animate() convention.
-         gameWinDrawable.animate(timeMs * 0.0625f);
-         gameWinDrawable.paintGL();
+         game_win_drawable.animate(time_ms * 0.0625f);
+         game_win_drawable.paintGL();
       }
 
-      if (musicPlayerDrawable.isVisible())
+      if (music_player_drawable.isVisible())
       {
-         // real seconds * 62.5, matching client/src/game/bombermanview.cpp's Drawable::animate() convention.
-         musicPlayerDrawable.animate(timeMs * 0.0625f);
-         musicPlayerDrawable.paintGL();
+         music_player_drawable.animate(time_ms * 0.0625f);
+         music_player_drawable.paintGL();
       }
 
       context.swap();
@@ -546,9 +478,7 @@ int main(int /*argc*/, char** /*argv*/)
 #ifdef __EMSCRIPTEN__
    // simulate_infinite_loop=true unwinds main()'s stack here and drives frame() off
    // requestAnimationFrame instead - NET_Quit()/return below never actually run in this build.
-   emscripten_set_main_loop_arg(
-      [](void* arg) { (*static_cast<std::function<void()>*>(arg))(); }, &frame, 0, true
-   );
+   emscripten_set_main_loop_arg([](void* arg) { (*static_cast<std::function<void()>*>(arg))(); }, &frame, 0, true);
 #else
    while (running)
    {

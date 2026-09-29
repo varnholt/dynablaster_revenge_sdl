@@ -1,6 +1,6 @@
 #include "helpmanager.h"
 
-HelpManager* HelpManager::sInstance = 0;
+HelpManager* HelpManager::sInstance = nullptr;
 
 
 HelpManager::HelpManager()

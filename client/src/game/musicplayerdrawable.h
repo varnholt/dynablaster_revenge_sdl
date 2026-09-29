@@ -6,6 +6,7 @@
 
 #include <string>
 #include <vector>
+#include <memory>
 
 class BitmapFont;
 class PSDLayer;
@@ -37,10 +38,10 @@ private:
    void cleanupGlParameters();
 
    PSD _psd;
-   std::vector<PSDLayer*> _psd_layers;
+   std::vector<std::unique_ptr<PSDLayer>> _psd_layers;
    std::string _filename;
 
-   BitmapFont* _font;
+   BitmapFont* _font = nullptr;
 
    std::string _artist;
    std::string _album;
@@ -49,31 +50,31 @@ private:
 
    FrameTimer _animation_stop_time;
 
-   float _animation_factor;
+   float _animation_factor = 0.0f;
 
-   bool _fade_in;
-   bool _idle;
-   bool _fade_out;
+   bool _fade_in = false;
+   bool _idle = false;
+   bool _fade_out = false;
 
-   int _max_width;
+   int _max_width = -1;
 
-   int _font_offset_artist_x;
-   int _font_offset_artist_y;
-   int _font_offset_artist_height;
+   int _font_offset_artist_x = 0;
+   int _font_offset_artist_y = 0;
+   int _font_offset_artist_height = 0;
 
-   int _font_offset_album_x;
-   int _font_offset_album_y;
-   int _font_offset_album_height;
+   int _font_offset_album_x = 0;
+   int _font_offset_album_y = 0;
+   int _font_offset_album_height = 0;
 
-   int _font_offset_track_line1_x;
-   int _font_offset_track_line1_y;
-   int _font_offset_track_line1_height;
+   int _font_offset_track_line1_x = 0;
+   int _font_offset_track_line1_y = 0;
+   int _font_offset_track_line1_height = 0;
 
-   int _font_offset_track_line2_x;
-   int _font_offset_track_line2_y;
-   int _font_offset_track_line2_height;
+   int _font_offset_track_line2_x = 0;
+   int _font_offset_track_line2_y = 0;
+   int _font_offset_track_line2_height = 0;
 
-   bool _animating;
+   bool _animating = false;
 
-   bool _in_game;
+   bool _in_game = false;
 };

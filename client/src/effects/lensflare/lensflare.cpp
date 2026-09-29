@@ -11,6 +11,7 @@
 #include <optional>
 #include <ranges>
 #include <string_view>
+#include <type_traits>
 
 namespace
 {
@@ -262,9 +263,9 @@ void LensFlare::draw(const Vector2& sun_2d, int32_t time_param, int32_t sun_para
    glEnableVertexAttribArray(0);
    glEnableVertexAttribArray(1);
    glEnableVertexAttribArray(2);
-   glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, sizeof(LensFlareVertex), (GLvoid*)0);
-   glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(LensFlareVertex), (GLvoid*)(sizeof(float) * 4));
-   glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(LensFlareVertex), (GLvoid*)(sizeof(float) * 8));
+   glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, sizeof(LensFlareVertex), nullptr);
+   glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(LensFlareVertex), reinterpret_cast<const void*>(sizeof(float) * 4));
+   glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(LensFlareVertex), reinterpret_cast<const void*>(sizeof(float) * 8));
 
    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _index_buffer);
    glDrawElements(GL_TRIANGLES, _index_count, GL_UNSIGNED_SHORT, nullptr);

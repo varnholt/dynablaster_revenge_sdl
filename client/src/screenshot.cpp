@@ -3,6 +3,7 @@
 #include "gles3.h"
 
 #include <SDL3/SDL.h>
+#include <cstdint>
 #include <cstring>
 #include <vector>
 
@@ -21,9 +22,9 @@ bool saveScreenshot(const std::string& path, int width, int height)
    const size_t row_bytes = static_cast<size_t>(width) * 4;
    for (int row = 0; row < height; ++row)
    {
-      const uint8_t* src = pixels.data() + row_bytes * row;
-      uint8_t* dst = flipped.data() + row_bytes * (height - 1 - row);
-      std::memcpy(dst, src, row_bytes);
+      const uint8_t* source = pixels.data() + row_bytes * row;
+      uint8_t* destination = flipped.data() + row_bytes * (height - 1 - row);
+      std::memcpy(destination, source, row_bytes);
    }
 
    const int ok = stbi_write_png(path.c_str(), width, height, 4, flipped.data(), static_cast<int>(row_bytes));

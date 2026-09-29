@@ -68,18 +68,7 @@ void drawQuad(const float* verts, int floats_per_vertex)
 }
 }  // namespace
 
-DeathFlowFieldAnimation::DeathFlowFieldAnimation()
-   : _width(0),
-     _height(0),
-     _vertex_pos_buffer(0),
-     _vertex_uv_buffer(0),
-     _vertex_params(0),
-     _texture(0),
-     _page(0),
-     _center(0.0f, 0.0f, 0.0f),
-     _flow_scale(0.2f),
-     _particle_size(0.0f),
-     _elapsed(0.0f)
+DeathFlowFieldAnimation::DeathFlowFieldAnimation() : _center(0.0f, 0.0f, 0.0f)
 {
    _positions[0] = _positions[1] = 0;
    _target[0] = _target[1] = 0;
@@ -108,7 +97,7 @@ void DeathFlowFieldAnimation::setCenter(const Vector& center)
    _center = center;
 }
 
-unsigned int DeathFlowFieldAnimation::getColorMap() const
+uint32_t DeathFlowFieldAnimation::getColorMap() const
 {
    return _texture;
 }
@@ -225,7 +214,7 @@ void DeathFlowFieldAnimation::initialize(FrameBuffer* src, const Vector& min, co
    glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
-void DeathFlowFieldAnimation::initializePositions(unsigned int depth_map, const Vector& min, const Vector& max)
+void DeathFlowFieldAnimation::initializePositions(uint32_t depth_map, const Vector& min, const Vector& max)
 {
    glBindFramebuffer(GL_FRAMEBUFFER, _target[1]);
    glViewport(0, 0, _width, _height);
@@ -239,9 +228,9 @@ void DeathFlowFieldAnimation::initializePositions(unsigned int depth_map, const 
    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void DeathFlowFieldAnimation::initializeParams(unsigned int depth_map, const Vector& min, const Vector& max)
+void DeathFlowFieldAnimation::initializeParams(uint32_t depth_map, const Vector& min, const Vector& max)
 {
-   unsigned int target = 0;
+   uint32_t target = 0;
 
    glGenTextures(1, &_vertex_params);
    glBindTexture(GL_TEXTURE_2D, _vertex_params);

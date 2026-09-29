@@ -9,6 +9,7 @@
 
 // shared
 #include "constants.h"
+#include <cstdint>
 
 class StarTalersFactory
 {
@@ -33,10 +34,10 @@ private:
       bool isElapsed() const;
 
    private:
-      unsigned int _vertex_buffer;
-      unsigned int _index_buffer;
-      int _index_count;
-      float _time;
+      uint32_t _vertex_buffer = 0;
+      uint32_t _index_buffer = 0;
+      int _index_count = 0;
+      float _time = 0.0f;
       Vector _field_position;
       Vector _color;
    };
@@ -45,13 +46,13 @@ private:
 
    std::vector<std::unique_ptr<Burst>> _bursts;
 
-   unsigned int _shader;
-   unsigned int _texture_id;
-   int _field_param;
-   int _color_param;
-   int _time_param;
-   int _camera_param;
-   int _texture_param;
+   uint32_t _shader = 0;
+   uint32_t _texture_id = 0;
+   int _field_param = -1;
+   int _color_param = -1;
+   int _time_param = -1;
+   int _camera_param = -1;
+   int _texture_param = -1;
 
    Vector _color_bomb;
    Vector _color_flame;

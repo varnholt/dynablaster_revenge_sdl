@@ -6,7 +6,9 @@
 #include "menus/defaultshader.h"
 #include "render/texturepool.h"
 
+#include <array>
 #include <cmath>
+#include <cstdint>
 #include <numbers>
 #include <vector>
 
@@ -206,7 +208,7 @@ void SpaceBackground::drawStarField()
    device->setProjectionMatrix(Matrix());
 
    const float offset = GlobalTime::Instance()->getTime() * 0.002f;
-   const float vertices[] = {
+   const std::array<float, 30> vertices = {
       -1.0f, -1.0f, 0.0f, offset + 0.0f, 0.0f, 1.0f, -1.0f, 0.0f, offset + 2.0f, 0.0f, 1.0f,  1.0f, 0.0f, offset + 2.0f, 1.0f,
       -1.0f, -1.0f, 0.0f, offset + 0.0f, 0.0f, 1.0f, 1.0f,  0.0f, offset + 2.0f, 1.0f, -1.0f, 1.0f, 0.0f, offset + 0.0f, 1.0f,
    };
@@ -221,11 +223,11 @@ void SpaceBackground::drawStarField()
    glBindTexture(GL_TEXTURE_2D, _star_field_texture.getTexture());
 
    glBindBuffer(GL_ARRAY_BUFFER, _quad_vertex_buffer);
-   glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
+   glBufferData(GL_ARRAY_BUFFER, sizeof(float) * vertices.size(), vertices.data(), GL_DYNAMIC_DRAW);
    glEnableVertexAttribArray(0);
    glEnableVertexAttribArray(1);
-   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 5, (GLvoid*)0);
-   glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 5, (GLvoid*)(sizeof(float) * 3));
+   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 5, nullptr);
+   glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 5, reinterpret_cast<const void*>(sizeof(float) * 3));
    glDrawArrays(GL_TRIANGLES, 0, 6);
    glDisableVertexAttribArray(0);
    glDisableVertexAttribArray(1);
@@ -261,9 +263,9 @@ void SpaceBackground::drawEarth()
    glEnableVertexAttribArray(0);
    glEnableVertexAttribArray(1);
    glEnableVertexAttribArray(2);
-   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(EarthVertex), (GLvoid*)0);
-   glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(EarthVertex), (GLvoid*)(sizeof(float) * 3));
-   glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(EarthVertex), (GLvoid*)(sizeof(float) * 6));
+   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(EarthVertex), nullptr);
+   glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(EarthVertex), reinterpret_cast<const void*>(sizeof(float) * 3));
+   glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(EarthVertex), reinterpret_cast<const void*>(sizeof(float) * 6));
 
    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _earth_index_buffer);
    glDrawElements(GL_TRIANGLES, _earth_index_count, GL_UNSIGNED_SHORT, nullptr);
@@ -296,8 +298,8 @@ void SpaceBackground::drawAura()
    glBindBuffer(GL_ARRAY_BUFFER, _aura_vertex_buffer);
    glEnableVertexAttribArray(0);
    glEnableVertexAttribArray(1);
-   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(AuraVertex), (GLvoid*)0);
-   glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(AuraVertex), (GLvoid*)(sizeof(float) * 3));
+   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(AuraVertex), nullptr);
+   glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(AuraVertex), reinterpret_cast<const void*>(sizeof(float) * 3));
    glDrawArrays(GL_TRIANGLE_STRIP, 0, _aura_vertex_count);
    glDisableVertexAttribArray(0);
    glDisableVertexAttribArray(1);

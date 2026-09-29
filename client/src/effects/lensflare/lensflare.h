@@ -57,7 +57,7 @@ private:
 
    Config _config;
    Texture _texture;
-   unsigned int _vertex_buffer = 0;
-   unsigned int _index_buffer = 0;
+   uint32_t _vertex_buffer = 0;
+   uint32_t _index_buffer = 0;
    int32_t _index_count = 0;
 };

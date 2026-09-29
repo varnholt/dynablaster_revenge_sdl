@@ -26,25 +26,12 @@
 #define FADE_IN_LENGTH 80.0f
 #define FADE_OUT_LENGTH 80.0f
 
-GameLogoDrawable::GameLogoDrawable(RenderDevice* dev, bool visible)
-    : SphereFragmentsDrawable(dev, visible),
-      _main_menu_visible(true),
-      _delta_time(0.0f),
-      _time(0.0f),
-      _layer_dynablaster(0),
-      _layer_revenge(0),
-      _fade_in_end(0.0f),
-      _fade_out_end(0.0f),
-      _spark_times_initialized(false)
+GameLogoDrawable::GameLogoDrawable(RenderDevice* dev, bool visible) : SphereFragmentsDrawable(dev, visible)
 {
    _filename = "data/logo/logo.psd";
 }
 
-GameLogoDrawable::~GameLogoDrawable()
-{
-   for (int i = 0; i < _layers.size(); i++)
-      delete _layers[i];
-}
+GameLogoDrawable::~GameLogoDrawable() = default;
 
 void GameLogoDrawable::initializeGL()
 {
@@ -58,15 +45,15 @@ void GameLogoDrawable::paintGL()
 {
    updateFadeAlpha();
 
-   if (mAlpha > 0.0f)
+   if (_alpha > 0.0f)
    {
       SphereFragmentsDrawable::paintGL();
 
       initOrthoGlParameters();
 
-      _layer_dynablaster->render(20.0f * std::cos(_time * 0.03f), 30.0f + 15.0f * std::sin(_time * 0.04f), mAlpha);
+      _layer_dynablaster->render(20.0f * std::cos(_time * 0.03f), 30.0f + 15.0f * std::sin(_time * 0.04f), _alpha);
 
-      _layer_revenge->render(30.0f * std::cos(_time * 0.03f), 30.0f + 25.0f * std::sin(_time * 0.04f), mAlpha);
+      _layer_revenge->render(30.0f * std::cos(_time * 0.03f), 30.0f + 25.0f * std::sin(_time * 0.04f), _alpha);
 
       initPointSpriteGlParameters();
       drawSparks();
@@ -186,7 +173,7 @@ void GameLogoDrawable::updateFadeAlpha()
       alpha = (_fade_out_end - _time) / FADE_OUT_LENGTH;
    }
 
-   mAlpha = alpha;
+   _alpha = alpha;
 }
 
 void GameLogoDrawable::initOrthoGlParameters()
@@ -255,7 +242,8 @@ void GameLogoDrawable::initializeLayers()
    {
       PSD::Layer* psdlayer = _psd.getLayer(l);
 
-      PSDLayer* layer = new PSDLayer(psdlayer);
+      auto owned_layer = std::make_unique<PSDLayer>(psdlayer);
+      PSDLayer* layer = owned_layer.get();
 
       if (std::strcmp(psdlayer->getName(), LAYER_DYNABLASTER) == 0)
       {
@@ -266,7 +254,7 @@ void GameLogoDrawable::initializeLayers()
          _layer_revenge = layer;
       }
 
-      _layers.add(layer);
+      _layers.push_back(std::move(owned_layer));
    }
 }
 

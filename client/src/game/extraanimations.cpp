@@ -12,6 +12,7 @@
 #include <array>
 #include <cmath>
 #include <numbers>
+#include <cstdint>
 
 namespace
 {
@@ -40,7 +41,7 @@ float nowMs()
    return GlobalTime::Instance()->getTime() * 1000.0f;
 }
 
-unsigned int loadTexture(const char* name, int32_t flags)
+uint32_t loadTexture(const char* name, int32_t flags)
 {
    Image image;
    image.load(name);
