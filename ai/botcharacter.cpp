@@ -7,10 +7,10 @@
 /*!
 */
 BotCharacter::BotCharacter()
- : mScoreForEscape(0), 
-   mScoreForExtras(0),
-   mScoreForPrepareBombDrop(0),
-   mScoreForAttack(0)
+ : _score_for_escape(0), 
+   _score_for_extras(0),
+   _score_for_prepare_bomb_drop(0),
+   _score_for_attack(0)
 {
 }
 
@@ -19,23 +19,23 @@ void BotCharacter::setCharacter(int extras, int bombdrop, int attack)
 {
    assert(extras > 1);
 
-   mScoreForExtras = extras;
-   mScoreForPrepareBombDrop = bombdrop;
-   mScoreForAttack = attack;
+   _score_for_extras = extras;
+   _score_for_prepare_bomb_drop = bombdrop;
+   _score_for_attack = attack;
 }
 
 
 int BotCharacter::getScoreForExtras() const
 {
-   return mScoreForExtras;
+   return _score_for_extras;
 }
 
 int BotCharacter::getScoreForPrepareBombDrop() const
 {
-   return mScoreForPrepareBombDrop;
+   return _score_for_prepare_bomb_drop;
 }
 
 int BotCharacter::getScoreForAttack() const
 {
-   return mScoreForAttack;
+   return _score_for_attack;
 }

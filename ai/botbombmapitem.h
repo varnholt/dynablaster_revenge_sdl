@@ -12,7 +12,7 @@ class BotBombMapItem : public BombMapItem
 
       //! constructor
       BotBombMapItem(
-         int playerId,
+         int player_id,
          int flames,
          int id,
          int x,
@@ -29,7 +29,7 @@ class BotBombMapItem : public BombMapItem
    protected:
 
        //! bomb drop time
-       std::chrono::steady_clock::time_point mDropTime;
+       std::chrono::steady_clock::time_point _drop_time;
 };
 
 #endif // BOTBOMBMAPITEM_H

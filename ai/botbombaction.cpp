@@ -5,7 +5,7 @@
 */
 BotBombAction::BotBombAction()
 {
-   mActionType = ActionBomb;
+   _action_type = ActionBomb;
 }
 
 

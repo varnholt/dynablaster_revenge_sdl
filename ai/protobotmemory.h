@@ -59,22 +59,22 @@ class ProtoBotMemory
       // extras
 
       //! last extra x position
-      int mExtraX;
+      int _extra_x;
 
       //! last extra y position
-      int mExtraY;
+      int _extra_y;
 
 
       // stones
 
       //! last bomb stone x position
-      int mBombStoneX;
+      int _bomb_stone_x;
 
       //! last bomb stone y position
-      int mBombStoneY;
+      int _bomb_stone_y;
 
       //! stones located around that position
-      int mBombStoneCount;
+      int _bomb_stone_count;
 };
 
 #endif // PROTOBOTMEMORY_H

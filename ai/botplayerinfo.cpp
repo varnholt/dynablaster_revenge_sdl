@@ -10,10 +10,10 @@
 /*!
 */
 BotPlayerInfo::BotPlayerInfo()
-   : mBombs(SERVER_DEFAULT_BOMBCOUNT),
-     mFlames(SERVER_DEFAULT_FLAMECOUNT),
-     mSpeedUps(SERVER_DEFAULT_SPEEDUPS),
-     mKickEnabled(false)
+   : _bombs(SERVER_DEFAULT_BOMBCOUNT),
+     _flames(SERVER_DEFAULT_FLAMECOUNT),
+     _speed_ups(SERVER_DEFAULT_SPEEDUPS),
+     _kick_enabled(false)
 {
 }
 
@@ -23,7 +23,7 @@ BotPlayerInfo::BotPlayerInfo()
 */
 void BotPlayerInfo::addBomb()
 {
-   mBombs++;
+   _bombs++;
 }
 
 
@@ -32,7 +32,7 @@ void BotPlayerInfo::addBomb()
 */
 void BotPlayerInfo::addFlame()
 {
-   mFlames++;
+   _flames++;
 }
 
 
@@ -41,7 +41,7 @@ void BotPlayerInfo::addFlame()
 */
 void BotPlayerInfo::addSpeed()
 {
-   mSpeedUps++;
+   _speed_ups++;
 }
 
 
@@ -50,10 +50,10 @@ void BotPlayerInfo::addSpeed()
 */
 void BotPlayerInfo::reset()
 {
-   mBombs = SERVER_DEFAULT_BOMBCOUNT;
-   mFlames = SERVER_DEFAULT_FLAMECOUNT;
-   mSpeedUps = SERVER_DEFAULT_SPEEDUPS;
-   mKickEnabled = false;
+   _bombs = SERVER_DEFAULT_BOMBCOUNT;
+   _flames = SERVER_DEFAULT_FLAMECOUNT;
+   _speed_ups = SERVER_DEFAULT_SPEEDUPS;
+   _kick_enabled = false;
 }
 
 
@@ -63,21 +63,21 @@ void BotPlayerInfo::reset()
 */
 int BotPlayerInfo::getBombCount() const
 {
-   int bombCount = mBombs;
+   int bomb_count = _bombs;
 
    if (getDisease())
    {
-      Constants::SkullType skullType = getDisease()->getType();
+      Constants::SkullType skull_type = getDisease()->getType();
 
-      if (skullType == Constants::SkullNoBomb)
-         bombCount = 0;
-      else if (skullType == Constants::SkullMinimumBomb)
-         bombCount = 1;
-      else if (skullType == Constants::SkullMaximumBomb)
-         bombCount = 10;
+      if (skull_type == Constants::SkullNoBomb)
+         bomb_count = 0;
+      else if (skull_type == Constants::SkullMinimumBomb)
+         bomb_count = 1;
+      else if (skull_type == Constants::SkullMaximumBomb)
+         bomb_count = 10;
    }
 
-   return bombCount;
+   return bomb_count;
 }
 
 
@@ -87,19 +87,19 @@ int BotPlayerInfo::getBombCount() const
 */
 int BotPlayerInfo::getFlameCount() const
 {
-   int flameCount = mFlames;
+   int flame_count = _flames;
 
    if (getDisease())
    {
-      Constants::SkullType skullType = getDisease()->getType();
+      Constants::SkullType skull_type = getDisease()->getType();
 
-      if (skullType == Constants::SkullMinimumBomb)
-         flameCount = 1;
-      else if (skullType == Constants::SkullMaximumBomb)
-         flameCount = 10;
+      if (skull_type == Constants::SkullMinimumBomb)
+         flame_count = 1;
+      else if (skull_type == Constants::SkullMaximumBomb)
+         flame_count = 10;
    }
 
-   return flameCount;
+   return flame_count;
 }
 
 
@@ -109,7 +109,7 @@ int BotPlayerInfo::getFlameCount() const
 */
 int BotPlayerInfo::getSpeedCount() const
 {
-   return mSpeedUps;
+   return _speed_ups;
 }
 
 
@@ -119,7 +119,7 @@ int BotPlayerInfo::getSpeedCount() const
 */
 void BotPlayerInfo::setKickEnabled(bool kick)
 {
-   mKickEnabled = kick;
+   _kick_enabled = kick;
 }
 
 
@@ -129,7 +129,7 @@ void BotPlayerInfo::setKickEnabled(bool kick)
 */
 bool BotPlayerInfo::isKickEnabled() const
 {
-   return mKickEnabled;
+   return _kick_enabled;
 }
 
 

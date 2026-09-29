@@ -29,7 +29,7 @@ BotMap::BotMap()
    : Map(13, 11)
 {
    initDirections();
-   mTraversedPositions = new bool[_width * _height];
+   _traversed_positions = new bool[mWidth * mHeight];
    resetTraversedMap();
 }
 
@@ -43,7 +43,7 @@ BotMap::BotMap(int width, int height)
   : Map(width, height)
 {
    initDirections();
-   mTraversedPositions = new bool[_width * _height];
+   _traversed_positions = new bool[mWidth * mHeight];
    resetTraversedMap();
 }
 
@@ -88,8 +88,8 @@ template<typename T> void randomize(std::vector<T>& list)
 {
    for (int index = static_cast<int>(list.size()) - 1; index > 0; --index)
    {
-      const int swapIndex = Random::bounded(index + 1);
-      std::swap(list[index], list[swapIndex]);
+      const int swap_index = Random::bounded(index + 1);
+      std::swap(list[index], list[swap_index]);
    }
 }
 
@@ -99,20 +99,20 @@ template<typename T> void randomize(std::vector<T>& list)
 */
 void BotMap::initDirections()
 {
-   mDirections.push_back(Constants::DirectionUp);
-   mDirections.push_back(Constants::DirectionDown);
-   mDirections.push_back(Constants::DirectionLeft);
-   mDirections.push_back(Constants::DirectionRight);
+   _directions.push_back(Constants::DirectionUp);
+   _directions.push_back(Constants::DirectionDown);
+   _directions.push_back(Constants::DirectionLeft);
+   _directions.push_back(Constants::DirectionRight);
 
-   mDirectionsAndCurrent.push_back(Constants::DirectionUnknown);
-   mDirectionsAndCurrent.push_back(Constants::DirectionUp);
-   mDirectionsAndCurrent.push_back(Constants::DirectionDown);
-   mDirectionsAndCurrent.push_back(Constants::DirectionLeft);
-   mDirectionsAndCurrent.push_back(Constants::DirectionRight);
+   _directions_and_current.push_back(Constants::DirectionUnknown);
+   _directions_and_current.push_back(Constants::DirectionUp);
+   _directions_and_current.push_back(Constants::DirectionDown);
+   _directions_and_current.push_back(Constants::DirectionLeft);
+   _directions_and_current.push_back(Constants::DirectionRight);
 
-   mDirectionsRandomized = mDirections;
-   randomize(mDirectionsRandomized);
-   // debugDirections(mDirectionsRandomized);
+   _directions_randomized = _directions;
+   randomize(_directions_randomized);
+   // debugDirections(_directions_randomized);
 }
 
 
@@ -122,7 +122,7 @@ void BotMap::initDirections()
 */
 const std::vector<Constants::Direction>& BotMap::getDirectionsAndCurrent()
 {
-   return mDirectionsAndCurrent;
+   return _directions_and_current;
 }
 
 
@@ -143,32 +143,32 @@ bool BotMap::isBombDropDeadly(
 {
    bool deadly = false;
 
-   int dirX = 0;
-   int dirY = 0;
+   int direction_x = 0;
+   int direction_y = 0;
 
-   for (Constants::Direction dir : mDirectionsAndCurrent)
+   for (Constants::Direction dir : _directions_and_current)
    {
       switch (dir)
       {
          case Constants::DirectionUp:
-            dirX = 0;
-            dirY = -1;
+            direction_x = 0;
+            direction_y = -1;
             break;
          case Constants::DirectionDown:
-            dirX = 0;
-            dirY = 1;
+            direction_x = 0;
+            direction_y = 1;
             break;
          case Constants::DirectionLeft:
-            dirX = -1;
-            dirY = 0;
+            direction_x = -1;
+            direction_y = 0;
             break;
          case Constants::DirectionRight:
-            dirX = 1;
-            dirY = 0;
+            direction_x = 1;
+            direction_y = 0;
             break;
          default:
-            dirX = 0;
-            dirY = 0;
+            direction_x = 0;
+            direction_y = 0;
             break;
       }
 
@@ -179,20 +179,20 @@ bool BotMap::isBombDropDeadly(
       //    => check x+2, y
       for (int i = 1; i <= flames; i++)
       {
-         int posX = x + i * dirX;
-         int posY = y + i * dirY;
+         int position_x = x + i * direction_x;
+         int position_y = y + i * direction_y;
 
          // check if position runs out of field scope
          bool valid =
-               posX >= 0
-            && posY >= 0
-            && posX < getWidth()
-            && posY < getHeight();
+               position_x >= 0
+            && position_y >= 0
+            && position_x < getWidth()
+            && position_y < getHeight();
 
          // bomb hit something, abort this direction
          if (
                !valid
-            || getItem(posX, posY)
+            || getItem(position_x, position_y)
          )
          {
             break;
@@ -200,7 +200,7 @@ bool BotMap::isBombDropDeadly(
          else
          {
             // check if there's a player
-            if (std::find(enemies.begin(), enemies.end(), Point(posX, posY)) != enemies.end())
+            if (std::find(enemies.begin(), enemies.end(), Point(position_x, position_y)) != enemies.end())
             {
                // we'll just leave here with a positive result
                return true;
@@ -215,22 +215,22 @@ bool BotMap::isBombDropDeadly(
 
 //-----------------------------------------------------------------------------
 /*!
-   \param playerId player id
+   \param player_id player id
    \param player bomb count
    \return \c true if all bombs have been consumed
 */
-bool BotMap::isBombAmountConsumed(int playerId, int bombCount) const
+bool BotMap::isBombAmountConsumed(int player_id, int bomb_count) const
 {
-   return getBombs(playerId).size() < bombCount;
+   return getBombs(player_id).size() < bomb_count;
 }
 
 
 //-----------------------------------------------------------------------------
 /*!
-   \param playerId player id
+   \param player_id player id
    \return list of bombs by player id
 */
-std::vector<BotBombMapItem *> BotMap::getBombs(int playerId) const
+std::vector<BotBombMapItem *> BotMap::getBombs(int player_id) const
 {
    std::vector<BotBombMapItem *> bombs;
    MapItem* item = 0;
@@ -244,7 +244,7 @@ std::vector<BotBombMapItem *> BotMap::getBombs(int playerId) const
 
          bomb = dynamic_cast<BotBombMapItem*>(item);
 
-         if (bomb && (bomb->getPlayerId() == playerId || playerId == -1))
+         if (bomb && (bomb->getPlayerId() == player_id || player_id == -1))
             bombs.push_back(bomb);
       }
    }
@@ -268,34 +268,34 @@ void BotMap::createMapItem(MapItem *item)
    if (item->getType() == MapItem::Extra)
    {
       ExtraMapItem* extra = (ExtraMapItem*)item;
-      std::string extraName;
+      std::string extra_name;
 
       switch (extra->getExtraType())
       {
          case Constants::ExtraBomb:
-            extraName = "bomb";
+            extra_name = "bomb";
             break;
          case Constants::ExtraFlame:
-            extraName = "flame";
+            extra_name = "flame";
             break;
          case Constants::ExtraSpeedup:
-            extraName = "speedup";
+            extra_name = "speedup";
             break;
          case Constants::ExtraKick:
-            extraName = "kick";
+            extra_name = "kick";
             break;
          case Constants::ExtraSkull:
-            extraName = "skull";
+            extra_name = "skull";
             break;
          default:
-            extraName = "unknown";
+            extra_name = "unknown";
             break;
       }
 
       /*
       qDebug(
          "BotMap::createMapItem: '%s' (ptr: %p) created at (%d, %d) (mapptr: %p)",
-         qPrintable(extraName),
+         qPrintable(extra_name),
          item,
          item->getX(),
          item->getY(),
@@ -310,15 +310,15 @@ void BotMap::createMapItem(MapItem *item)
 /*!
    \parem item item to remove
 */
-void BotMap::removeMapItem(MapItem *removeItem)
+void BotMap::removeMapItem(MapItem *remove_item)
 {
-   MapItem* foundItem = getItem(removeItem->getX(), removeItem->getY());
+   MapItem* found_item = getItem(remove_item->getX(), remove_item->getY());
 
-   if (foundItem == removeItem)
+   if (found_item == remove_item)
    {
       setItem(
-         removeItem->getX(),
-         removeItem->getY(),
+         remove_item->getX(),
+         remove_item->getY(),
          0
       );
    }
@@ -333,7 +333,7 @@ void BotMap::removeMapItem(MapItem *removeItem)
 */
 bool BotMap::isTraversed(int x, int y) const
 {
-   return mTraversedPositions[y * _width + x];
+   return _traversed_positions[y * mWidth + x];
 }
 
 
@@ -345,7 +345,7 @@ bool BotMap::isTraversed(int x, int y) const
 */
 void BotMap::setTraversed(int x, int y, bool traversed)
 {
-   mTraversedPositions[y * _width + x] = traversed;
+   _traversed_positions[y * mWidth + x] = traversed;
 }
 
 
@@ -401,10 +401,10 @@ void BotMap::debugDirections(const std::vector<Constants::Direction> &list)
 */
 void BotMap::updateReachablePositions(int x, int y, int iteration)
 {
-   int currentIteration = iteration;
+   int current_iteration = iteration;
    iteration++;
 
-   if (currentIteration == 0)
+   if (current_iteration == 0)
    {
       resetTraversedMap();
    }
@@ -415,7 +415,7 @@ void BotMap::updateReachablePositions(int x, int y, int iteration)
    int xt = 0;
    int yt = 0;
 
-   for (Constants::Direction dir : mDirections)
+   for (Constants::Direction dir : _directions)
    {
       xt = x;
       yt = y;
@@ -442,7 +442,7 @@ void BotMap::updateReachablePositions(int x, int y, int iteration)
       // - limits not exceeded
       // - position is not yet traversed
       // - there's nothing in the way
-      bool withinLimits = (
+      bool within_limits = (
                xt >= 0
             && yt >= 0
             && xt < getWidth()
@@ -451,11 +451,11 @@ void BotMap::updateReachablePositions(int x, int y, int iteration)
 
       MapItem* item = 0;
 
-      if (withinLimits)
+      if (within_limits)
          item = getItem(xt, yt);
 
       if (
-             withinLimits
+             within_limits
          && !isTraversed(xt, yt)
          && (
                !item
@@ -467,9 +467,9 @@ void BotMap::updateReachablePositions(int x, int y, int iteration)
       }
    }
 
-   if (currentIteration == 0)
+   if (current_iteration == 0)
    {
-      mReachablePositions.clear();
+      _reachable_positions.clear();
 
       for (int xi = 0; xi < getWidth(); xi++)
       {
@@ -478,16 +478,16 @@ void BotMap::updateReachablePositions(int x, int y, int iteration)
             if (isTraversed(xi, yi))
             {
                // store reachable position
-               mReachablePositions.push_back(Point(xi, yi));
+               _reachable_positions.push_back(Point(xi, yi));
             }
          }
       }
    }
 
-   if (mReachablePositions.size() == static_cast<size_t>(_width * _height))
+   if (_reachable_positions.size() == static_cast<size_t>(mWidth * mHeight))
    {
       qDebug("we're fucked");
-      mReachablePositions.clear();
+      _reachable_positions.clear();
    }
 }
 
@@ -500,10 +500,10 @@ void BotMap::updateReachablePositions(int x, int y, int iteration)
 */
 void BotMap::updateReachablePositionsRandomized(int x, int y, int iteration)
 {
-   int currentIteration = iteration;
+   int current_iteration = iteration;
    iteration++;
 
-   if (currentIteration == 0)
+   if (current_iteration == 0)
    {
       resetTraversedMap();
    }
@@ -514,7 +514,7 @@ void BotMap::updateReachablePositionsRandomized(int x, int y, int iteration)
    int xt = 0;
    int yt = 0;
 
-   for (Constants::Direction dir : mDirectionsRandomized)
+   for (Constants::Direction dir : _directions_randomized)
    {
       xt = x;
       yt = y;
@@ -541,7 +541,7 @@ void BotMap::updateReachablePositionsRandomized(int x, int y, int iteration)
       // - limits not exceeded
       // - position is not yet traversed
       // - there's nothing in the way
-      bool withinLimits = (
+      bool within_limits = (
                xt >= 0
             && yt >= 0
             && xt < getWidth()
@@ -550,11 +550,11 @@ void BotMap::updateReachablePositionsRandomized(int x, int y, int iteration)
 
       MapItem* item = 0;
 
-      if (withinLimits)
+      if (within_limits)
          item = getItem(xt, yt);
 
       if (
-             withinLimits
+             within_limits
          && !isTraversed(xt, yt)
          && (
                !item
@@ -566,9 +566,9 @@ void BotMap::updateReachablePositionsRandomized(int x, int y, int iteration)
       }
    }
 
-   if (currentIteration == 0)
+   if (current_iteration == 0)
    {
-      mReachablePositions.clear();
+      _reachable_positions.clear();
 
       for (int xi = 0; xi < getWidth(); xi++)
       {
@@ -577,16 +577,16 @@ void BotMap::updateReachablePositionsRandomized(int x, int y, int iteration)
             if (isTraversed(xi, yi))
             {
                // store reachable position
-               mReachablePositions.push_back(Point(xi, yi));
+               _reachable_positions.push_back(Point(xi, yi));
             }
          }
       }
    }
 
-   if (mReachablePositions.size() == static_cast<size_t>(_width * _height))
+   if (_reachable_positions.size() == static_cast<size_t>(mWidth * mHeight))
    {
       qDebug("we're fucked");
-      mReachablePositions.clear();
+      _reachable_positions.clear();
    }
 }
 
@@ -596,12 +596,12 @@ void BotMap::updateReachablePositionsRandomized(int x, int y, int iteration)
 */
 void BotMap::updateReachableExtras()
 {
-   mReachableExtras.clear();
+   _reachable_extras.clear();
 
    int x = 0;
    int y = 0;
    MapItem* item = 0;
-   for (const Point& p : mReachablePositions)
+   for (const Point& p : _reachable_positions)
    {
       x = p.x();
       y = p.y();
@@ -615,7 +615,7 @@ void BotMap::updateReachableExtras()
       )
       {
          // maybe distinguish between 'good' and 'bad' extras
-         mReachableExtras.push_back(p);
+         _reachable_extras.push_back(p);
       }
    }
 }
@@ -627,7 +627,7 @@ void BotMap::updateReachableExtras()
 */
 const std::vector<Point>& BotMap::getReachablePositions() const
 {
-   return mReachablePositions;
+   return _reachable_positions;
 }
 
 
@@ -637,7 +637,7 @@ const std::vector<Point>& BotMap::getReachablePositions() const
 */
 const std::vector<Point>& BotMap::getReachableExtras() const
 {
-   return mReachableExtras;
+   return _reachable_extras;
 }
 
 
@@ -715,7 +715,7 @@ std::vector<Point> BotMap::getReachableNeighborPositionsRandomized(int x, int y)
    std::vector<Point> positions;
    MapItem* item = 0;
 
-   for (Constants::Direction dir : mDirectionsRandomized)
+   for (Constants::Direction dir : _directions_randomized)
    {
       switch (dir)
       {
@@ -807,17 +807,17 @@ std::vector<Point> BotMap::getReachableNeighborPositionsRandomized(int x, int y)
 */
 int* BotMap::getStonesToBeBombedMap()
 {
-   int dim = getWidth() * getHeight();
-   int* map = new int[dim];
-   std::memset(map, 0, dim * sizeof(int));
+   int dimension = getWidth() * getHeight();
+   int* map = new int[dimension];
+   std::memset(map, 0, dimension * sizeof(int));
 
    std::vector<BotBombMapItem *> bombs = getBombs();
 
-   std::vector<Point> dirs;
-   dirs.push_back(Point(0, -1));
-   dirs.push_back(Point(0, 1));
-   dirs.push_back(Point(-1, 0));
-   dirs.push_back(Point(1, 0));
+   std::vector<Point> directions;
+   directions.push_back(Point(0, -1));
+   directions.push_back(Point(0, 1));
+   directions.push_back(Point(-1, 0));
+   directions.push_back(Point(1, 0));
 
    int x = 0;
    int y = 0;
@@ -830,7 +830,7 @@ int* BotMap::getStonesToBeBombedMap()
       x = bomb->getX();
       y = bomb->getY();
 
-      for (const Point& dir : dirs)
+      for (const Point& dir : directions)
       {
          for (int i = 1; i <= bomb->getFlames(); i++)
          {
@@ -873,28 +873,28 @@ int BotMap::getStoneCountAroundPoint(int x, int y, int flames)
    int count = 0;
    MapItem* item = 0;
 
-   int dirX = 0;
-   int dirY = 0;
+   int direction_x = 0;
+   int direction_y = 0;
 
-   for (Constants::Direction dir : mDirections)
+   for (Constants::Direction dir : _directions)
    {
       switch (dir)
       {
          case Constants::DirectionUp:
-            dirX = 0;
-            dirY = -1;
+            direction_x = 0;
+            direction_y = -1;
             break;
          case Constants::DirectionDown:
-            dirX = 0;
-            dirY = 1;
+            direction_x = 0;
+            direction_y = 1;
             break;
          case Constants::DirectionLeft:
-            dirX = -1;
-            dirY = 0;
+            direction_x = -1;
+            direction_y = 0;
             break;
          case Constants::DirectionRight:
-            dirX = 1;
-            dirY = 0;
+            direction_x = 1;
+            direction_y = 0;
             break;
          default:
             break;
@@ -902,15 +902,15 @@ int BotMap::getStoneCountAroundPoint(int x, int y, int flames)
 
       for (int i = 1; i <= flames; i++)
       {
-         int posX = x + i * dirX;
-         int posY = y + i * dirY;
+         int position_x = x + i * direction_x;
+         int position_y = y + i * direction_y;
 
          if (
-               posX >= 0 && posX < getWidth()
-            && posY >= 0 && posY < getHeight()
+               position_x >= 0 && position_x < getWidth()
+            && position_y >= 0 && position_y < getHeight()
          )
          {
-            item = getItem(posX, posY);
+            item = getItem(position_x, position_y);
 
             if (item)
             {
@@ -952,28 +952,28 @@ int BotMap::getExtraStoneCountAroundPoint(
    int count = 0;
    MapItem* item = 0;
 
-   int dirX = 0;
-   int dirY = 0;
+   int direction_x = 0;
+   int direction_y = 0;
 
-   for (Constants::Direction dir : mDirections)
+   for (Constants::Direction dir : _directions)
    {
       switch (dir)
       {
          case Constants::DirectionUp:
-            dirX = 0;
-            dirY = -1;
+            direction_x = 0;
+            direction_y = -1;
             break;
          case Constants::DirectionDown:
-            dirX = 0;
-            dirY = 1;
+            direction_x = 0;
+            direction_y = 1;
             break;
          case Constants::DirectionLeft:
-            dirX = -1;
-            dirY = 0;
+            direction_x = -1;
+            direction_y = 0;
             break;
          case Constants::DirectionRight:
-            dirX = 1;
-            dirY = 0;
+            direction_x = 1;
+            direction_y = 0;
             break;
          default:
             break;
@@ -981,15 +981,15 @@ int BotMap::getExtraStoneCountAroundPoint(
 
       for (int i = 1; i <= flames; i++)
       {
-         int posX = x + i * dirX;
-         int posY = y + i * dirY;
+         int position_x = x + i * direction_x;
+         int position_y = y + i * direction_y;
 
          if (
-               posX >= 0 && posX < getWidth()
-            && posY >= 0 && posY < getHeight()
+               position_x >= 0 && position_x < getWidth()
+            && position_y >= 0 && position_y < getHeight()
          )
          {
-            item = getItem(posX, posY);
+            item = getItem(position_x, position_y);
 
             if (item)
             {

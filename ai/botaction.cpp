@@ -5,7 +5,7 @@
 /*!
 */
 BotAction::BotAction()
-   : mActionType(ActionIdle)
+   : _action_type(ActionIdle)
 {
 }
 
@@ -24,5 +24,5 @@ BotAction::~BotAction()
 */
 BotAction::ActionType BotAction::getActionType() const
 {
-   return mActionType;
+   return _action_type;
 }

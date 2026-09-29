@@ -22,7 +22,7 @@ public:
 
    const std::string& getHostname() const;
 
-   void setGameId(int gameId);
+   void setGameId(int game_id);
 
    int getGameId() const;
 
@@ -37,19 +37,19 @@ protected:
    void createBotClientPair();
 
    //! host to connect to
-   std::string mHostname;
+   std::string _hostname;
 
    //! game to join
-   int mGameId;
+   int _game_id;
 
    //! list of bot clients
-   std::vector<BotClient*> mClients;
+   std::vector<BotClient*> _clients;
 
    //! list of bots
-   std::vector<Bot*> mBots;
+   std::vector<Bot*> _bots;
 
    //! list of given names
-   std::vector<std::string> mGivenNames;
+   std::vector<std::string> _given_names;
 };
 
 #endif // BOTFACTORY_H

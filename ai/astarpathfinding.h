@@ -46,28 +46,28 @@ protected:
    AStarNode* getBestFValueNode(std::unordered_set<AStarNode*>* set);
 
    //! build path by linking parents
-   std::vector<AStarNode*> reconstructPath(AStarNode* currentNode);
+   std::vector<AStarNode*> reconstructPath(AStarNode* current_node);
 
    //! open set
-   std::unordered_set<AStarNode*> mOpenSet;
+   std::unordered_set<AStarNode*> _open_set;
 
    //! closed set
-   std::unordered_set<AStarNode*> mClosedSet;
+   std::unordered_set<AStarNode*> _closed_set;
 
    //! start node
-   AStarNode* mStartNode;
+   AStarNode* _start_node;
 
    //! target node
-   AStarNode* mTargetNode;
+   AStarNode* _target_node;
 
    //! current node
-   AStarNode* mCurrentNode;
+   AStarNode* _current_node;
 
    //! map to work on
-   AStarMap* mNodeMap;
+   AStarMap* _node_map;
 
    //! resulting path
-   std::vector<AStarNode*> mPath;
+   std::vector<AStarNode*> _path;
 };
 
 #endif  // ASTARPATHFINDING_H

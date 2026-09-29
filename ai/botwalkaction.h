@@ -26,7 +26,7 @@ class BotWalkAction : public BotAction
    protected:
 
       //! walk direction
-      int8_t mWalkKeys;
+      int8_t _walk_keys;
 
 
       // Path or target point

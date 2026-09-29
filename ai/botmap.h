@@ -37,15 +37,15 @@ class BotMap : public Map
 
       //! update reachable positions
       void updateReachablePositions(
-         int xStart,
-         int yStart,
+         int x_start,
+         int y_start,
          int iteration = 0
       );
 
       //! update reachable positions
       void updateReachablePositionsRandomized(
-         int xStart,
-         int yStart,
+         int x_start,
+         int y_start,
          int iteration = 0
       );
 
@@ -65,10 +65,10 @@ class BotMap : public Map
       std::vector<Point> getReachableNeighborPositionsRandomized(int x, int y) const;
 
       //! number of stones neighbored to the given position
-      int getStoneCountAroundPoint(int x, int y, int flameCount);
+      int getStoneCountAroundPoint(int x, int y, int flame_count);
 
       //! number of extras within stones neighbored to the given position
-      int getExtraStoneCountAroundPoint(int x, int y, int flameCount, const std::vector<int>& extras);
+      int getExtraStoneCountAroundPoint(int x, int y, int flame_count, const std::vector<int>& extras);
 
       //! returns a map with all stones that will be destroyed soon
       int* getStonesToBeBombedMap();
@@ -106,10 +106,10 @@ class BotMap : public Map
       ) const;
 
       //! get bombs placed by player id
-      std::vector<BotBombMapItem*> getBombs(int playerId = -1) const;
+      std::vector<BotBombMapItem*> getBombs(int player_id = -1) const;
 
       //! check if player has consumed all its pots
-      bool isBombAmountConsumed(int playerId, int bombCount) const;
+      bool isBombAmountConsumed(int player_id, int bomb_count) const;
 
       //! getter for directions and current list
       const std::vector<Constants::Direction>& getDirectionsAndCurrent();
@@ -152,22 +152,22 @@ class BotMap : public Map
       // members
 
       //! possible directions
-      std::vector<Constants::Direction> mDirections;
+      std::vector<Constants::Direction> _directions;
 
       //! all directions plus current location
-      std::vector<Constants::Direction> mDirectionsAndCurrent;
+      std::vector<Constants::Direction> _directions_and_current;
 
       //! randomized directions
-      std::vector<Constants::Direction> mDirectionsRandomized;
+      std::vector<Constants::Direction> _directions_randomized;
 
       //! the traversed map
-      bool* mTraversedPositions;
+      bool* _traversed_positions;
 
       //! list of reachable positions
-      std::vector<Point> mReachablePositions;
+      std::vector<Point> _reachable_positions;
 
       //! list of reachable extra positions
-      std::vector<Point> mReachableExtras;
+      std::vector<Point> _reachable_extras;
 };
 
 #endif // BOTMAP_H

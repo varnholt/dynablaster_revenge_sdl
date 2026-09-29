@@ -15,7 +15,7 @@ Path::Path()
 */
 void Path::setPoints(const std::vector<Point>& points)
 {
-   mPoints = points;
+   _points = points;
 }
 
 
@@ -24,5 +24,5 @@ void Path::setPoints(const std::vector<Point>& points)
 */
 void Path::positionReached()
 {
-   mPoints.erase(mPoints.begin());
+   _points.erase(_points.begin());
 }

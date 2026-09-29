@@ -24,20 +24,20 @@
    \param parent parent object
 */
 Bot::Bot()
-    : mBotState(BotStateDead),
-      mBotMap(0),
-      mPlayerInfo(0),
-      mX(0.0f),
-      mY(0.0f),
-      mXField(0.0f),
-      mYField(0.0f),
-      mId(-1),
-      mBotKeysPressed(0),
-      mDecisionRequired(false),
-      mActionRequired(false),
-      mTransiterateTargetX(0),
-      mTransiterateTargetY(0),
-      mPlayerPositionValid(false)
+    : _bot_state(BotStateDead),
+      _bot_map(0),
+      _player_info(0),
+      _x(0.0f),
+      _y(0.0f),
+      _x_field(0.0f),
+      _y_field(0.0f),
+      _id(-1),
+      _bot_keys_pressed(0),
+      _decision_required(false),
+      _action_required(false),
+      _transiterate_target_x(0),
+      _transiterate_target_y(0),
+      _player_position_valid(false)
 {
 }
 
@@ -53,10 +53,10 @@ Bot::~Bot()
  */
 void Bot::startTicking()
 {
-   if (!mTickTimer.isActive())
+   if (!_tick_timer.isActive())
    {
-      mTickTimer.timeoutSignal.connect([this]() { tick(); });
-      mTickTimer.start(100);
+      _tick_timer.timeoutSignal.connect([this]() { tick(); });
+      _tick_timer.start(100);
    }
 }
 
@@ -92,7 +92,7 @@ void Bot::tick()
 */
 bool Bot::isActive()
 {
-   return (mBotState == BotStateActive);
+   return (_bot_state == BotStateActive);
 }
 
 //-----------------------------------------------------------------------------
@@ -101,7 +101,7 @@ bool Bot::isActive()
 */
 void Bot::setBotMap(BotMap* botmap)
 {
-   mBotMap = botmap;
+   _bot_map = botmap;
 }
 
 //-----------------------------------------------------------------------------
@@ -110,7 +110,7 @@ void Bot::setBotMap(BotMap* botmap)
 */
 void Bot::setPlayerInfo(BotPlayerInfo* info)
 {
-   mPlayerInfo = info;
+   _player_info = info;
 }
 
 //-----------------------------------------------------------------------------
@@ -119,7 +119,7 @@ void Bot::setPlayerInfo(BotPlayerInfo* info)
 */
 BotPlayerInfo* Bot::getPlayerInfo() const
 {
-   return mPlayerInfo;
+   return _player_info;
 }
 
 //-----------------------------------------------------------------------------
@@ -127,12 +127,12 @@ BotPlayerInfo* Bot::getPlayerInfo() const
  */
 void Bot::think()
 {
-   for (BotOption* option : mOptions)
+   for (BotOption* option : _options)
    {
       delete option;
    }
 
-   mOptions.clear();
+   _options.clear();
 }
 
 //-----------------------------------------------------------------------------
@@ -140,31 +140,31 @@ void Bot::think()
  */
 void Bot::decide()
 {
-   mActions.clear();
-   BotOption* bestOption = 0;
+   _actions.clear();
+   BotOption* best_option = 0;
    int maxscore = INT_MIN;
 
-   for (BotOption* option : mOptions)
+   for (BotOption* option : _options)
    {
       if (option->getScore() > maxscore)
       {
          maxscore = option->getScore();
-         bestOption = option;
+         best_option = option;
       }
 
       // at the moment there's no option that is combinable
       if (option->isCombinable())
       {
-         mActions.push_back(option->getAction());
+         _actions.push_back(option->getAction());
       }
    }
 
-   if (bestOption)
+   if (best_option)
    {
       // do not execute an action twice
-      if (std::find(mActions.begin(), mActions.end(), bestOption->getAction()) == mActions.end())
+      if (std::find(_actions.begin(), _actions.end(), best_option->getAction()) == _actions.end())
       {
-         mActions.push_back(bestOption->getAction());
+         _actions.push_back(best_option->getAction());
       }
    }
 }
@@ -174,7 +174,7 @@ void Bot::decide()
  */
 void Bot::act()
 {
-   for (BotAction* action : mActions)
+   for (BotAction* action : _actions)
    {
       switch (action->getActionType())
       {
@@ -213,7 +213,7 @@ void Bot::act()
 */
 void Bot::updatePlayerId(int id)
 {
-   mId = id;
+   _id = id;
 }
 
 //-----------------------------------------------------------------------------
@@ -224,13 +224,13 @@ void Bot::updatePlayerId(int id)
 */
 void Bot::updatePlayerPosition(int id, float x, float y, float /*angle*/)
 {
-   if (id == mId)
+   if (id == _id)
    {
-      mX = x;
-      mY = y;
+      _x = x;
+      _y = y;
 
-      mXField = floor(x);
-      mYField = floor(y);
+      _x_field = floor(x);
+      _y_field = floor(y);
 
       setPlayerPositionValid(true);
    }
@@ -242,7 +242,7 @@ void Bot::updatePlayerPosition(int id, float x, float y, float /*angle*/)
 */
 float Bot::getX() const
 {
-   return mX;
+   return _x;
 }
 
 //-----------------------------------------------------------------------------
@@ -251,7 +251,7 @@ float Bot::getX() const
 */
 float Bot::getY() const
 {
-   return mY;
+   return _y;
 }
 
 //-----------------------------------------------------------------------------
@@ -260,7 +260,7 @@ float Bot::getY() const
 */
 int Bot::getXField()
 {
-   return mXField;
+   return _x_field;
 }
 
 //-----------------------------------------------------------------------------
@@ -269,7 +269,7 @@ int Bot::getXField()
 */
 int Bot::getYField()
 {
-   return mYField;
+   return _y_field;
 }
 
 //-----------------------------------------------------------------------------
@@ -324,14 +324,14 @@ void Bot::extraShake(int)
 //-----------------------------------------------------------------------------
 /*!
  */
-void Bot::markHazardousTemporary(int /*x*/, int /*y*/, int /*ms*/, int /*fieldCount*/)
+void Bot::markHazardousTemporary(int /*x*/, int /*y*/, int /*ms*/, int /*field_count*/)
 {
 }
 
 //-----------------------------------------------------------------------------
 /*!
  */
-void Bot::bombKicked(int /*startX*/, int /*startY*/, Constants::Direction, int /*flames*/)
+void Bot::bombKicked(int /*start_x*/, int /*start_y*/, Constants::Direction, int /*flames*/)
 {
 }
 
@@ -341,7 +341,7 @@ void Bot::bombKicked(int /*startX*/, int /*startY*/, Constants::Direction, int /
 */
 bool Bot::isActionRequired()
 {
-   return mActionRequired;
+   return _action_required;
 }
 
 //-----------------------------------------------------------------------------
@@ -364,7 +364,7 @@ void Bot::cleanUpBot()
 */
 void Bot::setState(BotState state)
 {
-   mBotState = state;
+   _bot_state = state;
 }
 
 //-----------------------------------------------------------------------------
@@ -378,8 +378,8 @@ bool Bot::isFieldReached()
    bool reached = false;
 
    reached =
-      (fabs(mX - ((float)mTransiterateTargetX + 0.5f)) < FIELD_REACHED_PRECISION &&
-       fabs(mY - ((float)mTransiterateTargetY + 0.5f)) < FIELD_REACHED_PRECISION);
+      (fabs(_x - ((float)_transiterate_target_x + 0.5f)) < FIELD_REACHED_PRECISION &&
+       fabs(_y - ((float)_transiterate_target_y + 0.5f)) < FIELD_REACHED_PRECISION);
 
    return reached;
 }
@@ -407,7 +407,7 @@ bool Bot::isValid() const
 */
 void Bot::setPlayerPositionValid(bool valid)
 {
-   mPlayerPositionValid = valid;
+   _player_position_valid = valid;
 }
 
 //-----------------------------------------------------------------------------
@@ -416,16 +416,16 @@ void Bot::setPlayerPositionValid(bool valid)
 */
 bool Bot::isPlayerPositionValid() const
 {
-   return mPlayerPositionValid;
+   return _player_position_valid;
 }
 
 //-----------------------------------------------------------------------------
 /*!
-   \param keysPressed bot's keys pressed
+   \param keys_pressed bot's keys pressed
 */
-void Bot::setBotKeysPressed(int8_t keysPressed)
+void Bot::setBotKeysPressed(int8_t keys_pressed)
 {
-   mBotKeysPressed = keysPressed;
+   _bot_keys_pressed = keys_pressed;
 }
 
 //-----------------------------------------------------------------------------
@@ -434,7 +434,7 @@ void Bot::setBotKeysPressed(int8_t keysPressed)
 */
 int8_t Bot::getBotKeysPressed() const
 {
-   return mBotKeysPressed;
+   return _bot_keys_pressed;
 }
 
 //-----------------------------------------------------------------------------
@@ -444,21 +444,21 @@ void Bot::updatePositionQueue()
 {
    Point p(getXField(), getYField());
 
-   if (!mPositionQueue.empty())
+   if (!_position_queue.empty())
    {
-      if (mPositionQueue.back() != p)
+      if (_position_queue.back() != p)
       {
-         mPositionQueue.push_back(p);
+         _position_queue.push_back(p);
       }
 
-      while (mPositionQueue.size() > MIN_QUEUE_CHECK_SIZE)
+      while (_position_queue.size() > MIN_QUEUE_CHECK_SIZE)
       {
-         mPositionQueue.pop_front();
+         _position_queue.pop_front();
       }
    }
    else
    {
-      mPositionQueue.push_back(p);
+      _position_queue.push_back(p);
    }
 }
 
@@ -470,11 +470,11 @@ bool Bot::isPositionQueueRecurrent() const
 {
    bool recurrent = false;
 
-   if (mPositionQueue.size() >= MIN_QUEUE_CHECK_SIZE)
+   if (_position_queue.size() >= MIN_QUEUE_CHECK_SIZE)
    {
       std::unordered_set<Point> points;
 
-      for (const Point& p : mPositionQueue)
+      for (const Point& p : _position_queue)
       {
          points.insert(p);
       }
@@ -499,7 +499,7 @@ bool Bot::isPositionQueueRecurrent() const
 */
 void Bot::setServerConfiguration(const ServerConfiguration& config)
 {
-   mServerConfiguration = config;
+   _server_configuration = config;
 }
 
 //-----------------------------------------------------------------------------
@@ -508,7 +508,7 @@ void Bot::setServerConfiguration(const ServerConfiguration& config)
 */
 const ServerConfiguration& Bot::getServerConfiguration() const
 {
-   return mServerConfiguration;
+   return _server_configuration;
 }
 
 //-----------------------------------------------------------------------------
@@ -517,18 +517,18 @@ const ServerConfiguration& Bot::getServerConfiguration() const
 */
 int8_t Bot::computeWalkKeys() const
 {
-   int8_t keysPressed = 0;
-   float fieldCenter = 0.5f;
+   int8_t keys_pressed = 0;
+   float field_center = 0.5f;
 
-   if (mX - fieldCenter < mTransiterateTargetX)
-      keysPressed |= Constants::KeyRight;
-   else if (mX - fieldCenter > mTransiterateTargetX)
-      keysPressed |= Constants::KeyLeft;
+   if (_x - field_center < _transiterate_target_x)
+      keys_pressed |= Constants::KeyRight;
+   else if (_x - field_center > _transiterate_target_x)
+      keys_pressed |= Constants::KeyLeft;
 
-   if (mY - fieldCenter < mTransiterateTargetY)
-      keysPressed |= Constants::KeyDown;
-   else if (mY - fieldCenter > mTransiterateTargetY)
-      keysPressed |= Constants::KeyUp;
+   if (_y - field_center < _transiterate_target_y)
+      keys_pressed |= Constants::KeyDown;
+   else if (_y - field_center > _transiterate_target_y)
+      keys_pressed |= Constants::KeyUp;
 
-   return keysPressed;
+   return keys_pressed;
 }

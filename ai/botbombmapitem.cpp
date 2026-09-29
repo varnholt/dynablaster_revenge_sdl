@@ -4,28 +4,28 @@
 
 //-----------------------------------------------------------------------------
 /*!
-   \param playerId player id
+   \param player_id player id
    \param flames number of flames
    \param id mapitem layout id
    \param x x position
    \param y y position
 */
 BotBombMapItem::BotBombMapItem(
-   int playerId,
+   int player_id,
    int flames,
    int id,
    int x,
    int y
 )
    : BombMapItem(
-        playerId,
+        player_id,
         flames,
         id,
         x,
         y
      )
 {
-   mDropTime = std::chrono::steady_clock::now();
+   _drop_time = std::chrono::steady_clock::now();
 }
 
 
@@ -36,7 +36,7 @@ BotBombMapItem::BotBombMapItem(
 */
 std::chrono::steady_clock::time_point BotBombMapItem::getDropTime() const
 {
-   return mDropTime;
+   return _drop_time;
 }
 
 

@@ -36,13 +36,13 @@ class BotOption
    protected:
 
       //! options action
-      BotAction* mAction;
+      BotAction* _action;
 
       //! option's score
-      int mScore;
+      int _score;
 
       //! combinable flag
-      bool mCombinable;
+      bool _combinable;
 
 };
 

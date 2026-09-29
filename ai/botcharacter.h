@@ -17,10 +17,10 @@ class BotCharacter
 
    protected:
 
-      int mScoreForEscape;
-      int mScoreForExtras;
-      int mScoreForPrepareBombDrop;
-      int mScoreForAttack;
+      int _score_for_escape;
+      int _score_for_extras;
+      int _score_for_prepare_bomb_drop;
+      int _score_for_attack;
 
 };
 

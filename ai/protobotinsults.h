@@ -6,7 +6,7 @@
 
 #include "signal.h"
 
-// never actually instantiated in this port (ProtoBot::mInsults stays null) - kept for parity
+// never actually instantiated in this port (ProtoBot::_insults stays null) - kept for parity
 // with the original, converted mechanically like everything else.
 class ProtoBotInsults
 {
@@ -21,7 +21,7 @@ protected:
    void shootAgain();
    void insult();
 
-   std::vector<std::string> mInsults;
+   std::vector<std::string> _insults;
 
 };
 

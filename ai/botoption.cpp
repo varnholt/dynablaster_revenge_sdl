@@ -4,9 +4,9 @@
 /*!
 */
 BotOption::BotOption()
-   : mAction(0),
-     mScore(0),
-     mCombinable(false)
+   : _action(0),
+     _score(0),
+     _combinable(false)
 {
 }
 
@@ -16,8 +16,8 @@ BotOption::BotOption()
 */
 BotOption::~BotOption()
 {
-   delete mAction;
-   mAction = 0;
+   delete _action;
+   _action = 0;
 }
 
 
@@ -27,7 +27,7 @@ BotOption::~BotOption()
 */
 void BotOption::setScore(int score)
 {
-   mScore = score;
+   _score = score;
 }
 
 
@@ -37,7 +37,7 @@ void BotOption::setScore(int score)
 */
 int BotOption::getScore() const
 {
-   return mScore;
+   return _score;
 }
 
 
@@ -47,7 +47,7 @@ int BotOption::getScore() const
 */
 void BotOption::setAction(BotAction* action)
 {
-   mAction = action;
+   _action = action;
 }
 
 
@@ -57,7 +57,7 @@ void BotOption::setAction(BotAction* action)
 */
 BotAction* BotOption::getAction() const
 {
-   return mAction;
+   return _action;
 }
 
 
@@ -67,7 +67,7 @@ BotAction* BotOption::getAction() const
 */
 void BotOption::setCombinable(bool combinable)
 {
-   mCombinable = combinable;
+   _combinable = combinable;
 }
 
 
@@ -77,7 +77,7 @@ void BotOption::setCombinable(bool combinable)
 */
 bool BotOption::isCombinable() const
 {
-   return mCombinable;
+   return _combinable;
 }
 
 

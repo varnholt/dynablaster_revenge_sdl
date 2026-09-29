@@ -42,16 +42,16 @@ class BotPlayerInfo : public PlayerInfo
    protected:
 
       //! number of bombs
-      int mBombs;
+      int _bombs;
 
       //! number of flames
-      int mFlames;
+      int _flames;
 
       //! number of speedups
-      int mSpeedUps;
+      int _speed_ups;
 
       //! player can kick
-      bool mKickEnabled;
+      bool _kick_enabled;
 };
 
 #endif // BOTPLAYERINFO_H

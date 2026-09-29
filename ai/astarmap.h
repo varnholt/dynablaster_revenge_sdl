@@ -41,7 +41,7 @@ public:
    void clearNodes();
 
    //! get all neighbor nodes of a position
-   std::vector<AStarNode*> getNeighbors(int x, int y, bool regardStones = false);
+   std::vector<AStarNode*> getNeighbors(int x, int y, bool regard_stones = false);
 
    //! get node at x, y
    AStarNode* getNode(int x, int y) const;
@@ -57,13 +57,13 @@ protected:
    void initMap();
 
    //! check if a point is traversable
-   bool isTraversable(const Point& p, bool regardStones);
+   bool isTraversable(const Point& p, bool regard_stones);
 
    //! node map
-   AStarNode** mNodeMap;
+   AStarNode** _node_map;
 
    //! list of nodes
-   std::vector<AStarNode*> mNodes;
+   std::vector<AStarNode*> _nodes;
 };
 
 #endif  // ASTARMAP_H

@@ -131,7 +131,7 @@ public:
    void bomb();
 
    //! send a message to others
-   void sendMessage(const std::string& message, bool finishedTyping = true, int receiverId = -1);
+   void sendMessage(const std::string& message, bool finished_typing = true, int receiver_id = -1);
 
    //! delete obsolete items
    void deleteObsoleteMapItems();
@@ -238,10 +238,10 @@ private:
    MapItem* getMapItem(int id) const;
 
    //! add a map item
-   void addMapItem(MapItem* mapItem);
+   void addMapItem(MapItem* map_item);
 
    //! remove a map item
-   void removeMapItem(MapItem* mapItem);
+   void removeMapItem(MapItem* map_item);
 
    //! send a packet
    void send(Packet* packet);
@@ -277,82 +277,82 @@ private:
    void resetWalkCount();
 
    //! stream socket to server, null unless connected or connecting
-   NET_StreamSocket* mSocket;
+   NET_StreamSocket* _socket;
 
    //! host address pending resolution, null once resolved (or if not resolving)
-   NET_Address* mAddress;
+   NET_Address* _address;
 
    //! drives poll() once per tick
-   Timer mPollTimer;
+   Timer _poll_timer;
 
    //! incoming byte buffer
-   PacketStreamBuffer mBuffer;
+   PacketStreamBuffer _buffer;
 
    //! host name
-   std::string mHost;
+   std::string _host;
 
    //! nick name
-   std::string mNick;
+   std::string _nick;
 
    //! connected flag
-   bool mConnected;
+   bool _connected;
 
    //! expected block size of current packet
-   uint16_t mBlockSize;
+   uint16_t _block_size;
 
    //! bot
-   Bot* mBot;
+   Bot* _bot;
 
    //! botmap
-   BotMap* mBotMap;
+   BotMap* _bot_map;
 
    //! game id to join
-   int mGameId;
+   int _game_id;
 
    //! automatically join game
-   bool mAutoJoin;
+   bool _auto_join;
 
    //! automatically start game
-   bool mAutoStart;
+   bool _auto_start;
 
    //! player id
-   int mPlayerId;
+   int _player_id;
 
    //! map items
-   std::map<int, MapItem*> mMapItems;
+   std::map<int, MapItem*> _map_items;
 
    //! map id <-> player info object
-   std::map<int, BotPlayerInfo*> mPlayerInfo;
+   std::map<int, BotPlayerInfo*> _player_info;
 
    //! bot's keyboard keys pressed
-   int mKeysPressed;
+   int _keys_pressed;
 
    //! list of games available
-   mutable std::vector<GameInformation> mGames;
+   mutable std::vector<GameInformation> _games;
 
    //! true if game was succesfully joined
-   bool mGameJoined;
+   bool _game_joined;
 
    //! current speed
-   float mSpeed;
+   float _speed;
 
    //! queue of items to be deleted later
-   std::queue<MapItem*> mObsoleteMapItems;
+   std::queue<MapItem*> _obsolete_map_items;
 
    //! server configuration
-   ServerConfiguration mServerConfiguration;
+   ServerConfiguration _server_configuration;
 
    //! time elapsed since last bomb
-   ElapsedTimer mBombTime;
+   ElapsedTimer _bomb_time;
 
    //! walk counter
-   int mWalkCount;
+   int _walk_count;
 
    //! delta x
-   float mDeltaX;
+   float _delta_x;
 
    //! delta y
-   float mDeltaY;
+   float _delta_y;
 };
 
 #endif  // BOTCLIENT_H

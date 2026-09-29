@@ -4,9 +4,9 @@
 /*!
 */
 BotWalkAction::BotWalkAction()
-   : mWalkKeys(0)
+   : _walk_keys(0)
 {
-   mActionType = ActionWalk;
+   _action_type = ActionWalk;
 }
 
 
@@ -16,7 +16,7 @@ BotWalkAction::BotWalkAction()
 */
 void BotWalkAction::setWalkKeys(int8_t direction)
 {
-   mWalkKeys = direction;
+   _walk_keys = direction;
 }
 
 
@@ -26,5 +26,5 @@ void BotWalkAction::setWalkKeys(int8_t direction)
 */
 int8_t BotWalkAction::getWalkKeys() const
 {
-   return mWalkKeys;
+   return _walk_keys;
 }

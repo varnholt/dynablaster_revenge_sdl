@@ -10,12 +10,12 @@
    \param parent parent node
 */
 AStarNode::AStarNode(AStarNode* parent)
-   : mParent(parent),
-     mX(0),
-     mY(0),
-     mG(0),
-     mH(0),
-     mF(0)
+   : _parent(parent),
+     _x(0),
+     _y(0),
+     _g(0),
+     _h(0),
+     _f(0)
 {
 }
 
@@ -26,7 +26,7 @@ AStarNode::AStarNode(AStarNode* parent)
 */
 void AStarNode::setX(int x)
 {
-   mX = x;
+   _x = x;
 }
 
 
@@ -36,7 +36,7 @@ void AStarNode::setX(int x)
 */
 void AStarNode::setY(int y)
 {
-   mY = y;
+   _y = y;
 }
 
 
@@ -46,7 +46,7 @@ void AStarNode::setY(int y)
 */
 void AStarNode::setParent(AStarNode* parent)
 {
-   mParent = parent;
+   _parent = parent;
 }
 
 
@@ -56,7 +56,7 @@ void AStarNode::setParent(AStarNode* parent)
 */
 AStarNode* AStarNode::getParent() const
 {
-   return mParent;
+   return _parent;
 }
 
 //-----------------------------------------------------------------------------
@@ -65,7 +65,7 @@ AStarNode* AStarNode::getParent() const
 */
 int AStarNode::getX() const
 {
-   return mX;
+   return _x;
 }
 
 
@@ -75,7 +75,7 @@ int AStarNode::getX() const
 */
 int AStarNode::getY() const
 {
-   return mY;
+   return _y;
 }
 
 
@@ -85,7 +85,7 @@ int AStarNode::getY() const
 */
 void AStarNode::setG(int g)
 {
-   mG = g;
+   _g = g;
 }
 
 
@@ -95,7 +95,7 @@ void AStarNode::setG(int g)
 */
 int AStarNode::getG() const
 {
-   return mG;
+   return _g;
 }
 
 
@@ -105,7 +105,7 @@ int AStarNode::getG() const
 */
 int AStarNode::getH() const
 {
-   return mH;
+   return _h;
 }
 
 
@@ -115,7 +115,7 @@ int AStarNode::getH() const
 */
 int AStarNode::getF() const
 {
-   return mF;
+   return _f;
 }
 
 
@@ -124,12 +124,12 @@ int AStarNode::getF() const
 */
 void AStarNode::calcG()
 {
-   AStarNode* parent = mParent;
+   AStarNode* parent = _parent;
 
    while (parent)
    {
-      mG++;
-      parent = parent->mParent;
+      _g++;
+      parent = parent->_parent;
    }
 }
 
@@ -141,7 +141,7 @@ void AStarNode::calcG()
 */
 int AStarNode::getDistance(AStarNode *target)
 {
-   return abs(mX - target->getX()) + abs(mY + target->getY());;
+   return abs(_x - target->getX()) + abs(_y + target->getY());;
 }
 
 
@@ -151,7 +151,7 @@ int AStarNode::getDistance(AStarNode *target)
 */
 void AStarNode::calcH(AStarNode* target)
 {
-   mH = getDistance(target);
+   _h = getDistance(target);
 }
 
 
@@ -160,6 +160,6 @@ void AStarNode::calcH(AStarNode* target)
 */
 void AStarNode::calcF()
 {
-   mF = mG + mH;
+   _f = _g + _h;
 }
 

@@ -54,22 +54,22 @@ class AStarNode
    protected:
 
       //! parent node
-      AStarNode* mParent;
+      AStarNode* _parent;
 
       //! x position
-      int mX;
+      int _x;
 
       //! y position
-      int mY;
+      int _y;
 
       //! g value
-      int mG;
+      int _g;
 
       //! h value
-      int mH;
+      int _h;
 
       //! f value
-      int mF;
+      int _f;
 
 };
 

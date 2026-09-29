@@ -138,24 +138,24 @@ class ProtoBot : public Bot
    public:
 
       //! setter for current position (overwritten)
-      virtual void updatePlayerPosition(int id, float x, float y, float ang);
+      virtual void updatePlayerPosition(int id, float x, float y, float angle);
 
       //! overwrite extra shake handler
-      virtual void extraShake(int itemId);
+      virtual void extraShake(int item_id);
 
       //! wake up bot
       virtual void wakeUp();
 
       //! setter for hazardous temp milliseconds
-      virtual void markHazardousTemporary(int x, int y, int ms, int fieldCount = 0);
+      virtual void markHazardousTemporary(int x, int y, int ms, int field_count = 0);
 
       //! mark dead end hazardous in case we need to leave NOW
       virtual void markHazardousDeadEnds();
 
       //! make hazardous temp for bomb kicks
       virtual void bombKicked(
-         int startX,
-         int startY,
+         int start_x,
+         int start_y,
          Constants::Direction,
          int flames
       );
@@ -187,10 +187,10 @@ class ProtoBot : public Bot
       int randomize(int min, int max);
 
       //! find path to target
-      void findPath(int targetX, int targetY);
+      void findPath(int target_x, int target_y);
 
       //! find path to target
-      void findPathFromTo(int startX, int startY, int targetX, int targetY);
+      void findPathFromTo(int start_x, int start_y, int target_x, int target_y);
 
       //! clear path when done
       void clearPath();
@@ -250,7 +250,7 @@ class ProtoBot : public Bot
       bool isNoBombInfectionActive() const;
 
       //! check if player infection is active
-      bool isInfectionActive(Constants::SkullType skullType) const;
+      bool isInfectionActive(Constants::SkullType skull_type) const;
 
       //! get a list of enemy positions
       std::vector<Point> getLivingEnemyPositions() const;
@@ -266,7 +266,7 @@ class ProtoBot : public Bot
          int x,
          int y,
          int flames,
-         const std::vector<Point>& reachablePositions
+         const std::vector<Point>& reachable_positions
       ) const;
 
       // transiteration functionality
@@ -299,10 +299,10 @@ class ProtoBot : public Bot
       // void pickNextField();
 
       //! transiteration busy flag
-      // bool mTransiterateBusy;
+      // bool _transiterate_busy;
 
       //! setter for bomb stone position
-      void setBombStonePosition(const Point &weightedPoint);
+      void setBombStonePosition(const Point &weighted_point);
 
       //! getter for bomb stone position
       Point getBombStonePosition() const;
@@ -320,7 +320,7 @@ class ProtoBot : public Bot
       void resetScoringFlags();
 
       //! evaluate long distance
-      bool evaluateLongDistance(int &nextXField, int &nextYField) const;
+      bool evaluateLongDistance(int &next_x_field, int &next_y_field) const;
 
       //! check if a safe escape is possible from this point
       bool isSafeEscapePossible();
@@ -333,7 +333,7 @@ class ProtoBot : public Bot
          int x,
          int y,
          Point& end,
-         int recursionDepth = 0,
+         int recursion_depth = 0,
          const Point& direction = Point()
       ) const;
 
@@ -360,84 +360,84 @@ class ProtoBot : public Bot
 
 
       //! a star path finding
-      AStarPathFinding mPathFinding;
+      AStarPathFinding _path_finding;
 
       //! best path found
-      std::vector<Point> mBestEscapePath;
+      std::vector<Point> _best_escape_path;
 
       //! best attack path
-      std::vector<Point> mBestAttackPath;
+      std::vector<Point> _best_attack_path;
 
       //! score field
-      int* mFieldScores; // [13 * 11];
+      int* _field_scores; // [13 * 11];
 
       //! remaining bomb times
-      int* mFieldBombTimes;
+      int* _field_bomb_times;
 
       //! temporary hazardous
-      int* mHazardousTemorary;
+      int* _hazardous_temporary;
 
       //! bomb drop position
-      Point mBombStonePosition;
+      Point _bomb_stone_position;
 
       //! previous bomb drop position
-      Point mBombStonePositionPrevious;
+      Point _bomb_stone_position_previous;
 
       //! every bot has a character that defines the action's scores
-      BotCharacter* mBotCharacter;
+      BotCharacter* _bot_character;
 
       //! player info map
-      std::map<int, BotPlayerInfo *>* mPlayerInfoMap;
+      std::map<int, BotPlayerInfo *>* _player_info_map;
 
       //! protobot insults
-      ProtoBotInsults* mInsults;
+      ProtoBotInsults* _insults;
 
       //! list of enemy positions (updated by scoreForAttack)
-      std::vector<Point> mEnemyPositions;
+      std::vector<Point> _enemy_positions;
 
       //! list of shake extras
-      std::vector<int> mExtraShakeIds;
+      std::vector<int> _extra_shake_ids;
 
       //! direction vectors
-      std::vector<Point> mDirections;
+      std::vector<Point> _directions;
 
       //! last target position
-      Point mLastTarget;
+      Point _last_target;
 
       //! bomb chain reaction evaluation
-      BombChainReaction* mBombChainReaction;
+      BombChainReaction* _bomb_chain_reaction;
 
       //! bot has a memory to remember good positions and such
-      ProtoBotMemory* mMemory;
+      ProtoBotMemory* _memory;
 
       //! idle counter
-      int mIdle;
+      int _idle;
 
-      std::deque<Point> mLastPositions;
+      std::deque<Point> _last_positions;
 
 
       // scoring
-      bool mScoringCurrentHazardous;
-      bool mScoringPrepareAttack;
-      bool mScoringEscape;
-      bool mScoringExtra;
-      bool mScoringPrepareBombStone;
-      bool mScoringBomb;
-      bool mScoringAttackPossible;
-      bool mScoringBombStonePossible;
+      bool _scoring_current_hazardous;
+      bool _scoring_prepare_attack;
+      bool _scoring_escape;
+      bool _scoring_extra;
+      bool _scoring_prepare_bomb_stone;
+      bool _scoring_bomb;
+      bool _scoring_attack_possible;
+      bool _scoring_bomb_stone_possible;
 
       // debugging
-      bool mDebugBreakpoint;
-      bool mDebugPaths;
-      bool mDebugEscapePaths;
-      bool mDebugMapItems;
-      bool mDebugScores;
-      bool mDebugKeysPressed;
-      bool mDebugPossibleActions;
-      bool mDebugExecutedActions;
-      bool mDebugCurrentHazardous;
-      bool mDebugWalkAction;
-      bool mDebugBombDrop;
+      bool _debug_breakpoint;
+      bool _debug_paths;
+      bool _debug_escape_paths;
+      bool _debug_map_items;
+      bool _debug_scores;
+      bool _debug_keys_pressed;
+      bool _debug_possible_actions;
+      bool _debug_executed_actions;
+      bool _debug_current_hazardous;
+      bool _debug_walk_action;
+      bool _debug_bomb_drop;
 };
 
 #endif // PROTOBOT_H

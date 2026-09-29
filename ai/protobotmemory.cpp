@@ -6,11 +6,11 @@
 /*!
 */
 ProtoBotMemory::ProtoBotMemory()
- : mExtraX(0),
-   mExtraY(0),
-   mBombStoneX(0),
-   mBombStoneY(0),
-   mBombStoneCount(0)
+ : _extra_x(0),
+   _extra_y(0),
+   _bomb_stone_x(0),
+   _bomb_stone_y(0),
+   _bomb_stone_count(0)
 {
 }
 
@@ -30,8 +30,8 @@ void ProtoBotMemory::reset()
 */
 void ProtoBotMemory::invalidateExtraPosition()
 {
-   mExtraX = -1;
-   mExtraY = -1;
+   _extra_x = -1;
+   _extra_y = -1;
 }
 
 
@@ -42,8 +42,8 @@ void ProtoBotMemory::invalidateExtraPosition()
 */
 void ProtoBotMemory::setExtraPosition(int x, int y)
 {
-   mExtraX = x;
-   mExtraY = y;
+   _extra_x = x;
+   _extra_y = y;
 }
 
 
@@ -54,7 +54,7 @@ void ProtoBotMemory::setExtraPosition(int x, int y)
 */
 bool ProtoBotMemory::isExtraPositionValid() const
 {
-   return mExtraX != -1;
+   return _extra_x != -1;
 }
 
 
@@ -64,7 +64,7 @@ bool ProtoBotMemory::isExtraPositionValid() const
 */
 int ProtoBotMemory::getExtraPositionX() const
 {
-   return mExtraX;
+   return _extra_x;
 }
 
 
@@ -74,7 +74,7 @@ int ProtoBotMemory::getExtraPositionX() const
 */
 int ProtoBotMemory::getExtraPositionY() const
 {
-   return mExtraY;
+   return _extra_y;
 }
 
 
@@ -83,9 +83,9 @@ int ProtoBotMemory::getExtraPositionY() const
 */
 void ProtoBotMemory::invalidateBombStonePosition()
 {
-   mBombStoneX = -1;
-   mBombStoneY = -1;
-   mBombStoneCount = -1;
+   _bomb_stone_x = -1;
+   _bomb_stone_y = -1;
+   _bomb_stone_count = -1;
 }
 
 
@@ -96,8 +96,8 @@ void ProtoBotMemory::invalidateBombStonePosition()
 */
 void ProtoBotMemory::setBombStonePosition(int x, int y)
 {
-   mBombStoneX = x;
-   mBombStoneY = y;
+   _bomb_stone_x = x;
+   _bomb_stone_y = y;
 }
 
 
@@ -107,7 +107,7 @@ void ProtoBotMemory::setBombStonePosition(int x, int y)
 */
 bool ProtoBotMemory::isBombStonePositionValid() const
 {
-   return mBombStoneX != -1;
+   return _bomb_stone_x != -1;
 }
 
 
@@ -117,7 +117,7 @@ bool ProtoBotMemory::isBombStonePositionValid() const
 */
 int ProtoBotMemory::getBombStonePositionX() const
 {
-   return mBombStoneX;
+   return _bomb_stone_x;
 }
 
 
@@ -127,7 +127,7 @@ int ProtoBotMemory::getBombStonePositionX() const
 */
 int ProtoBotMemory::getBombStonePositionY() const
 {
-   return mBombStoneY;
+   return _bomb_stone_y;
 }
 
 
@@ -137,7 +137,7 @@ int ProtoBotMemory::getBombStonePositionY() const
 */
 void ProtoBotMemory::setBombStoneCount(int count)
 {
-   mBombStoneCount = count;
+   _bomb_stone_count = count;
 }
 
 
@@ -147,5 +147,5 @@ void ProtoBotMemory::setBombStoneCount(int count)
 */
 int ProtoBotMemory::getBombStoneCount() const
 {
-   return mBombStoneCount;
+   return _bomb_stone_count;
 }

@@ -2,5 +2,5 @@
 
 BotIdleAction::BotIdleAction()
 {
-   mActionType = ActionIdle;
+   _action_type = ActionIdle;
 }

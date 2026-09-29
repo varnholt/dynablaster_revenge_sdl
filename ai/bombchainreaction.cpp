@@ -9,7 +9,7 @@
 /*!
 */
 BombChainReaction::BombChainReaction()
- : mBotMap(0)
+ : _bot_map(0)
 {
 }
 
@@ -20,7 +20,7 @@ BombChainReaction::BombChainReaction()
 */
 void BombChainReaction::setBotMap(BotMap *map)
 {
-   mBotMap = map;
+   _bot_map = map;
 }
 
 
@@ -30,16 +30,16 @@ void BombChainReaction::setBotMap(BotMap *map)
 void BombChainReaction::compute()
 {
    // clear old chain data
-   mChain.clear();
-   mVisited.clear();
+   _chain.clear();
+   _visited.clear();
 
    // list all bombs
-   std::vector<BotBombMapItem *> bombs = mBotMap->getBombs();
+   std::vector<BotBombMapItem *> bombs = _bot_map->getBombs();
 
    // iterate through all bombs in case their not visited
    for (BotBombMapItem* item : bombs)
    {
-      if (!mVisited.contains(item))
+      if (!_visited.contains(item))
       {
          // build a detonation chain and append it in case it's not empty
          std::vector<BotBombMapItem*> items;
@@ -48,7 +48,7 @@ void BombChainReaction::compute()
 
          if (!items.empty())
          {
-            mChain.push_back(items);
+            _chain.push_back(items);
          }
       }
    }
@@ -65,7 +65,7 @@ void BombChainReaction::iterate(
    std::vector<BotBombMapItem*>& items
 )
 {
-   mVisited.insert(item);
+   _visited.insert(item);
    items.push_back(item);
 
    // check which bombs are hit by the given bomb
@@ -77,7 +77,7 @@ void BombChainReaction::iterate(
    x = item->getX();
    y = item->getY();
 
-   for (const Point& dir : mDirections)
+   for (const Point& dir : _directions)
    {
       for (int i = 1; i <= item->getFlames(); i++)
       {
@@ -85,21 +85,21 @@ void BombChainReaction::iterate(
          yi = y + i * dir.y();
 
          if (
-               xi >= 0 && xi < mBotMap->getWidth()
-            && yi >= 0 && yi < mBotMap->getHeight()
+               xi >= 0 && xi < _bot_map->getWidth()
+            && yi >= 0 && yi < _bot_map->getHeight()
          )
          {
-            MapItem* mapItem = mBotMap->getItem(xi, yi);
+            MapItem* map_item = _bot_map->getItem(xi, yi);
 
-            if (mapItem)
+            if (map_item)
             {
-               if (mapItem->getType() == MapItem::Bomb)
+               if (map_item->getType() == MapItem::Bomb)
                {
-                  BotBombMapItem* hitBomb = dynamic_cast<BotBombMapItem*>(mapItem);
+                  BotBombMapItem* hit_bomb = dynamic_cast<BotBombMapItem*>(map_item);
 
-                  if (!mVisited.contains(hitBomb))
+                  if (!_visited.contains(hit_bomb))
                   {
-                     iterate(hitBomb, items);
+                     iterate(hit_bomb, items);
                   }
                }
 
@@ -125,11 +125,11 @@ void BombChainReaction::unitTest1()
 */
 void BombChainReaction::initDirections()
 {
-   mDirections.clear();
-   mDirections.push_back(Point(0, -1));
-   mDirections.push_back(Point(0, 1));
-   mDirections.push_back(Point(-1, 0));
-   mDirections.push_back(Point(1, 0));
+   _directions.clear();
+   _directions.push_back(Point(0, -1));
+   _directions.push_back(Point(0, 1));
+   _directions.push_back(Point(-1, 0));
+   _directions.push_back(Point(1, 0));
 }
 
 
@@ -139,6 +139,6 @@ void BombChainReaction::initDirections()
 */
 const BombChainReaction::ChainList &BombChainReaction::getDetonationChain()
 {
-   return mChain;
+   return _chain;
 }
 

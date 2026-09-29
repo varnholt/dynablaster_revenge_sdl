@@ -57,21 +57,21 @@
    \param parent parent object
 */
 BotClient::BotClient()
-    : mSocket(0),
-      mAddress(nullptr),
-      mConnected(false),
-      mBlockSize(0),
-      mBot(0),
-      mBotMap(0),
-      mGameId(0),
-      mAutoJoin(true),
-      mAutoStart(false),
-      mPlayerId(0),
-      mKeysPressed(0),
-      mGameJoined(false),
-      mSpeed(0.0f),
-      mDeltaX(0.0f),
-      mDeltaY(0.0f)
+    : _socket(0),
+      _address(nullptr),
+      _connected(false),
+      _block_size(0),
+      _bot(0),
+      _bot_map(0),
+      _game_id(0),
+      _auto_join(true),
+      _auto_start(false),
+      _player_id(0),
+      _keys_pressed(0),
+      _game_joined(false),
+      _speed(0.0f),
+      _delta_x(0.0f),
+      _delta_y(0.0f)
 {
 }
 
@@ -80,13 +80,13 @@ BotClient::BotClient()
  */
 BotClient::~BotClient()
 {
-   delete mBot;
+   delete _bot;
 
    // bot accesses player info ptrs, so delete them later
-   for (const auto& [id, playerInfo] : mPlayerInfo)
-      delete playerInfo;
+   for (const auto& [id, player_info] : _player_info)
+      delete player_info;
 
-   mPlayerInfo.clear();
+   _player_info.clear();
 }
 
 //-----------------------------------------------------------------------------
@@ -94,8 +94,8 @@ BotClient::~BotClient()
  */
 void BotClient::initialize()
 {
-   mPollTimer.timeoutSignal.connect([this]() { poll(); });
-   mPollTimer.start(16);
+   _poll_timer.timeoutSignal.connect([this]() { poll(); });
+   _poll_timer.start(16);
 
    // init auto join/start
    initializeAutoJoinStart();
@@ -106,9 +106,9 @@ void BotClient::initialize()
  */
 void BotClient::connectToServer()
 {
-   mAddress = NET_ResolveHostname(mHost.c_str());
+   _address = NET_ResolveHostname(_host.c_str());
 
-   if (!mAddress)
+   if (!_address)
    {
       clientDisconnect();
    }
@@ -120,57 +120,57 @@ void BotClient::connectToServer()
 */
 void BotClient::poll()
 {
-   if (mAddress)
+   if (_address)
    {
-      NET_Status status = NET_GetAddressStatus(mAddress);
+      NET_Status status = NET_GetAddressStatus(_address);
 
       if (status == NET_SUCCESS)
       {
-         NET_Address* address = mAddress;
-         mAddress = nullptr;
+         NET_Address* address = _address;
+         _address = nullptr;
 
-         mSocket = NET_CreateClient(address, 6300, 0);
+         _socket = NET_CreateClient(address, 6300, 0);
          NET_UnrefAddress(address);
 
-         if (!mSocket)
+         if (!_socket)
          {
             clientDisconnect();
          }
       }
       else if (status == NET_FAILURE)
       {
-         NET_UnrefAddress(mAddress);
-         mAddress = nullptr;
+         NET_UnrefAddress(_address);
+         _address = nullptr;
          clientDisconnect();
       }
 
       return;
    }
 
-   if (mSocket && !mConnected)
+   if (_socket && !_connected)
    {
-      NET_Status status = NET_GetConnectionStatus(mSocket);
+      NET_Status status = NET_GetConnectionStatus(_socket);
 
       if (status == NET_SUCCESS)
       {
          clientConnect();
 
-         if (mAutoJoin)
+         if (_auto_join)
          {
             login();
          }
       }
       else if (status == NET_FAILURE)
       {
-         NET_DestroyStreamSocket(mSocket);
-         mSocket = nullptr;
+         NET_DestroyStreamSocket(_socket);
+         _socket = nullptr;
          clientDisconnect();
       }
 
       return;
    }
 
-   if (mSocket && mConnected)
+   if (_socket && _connected)
    {
       readData();
    }
@@ -181,7 +181,7 @@ void BotClient::poll()
  */
 void BotClient::clientConnect()
 {
-   mConnected = true;
+   _connected = true;
 }
 
 //-----------------------------------------------------------------------------
@@ -189,7 +189,7 @@ void BotClient::clientConnect()
  */
 void BotClient::clientDisconnect()
 {
-   mConnected = false;
+   _connected = false;
 }
 
 //-----------------------------------------------------------------------------
@@ -198,7 +198,7 @@ void BotClient::clientDisconnect()
 */
 void BotClient::setHost(const std::string& host)
 {
-   mHost = host;
+   _host = host;
 }
 
 //-----------------------------------------------------------------------------
@@ -207,7 +207,7 @@ void BotClient::setHost(const std::string& host)
 */
 void BotClient::setNick(const std::string& nick)
 {
-   mNick = nick;
+   _nick = nick;
 }
 
 //-----------------------------------------------------------------------------
@@ -216,7 +216,7 @@ void BotClient::setNick(const std::string& nick)
 */
 void BotClient::setBotMap(BotMap* botmap)
 {
-   mBotMap = botmap;
+   _bot_map = botmap;
 }
 
 //----------------------------------------------------------------------------
@@ -224,7 +224,7 @@ void BotClient::setBotMap(BotMap* botmap)
  */
 void BotClient::initializeAutoJoinStart()
 {
-   if (mAutoJoin)
+   if (_auto_join)
    {
       // login() itself fires from poll() once the connection succeeds - see connectToServer()
       updatePlayerIdSignal.connect([this](int) { selectGame(); });
@@ -239,10 +239,10 @@ void BotClient::initializeAutoJoinStart()
 void BotClient::login()
 {
    // reset player id
-   mPlayerId = -1;
+   _player_id = -1;
 
    // send login packet
-   LoginRequestPacket login(mNick, true);
+   LoginRequestPacket login(_nick, true);
    send(&login);
 }
 
@@ -263,9 +263,9 @@ void BotClient::send(Packet* packet)
 {
    packet->serialize();
 
-   if (mSocket)
+   if (_socket)
    {
-      NET_WriteToStreamSocket(mSocket, packet->constData(), static_cast<int>(packet->size()));
+      NET_WriteToStreamSocket(_socket, packet->constData(), static_cast<int>(packet->size()));
    }
 }
 
@@ -278,22 +278,22 @@ bool BotClient::packetAvailable()
 {
    // blocksize not initialized yet
 
-   if (mBlockSize == 0)
+   if (_block_size == 0)
    {
       // not enough data to read blocksize?
-      if (mBuffer.bytesAvailable() < sizeof(uint16_t))
+      if (_buffer.bytesAvailable() < sizeof(uint16_t))
          return false;
 
       // read blocksize
-      BinaryReader sizeReader = mBuffer.reader();
-      sizeReader >> mBlockSize;
-      mBuffer.consume(sizeReader.pos());
+      BinaryReader size_reader = _buffer.reader();
+      size_reader >> _block_size;
+      _buffer.consume(size_reader.pos());
 
-      // qDebug("BotClient::packetAvailable: %d bytes", mBlockSize);
+      // qDebug("BotClient::packetAvailable: %d bytes", _block_size);
    }
 
    // enough data?
-   return (mBuffer.bytesAvailable() >= mBlockSize);
+   return (_buffer.bytesAvailable() >= _block_size);
 }
 
 //-----------------------------------------------------------------------------
@@ -303,14 +303,14 @@ bool BotClient::packetAvailable()
 */
 void BotClient::initBotMap(int width, int height)
 {
-   // delete mBotMap;
-   mBotMap = mBot->createMap(width, height);
-   mBot->setBotMap(mBotMap);
+   // delete _bot_map;
+   _bot_map = _bot->createMap(width, height);
+   _bot->setBotMap(_bot_map);
 
    // connect botmap
-   mapItemCreatedSignal.connect([this](MapItem* item) { mBotMap->createMapItem(item); });
+   mapItemCreatedSignal.connect([this](MapItem* item) { _bot_map->createMapItem(item); });
 
-   mapItemRemovedSignal.connect([this](MapItem* item) { mBotMap->removeMapItem(item); });
+   mapItemRemovedSignal.connect([this](MapItem* item) { _bot_map->removeMapItem(item); });
 }
 
 //-----------------------------------------------------------------------------
@@ -319,7 +319,7 @@ void BotClient::initBotMap(int width, int height)
 */
 Bot* BotClient::getBot() const
 {
-   return mBot;
+   return _bot;
 }
 
 //-----------------------------------------------------------------------------
@@ -358,17 +358,17 @@ void BotClient::createMap(Constants::Dimension dimensions)
 void BotClient::readData()
 {
    char chunk[4096];
-   int bytesRead;
+   int bytes_read;
 
-   while ((bytesRead = NET_ReadFromStreamSocket(mSocket, chunk, sizeof(chunk))) > 0)
+   while ((bytes_read = NET_ReadFromStreamSocket(_socket, chunk, sizeof(chunk))) > 0)
    {
-      mBuffer.append(chunk, bytesRead);
+      _buffer.append(chunk, bytes_read);
    }
 
-   if (bytesRead < 0)
+   if (bytes_read < 0)
    {
-      NET_DestroyStreamSocket(mSocket);
-      mSocket = nullptr;
+      NET_DestroyStreamSocket(_socket);
+      _socket = nullptr;
       clientDisconnect();
       return;
    }
@@ -376,9 +376,9 @@ void BotClient::readData()
    while (packetAvailable())
    {
       // block was read completely
-      BinaryReader in = mBuffer.reader();
+      BinaryReader in = _buffer.reader();
       auto packet = Packet::deserialize(in);
-      mBuffer.consume(in.pos());
+      _buffer.consume(in.pos());
 
       if (packet)
       {
@@ -526,10 +526,10 @@ void BotClient::readData()
          }
       }
 
-      mBlockSize = 0;
+      _block_size = 0;
    }
 
-   mBuffer.compact();
+   _buffer.compact();
 }
 
 //-----------------------------------------------------------------------------
@@ -538,7 +538,7 @@ void BotClient::readData()
 */
 void BotClient::setBot(Bot* bot)
 {
-   mBot = bot;
+   _bot = bot;
 }
 
 //-----------------------------------------------------------------------------
@@ -546,18 +546,18 @@ void BotClient::setBot(Bot* bot)
  */
 void BotClient::joinGame()
 {
-   if (mPlayerId != -1)
+   if (_player_id != -1)
    {
       if (!isGameJoined())
       {
-         if (!mGames.empty())
+         if (!_games.empty())
          {
             // qDebug("BotClient::joinGame");
-            JoinGameRequestPacket joinPacket(getGameId());
-            send(&joinPacket);
+            JoinGameRequestPacket join_packet(getGameId());
+            send(&join_packet);
 
-            PlayerSynchronizePacket syncPacket(PlayerSynchronizePacket::LevelLoaded);
-            send(&syncPacket);
+            PlayerSynchronizePacket sync_packet(PlayerSynchronizePacket::LevelLoaded);
+            send(&sync_packet);
          }
       }
    }
@@ -568,7 +568,7 @@ void BotClient::joinGame()
  */
 void BotClient::startGame()
 {
-   StartGameRequestPacket packet(mGameId);
+   StartGameRequestPacket packet(_game_id);
    send(&packet);
 }
 
@@ -577,7 +577,7 @@ void BotClient::startGame()
  */
 void BotClient::setGameId(int id)
 {
-   mGameId = id;
+   _game_id = id;
 }
 
 //-----------------------------------------------------------------------------
@@ -585,7 +585,7 @@ void BotClient::setGameId(int id)
  */
 int BotClient::getGameId() const
 {
-   return mGameId;
+   return _game_id;
 }
 
 //-----------------------------------------------------------------------------
@@ -593,7 +593,7 @@ int BotClient::getGameId() const
  */
 void BotClient::setAutoJoin(bool enabled)
 {
-   mAutoJoin = enabled;
+   _auto_join = enabled;
 }
 
 //-----------------------------------------------------------------------------
@@ -601,7 +601,7 @@ void BotClient::setAutoJoin(bool enabled)
  */
 void BotClient::setAutoStart(bool enabled)
 {
-   mAutoStart = enabled;
+   _auto_start = enabled;
 }
 
 //-----------------------------------------------------------------------------
@@ -610,20 +610,20 @@ void BotClient::setAutoStart(bool enabled)
 */
 void BotClient::processLoginResponse(Packet* p)
 {
-   LoginResponsePacket* lrp = (LoginResponsePacket*)p;
+   LoginResponsePacket* login_response = (LoginResponsePacket*)p;
 
-   // qDebug("BotClient::processLoginResponse: id: %d", lrp->getId());
+   // qDebug("BotClient::processLoginResponse: id: %d", login_response->getId());
 
-   if (lrp->getId() >= 0)
+   if (login_response->getId() >= 0)
    {
-      mPlayerId = lrp->getId();
+      _player_id = login_response->getId();
 
       // store server configuration data
-      setServerConfiguration(lrp->getServerConfiguration());
-      getBot()->setServerConfiguration(lrp->getServerConfiguration());
+      setServerConfiguration(login_response->getServerConfiguration());
+      getBot()->setServerConfiguration(login_response->getServerConfiguration());
    }
 
-   updatePlayerIdSignal(mPlayerId);
+   updatePlayerIdSignal(_player_id);
 }
 
 //-----------------------------------------------------------------------------
@@ -639,14 +639,14 @@ void BotClient::processJoinGameResponse(Packet* p)
    BotPlayerInfo* info = 0;
    int id = response->getPlayerId();
 
-   if (!mPlayerInfo.contains(id))
+   if (!_player_info.contains(id))
    {
       info = new BotPlayerInfo();
       info->setId(id);
       info->setNick(response->getNick());
       info->setColor(Constants::ColorWhite);  // TODO
 
-      mPlayerInfo[id] = info;
+      _player_info[id] = info;
 
       // send infomap to all instances interested in them
       // playerInfoMapRequest();
@@ -654,18 +654,18 @@ void BotClient::processJoinGameResponse(Packet* p)
 
    // ensure it was us who joined as join game responses are
    // broadcasted to all players
-   if (id == mPlayerId)
+   if (id == _player_id)
    {
       setGameJoined(true);
 
       if (info)
-         mBot->setPlayerInfo(info);
+         _bot->setPlayerInfo(info);
 
-      mGameId = response->getGameId();
+      _game_id = response->getGameId();
 
       // select just the first one in the list
-      GameInformation gameInfo = mGames[0];
-      createMap(gameInfo.getMapDimensions());
+      GameInformation game_info = _games[0];
+      createMap(game_info.getMapDimensions());
    }
 }
 
@@ -679,7 +679,7 @@ void BotClient::processLeaveGameResponse(Packet* p)
 
    if (response)
    {
-      if (response->getPlayerId() == mPlayerId)
+      if (response->getPlayerId() == _player_id)
       {
          removeSignal();
       }
@@ -693,27 +693,27 @@ void BotClient::processLeaveGameResponse(Packet* p)
 void BotClient::processMapItemCreated(Packet* packet)
 {
    MapItem* item = 0;
-   MapItemCreatedPacket* micp = (MapItemCreatedPacket*)packet;
+   MapItemCreatedPacket* created_packet = (MapItemCreatedPacket*)packet;
 
-   switch (micp->getItemType())
+   switch (created_packet->getItemType())
    {
       case MapItem::Bomb:
       {
-         int x = micp->getX();
-         int y = micp->getY();
+         int x = created_packet->getX();
+         int y = created_packet->getY();
          BotPlayerInfo* player = 0;
 
          item = new BotBombMapItem(
             -1,  // we don't know the player id yet
             -1,  // we don't know the number of flames yet
-            micp->getAppearance(),
+            created_packet->getAppearance(),
             x,
             y
          );
 
-         item->setUniqueId(micp->getUniqueId());
+         item->setUniqueId(created_packet->getUniqueId());
 
-         player = getPlayerInfo(micp->getPlayerId());
+         player = getPlayerInfo(created_packet->getPlayerId());
 
          if (player)
          {
@@ -766,15 +766,15 @@ void BotClient::processExtraMapItemCreated(Packet* packet)
 */
 void BotClient::processMapItemDestroyed(Packet* packet)
 {
-   MapItemDestroyedPacket* destroyedPacket = (MapItemDestroyedPacket*)packet;
-   MapItem* item = getMapItem(destroyedPacket->getUniqueId());
+   MapItemDestroyedPacket* destroyed_packet = (MapItemDestroyedPacket*)packet;
+   MapItem* item = getMapItem(destroyed_packet->getUniqueId());
 
    if (item)
    {
       //      qDebug(
       //         "BotClient::processMapItemDestroyed: player: %d, intensity: %f",
-      //         destroyedPacket->getPlayerId(),
-      //         destroyedPacket->getIntensity()
+      //         destroyed_packet->getPlayerId(),
+      //         destroyed_packet->getIntensity()
       //      );
 
       queueObsoleteItem(item);
@@ -787,8 +787,8 @@ void BotClient::processMapItemDestroyed(Packet* packet)
 */
 void BotClient::processMapItemRemoved(Packet* packet)
 {
-   MapItemRemovedPacket* removedPacket = (MapItemRemovedPacket*)packet;
-   MapItem* item = getMapItem(removedPacket->getUniqueId());
+   MapItemRemovedPacket* removed_packet = (MapItemRemovedPacket*)packet;
+   MapItem* item = getMapItem(removed_packet->getUniqueId());
 
    if (item)
    {
@@ -802,28 +802,28 @@ void BotClient::processMapItemRemoved(Packet* packet)
 */
 void BotClient::processMapItemMove(Packet* packet)
 {
-   MapItemMovePacket* movePacket = (MapItemMovePacket*)packet;
-   MapItem* item = getMapItem(movePacket->getMapItemId());
+   MapItemMovePacket* move_packet = (MapItemMovePacket*)packet;
+   MapItem* item = getMapItem(move_packet->getMapItemId());
 
    if (item)
    {
       // in case the move direction is unknown, the item stopped its movement
       // and can be relocated at its nominal position
-      if (movePacket->getDirection() == Constants::DirectionUnknown)
+      if (move_packet->getDirection() == Constants::DirectionUnknown)
       {
          // relocate the bomb on the map
-         int x = movePacket->getNominalX();
-         int y = movePacket->getNominalY();
+         int x = move_packet->getNominalX();
+         int y = move_packet->getNominalY();
 
          // obsolete as done in the else section
-         MapItem* existingItem = mBotMap->getItem(item->getX(), item->getY());
-         if (existingItem && existingItem->getUniqueId() == item->getUniqueId())
+         MapItem* existing_item = _bot_map->getItem(item->getX(), item->getY());
+         if (existing_item && existing_item->getUniqueId() == item->getUniqueId())
          {
-            mBotMap->setItem(item->getX(), item->getY(), 0);
+            _bot_map->setItem(item->getX(), item->getY(), 0);
          }
 
          // remap item
-         mBotMap->setItem(x, y, item);
+         _bot_map->setItem(x, y, item);
 
          item->setX(x);
          item->setY(y);
@@ -835,7 +835,7 @@ void BotClient::processMapItemMove(Packet* packet)
 
          if (bomb)
          {
-            bombKickedSignal(item->getX(), item->getY(), movePacket->getDirection(), bomb->getFlames());
+            bombKickedSignal(item->getX(), item->getY(), move_packet->getDirection(), bomb->getFlames());
          }
 
          // this case will make the bot react as soon the bomb kick animation
@@ -844,14 +844,14 @@ void BotClient::processMapItemMove(Packet* packet)
 
          // take bomb out of the map
          /*
-         MapItem* existingItem = mBotMap->getItem(item->getX(), item->getY());
+         MapItem* existing_item = _bot_map->getItem(item->getX(), item->getY());
 
          if (
-               existingItem
-            && existingItem->getUniqueId() == item->getUniqueId()
+               existing_item
+            && existing_item->getUniqueId() == item->getUniqueId()
          )
          {
-            mBotMap->setItem(item->getX(), item->getY(), 0);
+            _bot_map->setItem(item->getX(), item->getY(), 0);
          }
          */
       }
@@ -867,8 +867,8 @@ MapItem* BotClient::getMapItem(int id) const
 {
    MapItem* item = 0;
 
-   auto it = mMapItems.find(id);
-   if (it != mMapItems.end())
+   auto it = _map_items.find(id);
+   if (it != _map_items.end())
       item = it->second;
 
    return item;
@@ -878,22 +878,22 @@ MapItem* BotClient::getMapItem(int id) const
 /*!
    \param mapitem item to add
 */
-void BotClient::addMapItem(MapItem* mapItem)
+void BotClient::addMapItem(MapItem* map_item)
 {
-   mMapItems[mapItem->getUniqueId()] = mapItem;
+   _map_items[map_item->getUniqueId()] = map_item;
 }
 
 //-----------------------------------------------------------------------------
 /*!
    \param mapitem item to remove
 */
-void BotClient::removeMapItem(MapItem* mapItem)
+void BotClient::removeMapItem(MapItem* map_item)
 {
    // delete item and take it from the mapitem-map - safe to delete synchronously here: this is
    // client-side bot-mirror bookkeeping reacting to a queued network packet, never nested
    // inside the item's own signal dispatch (these mirror objects don't run gameplay logic)
-   mMapItems.erase(mapItem->getUniqueId());
-   delete mapItem;
+   _map_items.erase(map_item->getUniqueId());
+   delete map_item;
 }
 
 //-----------------------------------------------------------------------------
@@ -903,9 +903,9 @@ void BotClient::removeMapItem(MapItem* mapItem)
 */
 BotPlayerInfo* BotClient::getPlayerInfo(int id) const
 {
-   auto it = mPlayerInfo.find(id);
+   auto it = _player_info.find(id);
 
-   if (it != mPlayerInfo.end())
+   if (it != _player_info.end())
       return it->second;
    else
       return 0;
@@ -919,10 +919,10 @@ BotPlayerInfo* BotClient::getPlayerInfo(int id) const
 std::vector<BotPlayerInfo*> BotClient::getPlayerInfoList() const
 {
    std::vector<BotPlayerInfo*> list;
-   list.reserve(mPlayerInfo.size());
+   list.reserve(_player_info.size());
 
-   for (const auto& [id, playerInfo] : mPlayerInfo)
-      list.push_back(playerInfo);
+   for (const auto& [id, player_info] : _player_info)
+      list.push_back(player_info);
 
    return list;
 }
@@ -933,7 +933,7 @@ std::vector<BotPlayerInfo*> BotClient::getPlayerInfoList() const
 */
 std::map<int, BotPlayerInfo*>* BotClient::getPlayerInfoMap()
 {
-   return &mPlayerInfo;
+   return &_player_info;
 }
 
 //-----------------------------------------------------------------------------
@@ -942,7 +942,7 @@ std::map<int, BotPlayerInfo*>* BotClient::getPlayerInfoMap()
 */
 void BotClient::setServerConfiguration(const ServerConfiguration& config)
 {
-   mServerConfiguration = config;
+   _server_configuration = config;
 }
 
 //-----------------------------------------------------------------------------
@@ -951,7 +951,7 @@ void BotClient::setServerConfiguration(const ServerConfiguration& config)
 */
 const ServerConfiguration& BotClient::getServerConfiguration() const
 {
-   return mServerConfiguration;
+   return _server_configuration;
 }
 
 //-----------------------------------------------------------------------------
@@ -960,24 +960,24 @@ const ServerConfiguration& BotClient::getServerConfiguration() const
 */
 void BotClient::processPosition(Packet* packet)
 {
-   PositionPacket* posPacket = (PositionPacket*)packet;
+   PositionPacket* position_packet = (PositionPacket*)packet;
 
-   PlayerInfo* playerInfo = getPlayerInfo(posPacket->getPlayerId());
+   PlayerInfo* player_info = getPlayerInfo(position_packet->getPlayerId());
 
-   if (playerInfo)
+   if (player_info)
    {
-      playerInfo->setPosition(posPacket->getX(), posPacket->getY(), posPacket->getAngle());
+      player_info->setPosition(position_packet->getX(), position_packet->getY(), position_packet->getAngle());
 
-      playerInfo->setDirections(posPacket->getDirections());
+      player_info->setDirections(position_packet->getDirections());
 
-      updatePlayerPositionSignal(posPacket->getPlayerId(), posPacket->getX(), posPacket->getY(), posPacket->getAngle());
+      updatePlayerPositionSignal(position_packet->getPlayerId(), position_packet->getX(), position_packet->getY(), position_packet->getAngle());
 
-      if (playerInfo->getId() == getPlayerId())
+      if (player_info->getId() == getPlayerId())
       {
-         setSpeed(posPacket->getDeltaX() + posPacket->getDeltaY());
+         setSpeed(position_packet->getDeltaX() + position_packet->getDeltaY());
 
-         setDeltaX(posPacket->getDeltaX());
-         setDeltaY(posPacket->getDeltaY());
+         setDeltaX(position_packet->getDeltaX());
+         setDeltaY(position_packet->getDeltaY());
       }
    }
 }
@@ -1000,37 +1000,37 @@ void BotClient::processStartGameResponse(Packet* packet)
 */
 void BotClient::processGameEvent(Packet* packet)
 {
-   GameEventPacket* gameEventPacket = (GameEventPacket*)packet;
-   int playerId = gameEventPacket->getPlayerId();
+   GameEventPacket* game_event_packet = (GameEventPacket*)packet;
+   int player_id = game_event_packet->getPlayerId();
 
-   if (playerId != -1)
+   if (player_id != -1)
    {
       //      qDebug(
       //         "processGameEvent: player: %d, picked extra: %d",
-      //         playerId,
-      //         gameEventPacket->getExtraType()
+      //         player_id,
+      //         game_event_packet->getExtraType()
       //      );
 
-      if (mPlayerInfo.contains(playerId))
+      if (_player_info.contains(player_id))
       {
-         BotPlayerInfo* playerInfo = mPlayerInfo[playerId];
+         BotPlayerInfo* player_info = _player_info[player_id];
 
-         switch (gameEventPacket->getExtraType())
+         switch (game_event_packet->getExtraType())
          {
             case Constants::ExtraBomb:
-               playerInfo->addBomb();
+               player_info->addBomb();
                break;
 
             case Constants::ExtraFlame:
-               playerInfo->addFlame();
+               player_info->addFlame();
                break;
 
             case Constants::ExtraSpeedup:
-               playerInfo->addSpeed();
+               player_info->addSpeed();
                break;
 
             case Constants::ExtraKick:
-               playerInfo->setKickEnabled(true);
+               player_info->setKickEnabled(true);
                break;
 
             default:
@@ -1046,14 +1046,14 @@ void BotClient::processGameEvent(Packet* packet)
 */
 void BotClient::processPlayerInfected(Packet* packet)
 {
-   PlayerInfectedPacket* infectedPacket = (PlayerInfectedPacket*)packet;
-   int id = infectedPacket->getPlayerId();
+   PlayerInfectedPacket* infected_packet = (PlayerInfectedPacket*)packet;
+   int id = infected_packet->getPlayerId();
 
-   auto it = mPlayerInfo.find(id);
+   auto it = _player_info.find(id);
 
-   if (it != mPlayerInfo.end())
+   if (it != _player_info.end())
    {
-      switch (infectedPacket->getSkullType())
+      switch (infected_packet->getSkullType())
       {
          // infection aborted
          case Constants::SkullReset:
@@ -1066,7 +1066,7 @@ void BotClient::processPlayerInfected(Packet* packet)
          default:
          {
             auto disease = std::make_unique<PlayerDisease>();
-            disease->setType(infectedPacket->getSkullType());
+            disease->setType(infected_packet->getSkullType());
 
             // infect player
             it->second->infect(std::move(disease));
@@ -1082,18 +1082,18 @@ void BotClient::processPlayerInfected(Packet* packet)
 */
 void BotClient::processPlayerKilled(Packet* packet)
 {
-   PlayerKilledPacket* killedPacket = (PlayerKilledPacket*)packet;
-   int id = killedPacket->getPlayerId();
+   PlayerKilledPacket* killed_packet = (PlayerKilledPacket*)packet;
+   int id = killed_packet->getPlayerId();
 
-   auto it = mPlayerInfo.find(id);
+   auto it = _player_info.find(id);
 
-   if (it != mPlayerInfo.end())
+   if (it != _player_info.end())
    {
       it->second->setKilled(true);
    }
 
-   if (id == mPlayerId)
-      mBot->die();
+   if (id == _player_id)
+      _bot->die();
 }
 
 //-----------------------------------------------------------------------------
@@ -1102,47 +1102,47 @@ void BotClient::processPlayerKilled(Packet* packet)
 */
 void BotClient::processStopGameResponse(Packet* packet)
 {
-   StopGameResponsePacket* stopGamePacket = (StopGameResponsePacket*)packet;
+   StopGameResponsePacket* stop_game_packet = (StopGameResponsePacket*)packet;
 
-   if (stopGamePacket->getId() == getGameId())
-      mBot->idle();
+   if (stop_game_packet->getId() == getGameId())
+      _bot->idle();
 }
 
 //-----------------------------------------------------------------------------
 /*!
-   \param keysPressed walk direction and bomb drop
+   \param keys_pressed walk direction and bomb drop
 */
-void BotClient::walk(int8_t keysPressed)
+void BotClient::walk(int8_t keys_pressed)
 {
-   // keysPressed and mKeysPressed had the same value (up) but the
+   // keys_pressed and _keys_pressed had the same value (up) but the
    // bot was not moving at all.. no further key packets were sent
-   // to the server since keysPressed and mKeysPressed have been
-   bool sendAgain = false;
+   // to the server since keys_pressed and _keys_pressed have been
+   bool send_again = false;
 
-   if (keysPressed & Constants::KeyUp)
+   if (keys_pressed & Constants::KeyUp)
    {
       if (getDeltaY() >= 0.0f)
-         sendAgain = true;
+         send_again = true;
    }
-   if (keysPressed & Constants::KeyDown)
+   if (keys_pressed & Constants::KeyDown)
    {
       if (getDeltaY() <= 0.0f)
-         sendAgain = true;
+         send_again = true;
    }
-   if (keysPressed & Constants::KeyLeft)
+   if (keys_pressed & Constants::KeyLeft)
    {
       if (getDeltaX() >= 0.0f)
-         sendAgain = true;
+         send_again = true;
    }
-   if (keysPressed & Constants::KeyRight)
+   if (keys_pressed & Constants::KeyRight)
    {
       if (getDeltaX() <= 0.0f)
-         sendAgain = true;
+         send_again = true;
    }
 
-   if (keysPressed != mKeysPressed || sendAgain)
+   if (keys_pressed != _keys_pressed || send_again)
    {
-      mKeysPressed = keysPressed;
+      _keys_pressed = keys_pressed;
 
       // cool bots don't get their keyboards flipped
       PlayerDisease* disease = getBot()->getPlayerInfo()->getDisease();
@@ -1150,13 +1150,13 @@ void BotClient::walk(int8_t keysPressed)
       {
          if (disease->getType() == Constants::SkullKeyboardInvert)
          {
-            disease->applyKeyboardInvert(keysPressed);
+            disease->applyKeyboardInvert(keys_pressed);
          }
       }
 
       // build keypacket
-      KeyPacket kPacket(mPlayerId, keysPressed);
-      send(&kPacket);
+      KeyPacket key_packet(_player_id, keys_pressed);
+      send(&key_packet);
    }
 }
 
@@ -1168,12 +1168,12 @@ void BotClient::bomb()
    // only place bombs within some field center
    // because the server might be placing the bomb into
    // an undesired field otherwise
-   mKeysPressed = 0;
+   _keys_pressed = 0;
    int8_t keys = 0;
-   int x = mBot->getXField();
-   int y = mBot->getYField();
-   //   float relX = mBot->getX() - x;
-   //   float relY = mBot->getY() - y;
+   int x = _bot->getXField();
+   int y = _bot->getYField();
+   //   float relX = _bot->getX() - x;
+   //   float relY = _bot->getY() - y;
    //
    //   if (
    //         relX > 0.1f && relX < 0.9f
@@ -1184,16 +1184,16 @@ void BotClient::bomb()
 
    // mark the field hazardous until the bot re-communicated the
    // field status
-   markHazardousTemporarySignal(x, y, 500, mBot->getPlayerInfo()->getFlameCount());
+   markHazardousTemporarySignal(x, y, 500, _bot->getPlayerInfo()->getFlameCount());
    //   }
    //   else
    //   {
-   //      // keys = mBot->getBotKeysPressed();
-   //      keys = mBot->computeWalkKeys();
+   //      // keys = _bot->getBotKeysPressed();
+   //      keys = _bot->computeWalkKeys();
    //   }
 
-   KeyPacket kPacket(mPlayerId, keys);
-   send(&kPacket);
+   KeyPacket key_packet(_player_id, keys);
+   send(&key_packet);
 }
 
 //-----------------------------------------------------------------------------
@@ -1202,7 +1202,7 @@ void BotClient::bomb()
 void BotClient::processListGameResponse(Packet* packet)
 {
    ListGamesResponsePacket* list = (ListGamesResponsePacket*)packet;
-   mGames = list->getGames();
+   _games = list->getGames();
 
    gameSelectedSignal();
 }
@@ -1212,7 +1212,7 @@ void BotClient::processListGameResponse(Packet* packet)
  */
 void BotClient::setGameJoined(bool joined)
 {
-   mGameJoined = joined;
+   _game_joined = joined;
 }
 
 //-----------------------------------------------------------------------------
@@ -1221,7 +1221,7 @@ void BotClient::setGameJoined(bool joined)
 */
 bool BotClient::isGameJoined() const
 {
-   return mGameJoined;
+   return _game_joined;
 }
 
 //-----------------------------------------------------------------------------
@@ -1230,7 +1230,7 @@ bool BotClient::isGameJoined() const
 */
 void BotClient::setSpeed(float speed)
 {
-   mSpeed = speed;
+   _speed = speed;
 }
 
 //-----------------------------------------------------------------------------
@@ -1239,7 +1239,7 @@ void BotClient::setSpeed(float speed)
 */
 float BotClient::getSpeed() const
 {
-   return mSpeed;
+   return _speed;
 }
 
 //-----------------------------------------------------------------------------
@@ -1248,19 +1248,19 @@ float BotClient::getSpeed() const
 */
 int BotClient::getPlayerId() const
 {
-   return mPlayerId;
+   return _player_id;
 }
 
 //-----------------------------------------------------------------------------
 /*!
    \param message message to send
-   \param receiverId id of the message receiver
+   \param receiver_id id of the message receiver
 */
-void BotClient::sendMessage(const std::string& message, bool finishedTyping, int receiverId)
+void BotClient::sendMessage(const std::string& message, bool finished_typing, int receiver_id)
 {
    if (isGameJoined())
    {
-      MessagePacket packet(-1, message, finishedTyping, receiverId);
+      MessagePacket packet(-1, message, finished_typing, receiver_id);
 
       send(&packet);
    }
@@ -1275,13 +1275,13 @@ void BotClient::resetBot()
    setDeltaY(0.0f);
 
    // reset keys pressed
-   mKeysPressed = 0;
+   _keys_pressed = 0;
 
    // reset killed flag for all players
-   for (const auto& [id, playerInfo] : mPlayerInfo)
+   for (const auto& [id, player_info] : _player_info)
    {
-      playerInfo->setKilled(false);
-      playerInfo->reset();
+      player_info->setKilled(false);
+      player_info->reset();
    }
 }
 
@@ -1290,7 +1290,7 @@ void BotClient::resetBot()
  */
 void BotClient::bugTrack1()
 {
-   if (mBombTime.elapsed() < 500)
+   if (_bomb_time.elapsed() < 500)
    {
       qDebug("bug");
    }
@@ -1301,7 +1301,7 @@ void BotClient::bugTrack1()
  */
 int BotClient::getWalkCount() const
 {
-   return mWalkCount;
+   return _walk_count;
 }
 
 //-----------------------------------------------------------------------------
@@ -1309,7 +1309,7 @@ int BotClient::getWalkCount() const
  */
 void BotClient::increaseWalkCount()
 {
-   mWalkCount++;
+   _walk_count++;
 }
 
 //-----------------------------------------------------------------------------
@@ -1317,7 +1317,7 @@ void BotClient::increaseWalkCount()
  */
 void BotClient::resetWalkCount()
 {
-   mWalkCount = 0;
+   _walk_count = 0;
 }
 
 //-----------------------------------------------------------------------------
@@ -1326,7 +1326,7 @@ void BotClient::resetWalkCount()
 */
 float BotClient::getDeltaY() const
 {
-   return mDeltaY;
+   return _delta_y;
 }
 
 //-----------------------------------------------------------------------------
@@ -1335,7 +1335,7 @@ float BotClient::getDeltaY() const
 */
 void BotClient::setDeltaY(float value)
 {
-   mDeltaY = value;
+   _delta_y = value;
 }
 
 //-----------------------------------------------------------------------------
@@ -1344,7 +1344,7 @@ void BotClient::setDeltaY(float value)
 */
 float BotClient::getDeltaX() const
 {
-   return mDeltaX;
+   return _delta_x;
 }
 
 //-----------------------------------------------------------------------------
@@ -1353,7 +1353,7 @@ float BotClient::getDeltaX() const
 */
 void BotClient::setDeltaX(float value)
 {
-   mDeltaX = value;
+   _delta_x = value;
 }
 
 //-----------------------------------------------------------------------------
@@ -1362,19 +1362,19 @@ void BotClient::setDeltaX(float value)
 */
 void BotClient::processCountdown(Packet* packet)
 {
-   CountdownPacket* countdownPacket = (CountdownPacket*)packet;
+   CountdownPacket* countdown_packet = (CountdownPacket*)packet;
 
-   int timeLeft = countdownPacket->getTimeLeft();
+   int time_left = countdown_packet->getTimeLeft();
 
    /*
    qDebug(
       "BotClient::processCountdown: left: %d",
-      timeLeft
+      time_left
    );
    */
 
    // sync tick
-   if (timeLeft == SERVER_PREPARATION_TIME + SERVER_PREPARATION_SYNC_TIME - 1)
+   if (time_left == SERVER_PREPARATION_TIME + SERVER_PREPARATION_SYNC_TIME - 1)
    {
       resetBot();
    }
@@ -1386,18 +1386,18 @@ void BotClient::processCountdown(Packet* packet)
 */
 void BotClient::processExtraShake(Packet* packet)
 {
-   ExtraShakePacket* extraShakePacket = (ExtraShakePacket*)packet;
+   ExtraShakePacket* extra_shake_packet = (ExtraShakePacket*)packet;
 
-   int itemId = extraShakePacket->getMapItemUniqueId();
+   int item_id = extra_shake_packet->getMapItemUniqueId();
 
    /*
    qDebug(
       "BotClient::processExtraShake: item %d contains an extra",
-      itemId
+      item_id
    );
    */
 
-   extraShakeSignal(itemId);
+   extraShakeSignal(item_id);
 }
 
 //-----------------------------------------------------------------------------
@@ -1409,8 +1409,8 @@ void BotClient::queueObsoleteItem(MapItem* item)
    // remove from the lookup map right away - a duplicate destroy/remove notification for the
    // same id (e.g. a malformed or resent packet) would otherwise find it again via getMapItem()
    // and queue the same already-obsolete pointer twice, use-after-freeing it on the second flush.
-   mMapItems.erase(item->getUniqueId());
-   mObsoleteMapItems.push(item);
+   _map_items.erase(item->getUniqueId());
+   _obsolete_map_items.push(item);
 }
 
 //-----------------------------------------------------------------------------
@@ -1418,7 +1418,7 @@ void BotClient::queueObsoleteItem(MapItem* item)
  */
 void BotClient::clearObsoleteItems()
 {
-   mObsoleteMapItems = std::queue<MapItem*>();
+   _obsolete_map_items = std::queue<MapItem*>();
 }
 
 //-----------------------------------------------------------------------------
@@ -1427,7 +1427,7 @@ void BotClient::clearObsoleteItems()
 */
 void BotClient::deleteObsoleteMapItems()
 {
-   std::queue<MapItem*> items = mObsoleteMapItems;
+   std::queue<MapItem*> items = _obsolete_map_items;
 
    while (!items.empty())
    {

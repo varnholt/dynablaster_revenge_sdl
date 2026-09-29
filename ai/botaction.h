@@ -26,7 +26,7 @@ class BotAction
    protected:
 
       //! action type
-      ActionType mActionType;
+      ActionType _action_type;
 };
 
 #endif // BOTACTION_H

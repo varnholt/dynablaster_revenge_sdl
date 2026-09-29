@@ -23,7 +23,7 @@ class Path
    protected:
 
       //! list of points
-      std::vector<Point> mPoints;
+      std::vector<Point> _points;
 
 };
 

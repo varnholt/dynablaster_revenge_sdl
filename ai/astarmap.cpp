@@ -16,7 +16,7 @@
 //-----------------------------------------------------------------------------
 /*!
  */
-AStarMap::AStarMap() : BotMap(), mNodeMap(0)
+AStarMap::AStarMap() : BotMap(), _node_map(0)
 {
    initMap();
 }
@@ -77,8 +77,8 @@ AStarMap::~AStarMap()
  */
 void AStarMap::initMap()
 {
-   mNodeMap = new AStarNode*[_width * _height];
-   std::memset(mNodeMap, 0, _width * _height * sizeof(AStarNode*));
+   _node_map = new AStarNode*[mWidth * mHeight];
+   std::memset(_node_map, 0, mWidth * mHeight * sizeof(AStarNode*));
 }
 
 //-----------------------------------------------------------------------------
@@ -107,10 +107,10 @@ void AStarMap::buildNodes()
          node->setY(y);
 
          // add node to map
-         mNodeMap[y * _width + x] = node;
+         _node_map[y * mWidth + x] = node;
 
          // add node to node list
-         mNodes.push_back(node);
+         _nodes.push_back(node);
       }
    }
 }
@@ -124,22 +124,22 @@ void AStarMap::clearNodes()
    {
       for (int y = 0; y < _height; y++)
       {
-         delete mNodeMap[y * _width + x];
-         mNodeMap[y * _width + x] = 0;
+         delete _node_map[y * mWidth + x];
+         _node_map[y * mWidth + x] = 0;
       }
    }
 
-   mNodes.clear();
+   _nodes.clear();
 }
 
 //-----------------------------------------------------------------------------
 /*!
   \param x x position
   \param y y position
-  \param regardStones \c true if stones are to be regarded
+  \param regard_stones \c true if stones are to be regarded
   \return list of neighbors
 */
-std::vector<AStarNode*> AStarMap::getNeighbors(int x, int y, bool regardStones)
+std::vector<AStarNode*> AStarMap::getNeighbors(int x, int y, bool regard_stones)
 {
    std::vector<AStarNode*> list;
 
@@ -150,25 +150,25 @@ std::vector<AStarNode*> AStarMap::getNeighbors(int x, int y, bool regardStones)
 
    if (up.y() >= 0)
    {
-      if (isTraversable(up, regardStones))
+      if (isTraversable(up, regard_stones))
          list.push_back(getNode(up.x(), up.y()));
    }
 
    if (down.y() < getHeight())
    {
-      if (isTraversable(down, regardStones))
+      if (isTraversable(down, regard_stones))
          list.push_back(getNode(down.x(), down.y()));
    }
 
    if (left.x() >= 0)
    {
-      if (isTraversable(left, regardStones))
+      if (isTraversable(left, regard_stones))
          list.push_back(getNode(left.x(), left.y()));
    }
 
    if (right.x() < getWidth())
    {
-      if (isTraversable(right, regardStones))
+      if (isTraversable(right, regard_stones))
          list.push_back(getNode(right.x(), right.y()));
    }
 
@@ -178,10 +178,10 @@ std::vector<AStarNode*> AStarMap::getNeighbors(int x, int y, bool regardStones)
 //-----------------------------------------------------------------------------
 /*!
   \param point point to check
-  \param regardStones \c if stones are to be regarded
+  \param regard_stones \c if stones are to be regarded
   \return true if point is traversable
 */
-bool AStarMap::isTraversable(const Point& point, bool regardStones)
+bool AStarMap::isTraversable(const Point& point, bool regard_stones)
 {
    MapItem* item = 0;
    bool add = true;
@@ -194,7 +194,7 @@ bool AStarMap::isTraversable(const Point& point, bool regardStones)
    if (item && item->getType() == MapItem::Block)
       add = false;
 
-   if (add && regardStones && item && item->getType() == MapItem::Stone)
+   if (add && regard_stones && item && item->getType() == MapItem::Stone)
       add = false;
 
    return add;
@@ -208,7 +208,7 @@ bool AStarMap::isTraversable(const Point& point, bool regardStones)
 */
 AStarNode* AStarMap::getNode(int x, int y) const
 {
-   return mNodeMap[y * _width + x];
+   return _node_map[y * mWidth + x];
 }
 
 //-----------------------------------------------------------------------------
@@ -219,7 +219,7 @@ AStarNode* AStarMap::getNode(int x, int y) const
 */
 void AStarMap::setNode(int x, int y, AStarNode* item)
 {
-   mNodeMap[y * _width + x] = item;
+   _node_map[y * mWidth + x] = item;
 }
 
 //-----------------------------------------------------------------------------

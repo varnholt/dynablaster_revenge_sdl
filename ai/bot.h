@@ -69,7 +69,7 @@ public:
    void startTicking();
 
    //! setter for bot keys pressed
-   void setBotKeysPressed(int8_t keysPressed);
+   void setBotKeysPressed(int8_t keys_pressed);
 
    //! getter for bot keys pressed
    int8_t getBotKeysPressed() const;
@@ -89,7 +89,7 @@ public:
 public:
 
    //! setter for current position
-   virtual void updatePlayerPosition(int id, float x, float y, float ang);
+   virtual void updatePlayerPosition(int id, float x, float y, float angle);
 
    //! setter for player id
    void updatePlayerId(int id);
@@ -107,10 +107,10 @@ public:
    virtual void extraShake(int);
 
    //! mark hazardous temporary
-   virtual void markHazardousTemporary(int x, int y, int ms, int fieldCount = 0);
+   virtual void markHazardousTemporary(int x, int y, int ms, int field_count = 0);
 
    //! make hazardous temp for bomb kicks
-   virtual void bombKicked(int startX, int startY, Constants::Direction, int flames);
+   virtual void bombKicked(int start_x, int start_y, Constants::Direction, int flames);
 
 protected:
    // bot base functionality
@@ -133,7 +133,7 @@ protected:
    //! delete stuff in destructor
    virtual void cleanUpBot();
 
-   //! think/decide/act once, called every mTickTimer interval while active
+   //! think/decide/act once, called every _tick_timer interval while active
    virtual void tick();
 
    // game state transitions
@@ -172,65 +172,65 @@ protected:
    // members
 
    //! bot state
-   BotState mBotState;
+   BotState _bot_state;
 
    //! bot map
-   BotMap* mBotMap;
+   BotMap* _bot_map;
 
    //! player info ptr
-   BotPlayerInfo* mPlayerInfo;
+   BotPlayerInfo* _player_info;
 
    //! bot's options
-   std::vector<BotOption*> mOptions;
+   std::vector<BotOption*> _options;
 
    //! bot's next action
-   std::vector<BotAction*> mActions;
+   std::vector<BotAction*> _actions;
 
    //! x position
-   float mX;
+   float _x;
 
    //! y position
-   float mY;
+   float _y;
 
    //! x field
-   int mXField;
+   int _x_field;
 
    //! y field
-   int mYField;
+   int _y_field;
 
    //! bot id
-   int mId;
+   int _id;
 
    //! ticks tick() at the same ~100ms cadence the old QThread loop's msleep(100) had
-   Timer mTickTimer;
+   Timer _tick_timer;
 
    //! current walk direction
-   int mBotKeysPressed;
+   int _bot_keys_pressed;
 
    //! decision required flag
-   bool mDecisionRequired;
+   bool _decision_required;
 
    //! action required flag
-   bool mActionRequired;
+   bool _action_required;
 
    // navigation
 
    //! transiteration target x
-   int mTransiterateTargetX;
+   int _transiterate_target_x;
 
    //! transiteration target y
-   int mTransiterateTargetY;
+   int _transiterate_target_y;
 
    //! player position is valid
-   bool mPlayerPositionValid;
+   bool _player_position_valid;
 
    //! store last few player positions
-   std::deque<Point> mPositionQueue;
+   std::deque<Point> _position_queue;
 
    // server related
 
    //! server configuration
-   ServerConfiguration mServerConfiguration;
+   ServerConfiguration _server_configuration;
 };
 
 #endif  // BOT_H

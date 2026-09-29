@@ -43,16 +43,16 @@ class BombChainReaction
       void iterate(BotBombMapItem *item, std::vector<BotBombMapItem *> &items);
 
       //! visited items
-      std::unordered_set<BotBombMapItem*> mVisited;
+      std::unordered_set<BotBombMapItem*> _visited;
 
       //! bot map
-      BotMap* mBotMap;
+      BotMap* _bot_map;
 
       //! list of detonation chains
-      ChainList mChain;
+      ChainList _chain;
 
       //! direction vectors
-      std::vector<Point> mDirections;
+      std::vector<Point> _directions;
 };
 
 #endif // BOMBCHAINREACTION_H
