@@ -4,8 +4,8 @@
 
 #include "gamemessage.h"
 
-#include "tools/array.h"
 #include "menus/vertex.h"
+#include "tools/array.h"
 
 class AnimatedGameMessage : public GameMessage
 {

@@ -57,7 +57,9 @@ void drawQuad(const float* verts, int pos_components, int uv_components)
    if (uv_components > 0)
    {
       glEnableVertexAttribArray(1);
-      glVertexAttribPointer(1, uv_components, GL_FLOAT, GL_FALSE, sizeof(float) * floats_per_vertex, (GLvoid*)(sizeof(float) * pos_components));
+      glVertexAttribPointer(
+         1, uv_components, GL_FLOAT, GL_FALSE, sizeof(float) * floats_per_vertex, (GLvoid*)(sizeof(float) * pos_components)
+      );
    }
 
    glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -353,8 +355,22 @@ void PlayerInvincibleEffect::blurPlayers(FrameBuffer* temp, const Matrix& proj)
       float y = (max2d.y - min2d.y) * 2.0f * temp->height() / player->height();
 
       const float quad_h[4 * 4] = {
-         -1.0f, -1.0f, min2d.x, min2d.y, -1.0f + x, -1.0f, max2d.x, min2d.y,
-         -1.0f + x, -1.0f + y, max2d.x, max2d.y, -1.0f, -1.0f + y, min2d.x, max2d.y,
+         -1.0f,
+         -1.0f,
+         min2d.x,
+         min2d.y,
+         -1.0f + x,
+         -1.0f,
+         max2d.x,
+         min2d.y,
+         -1.0f + x,
+         -1.0f + y,
+         max2d.x,
+         max2d.y,
+         -1.0f,
+         -1.0f + y,
+         min2d.x,
+         max2d.y,
       };
       drawQuad(quad_h, 2, 2);
 
@@ -370,8 +386,22 @@ void PlayerInvincibleEffect::blurPlayers(FrameBuffer* temp, const Matrix& proj)
       activeDevice->setParameter(_blur_v_kernel, _kernel, 32);
 
       const float quad_v[4 * 4] = {
-         -1.0f, -1.0f, 0.0f, 0.0f, -1.0f + x, -1.0f, x * 0.5f, 0.0f,
-         -1.0f + x, -1.0f + y, x * 0.5f, y * 0.5f, -1.0f, -1.0f + y, 0.0f, y * 0.5f,
+         -1.0f,
+         -1.0f,
+         0.0f,
+         0.0f,
+         -1.0f + x,
+         -1.0f,
+         x * 0.5f,
+         0.0f,
+         -1.0f + x,
+         -1.0f + y,
+         x * 0.5f,
+         y * 0.5f,
+         -1.0f,
+         -1.0f + y,
+         0.0f,
+         y * 0.5f,
       };
       drawQuad(quad_v, 2, 2);
 
@@ -469,7 +499,18 @@ void PlayerInvincibleEffect::render()
       glBindTexture(GL_TEXTURE_2D, player->texture(1));
 
       const float quad[4 * 3] = {
-         pos[0].x, pos[0].y, pos[0].z, pos[1].x, pos[1].y, pos[1].z, pos[2].x, pos[2].y, pos[2].z, pos[3].x, pos[3].y, pos[3].z,
+         pos[0].x,
+         pos[0].y,
+         pos[0].z,
+         pos[1].x,
+         pos[1].y,
+         pos[1].z,
+         pos[2].x,
+         pos[2].y,
+         pos[2].z,
+         pos[3].x,
+         pos[3].y,
+         pos[3].z,
       };
       drawQuad(quad, 3, 0);
    }

@@ -1,8 +1,8 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <vector>
-#include <cstdint>
 
 class InfectedFlowFieldAnimation;
 class Material;

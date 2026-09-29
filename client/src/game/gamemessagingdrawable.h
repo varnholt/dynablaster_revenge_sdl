@@ -10,9 +10,9 @@
 
 #include <string>
 
-#include <vector>
 #include <cstdint>
 #include <memory>
+#include <vector>
 
 class BitmapFont;
 class PSDLayer;

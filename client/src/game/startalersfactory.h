@@ -8,8 +8,8 @@
 #include "math/vector.h"
 
 // shared
-#include "constants.h"
 #include <cstdint>
+#include "constants.h"
 
 class StarTalersFactory
 {

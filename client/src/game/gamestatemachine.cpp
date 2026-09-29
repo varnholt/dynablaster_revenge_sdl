@@ -1,16 +1,13 @@
 #include "gamestatemachine.h"
 
-
 GameStateMachine* GameStateMachine::s_instance = nullptr;
-
 
 GameStateMachine::GameStateMachine()
 {
    s_instance = this;
 }
 
-
-GameStateMachine *GameStateMachine::getInstance()
+GameStateMachine* GameStateMachine::getInstance()
 {
    if (!s_instance)
    {
@@ -20,7 +17,6 @@ GameStateMachine *GameStateMachine::getInstance()
    return s_instance;
 }
 
-
 void GameStateMachine::setState(Constants::GameState next_state)
 {
    if (_state != next_state)
@@ -29,7 +25,6 @@ void GameStateMachine::setState(Constants::GameState next_state)
       stateChangedSignal();
    }
 }
-
 
 Constants::GameState GameStateMachine::getState() const
 {

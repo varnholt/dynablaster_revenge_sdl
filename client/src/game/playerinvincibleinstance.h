@@ -1,7 +1,7 @@
 #pragma once
 
-#include "math/vector.h"
 #include <cstdint>
+#include "math/vector.h"
 
 class Material;
 

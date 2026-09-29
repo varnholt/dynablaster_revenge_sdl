@@ -28,14 +28,14 @@
 #include "deathflowfieldanimation.h"
 #include "framework/framebuffer.h"
 #include "framework/gldevice.h"
+#include "image/image.h"
 #include "materials/material.h"
-#include "nodes/node.h"
-#include "nodes/mesh.h"
-#include "render/geometry.h"
+#include "math/matrix.h"
 #include "math/vector.h"
 #include "math/vector2.h"
-#include "math/matrix.h"
-#include "image/image.h"
+#include "nodes/mesh.h"
+#include "nodes/node.h"
+#include "render/geometry.h"
 
 PlayerDeathEffect::PlayerDeathEffect()
 {

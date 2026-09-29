@@ -5,28 +5,23 @@
 #include "constants.h"
 #include "signal.h"
 
-
 class GameStateMachine
 {
-   public:
+public:
+   static GameStateMachine* getInstance();
 
-      static GameStateMachine* getInstance();
+   void setState(Constants::GameState next_state);
 
-      void setState(Constants::GameState next_state);
+   Constants::GameState getState() const;
 
-      Constants::GameState getState() const;
+   Signal<> stateChangedSignal;
 
-      Signal<> stateChangedSignal;
+protected:
+   GameStateMachine();
 
+   Constants::GameState _state = Constants::GameStopped;
 
-   protected:
-
-      GameStateMachine();
-
-      Constants::GameState _state = Constants::GameStopped;
-
-      static GameStateMachine* s_instance;
-
+   static GameStateMachine* s_instance;
 };
 
-#endif // GAMESTATEMACHINE_H
+#endif  // GAMESTATEMACHINE_H

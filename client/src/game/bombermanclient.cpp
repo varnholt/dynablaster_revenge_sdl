@@ -105,10 +105,8 @@ void BombermanClient::initialize()
    _poll_timer.start(16);
 
    // interpolation
-   moveMapItemSignal.connect(
-      [this](MapItem* item, Constants::Direction dir, float speed, int nominalX, int nominalY)
-      { _position_interpolation->moveMapItem(item, dir, speed, nominalX, nominalY); }
-   );
+   moveMapItemSignal.connect([this](MapItem* item, Constants::Direction dir, float speed, int nominalX, int nominalY)
+                             { _position_interpolation->moveMapItem(item, dir, speed, nominalX, nominalY); });
 }
 
 //-----------------------------------------------------------------------------
@@ -1482,9 +1480,9 @@ void BombermanClient::keyPressed(const KeyEvent& event)
    GameSettings::ControllerSettings* controller_settings = GameSettings::getInstance()->getControllerSettings();
 
    bool control_key = event.key() == controller_settings->getUpKey() || event.key() == controller_settings->getDownKey() ||
-                     event.key() == controller_settings->getLeftKey() || event.key() == controller_settings->getRightKey() ||
-                     event.key() == controller_settings->getBombKey() || event.key() == controller_settings->getZoomInKey() ||
-                     event.key() == controller_settings->getZoomOutKey() || event.key() == controller_settings->getStartKey();
+                      event.key() == controller_settings->getLeftKey() || event.key() == controller_settings->getRightKey() ||
+                      event.key() == controller_settings->getBombKey() || event.key() == controller_settings->getZoomInKey() ||
+                      event.key() == controller_settings->getZoomOutKey() || event.key() == controller_settings->getStartKey();
 
    if ((control_key && !event.isAutoRepeat()) || !control_key)
    {

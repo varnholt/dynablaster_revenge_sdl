@@ -1,8 +1,8 @@
 #pragma once
 
+#include <cstdint>
 #include "math/vector.h"
 #include "math/vector4.h"
-#include <cstdint>
 
 class InfectedFlowFieldAnimation
 {

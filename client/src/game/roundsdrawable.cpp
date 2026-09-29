@@ -3,9 +3,9 @@
 #include "postproduction/motionblurfilter.h"
 
 #include "framework/gldevice.h"
-#include "menus/psdlayer.h"
 #include "math/matrix.h"
 #include "math/vector2.h"
+#include "menus/psdlayer.h"
 
 #include "bombermanclient.h"
 

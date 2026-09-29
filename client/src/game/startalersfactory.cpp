@@ -120,8 +120,12 @@ StarTalersFactory::Burst::Burst(const Vector& field_position, const Vector& colo
          Vector(0, 0, 1),
       };
 
-      const float us[12] = {u + 0.5f, u + 0.0f, u + 0.0f, u + 0.5f, u + 0.5f, u + 0.0f, u + 0.0f, u + 0.5f, u + 0.5f, u + 0.0f, u + 0.0f, u + 0.5f};
-      const float vs[12] = {v + 0.5f, v + 0.5f, v + 0.0f, v + 0.0f, v + 0.5f, v + 0.5f, v + 0.0f, v + 0.0f, v + 0.5f, v + 0.5f, v + 0.0f, v + 0.0f};
+      const float us[12] = {
+         u + 0.5f, u + 0.0f, u + 0.0f, u + 0.5f, u + 0.5f, u + 0.0f, u + 0.0f, u + 0.5f, u + 0.5f, u + 0.0f, u + 0.0f, u + 0.5f
+      };
+      const float vs[12] = {
+         v + 0.5f, v + 0.5f, v + 0.0f, v + 0.0f, v + 0.5f, v + 0.5f, v + 0.0f, v + 0.0f, v + 0.5f, v + 0.5f, v + 0.0f, v + 0.0f
+      };
 
       for (int k = 0; k < 12; k++)
       {

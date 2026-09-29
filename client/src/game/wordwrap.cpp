@@ -1,9 +1,7 @@
 #include "wordwrap.h"
 
-#include "stringutils.h"
 #include <cstddef>
-
-
+#include "stringutils.h"
 
 //-----------------------------------------------------------------------------
 /*!
@@ -38,7 +36,6 @@ std::vector<std::string> WordWrap::wrap(const std::string& line, int allowed_cha
    // iterate through every word
    for (const std::string& next_word : split)
    {
-
       if (static_cast<int>(tmp_line.size() + next_word.size() + 1) < allowed_chars_per_line)
       {
          tmp_line.append(" ");

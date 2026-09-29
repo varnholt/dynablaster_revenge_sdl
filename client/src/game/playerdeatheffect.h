@@ -5,9 +5,9 @@
 
 #include "image/image.h"
 
+#include <cstdint>
 #include <memory>
 #include <vector>
-#include <cstdint>
 
 class DeathFlowFieldAnimation;
 class Material;
@@ -24,7 +24,6 @@ public:
    void clear();
 
    void add(Material* player_material);
-
 
    void animate(float delta);
    void render();
