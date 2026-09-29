@@ -1,13 +1,14 @@
 #ifndef GAME_H
 #define GAME_H
 
+#include <cstdint>
 #include <deque>
+#include <functional>
 #include <map>
 #include <memory>
 #include <string>
-#include <vector>
-
 #include <unordered_set>
+#include <vector>
 
 // shared
 #include "constants.h"
@@ -35,10 +36,7 @@ struct NET_StreamSocket;
 class Game
 {
 public:
-   //! constructor
    Game();
-
-   //! destructor
    ~Game();
 
    //! initialize everything
@@ -66,22 +64,22 @@ public:
    const std::string& getLevelName() const;
 
    //! process a packet
-   void processPacket(NET_StreamSocket* tcpSocket, Packet* packet);
+   void processPacket(NET_StreamSocket* tcp_socket, Packet* packet);
 
    //! getter for map socket <-> player
-   std::map<NET_StreamSocket*, Player*>* getPlayerSockets();
+   const std::map<NET_StreamSocket*, Player*>& getPlayerSockets() const;
+
+   //! socket of the given player, nullptr if the player is not in this game
+   NET_StreamSocket* getSocket(Player* player) const;
 
    //! setter for the game's creator
-   void setCreator(Player*);
+   void setCreator(Player* creator);
 
    //! getter for the game's creator
    Player* getCreator() const;
 
    //! getter for list of players
    std::vector<Player*> getPlayers() const;
-
-   //! setter for the game's duration
-   void setDuration(int);
 
    //! getter for the game's map
    Map* getMap() const;
@@ -96,7 +94,7 @@ public:
    int getDuration() const;
 
    //! broadcast a message to all players in the game
-   void broadcastMessage(const std::string&);
+   void broadcastMessage(const std::string& message);
 
    //! broadcast start game
    void broadcastStartGame();
@@ -126,7 +124,7 @@ public:
    bool isSynchronizationActive() const;
 
    //! player joins a game
-   bool joinGame(Player* player, NET_StreamSocket* socket);
+   bool joinGame(Player* player, NET_StreamSocket* player_socket);
 
    //! getter for position skip count
    int getPositionSkipCount() const;
@@ -153,7 +151,7 @@ public:
    void setGameOnlyPopulatedByBotsMessageShown(bool value);
 
    //! process spectator client
-   void processSpectator(NET_StreamSocket* tcpSocket);
+   void processSpectator(NET_StreamSocket* tcp_socket);
 
    //! start new game
    void startGame();
@@ -174,12 +172,11 @@ public:
    void finishGame();
 
    //! player left the game
-   void removePlayer(Player* player, NET_StreamSocket* playerSocket);
+   void removePlayer(Player* player, NET_StreamSocket* player_socket);
 
    //! add packet to list of outgoing packets
-   void addOutgoingPacket(Packet* packet);
+   void addOutgoingPacket(std::unique_ptr<Packet> packet);
 
-public:
    //! player was killed
    Signal<int> playerKilledSignal;
 
@@ -193,7 +190,6 @@ public:
    Signal<Constants::GameState> stateChangedSignal;
 
 private:
-
    //! update everything
    void update();
 
@@ -213,10 +209,10 @@ private:
    void playerIdle(int8_t directions, Player* player);
 
    //! move player
-   void playerMove(Player* player, float assignedXPos, float assignedYPos, int8_t directions);
+   void playerMove(Player* player, float assigned_x_position, float assigned_y_position, int8_t directions);
 
    //! player kicks a bomb
-   void playerKicksBomb(Player* player, MapItem* item, bool verticallyKicked, int keysPressed);
+   void playerKicksBomb(Player* player, MapItem* item, bool vertically_kicked, int keys_pressed);
 
    //! player disease stopped
    void playerDiseaseStopped(PlayerDisease* disease);
@@ -270,19 +266,19 @@ private:
    void sendBroadcastPackets();
 
    //! send single packet
-   void sendPacket(NET_StreamSocket* socket, Packet* packet);
+   void sendPacket(NET_StreamSocket* socket, std::unique_ptr<Packet> packet);
 
-   //! get directions for given player
-   int getPlayerDirections(Player* p);
+   //! player of the given socket, nullptr if unknown
+   Player* findPlayer(NET_StreamSocket* socket) const;
 
    //! setter for the current game state
-   void setState(Constants::GameState);
+   void setState(Constants::GameState state);
 
    //! update stats on player kill event
    void updateStatsPlayerKilled(Player* killer, Player* victim);
 
    //! update stats on player won event
-   void processPlayerWon(Player*);
+   void processPlayerWon(Player* player);
 
    //! only bots left
    void processOnlyBotsLeft();
@@ -297,7 +293,7 @@ private:
    void initMapRelatedItems();
 
    //! check if kicking is possible
-   bool isKickPossible(int x, int y, Constants::Direction kickDir);
+   bool isKickPossible(int x, int y, Constants::Direction kick_direction);
 
    //! next game round
    void nextRound();
@@ -310,14 +306,14 @@ private:
 
    //! create extra skull
    void createInfection(
-      Player* infectingPlayer,
-      Player* infectedPlayer = 0,
-      ExtraMapItem* extra = 0,
+      Player* infected_player,
+      Player* infecting_player = nullptr,
+      ExtraMapItem* extra = nullptr,
       const std::vector<Constants::SkullType>& faces = {}
    );
 
    //! create kick animation
-   void createKickAnimation(BombMapItem* kickedBomb, Constants::Direction kickDir);
+   void createKickAnimation(BombMapItem* kicked_bomb, Constants::Direction kick_direction);
 
    //! decrease immune times
    void updateImmuneTimes();
@@ -341,135 +337,133 @@ private:
    void sendMessageToOwner(const std::string& message);
 
    //! do not rotate dead player into stones
-   void rotateDeadPlayerTowardsBomb(Constants::Direction direction, Player* player, int x, int y);
+   void rotateDeadPlayerTowardsBomb(Constants::Direction detonation_direction, Player* player, int x, int y);
 
    //! check if extra spawning is enabled
    bool isSpawnExtrasEnabled() const;
 
-   // members
-
-   //! calls the update loop
-   Timer mUpdateTimer;
-
-   //! map socket <-> player
-   std::map<NET_StreamSocket*, Player*> mPlayerSockets;
-
-   //! map id <-> player - key order matters: start positions are assigned by ascending id
-   std::map<int8_t, Player*> mPlayers;
-
-   //! map of expected packet sizes
-   std::map<NET_StreamSocket*, uint16_t> mPacketSizes;
-
-   //! outgoing packages
-   std::deque<Packet*> mOutgoingPackets;
-
-   //! playfield
-   Map* mMap;
-
-   //! map items to delete after destruction
-   std::unordered_set<MapItem*> mDestroyedMapItems;
-
-   //! one direction to check
-   std::vector<Constants::Direction> mDirectionCheckCenter;
-
-   //! all 4 directions to check
-   std::vector<Constants::Direction> mDirectionCheckAll;
-
-   //! game id
-   int mGameId;
+   //! Timer::singleShot() that is dropped if this game has been destroyed in the meantime
+   void singleShotWhileAlive(int32_t milliseconds, std::function<void()> callback);
 
    //! static game id counter
-   static int sGameId;
+   static int _game_id_counter;
+
+   //! expires with this game (destroyed last); destroy callbacks of diseases/kick animations
+   //! outliving it check it before touching the game
+   std::shared_ptr<bool> _lifetime = std::make_shared<bool>(true);
+
+   //! calls the update loop
+   Timer _update_timer;
+
+   //! map socket <-> player
+   std::map<NET_StreamSocket*, Player*> _player_sockets;
+
+   //! map id <-> player - key order matters: start positions are assigned by ascending id
+   std::map<int8_t, Player*> _players;
+
+   //! outgoing packages
+   std::deque<std::unique_ptr<Packet>> _outgoing_packets;
+
+   //! playfield
+   std::unique_ptr<Map> _map;
+
+   //! map items to delete after destruction
+   std::unordered_set<MapItem*> _destroyed_map_items;
+
+   //! one direction to check
+   std::vector<Constants::Direction> _direction_check_center{Constants::DirectionUp};
+
+   //! all 4 directions to check
+   std::vector<Constants::Direction> _direction_check_all{
+      Constants::DirectionUp,
+      Constants::DirectionDown,
+      Constants::DirectionLeft,
+      Constants::DirectionRight
+   };
+
+   //! game id
+   int _game_id = ++_game_id_counter;
 
    //! game create data
-   CreateGameData mCreateGameData;
+   CreateGameData _create_game_data;
 
    //! flag to indicate game is running
-   bool mRunning;
-
-   //! idle packet sent flag
-   bool mIdlePacketSent;
+   bool _running = false;
 
    //! server time update timer
-   Timer mGameTimeUpdateTimer;
+   Timer _game_time_update_timer;
 
    //! game time
-   ElapsedTimer mGameTime;
-
-   //! game duration
-   int mDuration;
+   ElapsedTimer _game_time;
 
    //! game owner
-   Player* mCreator;
+   Player* _creator = nullptr;
 
    //! game state
-   Constants::GameState mState;
+   Constants::GameState _state = Constants::GameStopped;
 
    //! preparation timer
-   Timer mPreparationTimer;
+   Timer _preparation_timer;
 
    //! prepration time
-   ElapsedTimer mPreparationTime;
+   ElapsedTimer _preparation_time;
 
    //! preparation counter
-   int mPreparationCounter;
+   int _preparation_counter = 0;
 
    //! idle packet map
-   std::unordered_set<Player*> mIdlePacketSentSet;
-
-   //! game over condition needs to be checked in (recursive) detonation
-   bool mCheckGameOver;
+   std::unordered_set<Player*> _idle_packet_sent_set;
 
    //! skip countdown
-   bool mSkipCountdown;
+   bool _skip_countdown = false;
 
    //! position skips
-   int mPositionSkipCount;
+   int _position_skip_count = 0;
 
    //! number of rounds played
-   int mGamesPlayed;
+   int _games_played = 0;
 
    //! game synchronization time
-   ElapsedTimer mSynchronizationTime;
+   ElapsedTimer _synchronization_time;
 
    //! synchronization is active or not
-   bool mSynchronizationActive;
+   bool _synchronization_active = false;
 
    //! shake packet handler
-   std::unique_ptr<ExtraShakePacketHandler> mShakePacketHandler;
+   std::unique_ptr<ExtraShakePacketHandler> _shake_packet_handler;
 
    //! maximum player speed
-   float mMaxSpeed;
+   float _max_speed = 0.0f;
 
    //! sync max time
-   int mSyncMaxTime;
+   int _sync_max_time = 0;
 
    //! collision detection
-   std::unique_ptr<CollisionDetection> mCollisionDetection;
+   std::unique_ptr<CollisionDetection> _collision_detection;
 
    //! game round instance
-   GameRound mGameRound;
+   GameRound _game_round;
 
-   //! immune times
-   int* mImmuneTimes;
+   //! immune time per field
+   std::vector<int32_t> _immune_times;
 
    //! counter of players left per round
-   int mPlayerLeftTheGameCount;
+   int _player_left_the_game_count = 0;
 
    //! start positions are initialized
-   bool mStartPositionsInitialized;
+   bool _start_positions_initialized = false;
 
    //! only populated message shown flag
-   bool mGameOnlyPopulatedByBotsMessageShown;
+   bool _game_only_populated_by_bots_message_shown = false;
 
    //! list of spectators - cleared explicitly in removePlayer() when a socket goes away
-   std::deque<NET_StreamSocket*> mSpectators;
+   std::deque<NET_StreamSocket*> _spectators;
 
    //! extra spawning
-   std::unique_ptr<ExtraSpawn> mExtraSpawn;
+   std::unique_ptr<ExtraSpawn> _extra_spawn;
 
    //! extra spawning enabled
-   bool mExtraSpawnEnabled;
+   bool _extra_spawn_enabled = false;
 };
 
 #endif

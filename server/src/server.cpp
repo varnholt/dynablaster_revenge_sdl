@@ -14,40 +14,34 @@
 #include "leavegameresponsepacket.h"
 #include "listgamesrequestpacket.h"
 #include "listgamesresponsepacket.h"
+#include "logging.h"
 #include "loginrequestpacket.h"
 #include "loginresponsepacket.h"
 #include "player.h"
 #include "playersynchronizepacket.h"
+#include "settings.h"
 #include "startgamerequestpacket.h"
 #include "startgameresponsepacket.h"
 #include "stopgamerequestpacket.h"
 #include "stopgameresponsepacket.h"
 
-// Qt
-#include "logging.h"
-#include "settings.h"
-
+// stdlib
+#include <algorithm>
+#include <array>
+#include <cstdint>
 #include <format>
+#include <ranges>
 #include <string>
 #include <vector>
 
 // SDL
 #include <SDL3_net/SDL_net.h>
 
-// c
-#include <math.h>
-#include <cstdint>
+Server* Server::_instance = nullptr;
 
-// static variables
-Server* Server::sInstance = nullptr;
-
-//-----------------------------------------------------------------------------
-/*!
-   constructor
-*/
-Server::Server() : mNetServer(nullptr), mPlayerId(0)
+Server::Server()
 {
-   sInstance = this;
+   _instance = this;
 
    initServerConfiguration();
 
@@ -56,9 +50,9 @@ Server::Server() : mNetServer(nullptr), mPlayerId(0)
    qDebug("Server::Server: binding to port %d..", SERVER_PORT);
 
    // create server, listening on all local addresses
-   mNetServer = NET_CreateServer(nullptr, SERVER_PORT, 0);
+   _net_server = NET_CreateServer(nullptr, SERVER_PORT, 0);
 
-   if (!mNetServer)
+   if (!_net_server)
    {
       qDebug("Server::Server: Dynablaster Revenge Server: Unable to start the server: %s.", SDL_GetError());
    }
@@ -69,101 +63,84 @@ Server::Server() : mNetServer(nullptr), mPlayerId(0)
 
    // check for incoming connections and incoming data once per tick - not started here,
    // see startPolling()
-   mPollTimer.timeoutSignal.connect([this]() { poll(); });
+   _poll_timer.timeoutSignal.connect([this]() { poll(); });
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   start the poll timer - call once this object is running on its final thread
-*/
+//! start the poll timer - call once this object is running on its final thread
 void Server::startPolling()
 {
-   mPollTimer.start(16);
+   _poll_timer.start(16);
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   destructor
-*/
 Server::~Server()
 {
    qDebug("Server::~Server");
 
-   if (mNetServer)
+   // players first: an infected player's disease disconnects itself from its game on destruction
+   _player_sockets.clear();
+   _games.clear();
+
+   if (_net_server)
    {
-      NET_DestroyServer(mNetServer);
+      NET_DestroyServer(_net_server);
+   }
+
+   if (_instance == this)
+   {
+      _instance = nullptr;
    }
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return server instance
-*/
 Server* Server::getInstance()
 {
-   if (!sInstance)
+   if (!_instance)
+   {
       new Server();
+   }
 
-   return sInstance;
+   return _instance;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return \c true if server is listening
-*/
 bool Server::isListening() const
 {
-   return mNetServer != nullptr;
+   return _net_server != nullptr;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   get socket for player id
-   \param playerId player id
-*/
-NET_StreamSocket* Server::getPlayerSocket(int playerId)
+NET_StreamSocket* Server::getPlayerSocket(int player_id)
 {
-   for (const auto& [socket, player] : mPlayerSockets)
-   {
-      if (player && player->getId() == playerId)
-         return socket;
-   }
-   return nullptr;
+   const auto socket_iterator =
+      std::ranges::find_if(_player_sockets, [player_id](const auto& entry) { return entry.second && entry.second->getId() == player_id; });
+
+   return socket_iterator != _player_sockets.end() ? socket_iterator->first : nullptr;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \return reference to server configuration
-*/
 const ServerConfiguration& Server::getServerConfiguration() const
 {
-   return mServerConfiguration;
+   return _server_configuration;
 }
 
-//-----------------------------------------------------------------------------
-/*!
- */
 void Server::initServerConfiguration()
 {
-   // init config
    Settings settings(SERVER_CONFIG_FILE_SERVER, Settings::IniFormat);
 
-   int bombTickTime = settings.value("tick_count", SERVER_BOMB_TICKTIME_DEFAULT).toInt();
+   const int bomb_tick_time = settings.value("tick_count", SERVER_BOMB_TICKTIME_DEFAULT).toInt();
 
-   mServerConfiguration.setBombTickTime(bombTickTime);
+   _server_configuration.setBombTickTime(bomb_tick_time);
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   accept all pending incoming connections
-*/
+Player* Server::findPlayer(NET_StreamSocket* socket) const
+{
+   const auto player_iterator = _player_sockets.find(socket);
+   return player_iterator != _player_sockets.end() ? player_iterator->second.get() : nullptr;
+}
+
 void Server::acceptConnections()
 {
    while (true)
    {
       NET_StreamSocket* socket = nullptr;
 
-      if (!NET_AcceptClient(mNetServer, &socket))
+      if (!NET_AcceptClient(_net_server, &socket))
       {
          qDebug("Server::acceptConnections: accept failed: %s", SDL_GetError());
          break;
@@ -187,25 +164,21 @@ void Server::acceptConnections()
          NET_UnrefAddress(address);
       }
 
-      // create new player
-      Player* player = new Player(mPlayerId++);
-      mPlayerSockets[socket] = player;
+      _player_sockets[socket] = std::make_unique<Player>(_player_id++);
    }
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   poll for new connections and incoming data, once per tick
-*/
 void Server::poll()
 {
    acceptConnections();
 
-   // snapshot the keys since disconnectSocket() mutates mPlayerSockets mid-iteration
+   // snapshot the keys since disconnectSocket() mutates _player_sockets mid-iteration
    std::vector<NET_StreamSocket*> sockets;
-   sockets.reserve(mPlayerSockets.size());
-   for (const auto& [socket, player] : mPlayerSockets)
+   sockets.reserve(_player_sockets.size());
+   for (const auto& [socket, player] : _player_sockets)
+   {
       sockets.push_back(socket);
+   }
 
    for (NET_StreamSocket* socket : sockets)
    {
@@ -213,102 +186,70 @@ void Server::poll()
    }
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   send single packet
-*/
-void Server::sendPacket(NET_StreamSocket* socket, Packet* packet)
+void Server::sendPacket(NET_StreamSocket* socket, std::unique_ptr<Packet> packet)
 {
-   // init bytearray
    packet->serialize();
 
-   /*
-   qDebug(
-      "Server::sendPacket: sending packet to player %p (%d bytes)",
-      socket,
-      packet->size()
-   );
-   */
-
-   // send packet
    if (socket)
    {
       NET_WriteToStreamSocket(socket, packet->constData(), static_cast<int>(packet->size()));
    }
-
-   // clean up
-   delete packet;
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param tcpSocket sender socket
-   \param packet packet to process
-*/
-void Server::processStartGameRequest(NET_StreamSocket* tcpSocket, Packet* packet)
+void Server::processStartGameRequest(NET_StreamSocket* tcp_socket, Packet* packet)
 {
-   StartGameRequestPacket* request = dynamic_cast<StartGameRequestPacket*>(packet);
+   auto* request = dynamic_cast<StartGameRequestPacket*>(packet);
 
    // TODO:
    // game needs "isRunning"
    // -> to be checked before restarting
 
-   auto iter = mGames.find(request->getId());
+   const auto game_iterator = _games.find(request->getId());
 
-   if (iter != mGames.end())
+   if (game_iterator != _games.end())
    {
-      Game* game = iter->second;
+      Game* game = game_iterator->second.get();
+      Player* player = findPlayer(tcp_socket);
 
-      if (mPlayerSockets[tcpSocket]->getId() == game->getCreator()->getId())
+      if (player && player->getId() == game->getCreator()->getId())
       {
-         // game->prepareGame();
          game->startSynchronization();
       }
    }
 }
 
-//-----------------------------------------------------------------------------
-/*!
-   \param tcpSocket sender socket
-   \param packet packet to process
-*/
-void Server::processJoinGameRequest(NET_StreamSocket* tcpSocket, Packet* packet)
+void Server::processJoinGameRequest(NET_StreamSocket* tcp_socket, Packet* packet)
 {
-   JoinGameRequestPacket* request = dynamic_cast<JoinGameRequestPacket*>(packet);
+   auto* request = dynamic_cast<JoinGameRequestPacket*>(packet);
 
-   auto iter = mGames.find(request->getId());
+   const auto game_iterator = _games.find(request->getId());
 
-   if (iter != mGames.end())
+   if (game_iterator != _games.end())
    {
-      Game* game = iter->second;
+      Game* game = game_iterator->second.get();
+      Player* player = findPlayer(tcp_socket);
 
-      auto socketIter = mPlayerSockets.find(tcpSocket);
-
-      if (socketIter != mPlayerSockets.end())
+      if (player)
       {
-         Player* player = socketIter->second;
-
-         if (game->joinGame(player, tcpSocket))
+         if (game->joinGame(player, tcp_socket))
          {
             game->broadcastMessage(std::format("{} joined the game", player->getNick()));
 
-            mSocketGameMapping[tcpSocket] = game;
+            _socket_game_mapping[tcp_socket] = game;
 
             // if the game is currently running, inform the player that the
             // game has been started
-            game->processSpectator(tcpSocket);
+            game->processSpectator(tcp_socket);
          }
       }
       else
       {
-         JoinGameResponsePacket* response = new JoinGameResponsePacket(false, game->getId(), -1, "fuck off", Constants::ColorWhite);
-
-         sendPacket(tcpSocket, response);
+         sendPacket(tcp_socket, std::make_unique<JoinGameResponsePacket>(false, game->getId(), -1, "fuck off", Constants::ColorWhite));
       }
    }
 }
 
-void Server::processPlayerSynchronize(NET_StreamSocket* tcpSocket, Packet* packet)
+void Server::processPlayerSynchronize(NET_StreamSocket* tcp_socket, Packet* packet)
 {
    /*
       game level loading synchronizing workflow:
@@ -323,22 +264,19 @@ void Server::processPlayerSynchronize(NET_StreamSocket* tcpSocket, Packet* packe
       8) start game
    */
 
-   PlayerSynchronizePacket* request = dynamic_cast<PlayerSynchronizePacket*>(packet);
+   auto* request = dynamic_cast<PlayerSynchronizePacket*>(packet);
 
    if (request->getSynchronizeProcess() == PlayerSynchronizePacket::LevelLoaded)
    {
-      auto iter = mSocketGameMapping.find(tcpSocket);
+      const auto game_iterator = _socket_game_mapping.find(tcp_socket);
 
-      if (iter != mSocketGameMapping.end())
+      if (game_iterator != _socket_game_mapping.end())
       {
-         Game* game = iter->second;
+         Game* game = game_iterator->second;
+         Player* player = findPlayer(tcp_socket);
 
-         auto socketIter = mPlayerSockets.find(tcpSocket);
-
-         if (socketIter != mPlayerSockets.end())
+         if (player)
          {
-            Player* player = socketIter->second;
-
             player->setLoadingSynchronized(true);
 
             qDebug("Server::processPlayerSynchronize: game: %d player: '%s'", game->getId(), player->getNick().c_str());
@@ -347,22 +285,23 @@ void Server::processPlayerSynchronize(NET_StreamSocket* tcpSocket, Packet* packe
    }
 }
 
-void Server::processLoginRequest(NET_StreamSocket* tcpSocket, Packet* packet)
+void Server::processLoginRequest(NET_StreamSocket* tcp_socket, Packet* packet)
 {
-   LoginRequestPacket* request = dynamic_cast<LoginRequestPacket*>(packet);
+   auto* request = dynamic_cast<LoginRequestPacket*>(packet);
 
    qDebug("Server::processLoginRequest: login request packet received");
 
-   // lookup player
-   Player* player = mPlayerSockets[tcpSocket];
+   Player* player = findPlayer(tcp_socket);
 
    if (player)
    {
-      bool wasLoggedIn = player->isLoggedIn();
+      const bool was_logged_in = player->isLoggedIn();
 
       std::string nick = request->getNick();
-      if (!wasLoggedIn)
+      if (!was_logged_in)
+      {
          nick = correctDuplicatePlayerName(nick);
+      }
 
       // init player attributes
       player->setLoggedIn(true);
@@ -370,54 +309,34 @@ void Server::processLoginRequest(NET_StreamSocket* tcpSocket, Packet* packet)
       player->setBot(request->isBot());
 
       // send login acceptance directly back to sender
-      LoginResponsePacket* singleResponse = new LoginResponsePacket(false, player->getId(), player->getNick(), getServerConfiguration());
-
-      sendPacket(tcpSocket, singleResponse);
-
+      sendPacket(tcp_socket, std::make_unique<LoginResponsePacket>(false, player->getId(), player->getNick(), getServerConfiguration()));
    }
 }
 
-void Server::processListGamesRequest(NET_StreamSocket* tcpSocket)
+void Server::processListGamesRequest(NET_StreamSocket* tcp_socket)
 {
-   // ListGamesRequestPacket* request = (ListGamesRequestPacket*)packet;
    std::vector<GameInformation> games;
 
-   for (const auto& [id, game] : mGames)
+   for (const auto& game : _games | std::views::values)
    {
-      //      GameInformation(
-      //         game->getId(),
-      //         game->getPlayerCount(),
-      //         game->getMaximumPlayerCount(),
-      //         game->getName(),
-      //         game->getLevelName(),
-      //         game->getCreator()->getId(),
-      //         game->getMapDimension(),
-      //         game->getExtras(),
-      //         game->getDuration(),
-      //         game->getRoundsPlayed()
-      //      )
-
       games.push_back(game->getGameInformation());
    }
 
-   ListGamesResponsePacket* response = new ListGamesResponsePacket(games);
-
-   sendPacket(tcpSocket, response);
+   sendPacket(tcp_socket, std::make_unique<ListGamesResponsePacket>(games));
 }
 
-void Server::processCreateGameRequest(NET_StreamSocket* tcpSocket, Packet* packet)
+void Server::processCreateGameRequest(NET_StreamSocket* tcp_socket, Packet* packet)
 {
    // the server current does not support a maximum game count.
    // if this ought to be implemented, we need to return a gameinformation
    // object countaining a gameid of -1.
 
-   CreateGameRequestPacket* request = dynamic_cast<CreateGameRequestPacket*>(packet);
+   auto* request = dynamic_cast<CreateGameRequestPacket*>(packet);
 
-   // create game
-   Game* game = new Game();
-   Player* player = mPlayerSockets[tcpSocket];
+   auto game_owner = std::make_unique<Game>();
+   Game* game = game_owner.get();
    game->setCreateGameData(request->getData());
-   game->setCreator(player);
+   game->setCreator(findPlayer(tcp_socket));
    game->getGameRound()->setCount(request->getData().mRounds);
 
    game->forceLeaveGameSignal.connect([this](NET_StreamSocket* socket) { processPlayerLeavesGame(socket); });
@@ -425,29 +344,25 @@ void Server::processCreateGameRequest(NET_StreamSocket* tcpSocket, Packet* packe
    // autocorrect duplicate game names
    correctDuplicateGameName(game);
 
-   mGames[game->getId()] = game;
+   _games[game->getId()] = std::move(game_owner);
 
-   // initialize game
    game->initialize();
 
-   CreateGameResponsePacket* response = new CreateGameResponsePacket(game->getGameInformation());
-
-   sendPacket(tcpSocket, response);
+   sendPacket(tcp_socket, std::make_unique<CreateGameResponsePacket>(game->getGameInformation()));
 }
 
-void Server::processGamePacket(NET_StreamSocket* tcpSocket, Packet* packet)
+void Server::processGamePacket(NET_StreamSocket* tcp_socket, Packet* packet)
 {
-   auto iter = mSocketGameMapping.find(tcpSocket);
+   const auto game_iterator = _socket_game_mapping.find(tcp_socket);
 
    // if the socket already joined a game, let the
    // according game instance handle the communication
-   if (iter != mSocketGameMapping.end())
+   if (game_iterator != _socket_game_mapping.end())
    {
-      iter->second->processPacket(tcpSocket, packet);
+      game_iterator->second->processPacket(tcp_socket, packet);
    }
 }
 
-//-----------------------------------------------------------------------------
 /*!
    data received from client
 
@@ -465,56 +380,55 @@ void Server::processGamePacket(NET_StreamSocket* tcpSocket, Packet* packet)
                   3) process all server-related packets
                   4) process all game-related packets
 */
-void Server::readSocket(NET_StreamSocket* tcpSocket)
+void Server::readSocket(NET_StreamSocket* tcp_socket)
 {
-   PacketStreamBuffer*& buffer = mSocketBuffers[tcpSocket];
+   auto& buffer = _socket_buffers[tcp_socket];
 
    if (!buffer)
    {
-      buffer = new PacketStreamBuffer();
+      buffer = std::make_unique<PacketStreamBuffer>();
    }
 
-   char chunk[4096];
-   int bytesRead;
+   std::array<char, 4096> chunk{};
+   int bytes_read = 0;
 
-   while ((bytesRead = NET_ReadFromStreamSocket(tcpSocket, chunk, sizeof(chunk))) > 0)
+   while ((bytes_read = NET_ReadFromStreamSocket(tcp_socket, chunk.data(), static_cast<int>(chunk.size()))) > 0)
    {
-      buffer->append(chunk, bytesRead);
+      buffer->append(chunk.data(), static_cast<size_t>(bytes_read));
    }
 
-   if (bytesRead < 0)
+   if (bytes_read < 0)
    {
-      disconnectSocket(tcpSocket);
+      disconnectSocket(tcp_socket);
       return;
    }
 
    while (true)
    {
-      uint16_t blockSize = mPacketSizes[tcpSocket];
+      uint16_t block_size = _packet_sizes[tcp_socket];
 
       // blocksize not initialized yet
-      if (blockSize == 0)
+      if (block_size == 0)
       {
          if (buffer->bytesAvailable() < sizeof(uint16_t))
          {
-            // qDebug("Server::readSocket(): cannot read packet size, packet too small");
             break;
          }
 
-         BinaryReader sizeReader = buffer->reader();
-         sizeReader >> blockSize;
-         buffer->consume(sizeReader.pos());
-         mPacketSizes[tcpSocket] = blockSize;
+         BinaryReader size_reader = buffer->reader();
+         size_reader >> block_size;
+         buffer->consume(size_reader.pos());
+         _packet_sizes[tcp_socket] = block_size;
       }
 
       // wait for more data
-      if (buffer->bytesAvailable() < blockSize)
+      if (buffer->bytesAvailable() < block_size)
       {
          break;
       }
 
       // reset expected blocksize
-      mPacketSizes[tcpSocket] = 0;
+      _packet_sizes[tcp_socket] = 0;
 
       // block was read completely
       BinaryReader in = buffer->reader();
@@ -523,43 +437,41 @@ void Server::readSocket(NET_StreamSocket* tcpSocket)
 
       if (packet)
       {
-         // packet->debug();
-
          switch (packet->getType())
          {
             case Packet::CREATEGAMEREQUEST:
             {
-               processCreateGameRequest(tcpSocket, packet.get());
+               processCreateGameRequest(tcp_socket, packet.get());
                break;
             }
 
             case Packet::LISTGAMESREQUEST:
             {
-               processListGamesRequest(tcpSocket);
+               processListGamesRequest(tcp_socket);
                break;
             }
 
             case Packet::LEAVEGAMEREQUEST:
             {
-               processPlayerLeavesGame(tcpSocket);
+               processPlayerLeavesGame(tcp_socket);
                break;
             }
 
             case Packet::LOGINREQUEST:
             {
-               processLoginRequest(tcpSocket, packet.get());
+               processLoginRequest(tcp_socket, packet.get());
                break;
             }
 
             case Packet::JOINGAMEREQUEST:
             {
-               processJoinGameRequest(tcpSocket, packet.get());
+               processJoinGameRequest(tcp_socket, packet.get());
                break;
             }
 
             case Packet::STARTGAMEREQUEST:
             {
-               processStartGameRequest(tcpSocket, packet.get());
+               processStartGameRequest(tcp_socket, packet.get());
                break;
             }
 
@@ -570,7 +482,7 @@ void Server::readSocket(NET_StreamSocket* tcpSocket)
 
             case Packet::PLAYERSYNCHRONIZEPACKET:
             {
-               processPlayerSynchronize(tcpSocket, packet.get());
+               processPlayerSynchronize(tcp_socket, packet.get());
                break;
             }
 
@@ -582,7 +494,7 @@ void Server::readSocket(NET_StreamSocket* tcpSocket)
 
             default:
             {
-               processGamePacket(tcpSocket, packet.get());
+               processGamePacket(tcp_socket, packet.get());
                break;
             }
          }
@@ -592,87 +504,54 @@ void Server::readSocket(NET_StreamSocket* tcpSocket)
    buffer->compact();
 }
 
-//----------------------------------------------------------------------------
-/*!
-   socket failed or the remote end dropped - clean up and destroy it
-*/
-void Server::disconnectSocket(NET_StreamSocket* tcpSocket)
+void Server::disconnectSocket(NET_StreamSocket* tcp_socket)
 {
    qDebug("Server::disconnectSocket");
 
    // notify other players
-   processPlayerLeavesGame(tcpSocket);
+   processPlayerLeavesGame(tcp_socket);
 
-   // delete player
-   Player* player = nullptr;
-   {
-      auto it = mPlayerSockets.find(tcpSocket);
-      if (it != mPlayerSockets.end())
-      {
-         player = it->second;
-         mPlayerSockets.erase(it);
-      }
-   }
+   // destroys the player and the socket's buffer
+   _player_sockets.erase(tcp_socket);
+   _socket_buffers.erase(tcp_socket);
+   _packet_sizes.erase(tcp_socket);
 
-   delete player;
-
-   {
-      auto it = mSocketBuffers.find(tcpSocket);
-      if (it != mSocketBuffers.end())
-      {
-         delete it->second;
-         mSocketBuffers.erase(it);
-      }
-   }
-   mPacketSizes.erase(tcpSocket);
-
-   NET_DestroyStreamSocket(tcpSocket);
+   NET_DestroyStreamSocket(tcp_socket);
 }
 
-//----------------------------------------------------------------------------
-/*!
-   \param player ptr to player
-   \param game ptr to game
-*/
 void Server::processBroadcastLeaveGameResponse(Player* player, Game* game)
 {
-   std::map<NET_StreamSocket*, Player*>* players = game->getPlayerSockets();
-
-   for (const auto& [socket, socketPlayer] : *players)
+   for (const auto& [socket, socket_player] : game->getPlayerSockets())
    {
       qDebug(
          "Server::processBroadcastLeaveGameResponse: "
          "informing '%s' that '%s' left",
-         socketPlayer->getNick().c_str(),
+         socket_player->getNick().c_str(),
          player->getNick().c_str()
       );
 
-      sendPacket(socket, new LeaveGameResponsePacket(game->getId(), player->getId()));
+      sendPacket(socket, std::make_unique<LeaveGameResponsePacket>(game->getId(), player->getId()));
    }
 }
 
-//----------------------------------------------------------------------------
-/*!
-   \param socket player's socket
-*/
-void Server::processPlayerLeavesGame(NET_StreamSocket* tcpSocket)
+void Server::processPlayerLeavesGame(NET_StreamSocket* tcp_socket)
 {
-   auto iter = mSocketGameMapping.find(tcpSocket);
+   const auto game_iterator = _socket_game_mapping.find(tcp_socket);
 
    // remove player from game
-   if (iter != mSocketGameMapping.end())
+   if (game_iterator != _socket_game_mapping.end())
    {
-      Player* player = mPlayerSockets[tcpSocket];
-      Game* game = iter->second;
+      Player* player = findPlayer(tcp_socket);
+      Game* game = game_iterator->second;
 
       // notify all players in the game that player left
       processBroadcastLeaveGameResponse(player, game);
 
       // remove player from game
-      game->removePlayer(player, tcpSocket);
+      game->removePlayer(player, tcp_socket);
 
       // remove socket from socket<->game-mapping
-      mSocketGameMapping.erase(tcpSocket);
+      _socket_game_mapping.erase(tcp_socket);
 
       // if game is empty, delete game
       if (game->getPlayerCount() == 0 || game->getPlayerCount() == game->getBotCount())
@@ -687,31 +566,20 @@ void Server::processPlayerLeavesGame(NET_StreamSocket* tcpSocket)
          if (player == game->getCreator())
          {
             // 1) pass owner flag
-            std::vector<Player*> players = game->getPlayers();
+            const std::vector<Player*> players = game->getPlayers();
 
-            for (Player* tmpPlayer : players)
+            const auto new_owner = std::ranges::find_if(players, [](Player* candidate) { return !candidate->isBot(); });
+
+            if (new_owner != players.end())
             {
-               if (!tmpPlayer->isBot())
-               {
-                  game->setCreator(tmpPlayer);
-                  game->broadcastMessage(std::format("{} is the new game owner", tmpPlayer->getNick()));
-                  break;
-               }
+               game->setCreator(*new_owner);
+               game->broadcastMessage(std::format("{} is the new game owner", (*new_owner)->getNick()));
             }
 
             // 2) notify players about new owner
-            for (Player* tmpPlayer : players)
+            for (Player* game_player : players)
             {
-               NET_StreamSocket* tmpSocket = nullptr;
-               for (const auto& [candidateSocket, candidatePlayer] : *game->getPlayerSockets())
-               {
-                  if (candidatePlayer == tmpPlayer)
-                  {
-                     tmpSocket = candidateSocket;
-                     break;
-                  }
-               }
-               processListGamesRequest(tmpSocket);
+               processListGamesRequest(game->getSocket(game_player));
             }
          }
 
@@ -721,152 +589,105 @@ void Server::processPlayerLeavesGame(NET_StreamSocket* tcpSocket)
             // it is not desired to have a game over condition while
             // the game is not even running :)
             if (game->getState() != Constants::GameStopped)
+            {
                game->updateGameoverCondition();
+            }
          }
       }
    }
 }
 
-//----------------------------------------------------------------------------
-/*!
-   \param game game to remove
-*/
-void Server::processRemoveGame(int gameId)
+void Server::processRemoveGame(int game_id)
 {
-   Game* game = nullptr;
+   const auto game_iterator = _games.find(game_id);
 
-   auto it = mGames.find(gameId);
-   if (it != mGames.end())
+   if (game_iterator != _games.end())
    {
-      game = it->second;
-      mGames.erase(it);
-   }
+      Game* game = game_iterator->second.release();
+      _games.erase(game_iterator);
 
-   if (game)
-   {
+      // deferred: this may run from inside one of the game's own callbacks
       Timer::singleShot(0, [game]() { delete game; });
    }
 }
 
-//----------------------------------------------------------------------------
-/*!
-   \param affected game
-*/
-void Server::processRemoveAllBots(int gameId)
+void Server::processRemoveAllBots(int game_id)
 {
-   Game* game = nullptr;
-   NET_StreamSocket* tcpSocket = nullptr;
+   const auto game_iterator = _games.find(game_id);
 
-   auto it = mGames.find(gameId);
-
-   if (it != mGames.end())
+   if (game_iterator != _games.end())
    {
-      game = it->second;
+      Game* game = game_iterator->second.get();
 
-      std::vector<Player*> players = game->getPlayers();
+      const std::vector<Player*> players = game->getPlayers();
       for (Player* player : players)
       {
-         tcpSocket = nullptr;
-         for (const auto& [candidateSocket, candidatePlayer] : mPlayerSockets)
-         {
-            if (candidatePlayer == player)
-            {
-               tcpSocket = candidateSocket;
-               break;
-            }
-         }
+         const auto socket_iterator =
+            std::ranges::find_if(_player_sockets, [player](const auto& entry) { return entry.second.get() == player; });
+
+         NET_StreamSocket* tcp_socket = socket_iterator != _player_sockets.end() ? socket_iterator->first : nullptr;
 
          // remove bot from game
-         game->removePlayer(player, tcpSocket);
+         game->removePlayer(player, tcp_socket);
 
-         if (tcpSocket)
+         if (tcp_socket)
          {
             // notify bot: "you're out"
-            sendPacket(tcpSocket, new LeaveGameResponsePacket(gameId, player->getId()));
+            sendPacket(tcp_socket, std::make_unique<LeaveGameResponsePacket>(game_id, player->getId()));
 
             // remove socket from socket<->game-mapping
-            mSocketGameMapping.erase(tcpSocket);
+            _socket_game_mapping.erase(tcp_socket);
          }
       }
    }
 }
 
-//----------------------------------------------------------------------------
-/*!
-   \param game game to check for duplicate names
-*/
-void Server::correctDuplicateGameName(Game* newGame)
+void Server::correctDuplicateGameName(Game* new_game)
 {
+   const std::string game_name = new_game->getName();
+   std::string corrected_game_name = game_name;
+
+   const auto is_duplicate = [this, &corrected_game_name]()
+   {
+      return std::ranges::any_of(
+         _games | std::views::values, [&corrected_game_name](const auto& game) { return game->getName() == corrected_game_name; }
+      );
+   };
+
+   int iteration = 0;
    bool changed = false;
 
-   std::string gameName = newGame->getName();
-   std::string correctedGameName = gameName;
-
-   bool duplicate = false;
-   int iteration = 0;
-
-   do
+   while (is_duplicate())
    {
-      duplicate = false;
+      changed = true;
+      corrected_game_name = std::format("{} #{}", game_name, iteration + 1);
+      iteration++;
+   }
 
-      for (const auto& [id, game] : mGames)
-      {
-         if (game->getName() == correctedGameName)
-         {
-            duplicate = true;
-            break;
-         }
-      }
-
-      if (duplicate)
-      {
-         changed = true;
-
-         correctedGameName = std::format("{} #{}", gameName, iteration + 1);
-
-         iteration++;
-      }
-   } while (duplicate);
-
-   // set corrected game name
    if (changed)
    {
-      newGame->setName(correctedGameName);
+      new_game->setName(corrected_game_name);
    }
 }
 
-//----------------------------------------------------------------------------
-/*!
-   \param nick player nick
-   \return corrected player nick
-*/
 std::string Server::correctDuplicatePlayerName(const std::string& nick)
 {
-   std::string correctedNick = nick;
+   std::string corrected_nick = nick;
 
-   bool duplicate = false;
+   const auto is_duplicate = [this, &corrected_nick]()
+   {
+      return std::ranges::any_of(
+         _player_sockets | std::views::values, [&corrected_nick](const auto& player) { return corrected_nick == player->getNick(); }
+      );
+   };
+
    int iteration = 0;
 
-   do
+   while (is_duplicate())
    {
-      duplicate = false;
+      corrected_nick = std::format("{}{}", nick, iteration + 1);
+      iteration++;
+   }
 
-      for (const auto& [socket, player] : mPlayerSockets)
-      {
-         if (correctedNick == player->getNick())
-         {
-            duplicate = true;
-            break;
-         }
-      }
-
-      if (duplicate)
-      {
-         correctedNick = std::format("{}{}", nick, iteration + 1);
-
-         iteration++;
-      }
-   } while (duplicate);
-
-   return correctedNick;
+   return corrected_nick;
 }

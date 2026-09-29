@@ -11,8 +11,6 @@ class Map;
 class ExtraSpawn
 {
 public:
-
-   //! constructor
    ExtraSpawn();
 
    //! check if spawning is enabled
@@ -33,14 +31,9 @@ public:
    //! setter for map
    void setMap(Map* map);
 
-
 protected:
-
    //! activate spawn timer
    void activateSpawnTimer();
-
-
-protected:
 
    //! check if extra is available
    bool isExtraAvailable() const;
@@ -52,13 +45,13 @@ protected:
    Map* getMap() const;
 
    //! spawning is enabled
-   bool mEnabled;
+   bool _enabled = false;
 
    //! spawn timer
-   Timer mSpawnTimer;
+   Timer _spawn_timer;
 
    //! game's map
-   Map* mMap;
+   Map* _map = nullptr;
 };
 
-#endif // EXTRASPAWN_H
+#endif  // EXTRASPAWN_H
