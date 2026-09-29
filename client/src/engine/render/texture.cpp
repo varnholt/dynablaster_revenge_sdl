@@ -1,23 +1,18 @@
 #include "texture.h"
 #include "texturepool.h"
 
-Texture::Texture() : Referenced(), mTextureId(0)
+Texture::Texture(uint32_t texture_id) : _texture_id(texture_id)
 {
 }
 
-Texture::Texture(unsigned int textureId) : Referenced(), mTextureId(textureId)
-{
-}
-
-Texture::Texture(const Texture& texture) : Referenced(texture), mTextureId(texture.getTexture())
+Texture::Texture(const Texture& texture) : Referenced(texture), _texture_id(texture.getTexture())
 {
 }
 
 Texture::~Texture()
 {
-   // this is the last instance?
-   // another instance is inside the pool!
-   if (mTextureId && getRefCount() <= 2)
+   // last instance outside the pool (the pool holds another one)
+   if (_texture_id && getRefCount() <= 2)
    {
       TexturePool::Instance()->remove(*this);
    }
@@ -30,14 +25,16 @@ Texture& Texture::operator=(const Texture& texture)
       // texture is not referenced: queue for deletion
       if (getRefCount() == 1)
       {
-         if (mTextureId)
-            TexturePool::Instance()->remove(mTextureId);
+         if (_texture_id)
+         {
+            TexturePool::Instance()->remove(_texture_id);
+         }
          delete mReferences;
       }
 
       mReferences = texture.getRef();
       addRef();
-      mTextureId = texture.getTexture();
+      _texture_id = texture.getTexture();
    }
    return *this;
 }

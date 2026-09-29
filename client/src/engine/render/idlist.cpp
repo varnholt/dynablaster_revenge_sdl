@@ -1,35 +1,25 @@
 #include "idlist.h"
 
-IDList::IDList() : Array<int>()
+IDList& IDList::operator=(const IDList& other)
 {
-}
-
-IDList::IDList(const IDList& list) : Array<int>(list)
-{
-}
-
-IDList::~IDList()
-{
-}
-
-IDList& IDList::operator=(const IDList& list)
-{
-   init(list.size());
-   for (int i = 0; i < list.size(); i++)
-      add(list[i]);
+   init(other.size());
+   for (int32_t i = 0; i < other.size(); i++)
+   {
+      add(other[i]);
+   }
    return *this;
 }
 
-int IDList::load(Stream* stream)
+int32_t IDList::load(Stream* stream)
 {
-   // get number of items
-   int size = stream->getInt();
+   const int32_t size = stream->getInt();
 
    init(size);
 
-   // load items
-   for (int i = 0; i < size; i++)
+   for (int32_t i = 0; i < size; i++)
+   {
       add(stream->getInt());
+   }
 
    return size;
 }

@@ -3,86 +3,78 @@
 #include "framework/renderdevice.h"
 #include "image/image.h"
 
-TexturePool::TexturePool() : mBlock(false), mMemory(0)
+Texture TexturePool::getTexture(Image* image, int32_t flags)
 {
-}
-
-TexturePool::~TexturePool()
-{
-}
-
-Texture TexturePool::getTexture(Image* image, int flags)
-{
-   unsigned int textureId = 0;
-   textureId = Material::uploadMap(*image, flags);
+   const uint32_t texture_id = Material::uploadMap(*image, flags);
 
    // keep track of consumed memory
-   int size = image->getWidth() * image->getHeight();
-   mMemory += size * 4;
-   if (flags & 2)  // approx. mipmaps
-      mMemory += size * 4 / 3;
-
-   //  printf("total texture memory: %d kb \n", mMemory >> 10);
-
-   return Texture(textureId);
-}
-
-Texture TexturePool::getTexture(const char* filename, int flags)
-{
-   if (filename)
+   const int32_t size = image->getWidth() * image->getHeight();
+   _memory += size * 4;
+   if (flags & MipMap)  // approx. mipmaps
    {
-      auto it = mPool.find(filename);
-      if (it != mPool.end())
-         return it->second;
-      else
-      {
-         Image* image = new Image(filename);
-         Texture texture = getTexture(image, flags);
-         mPool[std::string(filename)] = texture;
-         delete image;
-         return texture;
-      }
+      _memory += size * 4 / 3;
    }
 
-   return Texture();
+   return Texture(texture_id);
+}
+
+Texture TexturePool::getTexture(const char* filename, int32_t flags)
+{
+   if (!filename)
+   {
+      return Texture();
+   }
+
+   const auto iterator = _pool.find(filename);
+   if (iterator != _pool.end())
+   {
+      return iterator->second;
+   }
+
+   Image image(filename);
+   Texture texture = getTexture(&image, flags);
+   _pool[std::string(filename)] = texture;
+   return texture;
 }
 
 void TexturePool::update()
 {
-   while (mRemoval.size() > 0)
+   while (_removal.size() > 0)
    {
-      unsigned int textureId = mRemoval.takeLast();
-      activeDevice->deleteTexture(textureId);
+      const uint32_t texture_id = _removal.takeLast();
+      activeDevice->deleteTexture(texture_id);
    }
 }
 
 void TexturePool::remove(const Texture& texture)
 {
-   if (mBlock)
-      return;
-
-   mBlock = true;
-   bool found = false;
-   // remove from pool
-   for (auto it = mPool.begin(); it != mPool.end();)
+   if (_block)
    {
-      const Texture& pool = it->second;
-      if (pool.getTexture() == texture.getTexture())
-      {
-         if (texture.getRefCount() <= 2)
-         {
-            it = mPool.erase(it);
-            found = true;
-         }
-      }
-      else
-         it++;
+      return;
    }
 
-   if (found)
-      mRemoval.add(texture.getTexture());
-   else if (texture.getRefCount() == 1)
-      mRemoval.add(texture.getTexture());
+   _block = true;
+   bool found = false;
 
-   mBlock = false;
+   // remove from pool
+   for (auto iterator = _pool.begin(); iterator != _pool.end();)
+   {
+      const Texture& pooled = iterator->second;
+      if (pooled.getTexture() == texture.getTexture() && texture.getRefCount() <= 2)
+      {
+         iterator = _pool.erase(iterator);
+         found = true;
+      }
+      else
+      {
+         ++iterator;
+      }
+   }
+
+   if (found || texture.getRefCount() == 1)
+   {
+      _removal.add(texture.getTexture());
+   }
+
+   _block = false;
 }

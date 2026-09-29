@@ -1,14 +1,14 @@
-#ifndef WEIGHT_H
-#define WEIGHT_H
+#pragma once
+
+#include <cstdint>
 
 class Stream;
 
 class Weight
 {
 public:
-   Weight();
-   Weight(int id, float w);
-   ~Weight();
+   Weight() = default;
+   Weight(int32_t id, float weight);
 
    void load(Stream* stream);
    void write(Stream* stream);
@@ -16,11 +16,9 @@ public:
    void operator>>(Stream& stream);
 
    float weight() const;
-   int id() const;
+   int32_t id() const;
 
 private:
-   int mID;
-   float mWeight;
+   int32_t _id = -1;
+   float _weight = 0.0f;
 };
-
-#endif

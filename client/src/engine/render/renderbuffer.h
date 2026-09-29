@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 class Node;
 class Vector;
 class Geometry;
@@ -9,35 +11,35 @@ class Matrix;
 class RenderBuffer
 {
 public:
-   RenderBuffer(Geometry* geo);
-   ~RenderBuffer();
+   RenderBuffer(Geometry* geometry);
+   virtual ~RenderBuffer() = default;
 
-   void update(Node** nodelist);          // pimp-up teh parametathinggy.
-   const Matrix& getTransform() const;    // get transformation matrix of mesh
-   int getSize() const;                   // number of indices in index buffer (triangles*3)
-   unsigned int getVertexBuffer() const;  // get vertex buffer (handle to opengl)
-   unsigned int getIndexBuffer() const;   // get index buffer (handle to opengl)
-   Geometry* getGeometry() const;         // it's possible but just don't do it. it's evil and ugly
-   void setSize(int num);
+   void update(Node** node_list);
+   const Matrix& getTransform() const;  // transformation matrix of mesh
+   int32_t getSize() const;             // number of indices in index buffer (triangles*3)
+   uint32_t getVertexBuffer() const;    // vertex buffer handle
+   uint32_t getIndexBuffer() const;     // index buffer handle
+   Geometry* getGeometry() const;
+   void setSize(int32_t num);
    bool getVisible() const;
 
    virtual void clear();
 
 protected:
-   Node* mNode;
-   Geometry* mGeometry;
-   unsigned int mFormat;
-   int mSize;
-   int mVertexCount;
-   Vector* mOrgVerts;
-   Weight* mWeights;
+   // member names kept: accessed directly by the RenderBuffer subclasses in engine/materials
+   Node* mNode = nullptr;
+   Geometry* mGeometry = nullptr;
+   uint32_t mFormat = 0;
+   int32_t mSize = 0;
+   int32_t mVertexCount = 0;
+   Vector* mOrgVerts = nullptr;
+   Weight* mWeights = nullptr;
 
-   // vtx/idx-buffer handles
-   unsigned int mVertex;
-   unsigned int mIndex;
+   // vertex/index buffer handles
+   uint32_t mVertex = 0;
+   uint32_t mIndex = 0;
 
-protected:
-   unsigned int createVertexBuffer(void* data, int size, bool dyn = false);
-   unsigned int createIndexBuffer(void* data, int size, bool dyn = false);
-   void deleteBuffer(unsigned int buffer);
+   uint32_t createVertexBuffer(void* data, int32_t size, bool dynamic = false);
+   uint32_t createIndexBuffer(void* data, int32_t size, bool dynamic = false);
+   void deleteBuffer(uint32_t buffer);
 };

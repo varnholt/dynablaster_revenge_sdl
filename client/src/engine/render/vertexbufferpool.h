@@ -1,6 +1,6 @@
-#ifndef VERTEXBUFFERPOOL_H
-#define VERTEXBUFFERPOOL_H
+#pragma once
 
+#include <cstdint>
 #include <unordered_map>
 
 class Geometry;
@@ -9,15 +9,11 @@ class VertexBuffer;
 class VertexBufferPool
 {
 public:
-   VertexBufferPool();
-   ~VertexBufferPool();
-
-   bool contains(Geometry* geo) const;
-   VertexBuffer* add(Geometry* geo);
-   VertexBuffer* get(Geometry* geo);
+   bool contains(Geometry* geometry) const;
+   VertexBuffer* add(Geometry* geometry);
+   VertexBuffer* get(Geometry* geometry);
 
 private:
-   std::unordered_map<int, VertexBuffer*> mPool;
+   // entries intentionally never freed: that would add GL buffer deletes on Material teardown
+   std::unordered_map<int32_t, VertexBuffer*> _pool;
 };
-
-#endif

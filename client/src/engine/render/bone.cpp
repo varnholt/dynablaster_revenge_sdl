@@ -1,119 +1,90 @@
 #include "bone.h"
 #include "../nodes/scenegraph.h"
 
-Bone::Bone() : mID(-1), mInitTM()
-{
-}
+#include <array>
+#include <cstdio>
 
-Bone::Bone(const Bone& bone) : mID(bone.id()), mInitTM(bone.transform()), mWeights(bone.weightList())
-{
-}
-
-Bone::Bone(const Bone& bone, Array<int>* remap) : mID(bone.id()), mInitTM(bone.transform())
+Bone::Bone(const Bone& bone, Array<int32_t>* remap) : _id(bone.id()), _init_transform(bone.transform())
 {
    const List<Weight>& weights = bone.weightList();
-   for (int w = 0; w < weights.size(); w++)
+   for (int32_t w = 0; w < weights.size(); w++)
    {
       const Weight& weight = weights[w];
-      const Array<int>& list = remap[weight.id()];
-      for (int i = 0; i < list.size(); i++)
-         mWeights.add(Weight(list[i], weight.weight()));
+      const Array<int32_t>& list = remap[weight.id()];
+      for (int32_t i = 0; i < list.size(); i++)
+      {
+         _weights.add(Weight(list[i], weight.weight()));
+      }
    }
 }
 
-Bone& Bone::operator=(const Bone& bone)
+int32_t Bone::id() const
 {
-   if (this != &bone)
-   {
-      mID = bone.id();
-      mInitTM = bone.transform();
-      mWeights = bone.weightList();
-   }
-   return *this;
+   return _id;
 }
 
-Bone::~Bone()
+void Bone::setId(int32_t id)
 {
+   _id = id;
 }
 
-int Bone::id() const
+int32_t Bone::count() const
 {
-   return mID;
-}
-
-void Bone::setId(int id)
-{
-   mID = id;
-}
-
-int Bone::count() const
-{
-   return mWeights.size();
+   return _weights.size();
 }
 
 const Matrix& Bone::transform() const
 {
-   return mInitTM;
+   return _init_transform;
 }
 
 Weight* Bone::weights() const
 {
-   return mWeights.data();
+   return _weights.data();
 }
 
 const List<Weight>& Bone::weightList() const
 {
-   return mWeights;
+   return _weights;
 }
 
 void Bone::load(Stream* stream)
 {
-   mID = stream->getInt();
-   mInitTM.load(stream);
-   mWeights.load(stream);
+   _id = stream->getInt();
+   _init_transform.load(stream);
+   _weights.load(stream);
 
-   int verts[10000];
-   for (int i = 0; i < 10000; i++)
-      verts[i] = 0;
+   constexpr int32_t max_vertices = 10000;
+   std::array<int32_t, max_vertices> weights_per_vertex{};
 
-   int removed = 0;
-   float sum = 0.0f;
-   for (int i = 0; i < mWeights.size(); i++)
+   for (int32_t i = 0; i < _weights.size(); i++)
    {
-      const Weight& weight = mWeights[i];
-      float w = weight.weight();
-      if (weight.id() < 10000)
-         verts[weight.id()]++;
-      sum += w;
-      if (w < 0.05f)
+      const Weight& weight = _weights[i];
+      if (weight.id() < max_vertices)
       {
-         removed++;
+         weights_per_vertex[weight.id()]++;
       }
    }
 
-   for (int i = 0; i < 10000; i++)
+   for (int32_t i = 0; i < max_vertices; i++)
    {
-      if (verts[i] > 3)
+      if (weights_per_vertex[i] > 3)
       {
-         printf("vertex %d has %d weights \n", i, verts[i]);
-         verts[i] = 0;
+         std::printf("vertex %d has %d weights \n", i, weights_per_vertex[i]);
       }
-   }
-
-   if (removed > 0)
-   {
-      //      printf("%d / %d weights below threshold \n", removed, mWeights.size());
    }
 
    SceneGraph* scene = SceneGraph::instance();
    if (scene)
-      mID += scene->getNodeStartIndex();
+   {
+      _id += scene->getNodeStartIndex();
+   }
 }
 
 void Bone::write(Stream* stream)
 {
-   stream->writeInt(mID);
-   mInitTM.write(stream);
+   stream->writeInt(_id);
+   _init_transform.write(stream);
 
-   mWeights.write(stream);
+   _weights.write(stream);
 }

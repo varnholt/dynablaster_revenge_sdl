@@ -1,54 +1,49 @@
 #include "renderbuffer.h"
-#include <cstring>
 #include "geometry.h"
 #include "math/vector.h"
 #include "nodes/mesh.h"
 #include "renderdevice.h"
 #include "weight.h"
 
-RenderBuffer::RenderBuffer(Geometry* geo)
-    : mNode(geo->getParent()), mGeometry(geo), mFormat(0), mSize(0), mVertexCount(0), mOrgVerts(NULL), mWeights(NULL), mVertex(0), mIndex(0)
-{
-   /*
-      mEdgeSize= geo->getEdgeCount();
-      mEdge= activeDevice->createIndexBuffer(mEdgeSize*sizeof(short), false);
-      dst= activeDevice->lockIndexBuffer(mEdge);
-      std::memcpy(dst, geo->getEdges(), mEdgeSize*sizeof(short));
-      activeDevice->unlockIndexBuffer(mEdge);
-   */
-}
+#include <cstring>
 
-RenderBuffer::~RenderBuffer()
+RenderBuffer::RenderBuffer(Geometry* geometry) : mNode(geometry->getParent()), mGeometry(geometry)
 {
 }
 
-unsigned int RenderBuffer::createVertexBuffer(void* data, int size, bool dyn)
+uint32_t RenderBuffer::createVertexBuffer(void* data, int32_t size, bool dynamic)
 {
-   unsigned int buf;
-   buf = activeDevice->createVertexBuffer(size, dyn);
-   void* dst = activeDevice->lockVertexBuffer(buf);
+   const uint32_t buffer = activeDevice->createVertexBuffer(size, dynamic);
+   void* destination = activeDevice->lockVertexBuffer(buffer);
    if (data)
-      std::memcpy(dst, data, size);
+   {
+      std::memcpy(destination, data, size);
+   }
    else
-      std::memset(dst, 0, size);
-   activeDevice->unlockVertexBuffer(buf);
-   return buf;
+   {
+      std::memset(destination, 0, size);
+   }
+   activeDevice->unlockVertexBuffer(buffer);
+   return buffer;
 }
 
-unsigned int RenderBuffer::createIndexBuffer(void* data, int size, bool dyn)
+uint32_t RenderBuffer::createIndexBuffer(void* data, int32_t size, bool dynamic)
 {
-   unsigned int buf;
-   buf = activeDevice->createIndexBuffer(size, dyn);
-   void* dst = activeDevice->lockIndexBuffer(buf);
+   const uint32_t buffer = activeDevice->createIndexBuffer(size, dynamic);
+   void* destination = activeDevice->lockIndexBuffer(buffer);
    if (data)
-      std::memcpy(dst, data, size);
+   {
+      std::memcpy(destination, data, size);
+   }
    else
-      std::memset(dst, 0, size);
-   activeDevice->unlockIndexBuffer(buf);
-   return buf;
+   {
+      std::memset(destination, 0, size);
+   }
+   activeDevice->unlockIndexBuffer(buffer);
+   return buffer;
 }
 
-void RenderBuffer::deleteBuffer(unsigned int buffer)
+void RenderBuffer::deleteBuffer(uint32_t buffer)
 {
    activeDevice->deleteBuffer(buffer);
 }
@@ -57,42 +52,9 @@ void RenderBuffer::update(Node**)
 {
    if (mWeights)
    {
-      // Node *mesh= mGeometry->getParent();
-      // Vector *dst= mGeometry->getVertices();
-      // Vector *src= mOrgVerts;
-
-      /*
-            for (int i=0;i<mVertexCount;i++)
-            {
-               int   num= mWeights[i].size();
-
-               if (num>0)
-               {
-                  const Weight& weight= mWeights[i];
-
-                  Vector v(0,0,0);
-                  for (int j=0;j<num;j++)
-                  {
-                     int id= weight.id(j);
-                     float w= weight.weight(j);
-
-                     Node *node= nodelist[id];
-                     Matrix mat= node->getBoneTransform();
-                     v+= (mat * src[i]) * w;
-                  }
-                  dst[i]= mesh->getInitTransform() * v;
-               }
-            }
-      */
-
-      Vector* vram = (Vector*)activeDevice->lockVertexBuffer(mVertex);
+      auto* vram = static_cast<Vector*>(activeDevice->lockVertexBuffer(mVertex));
       std::memcpy(vram, mGeometry->getVertices(), mGeometry->getVertexCount() * sizeof(Vector));
       activeDevice->unlockVertexBuffer(mVertex);
-      /*
-            Matrix mat;
-            mat.identity();
-            mGeometry->getNode()->setTransform(mat);
-      */
    }
 }
 
@@ -101,22 +63,22 @@ const Matrix& RenderBuffer::getTransform() const
    return mNode->getTransform();
 }
 
-int RenderBuffer::getSize() const
+int32_t RenderBuffer::getSize() const
 {
    return mSize;
 }
 
-void RenderBuffer::setSize(int num)
+void RenderBuffer::setSize(int32_t num)
 {
    mSize = num;
 }
 
-unsigned int RenderBuffer::getVertexBuffer() const
+uint32_t RenderBuffer::getVertexBuffer() const
 {
    return mVertex;
 }
 
-unsigned int RenderBuffer::getIndexBuffer() const
+uint32_t RenderBuffer::getIndexBuffer() const
 {
    return mIndex;
 }

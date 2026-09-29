@@ -2,26 +2,28 @@
 
 #include "tools/referenced.h"
 
+#include <cstdint>
+
 class Texture : public Referenced
 {
 public:
-   Texture();
-   Texture(unsigned int textureId);
+   Texture() = default;
+   Texture(uint32_t texture_id);
    Texture(const Texture& texture);
-   ~Texture();
+   ~Texture() override;
 
    Texture& operator=(const Texture& texture);
 
-   operator unsigned int() const
+   operator uint32_t() const
    {
-      return mTextureId;
+      return _texture_id;
    }
 
-   unsigned int getTexture() const
+   uint32_t getTexture() const
    {
-      return mTextureId;
+      return _texture_id;
    }
 
 private:
-   unsigned int mTextureId;
+   uint32_t _texture_id = 0;
 };

@@ -1,11 +1,7 @@
 #include "uv.h"
 #include "tools/stream.h"
 
-UV::UV() : u(0.0f), v(0.0f)
-{
-}
-
-UV::UV(float su, float sv) : u(su), v(sv)
+UV::UV(float u, float v) : u(u), v(v)
 {
 }
 

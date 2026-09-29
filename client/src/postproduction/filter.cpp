@@ -1,14 +1,10 @@
 #include "filter.h"
 
-Filter::Filter(const String& name) : mName(name)
-{
-}
-
-Filter::~Filter()
+Filter::Filter(const String& name) : _name(name)
 {
 }
 
 const String& Filter::getName() const
 {
-   return mName;
+   return _name;
 }
