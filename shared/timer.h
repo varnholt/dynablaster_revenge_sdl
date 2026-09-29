@@ -9,11 +9,9 @@
 #include <thread>
 #include <unordered_set>
 
-// mimics QTimer's instance API (setInterval/start/stop/isActive/timeout) plus its static
-// singleShot(), backed by a process-wide registry ticked once per frame via update() - the
-// caller (main.cpp's per-frame loop, or server-sdl's poll loop) decides the tick rate. A timer
-// only fires from the thread that started it; update() only processes timers owned by the
-// calling thread.
+// interval timer plus static singleShot(), backed by a process-wide registry ticked via update() -
+// the caller's loop decides the tick rate. A timer only fires from the thread that started it;
+// update() only processes timers owned by the calling thread.
 class Timer
 {
 public:

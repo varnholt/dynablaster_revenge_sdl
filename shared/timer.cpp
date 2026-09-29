@@ -1,6 +1,5 @@
 #include "timer.h"
 
-#include <algorithm>
 #include <vector>
 
 namespace
@@ -75,14 +74,14 @@ void Timer::singleShot(int32_t milliseconds, std::function<void()> callback)
 void Timer::update()
 {
    const auto now = std::chrono::steady_clock::now();
-   const auto callingThread = std::this_thread::get_id();
+   const auto calling_thread = std::this_thread::get_id();
 
    std::vector<Timer*> due;
    {
       std::lock_guard<std::mutex> lock(_mutex);
       for (auto* timer : _timers)
       {
-         if (timer->_owner_thread == callingThread && now - timer->_start_time >= timer->_interval)
+         if (timer->_owner_thread == calling_thread && now - timer->_start_time >= timer->_interval)
          {
             due.push_back(timer);
          }
@@ -91,17 +90,27 @@ void Timer::update()
 
    for (auto* timer : due)
    {
-      // advance by whole elapsed intervals rather than snapping to "now", so the long-run rate
-      // stays correct even when update() is polled irregularly.
-      if (timer->_interval.count() > 0)
+      // an earlier timeoutSignal() in this batch may have destroyed or stopped this timer,
+      // re-check membership before touching it so a stale pointer is never dereferenced
       {
-         const auto elapsed = now - timer->_start_time;
-         const auto intervals = elapsed / timer->_interval;
-         timer->_start_time += timer->_interval * intervals;
-      }
-      else
-      {
-         timer->_start_time = now;
+         std::lock_guard<std::mutex> lock(_mutex);
+         if (!_timers.contains(timer))
+         {
+            continue;
+         }
+
+         // advance by whole elapsed intervals rather than snapping to "now", so the long-run rate
+         // stays correct even when update() is polled irregularly.
+         if (timer->_interval.count() > 0)
+         {
+            const auto elapsed = now - timer->_start_time;
+            const auto intervals = elapsed / timer->_interval;
+            timer->_start_time += timer->_interval * intervals;
+         }
+         else
+         {
+            timer->_start_time = now;
+         }
       }
 
       timer->timeoutSignal();
@@ -110,20 +119,18 @@ void Timer::update()
    std::vector<std::function<void()>> callbacks;
    {
       std::lock_guard<std::mutex> lock(_single_shot_mutex);
-      auto it = std::remove_if(
-         _pending_single_shots.begin(),
-         _pending_single_shots.end(),
-         [now, callingThread, &callbacks](auto& pending)
+      const auto is_due = [now, calling_thread](const PendingSingleShot& pending)
+      { return pending.owner_thread == calling_thread && now >= pending.due; };
+
+      for (auto& pending : _pending_single_shots)
+      {
+         if (is_due(pending))
          {
-            if (pending.owner_thread != callingThread || now < pending.due)
-            {
-               return false;
-            }
             callbacks.push_back(std::move(pending.callback));
-            return true;
          }
-      );
-      _pending_single_shots.erase(it, _pending_single_shots.end());
+      }
+
+      std::erase_if(_pending_single_shots, is_due);
    }
 
    for (auto& callback : callbacks)
