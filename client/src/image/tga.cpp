@@ -1,247 +1,205 @@
 // basic tga loader
 
 #include "tga.h"
-#include <cstring>
+
+#include <array>
+#include <string>
+
 #include "tools/filestream.h"
 
+namespace
+{
 class TGAHeader
 {
 public:
-   TGAHeader()
-       : identsize(0),
-         cmaptype(0),
-         imagetype(0),
-         cmapstart(0),
-         cmaplength(0),
-         cmapformat(0),
-         originx(0),
-         originy(0),
-         width(0),
-         height(0),
-         bpp(0),
-         descr(0),
-         rle(false)
+   TGAHeader() = default;
+
+   TGAHeader(uint16_t width, uint16_t height, uint8_t bits_per_pixel)
+       : _image_type(2),  // rgb + no rle
+         _width(width),
+         _height(height),
+         _bits_per_pixel(bits_per_pixel)
    {
-   }
-
-   TGAHeader(int w, int h, int bits)
-   {
-      rle = false;
-
-      identsize = 0;
-      cmaptype = 0;
-      imagetype = 2;  // rgb + no rle
-
-      cmapstart = 0;
-      cmaplength = 0;
-      cmapformat = 0;
-
-      originx = 0;
-      originy = 0;
-
-      width = w;
-      height = h;
-      bpp = bits;
-      descr = 0;  //(1<<5);
-   }
-
-   TGAHeader(Stream& stream)
-   {
-      read(stream);
    }
 
    void read(Stream& stream)
    {
-      identsize = stream.getByte();  // number of ident bytes after header, usually 0
-      cmaptype = stream.getByte();   // type of colour map 0=none, 1=has palette
-      imagetype = stream.getByte();  // type of image 0=none,1=indexed,2=rgb,3=grey,+8=rle packed
-      rle = imagetype >= 8;          // rle?
-      imagetype &= 7;
+      _ident_size = stream.getByte();  // number of ident bytes after header, usually 0
+      _color_map_type = stream.getByte();
+      _image_type = stream.getByte();
+      _rle = _image_type >= 8;
+      _image_type &= 7;
 
-      cmapstart = stream.getWord();   // first colour map entry in palette
-      cmaplength = stream.getWord();  // number of colours in palette
-      cmapformat = stream.getByte();  // number of bits per palette entry 15,16,24,32
+      _color_map_start = static_cast<int16_t>(stream.getWord());
+      _color_map_length = static_cast<int16_t>(stream.getWord());
+      _color_map_format = stream.getByte();
 
-      originx = stream.getWord();  // image x origin
-      originy = stream.getWord();  // image y origin
+      _origin_x = static_cast<int16_t>(stream.getWord());
+      _origin_y = static_cast<int16_t>(stream.getWord());
 
-      width = stream.getWord();
-      height = stream.getWord();
-      bpp = stream.getByte();
-      descr = stream.getByte();
+      _width = static_cast<uint16_t>(stream.getWord());
+      _height = static_cast<uint16_t>(stream.getWord());
+      _bits_per_pixel = stream.getByte();
+      _descriptor = stream.getByte();
 
       // skip ident data
-      stream.skip(identsize);
+      stream.skip(_ident_size);
    }
 
    void write(Stream& stream)
    {
-      stream.writeByte(identsize);
-      stream.writeByte(cmaptype);
-      stream.writeByte(imagetype);
+      stream.writeByte(_ident_size);
+      stream.writeByte(_color_map_type);
+      stream.writeByte(_image_type);
 
-      stream.writeWord(cmapstart);
-      stream.writeWord(cmaplength);
-      stream.writeByte(cmapformat);
+      stream.writeWord(_color_map_start);
+      stream.writeWord(_color_map_length);
+      stream.writeByte(_color_map_format);
 
-      stream.writeWord(originx);
-      stream.writeWord(originy);
+      stream.writeWord(_origin_x);
+      stream.writeWord(_origin_y);
 
-      stream.writeWord(width);
-      stream.writeWord(height);
-      stream.writeByte(bpp);
-      stream.writeByte(descr);
+      stream.writeWord(_width);
+      stream.writeWord(_height);
+      stream.writeByte(_bits_per_pixel);
+      stream.writeByte(_descriptor);
 
-      for (int i = 0; i < identsize; i++)
+      for (int32_t i = 0; i < _ident_size; i++)
+      {
          stream.writeByte(0);
+      }
    }
 
-   unsigned char identsize;  // size of ID field that follows 18 byte header (0 usually)
-   unsigned char cmaptype;   // type of colour map 0=none, 1=has palette
-   unsigned char imagetype;  // type of image 0=none,1=indexed,2=rgb,3=grey,+8=rle packed
+   uint8_t _ident_size = 0;      // size of ID field that follows 18 byte header (0 usually)
+   uint8_t _color_map_type = 0;  // type of colour map 0=none, 1=has palette
+   uint8_t _image_type = 0;      // type of image 0=none,1=indexed,2=rgb,3=grey,+8=rle packed
 
-   short cmapstart;           // first colour map entry in palette
-   short cmaplength;          // number of colours in palette
-   unsigned char cmapformat;  // number of bits per palette entry 15,16,24,32
+   int16_t _color_map_start = 0;   // first colour map entry in palette
+   int16_t _color_map_length = 0;  // number of colours in palette
+   uint8_t _color_map_format = 0;  // number of bits per palette entry 15,16,24,32
 
-   short originx;  // image x origin
-   short originy;  // image y origin
+   int16_t _origin_x = 0;  // image x origin
+   int16_t _origin_y = 0;  // image y origin
 
-   unsigned short width;
-   unsigned short height;
-   unsigned char bpp;
-   unsigned char descr;
-   bool rle;
+   uint16_t _width = 0;
+   uint16_t _height = 0;
+   uint8_t _bits_per_pixel = 0;
+   uint8_t _descriptor = 0;
+   bool _rle = false;
 };
 
-void loadPal24(Stream* stream, unsigned int* dst, int size)
+using Palette = std::array<uint32_t, 256>;
+
+void loadPal24(Stream* stream, uint32_t* destination, int32_t size)
 {
-   int i;
-   for (i = 0; i < size; i++)
+   for (int32_t i = 0; i < size; i++)
    {
-      unsigned char r = stream->getByte();
-      unsigned char g = stream->getByte();
-      unsigned char b = stream->getByte();
-      *dst++ = (255 << 24) + (b << 16) + (g << 8) + (r);
+      const uint8_t r = stream->getByte();
+      const uint8_t g = stream->getByte();
+      const uint8_t b = stream->getByte();
+      *destination++ = (255u << 24) + (b << 16) + (g << 8) + (r);
    }
 }
 
-void loadPal32(Stream* stream, unsigned int* dst, int size)
+void loadPal32(Stream* stream, uint32_t* destination, int32_t size)
 {
-   int i;
-   for (i = 0; i < size; i++)
+   for (int32_t i = 0; i < size; i++)
    {
-      unsigned char r = stream->getByte();
-      unsigned char g = stream->getByte();
-      unsigned char b = stream->getByte();
-      unsigned char a = stream->getByte();
-      *dst++ = (a << 24) + (b << 16) + (g << 8) + (r);
+      const uint8_t r = stream->getByte();
+      const uint8_t g = stream->getByte();
+      const uint8_t b = stream->getByte();
+      const uint8_t a = stream->getByte();
+      *destination++ = (a << 24) + (b << 16) + (g << 8) + (r);
    }
 }
 
-unsigned int loadPixel8(Stream* stream, unsigned int* pal)
+uint32_t loadPixel8(Stream* stream, const uint32_t* palette)
 {
-   unsigned char index = stream->getByte();
-   return pal[index];
+   const uint8_t index = stream->getByte();
+   return palette[index];
 }
 
-unsigned int loadPixel16(Stream* stream, unsigned int* /*pal*/)
+uint32_t loadPixel16(Stream* stream, const uint32_t* /*palette*/)
 {
-   unsigned short rgb = stream->getWord();
+   const auto rgb = static_cast<uint16_t>(stream->getWord());
 
-   unsigned char a = (rgb >> 15 & 1) * 255;
-   unsigned char r = (rgb & 31) << 3;
-   unsigned char g = (rgb >> 5 & 31) << 3;
-   unsigned char b = (rgb >> 10 & 31) << 3;
+   const uint8_t a = (rgb >> 15 & 1) * 255;
+   const uint8_t r = (rgb & 31) << 3;
+   const uint8_t g = (rgb >> 5 & 31) << 3;
+   const uint8_t b = (rgb >> 10 & 31) << 3;
 
    return (a << 24) + (b << 16) + (g << 8) + (r);
 }
 
-unsigned int loadPixel24(Stream* stream, unsigned int* /*pal*/)
+uint32_t loadPixel24(Stream* stream, const uint32_t* /*palette*/)
 {
-   unsigned char a = 255;
-   unsigned char r = stream->getByte();
-   unsigned char g = stream->getByte();
-   unsigned char b = stream->getByte();
+   const uint8_t a = 255;
+   const uint8_t r = stream->getByte();
+   const uint8_t g = stream->getByte();
+   const uint8_t b = stream->getByte();
 
    return (a << 24) + (b << 16) + (g << 8) + (r);
 }
 
-unsigned int loadPixel32(Stream* stream, unsigned int* /*pal*/)
+uint32_t loadPixel32(Stream* stream, const uint32_t* /*palette*/)
 {
-   unsigned char r = stream->getByte();
-   unsigned char g = stream->getByte();
-   unsigned char b = stream->getByte();
-   unsigned char a = stream->getByte();
+   const uint8_t r = stream->getByte();
+   const uint8_t g = stream->getByte();
+   const uint8_t b = stream->getByte();
+   const uint8_t a = stream->getByte();
 
    return (a << 24) + (b << 16) + (g << 8) + (r);
 }
+}  // namespace
 
-int loadtga(const char* fname, void** buf, int* sizex, int* sizey)
+int32_t loadtga(const char* fname, void** buf, int32_t* sizex, int32_t* sizey)
 {
    TGAHeader info;
-   char name[256];
-   unsigned int pal[256];
-
-   if (fname)
-   {
-      std::strcpy(name, fname);
-      std::strcat(name, ".tga");
-   }
+   Palette palette{};
 
    FileStream stream;
 
-   if (!fname || !stream.open(name))
+   if (!fname || !stream.open((std::string(fname) + ".tga").c_str()))
    {
       *sizex = 1;
       *sizey = 1;
-      *buf = new unsigned int(0xffffffff);
+      *buf = new uint32_t[1]{0xffffffff};
       return 0;
    }
 
    info.read(stream);
-   // read header
-   //   stream->getData(&info, sizeof(TGAHeader));
 
-   // post some debug infos
-   //   printf("load tga: %s (%dx%dx%d) pal:%d\n", name, info.width, info.height, info.bpp, info.cmaplength);
+   auto* data = new uint32_t[static_cast<size_t>(info._width) * info._height];
 
-   unsigned int* data = new unsigned int[info.width * info.height];
-
-   // get palette data
-   if (info.imagetype == 1)  // indexed colors
+   if (info._image_type == 1)  // indexed colors
    {
-      // load palette
-      if (info.cmaplength <= 256)
-         switch (info.cmapformat)
+      if (info._color_map_length <= 256)
+      {
+         switch (info._color_map_format)
          {
             case 24:
-               loadPal24(&stream, pal, info.cmaplength);
+               loadPal24(&stream, palette.data(), info._color_map_length);
                break;
             case 32:
-               loadPal32(&stream, pal, info.cmaplength);
+               loadPal32(&stream, palette.data(), info._color_map_length);
                break;
             default:
                break;
          }
-   }
-   /*
-      else
-      if (info.imagetype==2) // rgb data
-      {
-         // there is no palette
       }
-   */
-   else if (info.imagetype == 3)  // grey-scale
+   }
+   else if (info._image_type == 3)  // grey-scale
    {
       // create grey palette, so we can handle greyscale just as 8bit data
-      for (int i = 0; i < 256; i++)
-         pal[i] = (255 << 24) + (i << 16) + (i << 8) + (i);
+      for (uint32_t i = 0; i < palette.size(); i++)
+      {
+         palette[i] = (255u << 24) + (i << 16) + (i << 8) + (i);
+      }
    }
 
-   bool topdown = (bool)(info.descr >> 5 & 1);
-   unsigned int (*loadPixel)(Stream*, unsigned int*) = 0;
-   switch (info.bpp)
+   const bool top_down = (info._descriptor >> 5 & 1) != 0;
+   uint32_t (*loadPixel)(Stream*, const uint32_t*) = nullptr;
+   switch (info._bits_per_pixel)
    {
       case 8:
          loadPixel = loadPixel8;
@@ -259,27 +217,28 @@ int loadtga(const char* fname, void** buf, int* sizex, int* sizey)
          break;
    }
 
-   if (info.rle)
+   const auto scanline = [&](int32_t y) { return top_down ? data + y * info._width : data + (info._height - 1 - y) * info._width; };
+
+   if (info._rle)
    {
-      int scan = 0;
-      int count = 0;
-      bool single;
-      unsigned int col = 0;
-      unsigned int* dst = 0;
-      int y = 0;
+      int32_t scan = 0;
+      int32_t count = 0;
+      bool single = false;
+      uint32_t color = 0;
+      uint32_t* destination = nullptr;
+      int32_t y = 0;
       while (true)
       {
          // next scanline?
          if (scan == 0)
          {
-            scan = info.width;
-            if (topdown)
-               dst = data + y * info.width;
-            else
-               dst = data + (info.height - 1 - y) * info.width;
+            scan = info._width;
+            destination = scanline(y);
             y++;
-            if (y > info.height)
+            if (y > info._height)
+            {
                break;
+            }
          }
 
          if (count == 0)
@@ -290,70 +249,70 @@ int loadtga(const char* fname, void** buf, int* sizex, int* sizey)
                // repeat single pixel color
                single = true;
                count -= 128;
-               col = loadPixel(&stream, pal);
+               color = loadPixel(&stream, palette.data());
             }
             else
+            {
                single = false;
+            }
          }
 
-         int len = scan < count ? scan : count;
-         if (single)
+         const int32_t length = scan < count ? scan : count;
+         for (int32_t x = 0; x < length; x++)
          {
-            for (int x = 0; x < len; x++)
-               *dst++ = col;
-         }
-         else
-         {
-            for (int x = 0; x < len; x++)
-               *dst++ = loadPixel(&stream, pal);
+            *destination++ = single ? color : loadPixel(&stream, palette.data());
          }
 
-         count -= len;
-         scan -= len;
+         count -= length;
+         scan -= length;
       }
    }
    else
    {
-      for (int y = 0; y < info.height; y++)
+      for (int32_t y = 0; y < info._height; y++)
       {
-         unsigned int* dst;
-         if (topdown)
-            dst = data + y * info.width;
-         else
-            dst = data + (info.height - 1 - y) * info.width;
-         for (int x = 0; x < info.width; x++)
-            *dst++ = loadPixel(&stream, pal);
+         uint32_t* destination = scanline(y);
+         for (int32_t x = 0; x < info._width; x++)
+         {
+            *destination++ = loadPixel(&stream, palette.data());
+         }
       }
    }
 
    *buf = data;
    if (sizex)
-      *sizex = info.width;
+   {
+      *sizex = info._width;
+   }
    if (sizey)
-      *sizey = info.height;
+   {
+      *sizey = info._height;
+   }
 
    return 32;
 }
 
-int savetga(const char* fname, unsigned int* data, int width, int height)
+int32_t savetga(const char* fname, uint32_t* data, int32_t width, int32_t height)
 {
    FileStream stream;
-   TGAHeader info(width, height, 32);
+   TGAHeader info(static_cast<uint16_t>(width), static_cast<uint16_t>(height), 32);
 
    if (!stream.open(fname, true))
+   {
       return 0;
+   }
 
    info.write(stream);
-   for (int y = 0; y < height; y++)
+   for (int32_t y = 0; y < height; y++)
    {
-      unsigned int* src = data + (height - 1 - y) * info.width;
-      for (int x = 0; x < info.width; x++)
+      const uint32_t* source = data + (height - 1 - y) * info._width;
+      for (int32_t x = 0; x < info._width; x++)
       {
-         unsigned int c = src[x];
-         unsigned char b = c & 255;
-         unsigned char g = c >> 8 & 255;
-         unsigned char r = c >> 16 & 255;
-         unsigned char a = c >> 24 & 255;
+         const uint32_t c = source[x];
+         const uint8_t b = c & 255;
+         const uint8_t g = c >> 8 & 255;
+         const uint8_t r = c >> 16 & 255;
+         const uint8_t a = c >> 24 & 255;
 
          stream.writeByte(b);
          stream.writeByte(g);

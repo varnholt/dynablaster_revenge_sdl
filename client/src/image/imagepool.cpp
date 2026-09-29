@@ -1,44 +1,41 @@
 #include "imagepool.h"
 
-ImagePool::ImagePool()
-{
-}
+#include <utility>
 
 ImagePool::~ImagePool()
 {
-   auto it = mPool.begin();
-   while (it != mPool.end())
-   {
-      Image* image = it->second;
-      it = mPool.erase(it);
-      delete image;
-   }
+   // move out first: every deleted image calls back into remove() while being destroyed
+   auto images = std::move(_pool);
+   _pool.clear();
+   images.clear();
 }
 
 void ImagePool::remove(Image* image)
 {
-   for (auto it = mPool.begin(); it != mPool.end();)
+   for (auto entry = _pool.begin(); entry != _pool.end();)
    {
-      if (it->second == image)
-         it = mPool.erase(it);
+      if (entry->second.get() == image)
+      {
+         [[maybe_unused]] Image* released = entry->second.release();
+         entry = _pool.erase(entry);
+      }
       else
-         it++;
+      {
+         ++entry;
+      }
    }
 }
 
-Image* ImagePool::getImage(const char* filename, int /*preprocessingFlags*/)
+Image* ImagePool::getImage(const char* filename, int32_t /*preprocessing_flags*/)
 {
-   Image* image;
-   std::string name(filename);
-   auto it = mPool.find(name);
-   if (it != mPool.end())
-      image = it->second;
-   else
+   const std::string name(filename);
+   if (const auto entry = _pool.find(name); entry != _pool.end())
    {
-      image = new Image(filename);
-      //      image->premultiplyAlpha();
-      //      image->setDate( QDateTime::currentDateTime() );
-      mPool[name] = image;
+      return entry->second.get();
    }
-   return image;
+
+   auto image = std::make_unique<Image>(filename);
+   Image* result = image.get();
+   _pool[name] = std::move(image);
+   return result;
 }

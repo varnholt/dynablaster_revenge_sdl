@@ -1,51 +1,48 @@
-#ifndef IMAGE_H
-#define IMAGE_H
+#pragma once
+
+#include <cstdint>
 
 #include "tools/referenced.h"
 #include "tools/string.h"
 
-// TODO: add reference counter
-
+// 32bit argb image; copies share the pixel buffer (see Referenced)
 class Image : public Referenced
 {
 public:
-   Image();
+   Image() = default;
    Image(const char* filename);
-   Image(int x, int y);
-   //   Image(unsigned int *data, int x, int y, bool owner= false);
+   Image(int32_t x, int32_t y);
    Image(const Image& image);
-   ~Image();
+   ~Image() override;
 
    const Image& operator=(const Image& image);
 
    void discard();
-   void clear(unsigned int argb);
+   void clear(uint32_t argb);
 
    void save(const char* filename);
 
-   int getWidth() const;
-   int getHeight() const;
-   unsigned int* getScanline(int y) const;
-   unsigned int* getData() const;
+   int32_t getWidth() const;
+   int32_t getHeight() const;
+   uint32_t* getScanline(int32_t y) const;
+   uint32_t* getData() const;
    Image downsample() const;
    void scaled(const Image& image) const;
    void load(const char* filename);
-   const char* getFilename() const;
-   void copy(int x, int y, const Image& source, int clamp = 0);
+   void copy(int32_t x, int32_t y, const Image& source, int32_t clamp = 0);
    void premultiplyAlpha();
    void minimum(const Image& image);
-   unsigned int getPixel(float u, float v) const;
-   void buildNormalMap(int z);
+   uint32_t getPixel(float u, float v) const;
+   void buildNormalMap(int32_t z);
    void buildDeltaMap();
    const String& path() const;
    const String& filename() const;
 
 private:
-   unsigned int* mData;
-   int mWidth;
-   int mHeight;
-   String mPath;
-   String mFilename;
+   // new[]-allocated, shared by all copies, deleted by the last one
+   uint32_t* _data = nullptr;
+   int32_t _width = 0;
+   int32_t _height = 0;
+   String _path;
+   String _filename;
 };
-
-#endif
