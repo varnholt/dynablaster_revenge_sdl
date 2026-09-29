@@ -1,6 +1,3 @@
-#ifndef PROFILING_H
-#define PROFILING_H
+#pragma once
 
 double getCpuTick();
-
-#endif

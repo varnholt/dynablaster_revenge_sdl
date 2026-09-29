@@ -1,35 +1,31 @@
 #include "rect.h"
 
-Rect::Rect() : mMin(0.0f, 0.0f), mMax(0.0f, 0.0f), mValid(false)
+Rect::Rect(float x1, float y1, float x2, float y2) : _min(x1, y1), _max(x2, y2), _valid(true)
 {
 }
 
-Rect::Rect(float x1, float y1, float x2, float y2) : mMin(x1, y1), mMax(x2, y2), mValid(true)
-{
-}
-
-Rect::Rect(const Vector2& min, const Vector2& max) : mMin(min), mMax(max), mValid(true)
+Rect::Rect(const Vector2& min, const Vector2& max) : _min(min), _max(max), _valid(true)
 {
 }
 
 float Rect::left() const
 {
-   return mMin.x;
+   return _min.x;
 }
 
 float Rect::right() const
 {
-   return mMax.x;
+   return _max.x;
 }
 
 float Rect::top() const
 {
-   return mMin.y;
+   return _min.y;
 }
 
 float Rect::bottom() const
 {
-   return mMax.y;
+   return _max.y;
 }
 
 float Rect::getWidth() const
@@ -44,27 +40,27 @@ float Rect::getHeight() const
 
 void Rect::setMin(const Vector2& min)
 {
-   mMin = min;
-   mValid = true;
+   _min = min;
+   _valid = true;
 }
 
 void Rect::setMax(const Vector2& max)
 {
-   mMax = max;
-   mValid = true;
+   _max = max;
+   _valid = true;
 }
 
 const Vector2& Rect::getMin() const
 {
-   return mMin;
+   return _min;
 }
 
 const Vector2& Rect::getMax() const
 {
-   return mMax;
+   return _max;
 }
 
 bool Rect::valid() const
 {
-   return mValid;
+   return _valid;
 }

@@ -1,5 +1,4 @@
-#ifndef STDAFX_H
-#define STDAFX_H
+#pragma once
 
 #ifdef WIN32
 #include <windows.h>
@@ -9,5 +8,3 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-
-#endif

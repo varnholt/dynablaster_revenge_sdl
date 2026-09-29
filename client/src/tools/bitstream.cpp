@@ -1,32 +1,28 @@
 #include "bitstream.h"
 
-BitStream::BitStream() : mData(0), mSize(0), mPos(0), mBits(0), mAvail(0)
+BitStream::BitStream(const void* data, int32_t size) : _data(static_cast<const uint8_t*>(data)), _size(size)
 {
 }
 
-BitStream::BitStream(const void* data, int size) : mData((unsigned char*)data), mSize(size), mPos(0), mBits(0), mAvail(0)
+uint32_t BitStream::getBits(int32_t count)
 {
-}
-
-unsigned int BitStream::getBits(int count)
-{
-   unsigned int value = 0;
+   uint32_t value = 0;
    while (count > 0)
    {
       cache();
 
-      if (count >= mAvail)
+      if (count >= _available)
       {
-         value = (value << mAvail) | (mBits >> (8 - mAvail));
-         count -= mAvail;
-         mAvail = 0;
-         mBits = 0;
+         value = (value << _available) | (_bits >> (8 - _available));
+         count -= _available;
+         _available = 0;
+         _bits = 0;
       }
       else
       {
-         value = (value << count) | (mBits >> (8 - count));
-         mBits <<= count;
-         mAvail -= count;
+         value = (value << count) | (_bits >> (8 - count));
+         _bits <<= count;
+         _available -= count;
          count = 0;
       }
    }
@@ -34,17 +30,17 @@ unsigned int BitStream::getBits(int count)
    return value;
 }
 
-void BitStream::skipBits(int count)
+void BitStream::skipBits(int32_t count)
 {
    getBits(count);
 }
 
 void BitStream::cache()
 {
-   if (!mAvail)
+   if (!_available)
    {
-      mBits = mData[mPos];
-      mPos++;
-      mAvail = 8;
+      _bits = _data[_position];
+      _position++;
+      _available = 8;
    }
 }

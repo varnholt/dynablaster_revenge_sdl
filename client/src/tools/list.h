@@ -9,37 +9,24 @@ template <class Item>
 class List : public Array<Item>, public Streamable
 {
 public:
-   List() : Array<Item>()
+   List() = default;
+
+   List(Item* items, int32_t count) : Array<Item>(items, count)
    {
    }
 
-   List(Item* items, int count) : Array<Item>(items, count)
+   void load(Stream* stream) override
    {
-   }
-
-   virtual ~List()
-   {
-   }
-
-   /*
-      List<Item>& operator = (const List<Item>& list)
+      // shared with another array: detach instead of overwriting (or freeing) the shared items
+      if (this->copyRef())
       {
-         init( list.size() );
-         for (int i=0;i<list.size();i++)
-            add(list[i]);
-         return *this;
+         this->mData = nullptr;
+         this->mSize = 0;
+         this->mCount = 0;
       }
-   */
 
-   // load array from stream
-   virtual void load(Stream* stream)
-   {
-      this->copyRef();
+      const int32_t size = stream->getInt();
 
-      // get number of items
-      int size = stream->getInt();
-
-      // no items: NULL
       if (size == 0)
       {
          Array<Item>::init(size);
@@ -49,14 +36,12 @@ public:
       // current array not big enough (or not yet initialized): create new
       if (size > this->mSize)
       {
-         if (this->mData)
-            delete this->mData;
+         delete[] this->mData;
          this->mData = new Item[size];
          this->mSize = size;
       }
 
-      // load items
-      for (int i = 0; i < size; i++)
+      for (int32_t i = 0; i < size; i++)
       {
          Item& item = this->mData[i];
          item << *stream;
@@ -65,13 +50,11 @@ public:
       this->mCount = size;
    }
 
-   // load array from stream
-   virtual void write(Stream* stream)
+   void write(Stream* stream) override
    {
       stream->writeInt(this->size());
 
-      // load items
-      for (int i = 0; i < this->size(); i++)
+      for (int32_t i = 0; i < this->size(); i++)
       {
          Item& item = this->mData[i];
          item >> *stream;

@@ -3,26 +3,26 @@
 
 #pragma once
 
-#include <stdio.h>
+#include <cstdint>
+
 #include "stream.h"
 
 class MemoryStream : public Stream
 {
 public:
-   MemoryStream();
+   MemoryStream() = default;
 
-   int open(void* buffer, int size);
+   int32_t open(void* buffer, int32_t size);
    void close();
 
-   // implementation of actual reading and writing functions
-   void getData(void* dst, int size);    //! get "size" bytes and store in "dst"
-   void writeData(void* dst, int size);  //! write "size" bytes
+   void getData(void* destination, int32_t size) override;  // get "size" bytes and store in "destination"
+   void writeData(void* source, int32_t size) override;     // write "size" bytes
 
-   void skip(int size);  //! skip "size" bytes
-   int size() const;     //! total size of the input file
-   int pos() const;      //! current position in the input file
+   void skip(int32_t size) override;  // skip "size" bytes
+   int32_t size() const;              // total size of the input data
+   int32_t pos() const override;      // current position in the input data
 
 private:
-   unsigned char* mBuffer;  //! input data
-   int mSize;               //! size of the file
+   uint8_t* _buffer = nullptr;  // input data (not owned)
+   int32_t _size = 0;           // size of the data
 };

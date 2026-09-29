@@ -1,37 +1,25 @@
 #include "objectname.h"
 
-ObjectName::ObjectName()
-{
-}
-
-ObjectName::ObjectName(const ObjectName& other) : mName(other.name())
-{
-}
-
-ObjectName::ObjectName(const String& name) : mName(name)
-{
-}
-
-ObjectName::~ObjectName()
+ObjectName::ObjectName(const String& name) : _name(name)
 {
 }
 
 const String& ObjectName::name() const
 {
-   return mName;
+   return _name;
 }
 
 void ObjectName::setName(const String& name)
 {
-   mName = name;
+   _name = name;
 }
 
 void ObjectName::load(Stream* stream)
 {
-   mName.load(stream);
+   _name.load(stream);
 }
 
 void ObjectName::write(Stream* stream)
 {
-   mName.write(stream);
+   _name.write(stream);
 }

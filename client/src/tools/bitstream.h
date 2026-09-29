@@ -1,19 +1,21 @@
 #pragma once
 
+#include <cstdint>
+
 class BitStream
 {
 public:
-   BitStream();
-   BitStream(const void* data, int size);
+   BitStream() = default;
+   BitStream(const void* data, int32_t size);
 
-   unsigned int getBits(int count);
-   void skipBits(int count);
+   uint32_t getBits(int32_t count);
+   void skipBits(int32_t count);
    void cache();
 
 private:
-   unsigned char* mData;
-   int mSize;
-   int mPos;
-   unsigned char mBits;
-   int mAvail;
+   const uint8_t* _data = nullptr;
+   int32_t _size = 0;
+   int32_t _position = 0;
+   uint8_t _bits = 0;
+   int32_t _available = 0;
 };

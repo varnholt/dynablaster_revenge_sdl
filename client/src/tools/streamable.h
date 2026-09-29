@@ -9,9 +9,7 @@ class Stream;
 class Streamable
 {
 public:
-   Streamable()
-   {
-   }
+   virtual ~Streamable() = default;
 
    virtual void load(Stream* stream) = 0;
    virtual void write(Stream* stream) = 0;

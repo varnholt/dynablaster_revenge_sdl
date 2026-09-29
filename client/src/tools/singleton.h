@@ -1,51 +1,38 @@
-//! singleton class
-
 #pragma once
 
-#include <stdio.h>
-#include "tools/array.h"
-
+// lazily created global instance; a derived object constructed explicitly registers itself instead.
+// non-owning: whoever creates the instance (or nobody, for lazily created ones) keeps it alive.
 template <class Item>
 class Singleton
 {
 protected:
-   //! constructor
    Singleton()
    {
-      if (mInstance)
+      if (!_instance)
       {
-         // printf("instance already exists!\n");
-      }
-      else
-      {
-         mInstance = (Item*)this;
+         _instance = static_cast<Item*>(this);
       }
    }
 
-   //! destructor
    virtual ~Singleton()
    {
-      mInstance = 0;
+      _instance = nullptr;
    }
 
 public:
-   //! get instance
    static Item* Instance()
    {
-      if (!mInstance)
-         mInstance = new Item();
-      return mInstance;
+      if (!_instance)
+      {
+         _instance = new Item();
+      }
+      return _instance;
    }
 
-   //! delete all instances (in back to front order)
    static void cleanUp()
    {
    }
 
 private:
-   static Item* mInstance;  //!< static instance
+   static inline Item* _instance = nullptr;
 };
-
-// instance is initially 0
-template <class Item>
-Item* Singleton<Item>::mInstance = 0;

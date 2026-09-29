@@ -1,60 +1,47 @@
 #include "string.h"
+
+#include <algorithm>
 #include <cstring>
+
 #include "stream.h"
 
-//! construct empty string
-String::String() : Referenced(), mData(0)
-{
-}
+String::String() = default;
 
-//! construct string from char*
-String::String(const char* text) : Referenced()
+String::String(const char* text)
 {
    if (text)
    {
-      int size = std::strlen(text);
+      const auto size = static_cast<int32_t>(std::strlen(text));
       alloc(size);
-      std::memcpy(mData, text, size + 1);
-   }
-   else
-   {
-      mData = 0;
+      std::memcpy(_data, text, size + 1);
    }
 }
 
-//! construct reference of given String "other"
-String::String(const String& other) : Referenced(other)
+String::String(const String& other) : Referenced(other), _data(const_cast<char*>(other.data()))
 {
-   mData = (char*)other.data();
 }
 
-//! destructor: delete string if no more references exist
+// delete string if no more references exist
 String::~String()
 {
    if (getRefCount() == 1)
+   {
       dealloc();
+   }
 }
 
-//! get middle part of string
-String String::mid(int start, int end) const
+String String::mid(int32_t start, int32_t end) const
 {
-   if (start < 0)
-      start = 0;
-   if (start > size())
-      start = size();
+   start = std::clamp(start, 0, size());
+   end = std::clamp(end, 0, size());
 
-   if (end < 0)
-      end = 0;
-   if (end > size())
-      end = size();
+   String result;
+   result.alloc(end - start);
+   char* destination = result._data;
+   std::memcpy(destination, data() + start, end - start);
+   destination[end - start] = 0;
 
-   String s;
-   s.alloc(end - start);
-   char* dst = (char*)s.data();
-   std::memcpy(dst, data() + start, end - start);
-   dst[end - start] = 0;
-
-   return s;
+   return result;
 }
 
 bool String::isEmpty() const
@@ -62,65 +49,61 @@ bool String::isEmpty() const
    return (size() == 0);
 }
 
-//! find substring
-int String::indexOf(const String& other) const
+int32_t String::indexOf(const String& other) const
 {
-   int index = 0;
-   int s1 = size();
-   int s2 = other.size();
-   if (s2 <= s1)
+   const int32_t size1 = size();
+   const int32_t size2 = other.size();
+   if (size2 <= size1)
    {
-      while (index < s1 - s2)
+      for (int32_t index = 0; index < size1 - size2; index++)
       {
-         int i;
-         for (i = 0; i < s2; i++)
+         int32_t i = 0;
+         while (i < size2 && _data[index + i] == other[i])
          {
-            if (mData[index + i] != other[i])
-               break;
+            i++;
          }
-         if (i == s2)  // match
+         if (i == size2)
+         {
             return index;
-         index++;
+         }
       }
    }
    return -1;
 }
 
-//! allocate data for "size" characters + \0
-void String::alloc(int size)
+// allocate data for "size" characters + \0
+void String::alloc(int32_t size)
 {
-   // allocate single data chunk to store size, text and \0
-   mData = new char[size + sizeof(int) + 1];
-   // store size
-   *((int*)mData) = size;
-   // "data" always points to the text
-   mData += sizeof(int);
+   // single chunk to store size, text and \0
+   _data = new char[size + sizeof(int32_t) + 1];
+   *reinterpret_cast<int32_t*>(_data) = size;
+   // "_data" always points to the text
+   _data += sizeof(int32_t);
 }
 
-//! deallocate data
 void String::dealloc()
 {
-   char* data = dataIntern();
-   if (data)
-      delete[] data;
-   mData = 0;
+   delete[] dataIntern();
+   _data = nullptr;
 }
 
-//! set size field
-void String::setSize(int size)
+void String::setSize(int32_t size)
 {
-   int* data = (int*)dataIntern();
+   auto* data = reinterpret_cast<int32_t*>(dataIntern());
    if (data)
+   {
       *data = size;
+   }
 }
 
-//! get originally allocated data
+// originally allocated data (including the size field)
 char* String::dataIntern() const
 {
-   if (mData)
-      return mData - sizeof(int);
-   else
-      return 0;
+   if (_data)
+   {
+      return _data - sizeof(int32_t);
+   }
+   return nullptr;
 }
 
 String& String::operator<<(Stream& stream)
@@ -129,19 +112,16 @@ String& String::operator<<(Stream& stream)
    return *this;
 }
 
-//! cast to char*
 String::operator const char*() const
 {
-   return mData;
+   return _data;
 }
 
-//! get char at given index
-char String::operator[](int index) const
+char String::operator[](int32_t index) const
 {
-   return mData[index];
+   return _data[index];
 }
 
-//! assignment operator: create reference of given string
 String& String::operator=(const String& other)
 {
    if (this != &other)
@@ -155,177 +135,184 @@ String& String::operator=(const String& other)
 
       mReferences = other.getRef();
       addRef();
-      mData = (char*)other.data();
+      _data = const_cast<char*>(other.data());
    }
    return *this;
 }
 
-//! clear string
 void String::clear()
 {
    // if string was referenced we have to leave the existing data untouched
    if (!copyRef())
+   {
       dealloc();
+   }
    else
-      mData = 0;
+   {
+      _data = nullptr;
+   }
 }
 
-//! get char from string at given "index"
-char String::get(int index) const
+char String::get(int32_t index) const
 {
-   return mData[index];
+   return _data[index];
 }
 
-//! append "other" at end of string
 void String::append(const String& other)
 {
-   char* oldData = dataIntern();
-   char* data = mData;
+   char* old_data = dataIntern();
+   const char* data = _data;
 
-   bool needDel = !copyRef();
+   const bool need_delete = !copyRef();
 
-   int size1 = size();
-   int size2 = other.size();
+   const int32_t size1 = size();
+   const int32_t size2 = other.size();
    alloc(size1 + size2);
    if (size1 > 0)
-      std::memcpy(mData, data, size1);
+   {
+      std::memcpy(_data, data, size1);
+   }
    if (other.data())
-      std::memcpy(mData + size1, other.data(), size2 + 1);
+   {
+      std::memcpy(_data + size1, other.data(), size2 + 1);
+   }
    else
-      mData[size1] = 0;
+   {
+      _data[size1] = 0;
+   }
 
-   if (needDel)
-      delete[] oldData;
+   if (need_delete)
+   {
+      delete[] old_data;
+   }
 }
 
-// append
 void String::operator+=(const String& other)
 {
    append(other);
 }
 
-// concat strings
 String String::operator+(const String& other) const
 {
-   String n = *this;
-   n.append(other);
-   return n;
+   String result = *this;
+   result.append(other);
+   return result;
 }
 
-// equal?
 bool String::operator==(const String& other) const
 {
    if (size() != other.size())
-      return false;
-   int len = size();
-   for (int i = 0; i < len; i++)
    {
-      if (mData[i] != other[i])
+      return false;
+   }
+   const int32_t length = size();
+   for (int32_t i = 0; i < length; i++)
+   {
+      if (_data[i] != other[i])
+      {
          return false;
+      }
    }
    return true;
 }
 
-// equal?
 bool String::operator==(const char* other) const
 {
-   if (other == 0)
-      return size() == 0;
-
-   int len = size();
-   for (int i = 0; i < len; i++)
+   if (other == nullptr)
    {
-      if (mData[i] != other[i])
+      return size() == 0;
+   }
+
+   const int32_t length = size();
+   for (int32_t i = 0; i < length; i++)
+   {
+      if (_data[i] != other[i])
+      {
          return false;
+      }
    }
    return true;
 }
 
-// not equal?
 bool String::operator!=(const String& other) const
 {
    return !(*this == other);
 }
 
-// smaller?
 bool String::operator<(const String& other) const
 {
    const char* data = other.data();
 
-   // special case: mindestens einer von beiden ist 0
-   if (!mData || !data)
+   // at least one of both is empty
+   if (!_data || !data)
    {
-      if (!mData && !data)  // both empty string
+      if (!_data && !data)
+      {
          return false;
-      else
-         return (!mData);
+      }
+      return (!_data);
    }
 
-   // minimum length of both strings
-   int len;
-   if (size() < other.size())
-      len = size();
-   else
-      len = other.size();
-
-   for (int i = 0; i <= len; i++)
+   const int32_t length = std::min(size(), other.size());
+   for (int32_t i = 0; i <= length; i++)
    {
-      if (mData[i] < data[i])
+      if (_data[i] < data[i])
+      {
          return true;
-      else if (mData[i] > data[i])
+      }
+      if (_data[i] > data[i])
+      {
          return false;
+      }
    }
 
    return false;
 }
 
-//! bigger?
 bool String::operator>(const String& other) const
 {
-   return *this < other;
+   return other < *this;
 }
 
-//! return pointer to string-data
 const char* String::data() const
 {
-   return mData;
+   return _data;
 }
 
-// return length of string
-int String::size() const
+int32_t String::size() const
 {
-   int* size = (int*)dataIntern();
+   const auto* size = reinterpret_cast<const int32_t*>(dataIntern());
    if (size)
+   {
       return *size;
-   else
-      return 0;
+   }
+   return 0;
 }
 
-// load string from stream
 void String::load(Stream* stream)
 {
    if (!copyRef())
+   {
       dealloc();
+   }
 
-   int size = stream->getByte();
+   int32_t size = stream->getByte();
    alloc(size);
 
-   stream->getData(mData, size);
-   mData[size] = 0;
+   stream->getData(_data, size);
+   _data[size] = 0;
 
    // was \0 already present?
-   while (size > 0 && mData[size - 1] == 0)
+   while (size > 0 && _data[size - 1] == 0)
+   {
       size--;
+   }
    setSize(size);
 }
 
-// write string to stream
 void String::write(Stream* stream)
 {
-   int len = size();
-   if (len > 255)
-      len = 255;
-
-   stream->writeByte(len);
-   stream->writeData(mData, len);
+   const int32_t length = std::min(size(), 255);
+   stream->writeByte(static_cast<uint8_t>(length));
+   stream->writeData(_data, length);
 }

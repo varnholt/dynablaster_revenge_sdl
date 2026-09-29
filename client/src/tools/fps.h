@@ -3,22 +3,20 @@
 // get the current framerate with get().
 // specify an averaging period (in number of frames) in the constructor
 
-#ifndef FPS_H
-#define FPS_H
+#pragma once
+
+#include <cstdint>
 
 class FPS
 {
-private:
-   int mPeriod;
-   float mCurFPS;
-   int mFrame;
-   int mTime;
-
 public:
-   FPS(int period = 100);
-   ~FPS();
+   FPS(int32_t period = 100);
    void next();
    float get();
-};
 
-#endif
+private:
+   int32_t _period = 1;
+   float _current_fps = 0.0f;
+   int32_t _frame = 0;
+   int32_t _time = 0;
+};

@@ -1,157 +1,93 @@
 #pragma once
 
-#include <cstring>
-#include "referenced.h"
+#include <algorithm>
+#include <cstdint>
+#include <vector>
 
+// 2d grid of non-owning item pointers
 template <class Item>
 class Map2d
 {
 public:
-   //! construct empty Map2d with given size (default: zero size, null pointer)
-   Map2d(int width = 0, int height = 0);
+   // construct Map2d with given size (default: zero size)
+   Map2d(int32_t width = 0, int32_t height = 0);
 
-   //! construct copy of given Map2d "other"
-   Map2d(const Map2d& other);
+   virtual ~Map2d() = default;
 
-   // delete the Map2d
-   virtual ~Map2d();
+   // initialize Map2d to given size, existing data is dropped
+   void init(int32_t width, int32_t height);
 
-   //! assignment operator
-   Map2d<Item>& operator=(const Map2d<Item>& list);
-
-   // initialize Map2d to given size
-   // existing data will be deallocated
-   void init(int width, int height);
-
-   // remove all elements from the Map2d.
-   // capacity keeps the same, element count is set to 0
+   // reset all cells to null
    void clear();
 
-   // get item method
-   Item* get(int x, int y) const;
+   Item* get(int32_t x, int32_t y) const;
+   void set(int32_t x, int32_t y, const Item* item);
 
-   // add item
-   void set(int x, int y, const Item* item);
-
-   // return width of map
-   int width() const;
-
-   // return height of map
-   int height() const;
+   int32_t width() const;
+   int32_t height() const;
 
 protected:
-   Item** mData;  // Map2d of items
-   int mWidth;    // size of Map2d
-   int mHeight;   // size of Map2d
+   std::vector<Item*> _data;
+   int32_t _width = 0;
+   int32_t _height = 0;
 };
 
-//! construct empty Map2d
 template <class Item>
-Map2d<Item>::Map2d(int width, int height) : mData(0), mWidth(width), mHeight(height)
+Map2d<Item>::Map2d(int32_t width, int32_t height)
 {
-   init(mWidth, mHeight);
-}
-
-//! construct reference of given Map2d "a"
-template <class Item>
-Map2d<Item>::Map2d(const Map2d& a)
-{
-   init(a.width(), a.height());
-
-   for (int y = 0; y < a.width(); y++)
-   {
-      for (int x = 0; x < a.width(); x++)
-      {
-         Item* item = a.get(x, y);
-         set(x, y, item);
-      }
-   }
+   init(width, height);
 }
 
 template <class Item>
-Map2d<Item>::~Map2d()
+void Map2d<Item>::init(int32_t width, int32_t height)
 {
-   delete[] mData;
-}
-
-//! assignment operator: create reference of given Map2d
-template <class Item>
-Map2d<Item>& Map2d<Item>::operator=(const Map2d<Item>& a)
-{
-   init(a.width(), a.height());
-
-   for (int y = 0; y < a.height(); y++)
-   {
-      for (int x = 0; x < a.width(); x++)
-      {
-         Item* item = a.get(x, y);
-         set(x, y, item);
-      }
-   }
-
-   return *this;
-}
-
-//! init Map2d with given size
-template <class Item>
-void Map2d<Item>::init(int width, int height)
-{
-   if (mData)
-      delete[] mData;
-
    if (width > 0 && height > 0)
    {
-      mWidth = width;
-      mHeight = height;
-      mData = new Item*[width * height];
-      clear();
+      _width = width;
+      _height = height;
+      _data.assign(static_cast<size_t>(width) * height, nullptr);
    }
    else
    {
-      mWidth = 0;
-      mHeight = 0;
-      mData = 0;
+      _width = 0;
+      _height = 0;
+      _data.clear();
    }
 }
 
-//! clear Map2d
 template <class Item>
 void Map2d<Item>::clear()
 {
-   for (int i = 0; i < mWidth * mHeight; i++)
-      mData[i] = 0;
+   std::ranges::fill(_data, nullptr);
 }
 
-//! get item from Map2d at given "index"
 template <class Item>
-Item* Map2d<Item>::get(int x, int y) const
+Item* Map2d<Item>::get(int32_t x, int32_t y) const
 {
-   if (x >= 0 && x < mWidth && y >= 0 && y < mHeight)
-      return mData[y * mWidth + x];
-   else
-      return 0;
-}
-
-//! get item from Map2d at given "index"
-template <class Item>
-void Map2d<Item>::set(int x, int y, const Item* item)
-{
-   if (x >= 0 && x < mWidth && y >= 0 && y < mHeight)
+   if (x >= 0 && x < _width && y >= 0 && y < _height)
    {
-      mData[y * mWidth + x] = (Item*)item;
+      return _data[y * _width + x];
+   }
+   return nullptr;
+}
+
+template <class Item>
+void Map2d<Item>::set(int32_t x, int32_t y, const Item* item)
+{
+   if (x >= 0 && x < _width && y >= 0 && y < _height)
+   {
+      _data[y * _width + x] = const_cast<Item*>(item);
    }
 }
 
-//! return number of items in the Map2d
 template <class Item>
-int Map2d<Item>::width() const
+int32_t Map2d<Item>::width() const
 {
-   return mWidth;
+   return _width;
 }
 
-//! return height of map
 template <class Item>
-int Map2d<Item>::height() const
+int32_t Map2d<Item>::height() const
 {
-   return mHeight;
+   return _height;
 }
