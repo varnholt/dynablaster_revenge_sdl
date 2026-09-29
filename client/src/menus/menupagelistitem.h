@@ -1,54 +1,42 @@
 #pragma once
 
-// base
 #include "framework/frametimer.h"
 #include "menupageitem.h"
 #include "signal.h"
 
-// math
 #include "math/color.h"
 
+#include <array>
+#include <cstdint>
+#include <memory>
 #include <vector>
 
 class Clipper;
 class MenuPageListItemElement;
 
-/// \brief GLES3 port of client/src/menus/menupagelistitem.cpp.
-///
-/// setRegExp()/mRegexp are dropped, same as MenuPageTextEditItem - QRegExp doesn't exist in Qt6
-/// and the field was already dead (set into each element, never read there either).
-/// ShaderPool is not ported (see project memory) - the listhighlight shader is loaded/bound
-/// through GLDevice::loadShader/setShader instead, same as every material in engine/materials.
-/// The legacy glBegin(GL_QUADS)/glMultiTexCoord2f per-row draw becomes a small dynamic vertex
-/// buffer (pos + two texcoord sets) drawn as two triangles, rebuilt once per row per frame -
-/// same treatment as MenuPageBackgroundItem's animated quad.
+/// \brief scrollable list of text rows; rows are drawn with the listhighlight shader as small
+/// dynamic vertex buffers (pos + two texcoord sets), rebuilt once per row per frame.
 class MenuPageListItem : public MenuPageItem
 {
 public:
    MenuPageListItem();
+   ~MenuPageListItem() override;
 
-   virtual ~MenuPageListItem();
+   void initialize() override;
 
-   // main
+   void draw() override;
 
-   virtual void initialize();
+   void setFontName(const std::string& font_name);
 
-   virtual void draw();
+   void setFontXOffset(int x_offset);
 
-   void setFontName(const std::string& fontName);
+   void setFontYOffset(int y_offset);
 
-   void setFontXOffset(int xOffset);
-
-   void setFontYOffset(int yOffset);
-
-   void setFieldWidth(int maxChars);
+   void setFieldWidth(int field_width);
 
    void setScale(float scale);
 
    void setRowHeight(int height);
-
-   //! getter for list item elements
-   std::vector<MenuPageListItemElement*>* getElements() const;
 
    //! getter for element at i
    MenuPageListItemElement* getElementAt(int i) const;
@@ -81,8 +69,8 @@ public:
    virtual void appendItem(
       const std::string& item,
       const Color& color = Color("#FFFFFF"),
-      bool overrideAlpha = false,
-      const Color& outlineColor = Color()
+      bool override_alpha = false,
+      const Color& outline_color = Color()
    );
 
    //! clear all items from the list
@@ -97,13 +85,11 @@ public:
    //! set row alphas
    void setRowAlphas(int row0, int row1);
 
-   // overwritten
+   bool hasNestedElements() override;
 
-   virtual bool hasNestedElements();
+   void mouseMoved(int x, int y) override;
 
-   virtual void mouseMoved(int x, int y);
-
-   virtual void mousePressed(int x, int y);
+   void mousePressed(int x, int y) override;
 
    virtual void setLayerFirstElement(PSDLayer* layer);
    virtual void setLayerDefaultElement(PSDLayer* layer);
@@ -137,7 +123,7 @@ public:
    //! setter for y offset dest
    void setYOffsetDest(float value);
 
-   virtual void animate(float time);
+   void animate(float time) override;
 
    virtual void scrollUp();
 
@@ -175,7 +161,7 @@ protected:
    PSDLayer* bindRowTexture(int row, float& u, float& v, float& s, float& t);
 
    //! generate a new item instance
-   MenuPageListItemElement* itemInstance();
+   std::unique_ptr<MenuPageListItemElement> itemInstance();
 
    //! initialize item instance
    void initializeItem(MenuPageListItemElement* element, int index);
@@ -190,7 +176,7 @@ protected:
    virtual int getMaxTableWidth() const;
 
    //! set alpha value for given element
-   void selectAlpha(int rowToggle, MenuPageListItemElement* element);
+   void selectAlpha(int row_toggle, MenuPageListItemElement* element);
 
    //! update scrollbars depending on current offset
    void updateScrollbars();
@@ -199,104 +185,67 @@ protected:
    void limitY(float& y);
 
    //! update focussed element from given relative y position
-   void updateFocussedElement(int relY);
+   void updateFocussedElement(int relative_y);
 
    //! clipper to clip table to
-   Clipper* mClipper;
+   std::unique_ptr<Clipper> _clipper;
 
-   //! list of items
-   mutable std::vector<MenuPageListItemElement*> mElements;
+   std::vector<std::unique_ptr<MenuPageListItemElement>> _elements;
 
    //! time elapsed used for scrolling animation
-   FrameTimer mElapsed;
+   FrameTimer _elapsed;
 
    // offset
-
-   float mX;
-
-   float mY;
+   float _x = 0.0f;
+   float _y = 0.0f;
 
    // dimensions
-
-   float mWidthAllElements;
-
-   float mHeightAllElements;
+   float _width_all_elements = 0.0f;
+   float _height_all_elements = 0.0f;
 
    // properties for single lineedits
+   std::string _font_name;
+   int _font_x_offset = 0;
+   int _font_y_offset = 0;
+   int _field_width = 255;
+   float _scale = 0.0f;
 
-   std::string mFontName;
+   float _scroll_value = 0.0f;
+   int _vertical_spacing = 0;
+   int _row_height = 0;
+   int _focussed_element = 0;
+   int _active_element = 0;
+   bool _scrolling_active = false;
+   bool _highlighting_active = true;
 
-   int mFontXOffset;
-
-   int mFontYOffset;
-
-   int mFieldWidth;
-
-   float mScale;
-
-   float mScrollValue;
-
-   int mVerticalSpacing;
-
-   int mRowHeight;
-
-   int mFocussedElement;
-
-   int mActiveElement;
-
-   bool mScrollingActive;
-
-   bool mHighlightingActive;
-
-   // individual layers for elements (to be used by comboboxes etc)
-
-   //! first element layer
-   PSDLayer* mLayerFirstElement;
-
-   //! default element layer
-   PSDLayer* mLayerDefaultElement;
-
-   //! last element layer
-   PSDLayer* mLayerLastElement;
-
-   //! gradient layer
-   PSDLayer* mLayerGradient;
-
-   //! selected element layer
-   PSDLayer* mLayerSelectedElement;
-
-   //! focussed element layer
-   PSDLayer* mLayerFocussedElement;
+   // individual layers for elements (to be used by comboboxes etc), non-owning
+   PSDLayer* _layer_first_element = nullptr;
+   PSDLayer* _layer_default_element = nullptr;
+   PSDLayer* _layer_last_element = nullptr;
+   PSDLayer* _layer_gradient = nullptr;
+   PSDLayer* _layer_selected_element = nullptr;
+   PSDLayer* _layer_focussed_element = nullptr;
 
    //! listhighlight shader and its uniform locations
-   unsigned int mShader;
-   int mParamTextureClamp;
-   int mParamTextureHighlight;
-   int mParamRowAlpha;
+   uint32_t _shader = 0;
+   int _param_texture_clamp = 0;
+   int _param_texture_highlight = 0;
+   int _param_row_alpha = 0;
 
    //! per-row dynamic vertex buffer (pos + uvClamp + uvHighlight), rebuilt every draw
-   unsigned int mRowVertexBuffer;
+   uint32_t _row_vertex_buffer = 0;
 
-   //! alphas
-   int mRowAlpha[2];
+   std::array<int, 2> _row_alpha = {15, 20};
 
    // blend between two positions
+   FrameTimer _blend_timer;
+   float _blend_duration = 0.0f;
+   float _y_offset_source = 0.0f;
+   float _y_offset_destination = 0.0f;
 
-   //! blend timer
-   FrameTimer mBlendTimer;
-
-   //! blend duration
-   float mBlendDuration;
-
-   //! source mY
-   float mYOffsetSource;
-
-   //! destination mY
-   float mYOffsetDest;
-
-   //! copy of dest
-   float mYDest;
+   //! copy of destination
+   float _y_destination = 0.0f;
 
    //! last mouse y position
-   int mMouseY;
+   int _mouse_y = 0;
 };

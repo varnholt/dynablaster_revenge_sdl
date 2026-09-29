@@ -1,25 +1,23 @@
 #pragma once
 
-// base
 #include "menupageitem.h"
 #include "signal.h"
 
 class MenuPageSliderItem : public MenuPageItem
 {
 public:
-   //! constructor
    MenuPageSliderItem();
 
-   virtual bool isGrabbingMouseEvents();
+   bool isGrabbingMouseEvents() override;
 
-   virtual void mousePressed(int x, int y);
+   void mousePressed(int x, int y) override;
 
-   virtual void mouseMoved(int x, int y);
+   void mouseMoved(int x, int y) override;
 
-   virtual void mouseReleased();
+   void mouseReleased() override;
 
-   void setMinimum(int min);
-   void setMaximum(int max);
+   void setMinimum(int minimum);
+   void setMaximum(int maximum);
 
    int getMinimum() const;
    int getMaximum() const;
@@ -31,10 +29,10 @@ public:
    Signal<float> valueChangedSignal;
 
 protected:
-   int mMinimum;
-   int mMaximum;
+   int _minimum = 0;
+   int _maximum = 0;
 
-   float mValue;
+   float _value = 0.0f;
 
-   int mRelativeToX;
+   int _relative_to_x = 0;
 };

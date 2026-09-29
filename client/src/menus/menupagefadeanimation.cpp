@@ -1,20 +1,7 @@
 #include "menupagefadeanimation.h"
 
 #include <cmath>
-namespace
-{
-// MSVC only defines kPi when _USE_MATH_DEFINES is set before every <math.h>/<cmath> include
-// site (fragile project-wide), so this is a self-contained local constant instead.
-constexpr float kPi = 3.14159265358979323846f;
-}  // namespace
-
-MenuPageFadeAnimation::MenuPageFadeAnimation() : MenuPageAnimation(), mStopped(false), mFadeIn(false), mAlpha(0.0f)
-{
-}
-
-MenuPageFadeAnimation::~MenuPageFadeAnimation()
-{
-}
+#include <numbers>
 
 void MenuPageFadeAnimation::initialize()
 {
@@ -22,69 +9,62 @@ void MenuPageFadeAnimation::initialize()
 
 float MenuPageFadeAnimation::getAlpha() const
 {
-   return mAlpha;
+   return _alpha;
 }
 
 void MenuPageFadeAnimation::setAlpha(float alpha)
 {
-   mAlpha = alpha;
+   _alpha = alpha;
 }
 
-void MenuPageFadeAnimation::setFadeIn(bool fadeIn)
+void MenuPageFadeAnimation::setFadeIn(bool fade_in)
 {
-   mFadeIn = fadeIn;
+   _fade_in = fade_in;
 }
 
 void MenuPageFadeAnimation::start()
 {
-   if (mFadeIn)
-      mAlpha = 0.0f;
-   else
-      mAlpha = 1.0f;
-
-   mStopped = false;
-   mElapsed.restart();
+   _alpha = _fade_in ? 0.0f : 1.0f;
+   _stopped = false;
+   _elapsed.restart();
 }
 
 void MenuPageFadeAnimation::animate()
 {
-   if (!mStopped)
+   if (_stopped)
    {
-      float elapsed = mElapsed.elapsed() * 0.002f;
+      return;
+   }
 
-      float val = 0.0f;
+   constexpr float half_pi = std::numbers::pi_v<float> * 0.5f;
+   const float elapsed = _elapsed.elapsed() * 0.002f;
 
-      if (mFadeIn)
-      {
-         if (elapsed <= kPi * 0.5f)
-            val = std::sin(elapsed);
-         else
-            val = 1.0f;
-      }
-      else
-      {
-         if (elapsed <= kPi * 0.5f)
-            val = std::cos(elapsed);
-         else
-            val = 0.0f;
-      }
+   float value = 0.0f;
 
-      setAlpha(val);
+   if (_fade_in)
+   {
+      value = (elapsed <= half_pi) ? std::sin(elapsed) : 1.0f;
+   }
+   else
+   {
+      value = (elapsed <= half_pi) ? std::cos(elapsed) : 0.0f;
+   }
 
-      if (elapsed > kPi * 0.5f)
-      {
-         mStopped = true;
-         stoppedSignal();
-      }
+   setAlpha(value);
+
+   if (elapsed > half_pi)
+   {
+      _stopped = true;
+      stoppedSignal();
    }
 }
 
 bool MenuPageFadeAnimation::isStopped() const
 {
-   return mStopped;
+   return _stopped;
 }
 
 void MenuPageFadeAnimation::setStopped(bool value)
 {
-   mStopped = value;
+   _stopped = value;
 }

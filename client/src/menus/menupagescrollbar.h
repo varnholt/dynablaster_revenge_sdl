@@ -8,13 +8,13 @@ class MenuPageScrollbar : public MenuPageItem
 public:
    MenuPageScrollbar();
 
-   virtual bool isGrabbingMouseEvents();
+   bool isGrabbingMouseEvents() override;
 
-   virtual void mousePressed(int x, int y);
+   void mousePressed(int x, int y) override;
 
-   virtual void mouseMoved(int x, int y);
+   void mouseMoved(int x, int y) override;
 
-   virtual void mouseReleased();
+   void mouseReleased() override;
 
    void setHeight(int);
 
@@ -25,17 +25,13 @@ public:
    Signal<float> scrollToPercentageSignal;
 
 protected:
-   int mPosition;
-
-   int mHeight;
-
-   int mTop;
-
-   float mOffset;
-
-   int mRelativeToY;
+   int _position = 0;
+   int _height = 0;
+   int _top = 0;
+   float _offset = 0.0f;
+   int _relative_to_y = 0;
 
    //! suppresses scrollToPercentageSignal while updateFromAnimation() drives mouseMoved()
    //! programmatically, to avoid feeding the table's own scrollAnimation update straight back to it
-   bool mSignalsBlocked;
+   bool _signals_blocked = false;
 };

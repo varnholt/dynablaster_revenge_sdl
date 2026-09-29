@@ -8,7 +8,6 @@
 class MenuPageItem
 {
 public:
-   //! page item types
    enum PageItemType
    {
       PageItemTypeUnknown,
@@ -27,10 +26,8 @@ public:
       PageItemTypeTextedit
    };
 
-   //!
-   MenuPageItem();
-
-   virtual ~MenuPageItem();
+   MenuPageItem() = default;
+   virtual ~MenuPageItem() = default;
 
    PageItemType getPageItemType() const;
 
@@ -89,7 +86,7 @@ public:
    bool isEnabled() const;
 
    //! setter for tab index
-   void setTabIndex(int tabIndex);
+   void setTabIndex(int tab_index);
 
    //! getter for tab index
    int getTabIndex() const;
@@ -108,10 +105,10 @@ public:
    //! mouse released
    virtual void mouseReleased();
 
-   //! setter for parent item
+   //! getter for parent item
    MenuPageItem* getParent() const;
 
-   //! getter for parent item
+   //! setter for parent item
    void setParent(MenuPageItem* value);
 
    //! action was triggered
@@ -148,37 +145,21 @@ public:
    virtual void setEnabled(bool enabled);
 
 protected:
-   //! page item type
-   PageItemType mPageItemType;
+   PageItemType _page_item_type = PageItemTypeUnknown;
 
-   // behaviour
+   std::string _action;
 
-   std::string mAction;
+   // non-owning, the layers belong to the MenuPage
+   PSDLayer* _layer_active = nullptr;
+   PSDLayer* _layer_inactive = nullptr;
 
-   // layer info
+   bool _focussed = false;
+   bool _interactive = false;
+   bool _active = false;
+   bool _visible = true;
+   bool _enabled = true;
 
-   PSDLayer* mLayerActive;
+   int _tab_index = -1;
 
-   PSDLayer* mLayerInactive;
-
-   // states
-
-   bool mFocussed;
-
-   bool mInteractive;
-
-   bool mActive;
-
-   bool mVisible;
-
-   bool mEnabled;
-
-   // item tab index
-
-   int mTabIndex;
-
-   // items may have a parent item
-
-   //! parent item
-   MenuPageItem* mParent;
+   MenuPageItem* _parent = nullptr;
 };

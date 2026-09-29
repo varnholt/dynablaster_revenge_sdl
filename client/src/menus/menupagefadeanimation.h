@@ -6,15 +6,11 @@
 class MenuPageFadeAnimation : public MenuPageAnimation
 {
 public:
-   MenuPageFadeAnimation();
-
-   virtual ~MenuPageFadeAnimation();
-
    void setAlpha(float);
 
    void setFadeIn(bool);
 
-   virtual void initialize();
+   void initialize() override;
 
    float getAlpha() const;
 
@@ -22,16 +18,14 @@ public:
 
    void setStopped(bool value);
 
-   virtual void start();
+   void start() override;
 
-   virtual void animate();
+   void animate() override;
 
 private:
-   FrameTimer mElapsed;
+   FrameTimer _elapsed;
 
-   bool mStopped;
-
-   bool mFadeIn;
-
-   float mAlpha;
+   bool _stopped = false;
+   bool _fade_in = false;
+   float _alpha = 0.0f;
 };

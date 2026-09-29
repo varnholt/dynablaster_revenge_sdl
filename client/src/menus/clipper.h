@@ -15,30 +15,29 @@ public:
    };
 
    Clipper(float left, float top, float right, float bottom);
-   ~Clipper();
 
    void setBounds(float left, float top, float right, float bottom);
 
    Array<Vertex> clip(const Array<Vertex>& vertices);
    void enable();
-   bool enable(const Array<Vertex>& sourceBounding);
+   bool enable(const Array<Vertex>& source_bounding);
    void disable();
    bool visible(const Array<Vertex>& vertices) const;
    float getWidth() const;
    float getHeight() const;
 
 private:
-   int getClipFlags(const Vertex& v) const;
+   int getClipFlags(const Vertex& vertex) const;
    Array<Vertex> clipRight(const Array<Vertex>& vertices);
    Array<Vertex> clipLeft(const Array<Vertex>& vertices);
    Array<Vertex> clipTop(const Array<Vertex>& vertices);
    Array<Vertex> clipBottom(const Array<Vertex>& vertices);
 
-   float mLeft;
-   float mTop;
-   float mRight;
-   float mBottom;
-   float mScreenWidth;
-   float mScreenHeight;
-   bool mEnabled;
+   float _left;
+   float _top;
+   float _right;
+   float _bottom;
+   float _screen_width = 1920.0f;
+   float _screen_height = 1080.0f;
+   bool _enabled = false;
 };

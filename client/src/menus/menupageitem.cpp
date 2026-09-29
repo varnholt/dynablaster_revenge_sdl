@@ -1,25 +1,8 @@
 #include "menupageitem.h"
 
-MenuPageItem::MenuPageItem()
-    : mPageItemType(PageItemTypeUnknown),
-      mLayerActive(0),
-      mLayerInactive(0),
-      mFocussed(false),
-      mInteractive(false),
-      mActive(false),
-      mVisible(true),
-      mEnabled(true),
-      mTabIndex(-1)
-{
-}
-
-MenuPageItem::~MenuPageItem()
-{
-}
-
 MenuPageItem::PageItemType MenuPageItem::getPageItemType() const
 {
-   return mPageItemType;
+   return _page_item_type;
 }
 
 void MenuPageItem::initialize()
@@ -28,22 +11,22 @@ void MenuPageItem::initialize()
 
 void MenuPageItem::setActiveLayer(PSDLayer* layer)
 {
-   mLayerActive = layer;
+   _layer_active = layer;
 }
 
 void MenuPageItem::setInactiveLayer(PSDLayer* layer)
 {
-   mLayerInactive = layer;
+   _layer_inactive = layer;
 }
 
 void MenuPageItem::setFocus(bool focus)
 {
-   mFocussed = focus;
+   _focussed = focus;
 }
 
 bool MenuPageItem::isFocussed() const
 {
-   return mFocussed;
+   return _focussed;
 }
 
 bool MenuPageItem::isModal() const
@@ -53,7 +36,7 @@ bool MenuPageItem::isModal() const
 
 void MenuPageItem::activated()
 {
-   actionSignal(mAction);
+   actionSignal(_action);
 }
 
 void MenuPageItem::deactivated()
@@ -62,64 +45,59 @@ void MenuPageItem::deactivated()
 
 void MenuPageItem::setInteractive(bool interactive)
 {
-   mInteractive = interactive;
+   _interactive = interactive;
 }
 
 bool MenuPageItem::isInteractive()
 {
-   return mInteractive;
+   return _interactive;
 }
 
 void MenuPageItem::setAction(const std::string& action)
 {
-   mAction = action;
+   _action = action;
 }
 
 bool MenuPageItem::isActive()
 {
-   return mActive;
+   return _active;
 }
 
 void MenuPageItem::setActive(bool active)
 {
-   mActive = active;
+   _active = active;
 }
 
 void MenuPageItem::draw()
 {
    if (isVisible())
    {
-      PSDLayer* psdLayer = getLayer();
-
-      if (psdLayer)
-         psdLayer->render();
+      if (PSDLayer* psd_layer = getLayer())
+      {
+         psd_layer->render();
+      }
    }
 }
 
 PSDLayer* MenuPageItem::getLayer() const
 {
-   PSDLayer* layer = isFocussed() ? mLayerActive : mLayerInactive;
-
-   return layer;
+   return isFocussed() ? _layer_active : _layer_inactive;
 }
 
 PSD::Layer* MenuPageItem::getCurrentLayer()
 {
    PSDLayer* layer = getLayer();
-   if (layer)
-      return layer->getLayer();
-   else
-      return 0;
+   return layer ? layer->getLayer() : nullptr;
 }
 
 PSDLayer* MenuPageItem::getActiveLayer()
 {
-   return mLayerActive;
+   return _layer_active;
 }
 
 PSDLayer* MenuPageItem::getInactiveLayer()
 {
-   return mLayerInactive;
+   return _layer_inactive;
 }
 
 void MenuPageItem::keyPressed(int /*key*/, const std::string& /*text*/)
@@ -128,17 +106,17 @@ void MenuPageItem::keyPressed(int /*key*/, const std::string& /*text*/)
 
 void MenuPageItem::setEnabled(bool enabled)
 {
-   mEnabled = enabled;
+   _enabled = enabled;
 }
 
 MenuPageItem* MenuPageItem::getParent() const
 {
-   return mParent;
+   return _parent;
 }
 
 void MenuPageItem::setParent(MenuPageItem* value)
 {
-   mParent = value;
+   _parent = value;
 }
 
 bool MenuPageItem::hasNestedElements()
@@ -164,30 +142,30 @@ void MenuPageItem::mouseReleased()
    mouseReleasedSignal();
 }
 
-void MenuPageItem::setVisible(bool enabled)
+void MenuPageItem::setVisible(bool visible)
 {
-   mVisible = enabled;
-   visibleSignal(enabled);
+   _visible = visible;
+   visibleSignal(visible);
 }
 
 bool MenuPageItem::isVisible() const
 {
-   return mVisible;
+   return _visible;
 }
 
 bool MenuPageItem::isEnabled() const
 {
-   return mEnabled;
+   return _enabled;
 }
 
-void MenuPageItem::setTabIndex(int tabIndex)
+void MenuPageItem::setTabIndex(int tab_index)
 {
-   mTabIndex = tabIndex;
+   _tab_index = tab_index;
 }
 
 int MenuPageItem::getTabIndex() const
 {
-   return mTabIndex;
+   return _tab_index;
 }
 
 bool MenuPageItem::isActionRequestOnClickEnabled() const

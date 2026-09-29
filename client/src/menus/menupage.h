@@ -1,10 +1,8 @@
 #pragma once
 
-// shared
 #include "settings.h"
 #include "signal.h"
 
-// menus
 #include "image/psd.h"
 
 #include <map>
@@ -12,31 +10,21 @@
 #include <string>
 #include <vector>
 
-// forward declarations
 class MenuPageItem;
 class MenuPageAnimation;
 class PSDLayer;
 
-/// \brief GLES3-era port of client/src/menus/menupage.cpp.
-///
-/// initializePageItems()'s dispatch covers every branch any of the 9 real menu pages actually use
-/// (confirmed by scanning all 9 PSDs' real layer names - see project memory): combobox,
-/// editablecombobox, checkbox, button, label, lineedit, background, pixmap, table_*_main/
-/// scroll_up/scroll_down/scrollbar/scroll_slider, slider_, image_scroll, plus the catch-all
-/// default item. Not ported at all, because MenuPage::initializePageItems() never dispatches to
-/// them for ANY real page (confirmed: no "radio"/"colorselect" dispatch exists in the original
-/// menupage.cpp either - genuinely dead code upstream): MenuPageRadioButtonItem,
-/// MenuPageColorSelectItem.
-///
-/// The QRegExp-driven "*_input_regexp" ini key is no longer read - MenuPageTextEditItem and
-/// MenuPageListItem dropped setRegExp()/mRegexp entirely (QRegExp doesn't exist in Qt6, and the
-/// field was dead upstream anyway - see those classes).
+/// \brief one menu page built from a PSD file: every layer becomes a PSDLayer, and layers are
+/// grouped into page items by their name prefix (combobox, editablecombobox, checkbox, button,
+/// label, lineedit, background, pixmap, table_*, slider_, image_scroll, default item).
 class MenuPage : public PSD
 {
 public:
    MenuPage();
+   ~MenuPage();
 
-   virtual ~MenuPage();
+   MenuPage(const MenuPage&) = delete;
+   MenuPage& operator=(const MenuPage&) = delete;
 
    void setTitle(const std::string&);
 
@@ -46,7 +34,7 @@ public:
 
    void initialize();
 
-   std::vector<MenuPageItem*>* getPageItems();
+   const std::vector<std::unique_ptr<MenuPageItem>>& getPageItems() const;
 
    void setActive(bool);
 
@@ -56,37 +44,37 @@ public:
 
    MenuPageAnimation* getAnimation();
 
-   MenuPageItem* getPageItem(const std::string& layerName) const;
+   MenuPageItem* getPageItem(const std::string& layer_name) const;
 
-   MenuPageItem* processLabel(PSDLayer* layer, std::string layerName);
+   MenuPageItem* processLabel(PSDLayer* layer, std::string layer_name);
 
-   MenuPageItem* processLineEdit(PSDLayer* layer, std::string layerName);
+   MenuPageItem* processLineEdit(PSDLayer* layer, std::string layer_name);
 
-   MenuPageItem* processBackground(PSDLayer* layer, std::string layerName);
+   MenuPageItem* processBackground(PSDLayer* layer, std::string layer_name);
 
-   MenuPageItem* processTableMain(PSDLayer* layer, std::string layerName);
+   MenuPageItem* processTableMain(PSDLayer* layer, std::string layer_name);
 
-   MenuPageItem* processTableScrollButtons(PSDLayer* layer, std::string layerName);
+   MenuPageItem* processTableScrollButtons(PSDLayer* layer, std::string layer_name);
 
-   MenuPageItem* processTableScrollBar(PSDLayer* layer, std::string layerName);
+   MenuPageItem* processTableScrollBar(PSDLayer* layer, std::string layer_name);
 
-   MenuPageItem* processTableScrollBarSlider(PSDLayer* layer, std::string layerName);
+   MenuPageItem* processTableScrollBarSlider(PSDLayer* layer, std::string layer_name);
 
-   MenuPageItem* processSliderScrollBarIcons(PSDLayer* layer, std::string layerName);
+   MenuPageItem* processSliderScrollBarIcons(PSDLayer* layer, std::string layer_name);
 
-   MenuPageItem* processScrollImage(PSDLayer* layer, std::string layerName);
+   MenuPageItem* processScrollImage(PSDLayer* layer, std::string layer_name);
 
-   MenuPageItem* processCheckBox(PSDLayer* layer, std::string layerNameWithoutPostfix, std::string layerName);
+   MenuPageItem* processCheckBox(PSDLayer* layer, std::string layer_name_without_postfix, std::string layer_name);
 
-   MenuPageItem* processPixmap(PSDLayer* layer, std::string layerName);
+   MenuPageItem* processPixmap(PSDLayer* layer, std::string layer_name);
 
-   MenuPageItem* processDefaultItem(PSDLayer* layer, std::string layerName);
+   MenuPageItem* processDefaultItem(PSDLayer* layer, std::string layer_name);
 
-   MenuPageItem* processButton(PSDLayer* layer, std::string layerName, std::string layerNameWithoutPostfix);
+   MenuPageItem* processButton(PSDLayer* layer, std::string layer_name, std::string layer_name_without_postfix);
 
-   MenuPageItem* processComboBox(PSDLayer* layer, std::string layerName);
+   MenuPageItem* processComboBox(PSDLayer* layer, std::string layer_name);
 
-   MenuPageItem* processEditableComboBox(PSDLayer* layer, std::string layerName);
+   MenuPageItem* processEditableComboBox(PSDLayer* layer, std::string layer_name);
 
    //! getter for the active item
    MenuPageItem* getActiveItem() const;
@@ -130,7 +118,7 @@ public:
 
 protected:
    //! send out an action request
-   void actionRequestFromItem(const std::string& actionRequest);
+   void actionRequestFromItem(const std::string& action_request);
 
    //! initialize layers
    void initializeLayers();
@@ -144,28 +132,30 @@ protected:
    //! tab pressed
    void tabPressed();
 
-   // page item information
+   //! creates a page item owned by this page
+   template <typename T>
+   T* addPageItem();
 
-   std::vector<MenuPageItem*> mPageItems;
+   // declared before the items so the items (which observe the layers) are destroyed first
+   std::vector<std::unique_ptr<PSDLayer>> _render_layers;
 
-   std::map<std::string, MenuPageItem*> mPageItemNameMap;
+   std::vector<std::unique_ptr<MenuPageItem>> _page_items;
 
-   std::vector<PSDLayer*> mRenderLayers;
+   // non-owning lookup into _page_items
+   std::map<std::string, MenuPageItem*> _page_item_name_map;
 
-   // page information
+   std::string _title;
 
-   std::string mTitle;
+   std::string _filename;
 
-   std::string mFilename;
+   std::unique_ptr<Settings> _settings;
 
-   std::unique_ptr<Settings> mSettings;
+   //! focussed item (non-owning)
+   MenuPageItem* _active_item = nullptr;
 
-   //! focussed item
-   MenuPageItem* mActiveItem;
-
-   //! page animation
-   MenuPageAnimation* mAnimation;
+   //! page animation (non-owning, owned by MenuDrawable)
+   MenuPageAnimation* _animation = nullptr;
 
    //! page is active
-   bool mActive;
+   bool _active = false;
 };

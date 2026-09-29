@@ -1,190 +1,155 @@
 #include "menu.h"
 
 #include <algorithm>
-#include <cstdlib>
 
-Menu* Menu::lInstance = 0;
+Menu* Menu::_instance = nullptr;
 
-Menu::Menu() : mCurrentPage(0), mBackground(0), mMenuWorkflow(0)
+Menu::Menu()
 {
-   mSettings = std::make_unique<Settings>("data/menus/menu.ini", Settings::IniFormat);
+   _settings = std::make_unique<Settings>("data/menus/menu.ini", Settings::IniFormat);
 
-   lInstance = this;
+   _instance = this;
 }
 
-Menu::Menu(const Menu& /*menu*/) : mCurrentPage(0), mBackground(0), mMenuWorkflow(0)
-{
-   std::abort();
-}
-
-Menu::~Menu()
-{
-   for (MenuPage* page : mPages)
-   {
-      delete page;
-   }
-
-   mPages.clear();
-}
+Menu::~Menu() = default;
 
 void Menu::initialize()
 {
    // assign 1 psd for each page
-   mSettings->beginGroup("pages");
-   const auto childKeys = mSettings->childKeys();
+   _settings->beginGroup("pages");
+   const auto child_keys = _settings->childKeys();
 
-   bool defaultAssigned = false;
-   for (const auto& childKey : childKeys)
+   bool default_assigned = false;
+   for (const auto& child_key : child_keys)
    {
-      const auto filename = mSettings->value(childKey).toString();
+      const auto filename = _settings->value(child_key).toString();
 
-      // create a new page
-      MenuPage* page = new MenuPage();
+      auto page = std::make_unique<MenuPage>();
 
-      page->setTitle(childKey);
+      page->setTitle(child_key);
       page->setFilename(filename);
       page->initialize();
 
-      // connect page actions to outside world
-      page->actionRequestSignal.connect([this](const std::string& p, const std::string& action) { actionRequestSignal(p, action); });
+      // connect page actions to outside world; the pages are owned by this menu
+      page->actionRequestSignal.connect([this](const std::string& page_name, const std::string& action)
+                                        { actionRequestSignal(page_name, action); });
 
-      page->actionKeyPressedSignal.connect([this](const std::string& p, const std::string& item, int key)
-                                           { actionKeyPressedSignal(p, item, key); });
+      page->actionKeyPressedSignal.connect([this](const std::string& page_name, const std::string& item, int key)
+                                           { actionKeyPressedSignal(page_name, item, key); });
 
-      page->layerFocussedSignal.connect([this](const std::string& p, const std::string& item) { layerFocussedSignal(p, item); });
-
-      // store page
-      mPages.push_back(page);
+      page->layerFocussedSignal.connect([this](const std::string& page_name, const std::string& item)
+                                        { layerFocussedSignal(page_name, item); });
 
       // assign "special" pages
       if (filename.contains("background"))
       {
-         mBackground = page;
+         _background = page.get();
       }
-      else
+      else if (!default_assigned)
       {
-         if (!defaultAssigned)
-         {
-            // assign default page
-            mCurrentPage = page;
-            mCurrentPage->setActive(true);
-
-            // default page is now assigned
-            defaultAssigned = true;
-         }
+         _current_page = page.get();
+         _current_page->setActive(true);
+         default_assigned = true;
       }
+
+      _pages.push_back(std::move(page));
    }
 
-   if (mBackground)
+   // the background page is always rendered first
+   if (_background)
    {
-      auto it = std::find(mPages.begin(), mPages.end(), mBackground);
+      const auto background = std::ranges::find_if(_pages, [this](const auto& page) { return page.get() == _background; });
 
-      if (it != mPages.end())
+      if (background != _pages.end())
       {
-         mPages.erase(it);
+         std::rotate(_pages.begin(), background, background + 1);
       }
-
-      mPages.insert(mPages.begin(), mBackground);
    }
 
-   mSettings->endGroup();
+   _settings->endGroup();
 }
 
 Menu* Menu::getInstance()
 {
-   return lInstance;
+   return _instance;
 }
 
 void Menu::mouseMoved(int x, int y)
 {
-   if (mCurrentPage)
+   if (_current_page)
    {
-      mCurrentPage->mouseMoved(x, y);
+      _current_page->mouseMoved(x, y);
    }
 }
 
 void Menu::mousePressed(int x, int y)
 {
-   if (mCurrentPage)
+   if (_current_page)
    {
-      mCurrentPage->mousePressed(x, y);
+      _current_page->mousePressed(x, y);
    }
 }
 
 void Menu::mouseReleased()
 {
-   if (mCurrentPage)
+   if (_current_page)
    {
-      mCurrentPage->mouseReleased();
+      _current_page->mouseReleased();
    }
 }
 
 void Menu::keyPressed(int key, const std::string& text)
 {
-   if (mCurrentPage)
+   if (_current_page)
    {
-      mCurrentPage->keyPressed(key, text);
+      _current_page->keyPressed(key, text);
    }
 }
 
 void Menu::paste(const std::string& text)
 {
-   if (mCurrentPage)
+   if (_current_page)
    {
-      mCurrentPage->paste(text);
+      _current_page->paste(text);
    }
 }
 
 void Menu::setCurrentPage(MenuPage* page)
 {
-   mCurrentPage = page;
+   _current_page = page;
 }
 
 MenuPage* Menu::getCurrentPage()
 {
-   return mCurrentPage;
+   return _current_page;
 }
 
 MenuPage* Menu::getBackground()
 {
-   return mBackground;
+   return _background;
 }
 
 void Menu::setMenuWorkflow(MenuWorkflow* workflow)
 {
-   mMenuWorkflow = workflow;
+   _menu_workflow = workflow;
 }
 
-void Menu::actionResponse(
-   const std::string& /*page*/,
-   const std::string& /*action*/,
-   bool /*ok*/
-)
+void Menu::actionResponse(const std::string& /*page*/, const std::string& /*action*/, bool /*ok*/)
 {
 }
 
-MenuPage* Menu::getPageByName(const std::string& pageName)
+MenuPage* Menu::getPageByName(const std::string& page_name)
 {
-   MenuPage* page = 0;
-
-   for (MenuPage* candidate : mPages)
-   {
-      if (candidate->getFilename() == pageName)
-      {
-         page = candidate;
-         break;
-      }
-   }
-
-   return page;
+   const auto iterator = std::ranges::find_if(_pages, [&page_name](const auto& page) { return page->getFilename() == page_name; });
+   return iterator != _pages.end() ? iterator->get() : nullptr;
 }
 
-const std::vector<MenuPage*>& Menu::getPages() const
+const std::vector<std::unique_ptr<MenuPage>>& Menu::getPages() const
 {
-   return mPages;
+   return _pages;
 }
 
 MenuWorkflow* Menu::getMenuWorkflow() const
 {
-   return mMenuWorkflow;
+   return _menu_workflow;
 }

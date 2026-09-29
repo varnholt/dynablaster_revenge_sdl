@@ -1,31 +1,24 @@
 #include "menupagelistitemelement.h"
 
-// framework
 #include "bitmapfont.h"
 #include "framework/gldevice.h"
 
-// math
 #include <cmath>
+
 MenuPageListItemElement::MenuPageListItemElement()
-    : MenuPageTextEditItem(), mIndex(0), mWidth(0), mHeight(0), mX(0.0f), mY(0.0f), mFadeOut(false), mFadeValue(0.0f), mOverrideAlpha(false)
 {
-   mPageItemType = PageItemTypeListElement;
+   _page_item_type = PageItemTypeListElement;
 }
 
-MenuPageListItemElement::~MenuPageListItemElement()
-{
-   delete mLayerActive;
-   mLayerActive = 0;
-
-   delete mLayerInactive;
-   mLayerInactive = 0;
-}
+MenuPageListItemElement::~MenuPageListItemElement() = default;
 
 void MenuPageListItemElement::initialize()
 {
    // create dummy layers
-   mLayerActive = new PSDLayer();
-   mLayerInactive = new PSDLayer();
+   _dummy_layer_active = std::make_unique<PSDLayer>();
+   _dummy_layer_inactive = std::make_unique<PSDLayer>();
+   _layer_active = _dummy_layer_active.get();
+   _layer_inactive = _dummy_layer_inactive.get();
 
    MenuPageTextEditItem::initialize();
 }
@@ -33,147 +26,143 @@ void MenuPageListItemElement::initialize()
 void MenuPageListItemElement::draw(float x, float y, float opacity)
 {
    const Color& rgb = getColor();
-   mFont->setColor(rgb.red() / 255.0f, rgb.green() / 255.0f, rgb.blue() / 255.0f, opacity);
+   _font->setColor(rgb.red() / 255.0f, rgb.green() / 255.0f, rgb.blue() / 255.0f, opacity);
 
    // draw item data
-   mFont->buildVertices(mScale, mText.c_str(), mX + x, mY + y + mHeight, -1, mHeight);
+   _font->buildVertices(_scale, _text.c_str(), _x + x, _y + y + _height, -1, _height);
 
    float r = 0.0f;
    float g = 0.0f;
    float b = 0.0f;
    float a = 0.0f;
-   if (mOutlineColor.isValid())
+   if (_outline_color.isValid())
    {
-      mFont->getOutlineColor(r, g, b, a);
-      mFont->setOutlineColor(mOutlineColor.redF(), mOutlineColor.greenF(), mOutlineColor.blueF(), mOutlineColor.alphaF());
+      _font->getOutlineColor(r, g, b, a);
+      _font->setOutlineColor(_outline_color.redF(), _outline_color.greenF(), _outline_color.blueF(), _outline_color.alphaF());
    }
 
-   mFont->draw();
+   _font->draw();
 
-   if (mOutlineColor.isValid())
-      mFont->setOutlineColor(r, g, b, a);
+   if (_outline_color.isValid())
+   {
+      _font->setOutlineColor(r, g, b, a);
+   }
 }
 
 void MenuPageListItemElement::setFocus(bool focus)
 {
    // focus lost, then fade out
-   if (mFocussed && !focus)
+   if (_focussed && !focus && !_active)
    {
-      if (!mActive)
-      {
-         mFadeOut = true;
-         mFocusOutTime.restart();
-      }
+      _fade_out = true;
+      _focus_out_time.restart();
    }
 
-   // call base
    MenuPageTextEditItem::setFocus(focus);
 }
 
 void MenuPageListItemElement::setActive(bool active)
 {
    // active flag lost, then fade out
-   if (mActive && !active)
+   if (_active && !active)
    {
-      mActive = true;
-      mFocusOutTime.restart();
+      _active = true;
+      _focus_out_time.restart();
    }
 
-   // call base
    MenuPageTextEditItem::setActive(active);
 }
 
 void MenuPageListItemElement::setIndex(int index)
 {
-   mIndex = index;
+   _index = index;
 }
 
 void MenuPageListItemElement::setHeight(int height)
 {
-   mHeight = height;
+   _height = height;
 }
 
 void MenuPageListItemElement::setWidth(int width)
 {
-   mWidth = width;
+   _width = width;
 }
 
 int MenuPageListItemElement::getHeight() const
 {
-   return mHeight;
+   return _height;
 }
 
 int MenuPageListItemElement::getWidth() const
 {
-   return mWidth;
+   return _width;
 }
 
 void MenuPageListItemElement::setX(float x)
 {
-   mX = x;
+   _x = x;
 }
 
 void MenuPageListItemElement::setY(float y)
 {
-   mY = y;
+   _y = y;
 }
 
 float MenuPageListItemElement::getX() const
 {
-   return mX;
+   return _x;
 }
 
 float MenuPageListItemElement::getY() const
 {
-   return mY;
+   return _y;
 }
 
 Array<Vertex> MenuPageListItemElement::getBoundingRectVertices(float x, float y)
 {
-   Array<Vertex> arr(4);
+   Array<Vertex> result(4);
 
-   arr.add(Vertex(x + mX, y + mY + mHeight, 0.0f, 1.0f));
+   result.add(Vertex(x + _x, y + _y + _height, 0.0f, 1.0f));
+   result.add(Vertex(x + _x + _width, y + _y + _height, 1.0f, 1.0f));
+   result.add(Vertex(x + _x + _width, y + _y, 1.0f, 0.0f));
+   result.add(Vertex(x + _x, y + _y, 0.0f, 0.0f));
 
-   arr.add(Vertex(x + mX + mWidth, y + mY + mHeight, 1.0f, 1.0f));
-
-   arr.add(Vertex(x + mX + mWidth, y + mY, 1.0f, 0.0f));
-
-   arr.add(Vertex(x + mX, y + mY, 0.0f, 0.0f));
-
-   return arr;
+   return result;
 }
 
 void MenuPageListItemElement::stopFadeOut()
 {
-   mFadeOut = false;
+   _fade_out = false;
 }
 
 bool MenuPageListItemElement::isFadingOut()
 {
-   return mFadeOut;
+   return _fade_out;
 }
 
 float MenuPageListItemElement::getFadeOutValue()
 {
-   float val = 0.0f;
+   float value = 0.0f;
 
    if (getFocusOutTime().elapsed() < 500)
-      val = std::cos(mFocusOutTime.elapsed() * 0.01);
+   {
+      value = std::cos(_focus_out_time.elapsed() * 0.01);
+   }
 
-   return val;
+   return value;
 }
 
-void MenuPageListItemElement::setOverrideAlpha(bool override)
+void MenuPageListItemElement::setOverrideAlpha(bool override_alpha)
 {
-   mOverrideAlpha = override;
+   _override_alpha = override_alpha;
 }
 
 bool MenuPageListItemElement::isOverrideAlphaActive() const
 {
-   return mOverrideAlpha;
+   return _override_alpha;
 }
 
 const FrameTimer& MenuPageListItemElement::getFocusOutTime() const
 {
-   return mFocusOutTime;
+   return _focus_out_time;
 }

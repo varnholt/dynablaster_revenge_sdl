@@ -8,7 +8,7 @@ class MenuPageCheckBoxItem : public MenuPageItem
 public:
    MenuPageCheckBoxItem();
 
-   virtual void draw();
+   void draw() override;
 
    virtual void setCheckedLayer(PSDLayer* layer);
 
@@ -18,24 +18,24 @@ public:
 
    virtual PSDLayer* getUncheckedLayer() const;
 
-   virtual PSDLayer* getLayer() const;
+   PSDLayer* getLayer() const override;
 
    bool isChecked() const;
 
    void setChecked(bool checked);
 
-   virtual void activated();
+   void activated() override;
 
-   virtual void deactivated();
+   void deactivated() override;
 
    Signal<> stateChangedSignal;
 
 protected:
    virtual void toggleChecked();
 
-   PSDLayer* mLayerChecked;
+   // non-owning, the layers belong to the MenuPage
+   PSDLayer* _layer_checked = nullptr;
+   PSDLayer* _layer_unchecked = nullptr;
 
-   PSDLayer* mLayerUnchecked;
-
-   bool mChecked;
+   bool _checked = false;
 };

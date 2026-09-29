@@ -4,6 +4,4 @@
 
 class MenuPagePixmapItem : public MenuPageItem
 {
-public:
-   MenuPagePixmapItem();
 };

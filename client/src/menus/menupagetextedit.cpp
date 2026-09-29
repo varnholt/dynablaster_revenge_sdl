@@ -1,7 +1,5 @@
-// header
 #include "menupagetextedit.h"
 
-// menus
 #include "fontpool.h"
 #include "framework/gldevice.h"
 #include "math/matrix.h"
@@ -9,69 +7,61 @@
 #include <SDL3/SDL_keycode.h>
 
 #include <algorithm>
+#include <array>
 #include <cstring>
 
-#define CURSOR_UPDATE_TIME 500
+namespace
+{
+constexpr float CURSOR_UPDATE_TIME = 500.0f;
+}
 
 MenuPageTextEditItem::MenuPageTextEditItem()
-    : mFont(0),
-      mFontXOffset(0),
-      mFontYOffset(0),
-      mFieldWidth(255),
-      mMaxLength(-1),
-      mScale(0.0f),
-      mEditingActive(false),
-      mCursorVisible(false),
-      mAlpha(255),
-      mCursorPosition(0),
-      mCursorTexture(0),
-      mCursorVertexBuffer(0)
 {
-   mPageItemType = PageItemTypeTextedit;
-   mInteractive = true;
+   _page_item_type = PageItemTypeTextedit;
+   _interactive = true;
 }
 
 void MenuPageTextEditItem::initialize()
 {
-   mFont = FontPool::Instance()->get(mFontName.c_str());
+   _font = FontPool::Instance()->get(_font_name.c_str());
 
    // init update timer
-   mTimer.setInterval(CURSOR_UPDATE_TIME);
+   _timer.setInterval(CURSOR_UPDATE_TIME);
 
-   mTimer.timeoutSignal.connect([this]() { updateCursorHighlight(); });
+   _timer.timeoutSignal.connect([this]() { updateCursorHighlight(); });
 }
 
 void MenuPageTextEditItem::draw()
 {
-   if (isVisible())
+   if (!isVisible())
    {
-      if (mColor.isValid())
-      {
-         mFont->setColor(mColor.redF(), mColor.greenF(), mColor.blueF(), mAlpha / 255.0f);
-      }
-      else
-      {
-         mFont->setColor(1.0f, 1.0f, 1.0f, mAlpha / 255.0f);
-      }
+      return;
+   }
 
-      /*
-               i0               i0+maxLength
-                [               ]
-         [ABCDEFGHIJKLMNOPQRSTUVWXYZ]
+   if (_color.isValid())
+   {
+      _font->setColor(_color.redF(), _color.greenF(), _color.blueF(), _alpha / 255.0f);
+   }
+   else
+   {
+      _font->setColor(1.0f, 1.0f, 1.0f, _alpha / 255.0f);
+   }
 
-      */
+   //        i0               i0+maxLength
+   //         [               ]
+   //  [ABCDEFGHIJKLMNOPQRSTUVWXYZ]
+   const int i0 = std::max(_cursor_position - getFieldWidth(), 0);
+   const std::string visible_text = _text.substr(std::min(static_cast<size_t>(i0), _text.size()), getFieldWidth());
 
-      int i0 = std::max(mCursorPosition - getFieldWidth(), 0);
-      const std::string visibleText = mText.substr(std::min(static_cast<size_t>(i0), mText.size()), getFieldWidth());
+   _font->buildVertices(
+      _scale, visible_text.c_str(), _layer_active->getLeft() + _font_x_offset, _layer_active->getBottom() + _font_y_offset
+   );
 
-      mFont->buildVertices(mScale, visibleText.c_str(), mLayerActive->getLeft() + mFontXOffset, mLayerActive->getBottom() + mFontYOffset);
+   _font->draw();
 
-      mFont->draw();
-
-      if (mEditingActive)
-      {
-         drawCursor();
-      }
+   if (_editing_active)
+   {
+      drawCursor();
    }
 }
 
@@ -82,18 +72,17 @@ void MenuPageTextEditItem::keyPressed(int key, const std::string& text)
       if (isCursorAtEnd())
       {
          // chop from end
-         if (!mText.empty())
-            mText.pop_back();
+         if (!_text.empty())
+         {
+            _text.pop_back();
+         }
          moveCursorLeft();
       }
-      else
+      else if (getCursorPosition() > 0)
       {
-         if (getCursorPosition() > 0)
-         {
-            // replace chars
-            mText.erase(getCursorPosition() - 1, 1);
-            moveCursorLeft();
-         }
+         // replace chars
+         _text.erase(getCursorPosition() - 1, 1);
+         moveCursorLeft();
       }
    }
    else if (key == SDLK_DELETE)
@@ -101,7 +90,7 @@ void MenuPageTextEditItem::keyPressed(int key, const std::string& text)
       if (!isCursorAtEnd())
       {
          // replace chars
-         mText.erase(getCursorPosition(), 1);
+         _text.erase(getCursorPosition(), 1);
       }
    }
    else if (key == SDLK_LEFT)
@@ -129,88 +118,90 @@ void MenuPageTextEditItem::keyPressed(int key, const std::string& text)
       if (isCursorAtEnd())
       {
          // append chars
-         if (static_cast<int>(mText.length()) < getMaxLength())
-            mText.append(text);
+         if (static_cast<int>(_text.length()) < getMaxLength())
+         {
+            _text.append(text);
+         }
       }
       else
       {
          // replace chars
-         mText.replace(getCursorPosition(), 1, text);
+         _text.replace(getCursorPosition(), 1, text);
       }
 
       moveCursorRight();
    }
 }
 
-void MenuPageTextEditItem::setFontName(const std::string& fontName)
+void MenuPageTextEditItem::setFontName(const std::string& font_name)
 {
-   mFontName = fontName;
+   _font_name = font_name;
 }
 
-void MenuPageTextEditItem::setFontXOffset(int xOffset)
+void MenuPageTextEditItem::setFontXOffset(int x_offset)
 {
-   mFontXOffset = xOffset;
+   _font_x_offset = x_offset;
 }
 
-void MenuPageTextEditItem::setFontYOffset(int yOffset)
+void MenuPageTextEditItem::setFontYOffset(int y_offset)
 {
-   mFontYOffset = yOffset;
+   _font_y_offset = y_offset;
 }
 
-void MenuPageTextEditItem::setFieldWidth(int fieldWidth)
+void MenuPageTextEditItem::setFieldWidth(int field_width)
 {
-   mFieldWidth = fieldWidth;
+   _field_width = field_width;
 }
 
-void MenuPageTextEditItem::setMaxLength(int maxLength)
+void MenuPageTextEditItem::setMaxLength(int max_length)
 {
-   mMaxLength = maxLength;
+   _max_length = max_length;
 }
 
 int MenuPageTextEditItem::getMaxLength() const
 {
-   return mMaxLength;
+   return _max_length;
 }
 
 int MenuPageTextEditItem::getFieldWidth() const
 {
-   return mFieldWidth;
+   return _field_width;
 }
 
 void MenuPageTextEditItem::setScale(float scale)
 {
-   mScale = scale;
+   _scale = scale;
 }
 
 float MenuPageTextEditItem::getScale() const
 {
-   return mScale;
+   return _scale;
 }
 
 void MenuPageTextEditItem::setText(const std::string& text)
 {
-   mText = text.substr(0, std::max(text.length(), static_cast<size_t>(getFieldWidth())));
-   setCursorPosition(static_cast<int>(mText.length()));
+   _text = text.substr(0, std::max(text.length(), static_cast<size_t>(getFieldWidth())));
+   setCursorPosition(static_cast<int>(_text.length()));
 }
 
 void MenuPageTextEditItem::setColor(const Color& color)
 {
-   mColor = color;
+   _color = color;
 }
 
-void MenuPageTextEditItem::setOutlineColor(const Color& outlineColor)
+void MenuPageTextEditItem::setOutlineColor(const Color& outline_color)
 {
-   mOutlineColor = outlineColor;
+   _outline_color = outline_color;
 }
 
 const Color& MenuPageTextEditItem::getColor() const
 {
-   return mColor;
+   return _color;
 }
 
 void MenuPageTextEditItem::setAlpha(int alpha)
 {
-   mAlpha = alpha;
+   _alpha = alpha;
 }
 
 bool MenuPageTextEditItem::isActionRequestOnClickEnabled() const
@@ -220,17 +211,17 @@ bool MenuPageTextEditItem::isActionRequestOnClickEnabled() const
 
 void MenuPageTextEditItem::setCursorPosition(int index)
 {
-   mCursorPosition = index;
+   _cursor_position = index;
 }
 
 int MenuPageTextEditItem::getCursorPosition() const
 {
-   return mCursorPosition;
+   return _cursor_position;
 }
 
 bool MenuPageTextEditItem::isEditingActive() const
 {
-   return mEditingActive;
+   return _editing_active;
 }
 
 void MenuPageTextEditItem::moveCursorRight()
@@ -255,81 +246,89 @@ void MenuPageTextEditItem::moveCursorToEnd()
 
 const std::string& MenuPageTextEditItem::getText() const
 {
-   return mText;
+   return _text;
 }
 
 void MenuPageTextEditItem::activated()
 {
-   mTimer.start();
+   _timer.start();
 
    // call the timer's slot once initially
    updateCursorHighlight();
 
-   mEditingActive = true;
+   _editing_active = true;
    MenuPageItem::activated();
 }
 
 void MenuPageTextEditItem::deactivated()
 {
-   mTimer.stop();
-   mEditingActive = false;
+   _timer.stop();
+   _editing_active = false;
    MenuPageItem::deactivated();
 }
 
 void MenuPageTextEditItem::paste(const std::string& text)
 {
-   for (char c : text)
+   for (const char c : text)
+   {
       keyPressed(SDLK_UNKNOWN, std::string(1, c));
+   }
 }
 
 void MenuPageTextEditItem::drawCursor()
 {
-   // the legacy untextured glColor4ub'd quad (glBindTexture(GL_TEXTURE_2D, 0), a special
-   // GL_SRC_ALPHA/GL_SRC_COLOR blend for an invert-highlight look) has no direct GLES3
-   // equivalent - every draw needs a real bound texture and a real shader. Replaced with a
-   // lazily-created 1x1 white texture drawn through the shared texalphaignore shader; the
-   // mColor tint is dropped (see class comment), so this is always a white highlight now.
-   float alphaFactor = std::max(1.0f - 0.75f * (mCursorTime.elapsed() / (float)CURSOR_UPDATE_TIME), 0.0f);
+   const float alpha_factor = std::max(1.0f - 0.75f * (_cursor_time.elapsed() / CURSOR_UPDATE_TIME), 0.0f);
 
    float left = 0.0f;
    float right = 0.0f;
    float top = 0.0f;
    float bottom = 0.0f;
 
-   mFont->getCursor(mScale, getCursorPosition(), left, right, top, bottom);
+   _font->getCursor(_scale, getCursorPosition(), left, right, top, bottom);
 
-   if (mCursorTexture == 0)
+   if (_cursor_texture == 0)
    {
-      unsigned int white = 0xFFFFFFFF;
-      mCursorTexture = activeDevice->createTexture(&white, 1, 1, 0);
+      uint32_t white = 0xFFFFFFFF;
+      _cursor_texture = activeDevice->createTexture(&white, 1, 1, 0);
    }
 
-   glBindTexture(GL_TEXTURE_2D, mCursorTexture);
+   glBindTexture(GL_TEXTURE_2D, _cursor_texture);
 
    glBlendFunc(GL_SRC_ALPHA, GL_SRC_COLOR);
 
-   const float quad[] = {
-      left, top, -1.0f, 0.0f, 0.0f, right, top,    -1.0f, 1.0f, 0.0f, right, bottom, -1.0f, 1.0f, 1.0f,
-      left, top, -1.0f, 0.0f, 0.0f, right, bottom, -1.0f, 1.0f, 1.0f, left,  bottom, -1.0f, 0.0f, 1.0f,
+   // clang-format off
+   const std::array<float, 30> quad = {
+      left,  top,    -1.0f, 0.0f, 0.0f,
+      right, top,    -1.0f, 1.0f, 0.0f,
+      right, bottom, -1.0f, 1.0f, 1.0f,
+      left,  top,    -1.0f, 0.0f, 0.0f,
+      right, bottom, -1.0f, 1.0f, 1.0f,
+      left,  bottom, -1.0f, 0.0f, 1.0f,
    };
+   // clang-format on
+   constexpr int quad_size = static_cast<int>(sizeof(float) * 30);
 
-   if (mCursorVertexBuffer == 0)
-      mCursorVertexBuffer = activeDevice->createVertexBuffer(sizeof(quad), true);
+   if (_cursor_vertex_buffer == 0)
+   {
+      _cursor_vertex_buffer = activeDevice->createVertexBuffer(quad_size, true);
+   }
    else
-      activeDevice->allocateVertexBuffer(mCursorVertexBuffer, sizeof(quad), true);
+   {
+      activeDevice->allocateVertexBuffer(_cursor_vertex_buffer, quad_size, true);
+   }
 
-   void* dst = activeDevice->lockVertexBuffer(mCursorVertexBuffer, sizeof(quad));
-   std::memcpy(dst, quad, sizeof(quad));
-   activeDevice->unlockVertexBuffer(mCursorVertexBuffer);
+   void* destination = activeDevice->lockVertexBuffer(_cursor_vertex_buffer, quad_size);
+   std::memcpy(destination, quad.data(), quad_size);
+   activeDevice->unlockVertexBuffer(_cursor_vertex_buffer);
 
    activeDevice->push(Matrix());
-   activeDevice->setParameter(activeDevice->getParameterIndex("alpha"), (128.0f / 255.0f) * alphaFactor);
+   activeDevice->setParameter(activeDevice->getParameterIndex("alpha"), (128.0f / 255.0f) * alpha_factor);
 
-   glBindBuffer(GL_ARRAY_BUFFER, mCursorVertexBuffer);
+   glBindBuffer(GL_ARRAY_BUFFER, _cursor_vertex_buffer);
    glEnableVertexAttribArray(0);
    glEnableVertexAttribArray(1);
-   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 5, (GLvoid*)0);
-   glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 5, (GLvoid*)(sizeof(float) * 3));
+   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 5, nullptr);
+   glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 5, reinterpret_cast<GLvoid*>(sizeof(float) * 3));
 
    glDrawArrays(GL_TRIANGLES, 0, 6);
 
@@ -343,10 +342,10 @@ void MenuPageTextEditItem::drawCursor()
 
 void MenuPageTextEditItem::updateCursorHighlight()
 {
-   mCursorTime.restart();
+   _cursor_time.restart();
 }
 
 bool MenuPageTextEditItem::isCursorAtEnd() const
 {
-   return (getCursorPosition() == static_cast<int>(getText().length()));
+   return getCursorPosition() == static_cast<int>(getText().length());
 }

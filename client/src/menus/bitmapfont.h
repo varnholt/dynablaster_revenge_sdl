@@ -1,28 +1,26 @@
 #pragma once
 
-// framework
 #include "render/texture.h"
 #include "tools/array.h"
 #include "vertex.h"
 
-/// \brief GLES3 port of client/src/menus/bitmapfont.cpp.
-///
-/// glColor4ub()/gl_Color (the legacy way callers tinted text, always set once right before an
-/// entire buildVertices()+draw() call, never varied per vertex) becomes an explicit setColor()
-/// plus a uniform on the shared fontoutlines shader - see the shader source for details.
+#include <cstdint>
+
+/// \brief signed-distance-field bitmap font; tinted via setColor() and a uniform on the shared
+/// fontoutlines shader.
 class BitmapFont
 {
 public:
    struct Parameter
    {
       char c;
-      unsigned short x;
-      unsigned short y;
-      unsigned short width;
-      unsigned short height;
-      short basecolumn;
-      short baseline;
-      unsigned short space;
+      uint16_t x;
+      uint16_t y;
+      uint16_t width;
+      uint16_t height;
+      int16_t basecolumn;
+      int16_t baseline;
+      uint16_t space;
    };
 
    BitmapFont(
@@ -30,67 +28,66 @@ public:
       Parameter* description,
       float size = 1.0f,
       float spacing = 0.0f,
-      float distanceRadius = 0.0f,
-      float outlineRed = 0.0f,
-      float outlineGreen = 0.0f,
-      float outlineBlue = 0.0f,
-      float outlineAlpha = 1.0f,
-      float outlineRadius = 0.15f,
-      float softRadius = 0.06f,
+      float distance_radius = 0.0f,
+      float outline_red = 0.0f,
+      float outline_green = 0.0f,
+      float outline_blue = 0.0f,
+      float outline_alpha = 1.0f,
+      float outline_radius = 0.15f,
+      float soft_radius = 0.06f,
       float thickness = 0.0f
    );
-
-   ~BitmapFont();
 
    bool isCharAvailable(char c) const;
    void setOutlineColor(float r, float g, float b, float a);
    void getOutlineColor(float& r, float& g, float& b, float& a);
    void setColor(float r, float g, float b, float a);
-   float buildVertices(float size, const char* text, float x, float y, float centerWidth = -1.0f, float centerHeight = -1.0f);
+   float buildVertices(float size, const char* text, float x, float y, float center_width = -1.0f, float center_height = -1.0f);
    const Array<Vertex>& getVertices() const;
    void draw(const Array<Vertex>& vertices);
    void draw();
-   unsigned int getTexture();
+   uint32_t getTexture();
 
    //! getter cursor dimensions
-   void getCursor(float scale, int cursorPosition, float& left, float& right, float& top, float& bottom);
+   void getCursor(float scale, int cursor_position, float& left, float& right, float& top, float& bottom);
 
    Parameter* getCharParameter(char c) const;
 
 private:
-   unsigned int mShader;
-   Texture mTexture;
-   int mParamTexture;
-   int mParamOutlineColor;
-   int mParamColor;
-   int mParamSoftRadius;
-   int mParamOutlineRadius;
-   int mParamThickness;
-   int mParamSampleOffset;
+   uint32_t _shader = 0;
+   Texture _texture;
+   int _param_texture = 0;
+   int _param_outline_color = 0;
+   int _param_color = 0;
+   int _param_soft_radius = 0;
+   int _param_outline_radius = 0;
+   int _param_thickness = 0;
+   int _param_sample_offset = 0;
 
-   Parameter* mDescription;
-   float mSize;
-   float mSpacing;
-   float mRadius;
-   float mScaleU;
-   float mScaleV;
-   float mOutlineRed;
-   float mOutlineGreen;
-   float mOutlineBlue;
-   float mOutlineAlpha;
-   float mOutlineRadius;
-   float mSoftRadius;
-   float mThickness;
+   // non-owning, points into a static glyph table
+   Parameter* _description;
+   float _size;
+   float _spacing;
+   float _radius;
+   float _scale_u = 0.0f;
+   float _scale_v = 0.0f;
+   float _outline_red;
+   float _outline_green;
+   float _outline_blue;
+   float _outline_alpha;
+   float _outline_radius;
+   float _soft_radius;
+   float _thickness;
 
-   float mColorRed;
-   float mColorGreen;
-   float mColorBlue;
-   float mColorAlpha;
+   float _color_red = 1.0f;
+   float _color_green = 1.0f;
+   float _color_blue = 1.0f;
+   float _color_alpha = 1.0f;
 
-   float mBaseline;
-   float mBaseColumn;
-   mutable Array<Vertex> mVertices;
+   float _baseline = 0.0f;
+   float _base_column = 0.0f;
+   mutable Array<Vertex> _vertices;
 
-   // dynamically re-uploaded each draw() call (text changes every frame) - lazily created.
-   unsigned int mVertexBuffer;
+   // dynamically re-uploaded each draw() call (text changes every frame) - lazily created
+   uint32_t _vertex_buffer = 0;
 };
