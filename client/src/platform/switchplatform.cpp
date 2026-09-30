@@ -72,6 +72,8 @@ bool SwitchPlatform::initialize()
    // Preserve startup/shader/network diagnostics even without an nxlink connection.
    std::freopen("sdmc:/switch/dynablaster_revenge/game.log", "w", stderr);
    std::setvbuf(stderr, nullptr, _IONBF, 0);
+   std::freopen("sdmc:/switch/dynablaster_revenge/application.log", "w", stdout);
+   std::setvbuf(stdout, nullptr, _IONBF, 0);
    _sockets = R_SUCCEEDED(socketInitializeDefault());
    if (!_sockets)
    {

@@ -13,6 +13,46 @@ ELF = BUILD / 'dynablaster_revenge.elf'
 
 
 class SwitchBuild(unittest.TestCase):
+    def test_nonblocking_socket_flags(self):
+        source = r'''
+        #include <fcntl.h>
+        #include <errno.h>
+        #include <assert.h>
+        static int behavior, state, writes;
+        static int fakeFcntl(int fd, int command, int flags) {
+            if (behavior == 3) { errno = EBADF; return -1; }
+            if (command == F_GETFL) return state;
+            assert(command == F_SETFL);
+            ++writes;
+            if (behavior != 2) state = (flags ^ (behavior == 1 ? O_NONBLOCK : 0)) & O_NONBLOCK;
+            return 0;
+        }
+        #define fcntl fakeFcntl
+        #include "switchnetcompat.h"
+        #undef fcntl
+        int main(void) {
+            for (behavior = 0; behavior <= 1; ++behavior) {
+                state = writes = 0;
+                assert(switchSocketFcntl(1, F_SETFL, O_NONBLOCK) == 0 && state == O_NONBLOCK);
+                assert(writes == (behavior == 0 ? 1 : 2));
+                assert(switchSocketFcntl(1, F_GETFL, 0) == O_NONBLOCK);
+                assert(switchSocketFcntl(1, F_SETFL, 0) == 0 && state == 0);
+            }
+            behavior = 2; state = 0;
+            assert(switchSocketFcntl(1, F_SETFL, O_NONBLOCK) == -1 && errno == EIO);
+            behavior = 3;
+            assert(switchSocketFcntl(1, F_SETFL, O_NONBLOCK) == -1 && errno == EBADF);
+            return 0;
+        }
+        '''
+        with tempfile.TemporaryDirectory() as temporary:
+            code = Path(temporary) / 'flags.c'
+            program = Path(temporary) / 'flags'
+            code.write_text(source)
+            subprocess.run(['cc', '-std=c11', '-D_DEFAULT_SOURCE',
+                            '-I', str(CLIENT / 'src/platform'), str(code), '-o', str(program)], check=True)
+            subprocess.run([str(program)], check=True)
+
     def test_numeric_network_addresses(self):
         # Run the numeric formatter on the container host to check IPv4/IPv6,
         # network byte order and bounds without requiring console services.
@@ -41,6 +81,32 @@ class SwitchBuild(unittest.TestCase):
             assert(strcmp(host, "ff02::1%4") == 0 && strcmp(service, "65535") == 0);
             assert(getnameinfo((struct sockaddr*)&v6, sizeof(v6), 0, 0, service, sizeof(service), NI_NUMERICSERV) == 0);
             assert(strcmp(service, "65535") == 0);
+            struct addrinfo hints = {0}, *resolved = 0;
+            hints.ai_socktype = SOCK_STREAM;
+            hints.ai_flags = AI_PASSIVE | AI_NUMERICHOST | AI_NUMERICSERV;
+            assert(getaddrinfo(0, "6300", &hints, &resolved) == 0);
+            assert(resolved->ai_family == AF_INET && resolved->ai_socktype == SOCK_STREAM);
+            assert(resolved->ai_protocol == IPPROTO_TCP && resolved->ai_next == 0);
+            struct sockaddr_in* bound = (struct sockaddr_in*)resolved->ai_addr;
+            assert(bound->sin_addr.s_addr == htonl(INADDR_ANY) && ntohs(bound->sin_port) == 6300);
+            freeaddrinfo(resolved);
+            hints.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV;
+            assert(getaddrinfo("127.0.0.1", "6300", &hints, &resolved) == 0);
+            bound = (struct sockaddr_in*)resolved->ai_addr;
+            assert(bound->sin_addr.s_addr == htonl(INADDR_LOOPBACK) && ntohs(bound->sin_port) == 6300);
+            freeaddrinfo(resolved);
+            hints.ai_family = AF_INET6;
+            hints.ai_socktype = SOCK_DGRAM;
+            assert(getaddrinfo("::1", "65535", &hints, &resolved) == 0);
+            assert(resolved->ai_family == AF_INET6 && resolved->ai_protocol == IPPROTO_UDP);
+            assert(ntohs(((struct sockaddr_in6*)resolved->ai_addr)->sin6_port) == 65535);
+            freeaddrinfo(resolved);
+            assert(getaddrinfo("::1", "65536", &hints, &resolved) == EAI_SERVICE && resolved == 0);
+            assert(getaddrinfo("127.0.0.1", "6300", &hints, &resolved) == EAI_NONAME && resolved == 0);
+            assert(getaddrinfo("ff02::1%4", "6300", &hints, &resolved) == 0);
+            assert(((struct sockaddr_in6*)resolved->ai_addr)->sin6_scope_id == 4);
+            freeaddrinfo(resolved);
+            assert(getaddrinfo("ff02::1%4294967296", "6300", &hints, &resolved) == EAI_NONAME && resolved == 0);
             return 0;
         }
         '''

@@ -91,6 +91,11 @@ Deceptus and applied to its pinned SDL revision
 `e205361fb67ff53868dbc333eb2c491e11ff1a51` from `vittorioromeo/SDL`.
 The SDL zlib notices are preserved; the backend is a modified SDL distribution.
 
+For Ryujinx 1.3.2, enable network access so the client and embedded server can
+connect through loopback, and use the normal tick scalar of 1. Numeric endpoints
+are resolved locally. Socket setup verifies the nonblocking flag and corrects
+the reversed `F_SETFL` behavior in this emulator when detected.
+
 To validate the NRO container, embedded assets, and linked platform backends:
 
 ```bat
