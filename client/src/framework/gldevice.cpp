@@ -70,10 +70,12 @@ bool GLDevice::init()
 
    // ANGLE's default window surface is sRGB-capable and auto-encodes every write to it,
    // double-gamma-brightening the already-sRGB art; GL_EXT_sRGB_write_control turns that off.
-   // WebGL2 doesn't expose the extension (INVALID_ENUM), the browser build keeps the canvas gamma.
-#ifndef __EMSCRIPTEN__
-   glDisable(GL_FRAMEBUFFER_SRGB_EXT);
-#endif
+   // This is optional in GLES3, including on Switch. Only use the token when the
+   // current context advertises it; otherwise glDisable produces GL_INVALID_ENUM.
+   if (SDL_GL_ExtensionSupported("GL_EXT_sRGB_write_control"))
+   {
+      glDisable(GL_FRAMEBUFFER_SRGB_EXT);
+   }
 
    _active = true;
 

@@ -459,6 +459,9 @@ endforeach()
 add_dependencies(dynablaster_revenge_harness dynablaster_revenge)
 
 enable_testing()
+add_executable(dynablaster_gles_compatibility_test tests/test_gles_compatibility.cpp)
+target_link_libraries(dynablaster_gles_compatibility_test PRIVATE dynablaster_core)
+add_test(NAME gles_compatibility COMMAND dynablaster_gles_compatibility_test)
 add_test(NAME selftest_smoke
     COMMAND dynablaster_revenge_harness --selftest --screenshot=${CMAKE_BINARY_DIR}/selftest.png
 )

@@ -115,11 +115,6 @@ using GLsizeiptr = intptr_t;
 #define GL_TEXTURE_3D 0x806F
 #define GL_TEXTURE_WRAP_R 0x8072
 
-// GLES has no BGRA format; the one real caller (Material::uploadCubeMap) gets aliased to RGBA
-// rather than reordering channels - environment cubemaps come out with red/blue swapped until
-// someone circles back to it, which is a correctness gap worth flagging, not a crash risk.
-#define GL_BGRA GL_RGBA
-
 #define GL_TEXTURE_CUBE_MAP 0x8513
 #define GL_TEXTURE_CUBE_MAP_POSITIVE_X 0x8515
 #define GL_TEXTURE_CUBE_MAP_NEGATIVE_X 0x8516
