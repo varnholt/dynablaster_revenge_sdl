@@ -2,7 +2,7 @@
 
 #include "framework/drawable.h"
 
-#include "signal.h"
+#include "gamesignal.h"
 
 #include "image/psd.h"
 

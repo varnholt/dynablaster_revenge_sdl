@@ -2,7 +2,7 @@
 
 #include "constants.h"
 #include "elapsedtimer.h"
-#include "signal.h"
+#include "gamesignal.h"
 
 #include <cstdint>
 #include <functional>

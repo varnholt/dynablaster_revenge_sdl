@@ -41,8 +41,9 @@ bool GlesContext::init(const std::string& title, int width, int height)
 
    SDL_GL_SetSwapInterval(1);
 
-   _width = width;
-   _height = height;
+   // The Switch backend chooses handheld/docked dimensions independently of the
+   // requested window size. Rendering and pointer conversion need the actual size.
+   updateSize();
 
    return true;
 }

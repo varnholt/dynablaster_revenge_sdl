@@ -5,7 +5,7 @@
 
 // shared
 #include "constants.h"
-#include "signal.h"
+#include "gamesignal.h"
 #include "timer.h"
 
 // SDL

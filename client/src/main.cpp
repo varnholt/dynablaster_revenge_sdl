@@ -38,6 +38,10 @@
 
 #include <functional>
 
+#ifdef __SWITCH__
+#include "platform/switchplatform.h"
+#endif
+
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
@@ -101,6 +105,12 @@ SDL_Keycode mapGameKey(SDL_Keycode key)
 
 int main(int /*argc*/, char** /*argv*/)
 {
+#ifdef __SWITCH__
+   // Before settings, audio assets or sockets; destroyed after the client/server.
+   SwitchPlatform switch_platform;
+   if (!switch_platform.initialize())
+      return 1;
+#endif
    // must run before any NET_* call (BombermanClient's own connection or an embedded Server via
    // host()); nearly everything in SDL3_net is undefined behavior before this succeeds.
    // SDL3_net builds as a stub-only lib under Emscripten (no raw sockets in a browser), so
@@ -299,6 +309,9 @@ int main(int /*argc*/, char** /*argv*/)
       }
 #endif
 
+#ifdef __SWITCH__
+      switch_platform.updateInput(game_drawable.isVisible(), game_drawable, menu_drawable, menu_cursor);
+#endif
       SDL_Event event{};
       while (SDL_PollEvent(&event))
       {

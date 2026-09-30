@@ -1,7 +1,7 @@
 #pragma once
 
 #include "psdlayer.h"
-#include "signal.h"
+#include "gamesignal.h"
 
 #include <string>
 

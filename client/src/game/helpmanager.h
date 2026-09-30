@@ -4,7 +4,7 @@
 #include <string>
 
 #include "constants.h"
-#include "signal.h"
+#include "gamesignal.h"
 
 class HelpManager
 {

@@ -3,7 +3,7 @@
 
 // shared
 #include "constants.h"
-#include "signal.h"
+#include "gamesignal.h"
 
 class MapItemAnimation
 {

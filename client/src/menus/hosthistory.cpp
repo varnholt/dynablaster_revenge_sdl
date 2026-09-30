@@ -7,7 +7,11 @@
 
 namespace
 {
+#ifdef __SWITCH__
+constexpr const char* HISTORY_FILE = "sdmc:/switch/dynablaster_revenge/history.dr";
+#else
 constexpr const char* HISTORY_FILE = "history.dr";
+#endif
 constexpr size_t HISTORY_MAX_ENTRIES = 3;
 }  // namespace
 

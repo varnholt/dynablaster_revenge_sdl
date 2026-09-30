@@ -2,7 +2,11 @@
 
 #include <cstdint>
 
+#ifdef __SWITCH__
+#define SETTINGS_FILE "sdmc:/switch/dynablaster_revenge/game.ini"
+#else
 #define SETTINGS_FILE "data/game.ini"
+#endif
 
 // defaults
 

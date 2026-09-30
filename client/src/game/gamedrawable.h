@@ -21,7 +21,7 @@
 #include "math/matrix.h"
 
 // shared
-#include "signal.h"
+#include "gamesignal.h"
 
 // forward declarations
 class DetonationManager;
