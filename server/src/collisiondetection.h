@@ -6,7 +6,7 @@
 
 // shared
 #include "constants.h"
-#include "signal.h"
+#include "gamesignal.h"
 
 // forward declarations
 class Game;

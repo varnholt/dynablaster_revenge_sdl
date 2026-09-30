@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.20)
 project(dynablaster_revenge LANGUAGES C CXX)
 
+# Older devkitPro toolchains set CMAKE_SYSTEM_NAME without NINTENDO_SWITCH.
+if(CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch")
+    set(NINTENDO_SWITCH TRUE)
+endif()
+
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -19,15 +24,37 @@ endif()
 
 include(FetchContent)
 
+if(NINTENDO_SWITCH)
+    # newlib has signal.h, but libnx provides no POSIX signal masking.
+    # Keep SDL's pthread setup from calling the unavailable pthread_sigmask.
+    set(LIBC_HAS_SIGNAL_H OFF CACHE INTERNAL "No POSIX signals on libnx" FORCE)
+    # Same pinned SDL revision/backend as Deceptus's working homebrew port.
+    # Upstream's commercial Switch backend is distributed separately.
+    set(DYNABLASTER_SDL_REPOSITORY https://github.com/vittorioromeo/SDL.git)
+    set(DYNABLASTER_SDL_REVISION e205361fb67ff53868dbc333eb2c491e11ff1a51)
+    set(DYNABLASTER_SDL_SHALLOW FALSE)
+    find_package(Git REQUIRED)
+    set(DYNABLASTER_SDL_PATCH_COMMAND PATCH_COMMAND ${CMAKE_COMMAND}
+        -DSDL_SOURCE_DIR=<SOURCE_DIR>
+        -DGIT_EXECUTABLE=${GIT_EXECUTABLE}
+        -DPATCH_FILE=${CMAKE_CURRENT_SOURCE_DIR}/../patches/switch-sdl3-backend.patch
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/PatchSwitchSDL.cmake)
+else()
+    set(DYNABLASTER_SDL_REPOSITORY https://github.com/libsdl-org/SDL.git)
+    set(DYNABLASTER_SDL_REVISION release-3.4.16)
+    set(DYNABLASTER_SDL_SHALLOW TRUE)
+endif()
+
 set(SDL_SHARED OFF CACHE BOOL "" FORCE)
 set(SDL_STATIC ON CACHE BOOL "" FORCE)
 set(SDL_TEST_LIBRARY OFF CACHE BOOL "" FORCE)
 
 FetchContent_Declare(
     SDL3
-    GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
-    GIT_TAG release-3.4.16
-    GIT_SHALLOW TRUE
+    GIT_REPOSITORY ${DYNABLASTER_SDL_REPOSITORY}
+    GIT_TAG ${DYNABLASTER_SDL_REVISION}
+    GIT_SHALLOW ${DYNABLASTER_SDL_SHALLOW}
+    ${DYNABLASTER_SDL_PATCH_COMMAND}
 )
 FetchContent_MakeAvailable(SDL3)
 
@@ -51,6 +78,18 @@ FetchContent_Declare(
     GIT_SHALLOW TRUE
 )
 FetchContent_MakeAvailable(SDL3_net)
+if(NINTENDO_SWITCH)
+    include(CheckCSourceCompiles)
+    check_c_source_compiles("#include <sys/socket.h>
+        #include <netinet/in.h>
+        int main(void) { struct ipv6_mreq request; return sizeof(request) == 0; }"
+        DYNABLASTER_HAS_IPV6_MREQ)
+    if(NOT DYNABLASTER_HAS_IPV6_MREQ)
+        target_compile_definitions(SDL3_net-static PRIVATE DYNABLASTER_NEEDS_IPV6_MREQ=1)
+    endif()
+    target_compile_options(SDL3_net-static PRIVATE
+        -include ${CMAKE_CURRENT_SOURCE_DIR}/src/platform/switchnetcompat.h)
+endif()
 
 file(GLOB_RECURSE DYNABLASTER_ENGINE_SOURCES
     CONFIGURE_DEPENDS
@@ -394,7 +433,10 @@ target_include_directories(dynablaster_core PUBLIC
     ../ai
     ${minimp3_SOURCE_DIR}
 )
-target_link_libraries(dynablaster_core PUBLIC SDL3::SDL3 SDL3_net::SDL3_net)
+target_link_libraries(dynablaster_core PUBLIC SDL3_net::SDL3_net SDL3::SDL3)
+if(NINTENDO_SWITCH)
+    target_include_directories(dynablaster_core PRIVATE ${DEVKITPRO}/portlibs/switch/include)
+endif()
 
 # real C++ exception catching (SettingsValue::toFloat()'s try/catch, shared/settings.cpp) needs
 # this at compile time too, not just at dynablaster_revenge's link step - DISABLE_EXCEPTION_CATCHING
@@ -406,6 +448,26 @@ endif()
 # dynablaster_revenge - the real game, no CLI flags, launches straight into the main menu.
 add_executable(dynablaster_revenge src/main.cpp)
 target_link_libraries(dynablaster_revenge PRIVATE dynablaster_core)
+
+if(NINTENDO_SWITCH)
+    target_sources(dynablaster_revenge PRIVATE src/platform/switchplatform.cpp)
+    target_include_directories(dynablaster_revenge PRIVATE ${DEVKITPRO}/portlibs/switch/include)
+    target_link_libraries(dynablaster_revenge PRIVATE GLESv2)
+    set_target_properties(dynablaster_revenge PROPERTIES SUFFIX ".elf")
+    file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/romfs/data)
+    add_custom_target(dynablaster_romfs
+        COMMAND ${CMAKE_COMMAND} -E rm -rf ${CMAKE_CURRENT_BINARY_DIR}/romfs/data
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${CMAKE_CURRENT_SOURCE_DIR}/data ${CMAKE_CURRENT_BINARY_DIR}/romfs/data
+        COMMENT "Staging game assets into RomFS"
+    )
+    add_dependencies(dynablaster_revenge dynablaster_romfs)
+    nx_generate_nacp(dynablaster_revenge.nacp
+        NAME "Dynablaster Revenge" AUTHOR "Dynablaster Revenge team" VERSION "1.0.0")
+    nx_create_nro(dynablaster_revenge
+        NACP ${CMAKE_CURRENT_BINARY_DIR}/dynablaster_revenge.nacp
+        ROMFS ${CMAKE_CURRENT_BINARY_DIR}/romfs)
+endif()
 
 # wasm32 target (browser build). No raw sockets in a browser, so real client<->server networking
 # doesn't work here (see main.cpp's __EMSCRIPTEN__ NET_Init handling) - this is client-only.
@@ -432,6 +494,7 @@ endif()
 # --dumplayer, --page, --logo3d, --screenshot, and the standalone castle-level demo) - see
 # src/main_harness.cpp's own header comment. Not the shipped game; shares dynablaster_core so it
 # can never drift out of sync with the real thing it's testing.
+if(NOT NINTENDO_SWITCH)
 add_executable(dynablaster_revenge_harness
     src/main_harness.cpp
     src/effectlab.cpp
@@ -465,3 +528,6 @@ add_test(NAME gles_compatibility COMMAND dynablaster_gles_compatibility_test)
 add_test(NAME selftest_smoke
     COMMAND dynablaster_revenge_harness --selftest --screenshot=${CMAKE_BINARY_DIR}/selftest.png
 )
+set_tests_properties(selftest_smoke PROPERTIES
+    WORKING_DIRECTORY "$<TARGET_FILE_DIR:dynablaster_revenge_harness>")
+endif()

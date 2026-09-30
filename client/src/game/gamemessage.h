@@ -3,7 +3,7 @@
 // GLES3 port of client/src/game/gamemessage.cpp.
 
 #include "framework/frametimer.h"
-#include "signal.h"
+#include "gamesignal.h"
 
 #include <string>
 

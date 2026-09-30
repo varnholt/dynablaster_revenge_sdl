@@ -1,7 +1,7 @@
 #pragma once
 
 #include "hosthistory.h"
-#include "signal.h"
+#include "gamesignal.h"
 
 #include <cstddef>
 #include <limits>

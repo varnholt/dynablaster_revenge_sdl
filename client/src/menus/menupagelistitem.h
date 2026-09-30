@@ -2,7 +2,7 @@
 
 #include "framework/frametimer.h"
 #include "menupageitem.h"
-#include "signal.h"
+#include "gamesignal.h"
 
 #include "math/color.h"
 

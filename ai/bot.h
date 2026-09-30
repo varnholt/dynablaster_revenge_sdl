@@ -8,7 +8,7 @@
 #include "constants.h"
 #include "point.h"
 #include "serverconfiguration.h"
-#include "signal.h"
+#include "gamesignal.h"
 #include "timer.h"
 
 #include <deque>

@@ -2,7 +2,7 @@
 #define EXTRASPAWN_H
 
 // shared
-#include "signal.h"
+#include "gamesignal.h"
 #include "timer.h"
 
 // forward declarations

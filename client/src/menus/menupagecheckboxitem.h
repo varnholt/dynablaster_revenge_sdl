@@ -1,7 +1,7 @@
 #pragma once
 
 #include "menupageitem.h"
-#include "signal.h"
+#include "gamesignal.h"
 
 class MenuPageCheckBoxItem : public MenuPageItem
 {

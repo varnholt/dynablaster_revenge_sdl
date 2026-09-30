@@ -1,7 +1,7 @@
 #pragma once
 
 #include "menupagelistitem.h"
-#include "signal.h"
+#include "gamesignal.h"
 
 #include <cstdint>
 #include <map>

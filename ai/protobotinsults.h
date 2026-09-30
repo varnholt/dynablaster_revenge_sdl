@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-#include "signal.h"
+#include "gamesignal.h"
 
 // never actually instantiated in this port (ProtoBot::_insults stays null) - kept for parity
 // with the original.

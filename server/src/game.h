@@ -17,7 +17,7 @@
 #include "gameinformation.h"
 #include "gameround.h"
 #include "packet.h"
-#include "signal.h"
+#include "gamesignal.h"
 #include "timer.h"
 
 // forward declarations

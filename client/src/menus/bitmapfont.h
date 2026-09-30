@@ -1,6 +1,7 @@
 #pragma once
 
 #include "render/texture.h"
+#include "math/matrix.h"
 #include "tools/array.h"
 #include "vertex.h"
 
@@ -44,7 +45,7 @@ public:
    void setColor(float r, float g, float b, float a);
    float buildVertices(float size, const char* text, float x, float y, float center_width = -1.0f, float center_height = -1.0f);
    const Array<Vertex>& getVertices() const;
-   void draw(const Array<Vertex>& vertices);
+   void draw(const Array<Vertex>& vertices, const Matrix& transform = Matrix());
    void draw();
    uint32_t getTexture();
 

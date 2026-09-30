@@ -90,6 +90,11 @@ bool isOptionsPage(const std::string& page)
 // SINGLE always does), rather than only connecting out to a remote one.
 bool isHostLocal(const std::string& host_name)
 {
+#ifdef __SWITCH__
+   // libnx has no getifaddrs, so SDL_net cannot enumerate loopback here.
+   if (host_name == "127.0.0.1" || StringUtils::toLower(host_name) == "localhost")
+      return true;
+#endif
    bool local = false;
 
    int count = 0;

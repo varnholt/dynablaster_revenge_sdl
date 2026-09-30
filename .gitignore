@@ -1,4 +1,5 @@
 build/
+build-switch/
 .vs/
 selftest.png
 __pycache__/

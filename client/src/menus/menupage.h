@@ -1,7 +1,7 @@
 #pragma once
 
 #include "settings.h"
-#include "signal.h"
+#include "gamesignal.h"
 
 #include "image/psd.h"
 

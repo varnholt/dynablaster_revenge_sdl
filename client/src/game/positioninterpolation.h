@@ -4,7 +4,7 @@
 // shared
 #include "constants.h"
 #include "framework/frametimer.h"
-#include "signal.h"
+#include "gamesignal.h"
 
 #include <memory>
 #include <unordered_map>

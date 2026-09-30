@@ -3,7 +3,7 @@
 
 // shared
 #include "packetstreambuffer.h"
-#include "signal.h"
+#include "gamesignal.h"
 #include "timer.h"
 
 // framework

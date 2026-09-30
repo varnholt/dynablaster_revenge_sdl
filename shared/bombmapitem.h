@@ -1,7 +1,7 @@
 #pragma once
 
 #include "mapitem.h"
-#include "signal.h"
+#include "gamesignal.h"
 #include "timer.h"
 
 #include <memory>
