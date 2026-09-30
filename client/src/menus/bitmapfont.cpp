@@ -162,7 +162,7 @@ void BitmapFont::draw()
    draw(_vertices);
 }
 
-void BitmapFont::draw(const Array<Vertex>& vertices)
+void BitmapFont::draw(const Array<Vertex>& vertices, const Matrix& transform)
 {
    const int quad_count = vertices.size() / 4;
    if (quad_count <= 0)
@@ -172,9 +172,8 @@ void BitmapFont::draw(const Array<Vertex>& vertices)
 
    activeDevice->setShader(_shader);
 
-   // push() uploads u_modelViewProjection into the currently bound program; text vertices are
-   // already in page space, so identity world is correct
-   activeDevice->push(Matrix());
+   // Upload after binding the font shader, including any caller's page-space offset.
+   activeDevice->push(transform);
 
    const float sample_offset = (vertices[1].u - vertices[0].u) / (vertices[1].x - vertices[0].x);
 

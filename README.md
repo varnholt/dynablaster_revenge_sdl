@@ -80,7 +80,7 @@ needed by the assets. This is a homebrew build for the original Switch.
 In menus, use the left stick or D-pad to move the cursor, A to click/drag, B to go
 back, and X to open the software keyboard after selecting a text field. In game,
 the stick/D-pad moves, A or B places a bomb, L/R zooms, ZL displays player names,
-Minus leaves the game, and Plus ends the game for its owner. The initial port uses
+Minus leaves the game, and Plus ends the round for its owner. The initial port uses
 one controller; single player with bots and network multiplayer use the existing
 embedded server and SDL3_net protocol.
 
@@ -95,6 +95,11 @@ For Ryujinx 1.3.2, enable network access so the client and embedded server can
 connect through loopback, and use the normal tick scalar of 1. Numeric endpoints
 are resolved locally. Socket setup verifies the nonblocking flag and corrects
 the reversed `F_SETFL` behavior in this emulator when detected.
+
+Runtime verification in stock Ryujinx 1.3.2 covers controller navigation, local
+matches with three bots on Castle, Mansion, and Space, movement, bombs, and round
+transitions. Handheld and docked rendering use the actual libnx framebuffer size.
+Physical Switch hardware and multiplayer between separate consoles remain untested.
 
 To validate the NRO container, embedded assets, and linked platform backends:
 

@@ -3,7 +3,7 @@
 #include "gles3.h"
 
 #ifdef __SWITCH__
-#include <EGL/egl.h>
+#include <switch.h>
 #endif
 
 bool GlesContext::init(const std::string& title, int width, int height)
@@ -20,13 +20,18 @@ bool GlesContext::init(const std::string& title, int width, int height)
    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 
 #ifdef __SWITCH__
-   // SDL caches the requested window dimensions, while the Switch backend
-   // allocates a framebuffer at the current handheld/docked display size.
-   if (const SDL_DisplayMode* mode = SDL_GetCurrentDisplayMode(SDL_GetPrimaryDisplay()))
+   // SDL caches the request, but the shared libnx window owns the framebuffer.
+   // Its size also differs from the docked display mode (1080p scan-out).
+   u32 native_width = 0;
+   u32 native_height = 0;
+   if (R_FAILED(nwindowGetDimensions(nwindowGetDefault(), &native_width, &native_height)) ||
+       native_width == 0 || native_height == 0)
    {
-      width = mode->w;
-      height = mode->h;
+      SDL_Log("Could not determine the Switch framebuffer size");
+      return false;
    }
+   width = static_cast<int>(native_width);
+   height = static_cast<int>(native_height);
 #endif
 
    _window = SDL_CreateWindow(title.c_str(), width, height, SDL_WINDOW_OPENGL);
@@ -55,8 +60,7 @@ bool GlesContext::init(const std::string& title, int width, int height)
 
    SDL_GL_SetSwapInterval(1);
 
-   // The Switch backend chooses handheld/docked dimensions independently of the
-   // requested window size. Rendering and pointer conversion need the actual size.
+   // Rendering and pointer conversion need the actual framebuffer size.
    updateSize();
 
    return true;
@@ -70,15 +74,9 @@ void GlesContext::swap() const
 void GlesContext::updateSize()
 {
 #ifdef __SWITCH__
-   // The homebrew backend's SDL window size can still reflect the requested
-   // desktop size. The EGL surface is the actual Switch framebuffer.
-   const EGLDisplay display = eglGetCurrentDisplay();
-   const EGLSurface surface = eglGetCurrentSurface(EGL_DRAW);
-   EGLint width = 0;
-   EGLint height = 0;
-   if (display != EGL_NO_DISPLAY && surface != EGL_NO_SURFACE &&
-       eglQuerySurface(display, surface, EGL_WIDTH, &width) &&
-       eglQuerySurface(display, surface, EGL_HEIGHT, &height) && width > 0 && height > 0)
+   u32 width = 0;
+   u32 height = 0;
+   if (R_SUCCEEDED(nwindowGetDimensions(nwindowGetDefault(), &width, &height)) && width > 0 && height > 0)
    {
       _width = width;
       _height = height;

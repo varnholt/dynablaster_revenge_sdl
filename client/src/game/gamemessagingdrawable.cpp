@@ -314,9 +314,7 @@ void GameMessagingDrawable::toggleActive()
 
 void GameMessagingDrawable::drawText(bool draw_user_input)
 {
-   // the legacy 5-pass glTranslatef offset trick (4 black outline passes at +-1px, then a real
-   // pass) becomes 5 real push()/pop() brackets with a translated world matrix - GLES3 has no
-   // matrix stack to abuse for this, but the effect is identical.
+   // Pass each outline and message offset to the font shader explicitly.
    const float offsets[5][3] = {{0.0f, -1.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {-1.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.75f, 0.0f, 0.0f}};
 
    for (int f = 0; f < 5; f++)
@@ -330,9 +328,7 @@ void GameMessagingDrawable::drawText(bool draw_user_input)
       if (isActive() && draw_user_input)
       {
          _font->setColor(col, col, col, 1.0f);
-         activeDevice->push(Matrix::position(x, y + ty, 0.0f));
-         _font->draw(_message_vertices);
-         activeDevice->pop();
+         _font->draw(_message_vertices, Matrix::position(x, y + ty, 0.0f));
       }
 
       for (int i = 0; i < _messages.size(); i++)
@@ -342,9 +338,7 @@ void GameMessagingDrawable::drawText(bool draw_user_input)
          ty -= MESSAGE_OFFSET_DIFF;
 
          _font->setColor(col, col, col, 1.0f - (i * 0.08f));
-         activeDevice->push(Matrix::position(x, y + ty, 0.0f));
-         _font->draw(message->getVertices());
-         activeDevice->pop();
+         _font->draw(message->getVertices(), Matrix::position(x, y + ty, 0.0f));
       }
    }
 }
@@ -385,9 +379,8 @@ bool GameMessagingDrawable::drawMessageOverlay()
    if (!getMessage().empty())
    {
       _font->setColor(1.0f, 1.0f, 1.0f, 1.0f);
-      activeDevice->push(Matrix::position(static_cast<float>(_player_name_layer->getLeft()), offset + LABEL_PLAYER_OFFSET_Y, 0.0f));
-      _font->draw(_message_vertices);
-      activeDevice->pop();
+      _font->draw(_message_vertices,
+                  Matrix::position(static_cast<float>(_player_name_layer->getLeft()), offset + LABEL_PLAYER_OFFSET_Y, 0.0f));
    }
 
    return fully_visible;
