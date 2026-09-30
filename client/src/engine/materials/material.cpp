@@ -209,7 +209,16 @@ uint32_t Material::uploadCubeMap(const Image& image)
       int32_t level = 0;
       do
       {
-         glTexImage2D(targets[side], level, GL_RGBA, face.getWidth(), face.getHeight(), 0, GL_BGRA, GL_UNSIGNED_BYTE, face.getData());
+         // Image stores ARGB words (BGRA bytes on our little-endian targets).
+         // GLES3 requires RGBA here. Convert a copy so downsampling and the source
+         // image retain their native channel order, including the flipped back face.
+         std::vector<uint32_t> pixels(static_cast<size_t>(face.getWidth()) * face.getHeight());
+         for (size_t i = 0; i < pixels.size(); ++i)
+         {
+            const uint32_t pixel = face.getData()[i];
+            pixels[i] = (pixel & 0xff00ff00u) | ((pixel & 0x00ff0000u) >> 16) | ((pixel & 0x000000ffu) << 16);
+         }
+         glTexImage2D(targets[side], level, GL_RGBA, face.getWidth(), face.getHeight(), 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
          face = face.downsample();
          level++;
       } while (face.getWidth() > 0 && face.getHeight() > 0);
