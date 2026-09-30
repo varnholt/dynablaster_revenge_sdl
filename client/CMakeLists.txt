@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.20)
 project(dynablaster_revenge LANGUAGES C CXX)
 
+# Older devkitPro toolchains set CMAKE_SYSTEM_NAME without NINTENDO_SWITCH.
+if(CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch")
+    set(NINTENDO_SWITCH TRUE)
+endif()
+
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -74,6 +79,14 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(SDL3_net)
 if(NINTENDO_SWITCH)
+    include(CheckCSourceCompiles)
+    check_c_source_compiles("#include <sys/socket.h>
+        #include <netinet/in.h>
+        int main(void) { struct ipv6_mreq request; return sizeof(request) == 0; }"
+        DYNABLASTER_HAS_IPV6_MREQ)
+    if(NOT DYNABLASTER_HAS_IPV6_MREQ)
+        target_compile_definitions(SDL3_net-static PRIVATE DYNABLASTER_NEEDS_IPV6_MREQ=1)
+    endif()
     target_compile_options(SDL3_net-static PRIVATE
         -include ${CMAKE_CURRENT_SOURCE_DIR}/src/platform/switchnetcompat.h)
 endif()
@@ -421,6 +434,9 @@ target_include_directories(dynablaster_core PUBLIC
     ${minimp3_SOURCE_DIR}
 )
 target_link_libraries(dynablaster_core PUBLIC SDL3_net::SDL3_net SDL3::SDL3)
+if(NINTENDO_SWITCH)
+    target_include_directories(dynablaster_core PRIVATE ${DEVKITPRO}/portlibs/switch/include)
+endif()
 
 # real C++ exception catching (SettingsValue::toFloat()'s try/catch, shared/settings.cpp) needs
 # this at compile time too, not just at dynablaster_revenge's link step - DISABLE_EXCEPTION_CATCHING

@@ -62,15 +62,17 @@ binary supporting `--selftest`, `--menu`, `--click`, `--screenshot`, and other t
 
 ## Nintendo Switch homebrew
 
-The Switch build uses the same pinned Docker toolchain as Deceptus, so it needs
+The Switch build uses a pinned devkitPro Docker toolchain, so it needs
 Docker Desktop running with Linux containers, rather than a native devkitPro install:
 
 ```bat
 build_switch.bat
 ```
 
-This builds `client/build-switch/dynablaster_revenge.nro` with
-`devkitpro/devkita64:20260219`. All game assets are embedded as RomFS. Copy the
+This builds `client/build-switch/gcc14/dynablaster_revenge.nro` with
+`devkitpro/devkita64:20240827` (GCC 14) and checksum-verified CMake 3.31.6.
+GCC 15's unwinder uses GCS instructions unsupported by the tested emulator.
+All game assets are embedded as RomFS. Copy the
 `.nro` to the SD card's `/switch/` directory and launch through the homebrew menu
 in title takeover mode (hold R while starting a game), which provides the memory
 needed by the assets. This is a homebrew build for the original Switch.
@@ -94,6 +96,9 @@ To validate the NRO container, embedded assets, and linked platform backends:
 ```bat
 docker run --rm -v "%CD%:/workspace" -w /workspace devkitpro/devkita64:20260219 python3 client/tests/test_switch_build.py
 ```
+
+The validation container includes a host C compiler for the networking checks;
+the NRO itself is built with the GCC 14 image above.
 
 ## Server
 

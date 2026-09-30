@@ -7,7 +7,7 @@ import tempfile
 import unittest
 
 CLIENT = Path(__file__).resolve().parents[1]
-BUILD = CLIENT / 'build-switch'
+BUILD = CLIENT / 'build-switch' / 'gcc14'
 NRO = BUILD / 'dynablaster_revenge.nro'
 ELF = BUILD / 'dynablaster_revenge.elf'
 

@@ -9,7 +9,7 @@
 // libnx exposes IPV6_JOIN_GROUP but omits its request type. SDL3_net builds
 // its UDP multicast implementation even though the game uses TCP. Supply the
 // BSD request layout here rather than changing the upstream dependency.
-#ifdef __SWITCH__
+#if defined(__SWITCH__) && defined(DYNABLASTER_NEEDS_IPV6_MREQ)
 struct ipv6_mreq
 {
    struct in6_addr ipv6mr_multiaddr;

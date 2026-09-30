@@ -13,7 +13,7 @@ permissions:
 jobs:
   nro:
     runs-on: ubuntu-latest
-    container: devkitpro/devkita64:20260219
+    container: devkitpro/devkita64:20240827
     steps:
       - uses: actions/checkout@v4
       - name: Build NRO
@@ -21,9 +21,12 @@ jobs:
           BUILD_JOBS: 4
         run: bash docker/build_switch.sh
       - name: Verify NRO and embedded assets
-        run: python3 client/tests/test_switch_build.py
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends gcc libc6-dev
+          python3 client/tests/test_switch_build.py
       - uses: actions/upload-artifact@v4
         with:
           name: dynablaster-switch
-          path: client/build-switch/dynablaster_revenge.nro
+          path: client/build-switch/gcc14/dynablaster_revenge.nro
           if-no-files-found: error
