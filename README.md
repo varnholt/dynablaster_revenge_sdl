@@ -1,6 +1,7 @@
 # Dynablaster Revenge
 
 [![build](https://github.com/varnholt/dynablaster_revenge_sdl/actions/workflows/build.yml/badge.svg)](https://github.com/varnholt/dynablaster_revenge_sdl/actions/workflows/build.yml)
+[![Switch homebrew](https://github.com/varnholt/dynablaster_revenge_sdl/actions/workflows/switch.yml/badge.svg)](https://github.com/varnholt/dynablaster_revenge_sdl/actions/workflows/switch.yml)
 
 _Dynablaster Revenge_ is a remake of the game Dynablaster, released by Hudson Soft in 1991. The
 goal of this remake is to keep the original game-play as untouched as possible while adding
@@ -13,7 +14,7 @@ game server, both written in C++23 with no Qt dependency.
 
 # Get a Build
 
-Every push to `main` is built for all four platforms. These links always give you the newest
+Every push to `main` is built for all five platforms. These links always give you the newest
 successful build and need no GitHub account:
 
 |Platform|Download|
@@ -22,12 +23,14 @@ successful build and need no GitHub account:
 |Linux|[dynablaster-linux.zip](https://nightly.link/varnholt/dynablaster_revenge_sdl/workflows/build/main/dynablaster-linux.zip)|
 |macOS|[dynablaster-macos.zip](https://nightly.link/varnholt/dynablaster_revenge_sdl/workflows/build/main/dynablaster-macos.zip)|
 |Web|[dynablaster-wasm.zip](https://nightly.link/varnholt/dynablaster_revenge_sdl/workflows/build/main/dynablaster-wasm.zip)|
+|Nintendo Switch (homebrew)|[dynablaster-switch.zip](https://nightly.link/varnholt/dynablaster_revenge_sdl/workflows/switch/main/dynablaster-switch.zip)|
 
 The desktop archives contain `dynablaster_revenge`/`dynablaster_revenge.exe` next to its `data/`
 directory - run it from that folder. The web archive holds the Emscripten output (`.html`/`.js`/
 `.wasm`/`.data`) and needs to be served over HTTP, not opened as a local file. Note: browser
 multiplayer doesn't work yet - the web build reaches the main menu only, since SDL3_net has no
-WebSocket backend to talk to a real game server from inside a browser sandbox.
+WebSocket backend to talk to a real game server from inside a browser sandbox. The Switch archive
+holds a single `.nro`; see [docs/switch.md](docs/switch.md) for how to install it.
 
 # Project layout
 
@@ -62,53 +65,8 @@ binary supporting `--selftest`, `--menu`, `--click`, `--screenshot`, and other t
 
 ## Nintendo Switch homebrew
 
-The Switch build uses a pinned devkitPro Docker toolchain, so it needs
-Docker Desktop running with Linux containers, rather than a native devkitPro install:
-
-```bat
-build_switch.bat
-```
-
-This builds `client/build-switch/gcc14/dynablaster_revenge.nro` with
-`devkitpro/devkita64:20240827` (GCC 14) and checksum-verified CMake 3.31.6.
-GCC 15's unwinder uses GCS instructions unsupported by the tested emulator.
-All game assets are embedded as RomFS. Copy the
-`.nro` to the SD card's `/switch/` directory and launch through the homebrew menu
-in title takeover mode (hold R while starting a game), which provides the memory
-needed by the assets. This is a homebrew build for the original Switch.
-
-In menus, use the left stick or D-pad to move the cursor, A to click/drag, B to go
-back, and X to open the software keyboard after selecting a text field. In game,
-the stick/D-pad moves, A or B places a bomb, L/R zooms, ZL displays player names,
-Minus leaves the game, and Plus ends the round for its owner. The initial port uses
-one controller; single player with bots and network multiplayer use the existing
-embedded server and SDL3_net protocol.
-
-Writable settings, host history, and diagnostics go to
-`sdmc:/switch/dynablaster_revenge/`; `game.ini` is seeded there on the first launch.
-The SDL3 homebrew backend in `patches/switch-sdl3-backend.patch` is reused from
-Deceptus and applied to its pinned SDL revision
-`e205361fb67ff53868dbc333eb2c491e11ff1a51` from `vittorioromeo/SDL`.
-The SDL zlib notices are preserved; the backend is a modified SDL distribution.
-
-For Ryujinx 1.3.2, enable network access so the client and embedded server can
-connect through loopback, and use the normal tick scalar of 1. Numeric endpoints
-are resolved locally. Socket setup verifies the nonblocking flag and corrects
-the reversed `F_SETFL` behavior in this emulator when detected.
-
-Runtime verification in stock Ryujinx 1.3.2 covers controller navigation, local
-matches with three bots on Castle, Mansion, and Space, movement, bombs, and round
-transitions. Handheld and docked rendering use the actual libnx framebuffer size.
-Physical Switch hardware and multiplayer between separate consoles remain untested.
-
-To validate the NRO container, embedded assets, and linked platform backends:
-
-```bat
-docker run --rm -v "%CD%:/workspace" -w /workspace devkitpro/devkita64:20260219 python3 client/tests/test_switch_build.py
-```
-
-The validation container includes a host C compiler for the networking checks;
-the NRO itself is built with the GCC 14 image above.
+The Switch `.nro` is built with a pinned devkitPro Docker toolchain via `build_switch.bat`. See
+[docs/switch.md](docs/switch.md) for installing, controls, building, and emulator notes.
 
 ## Server
 
