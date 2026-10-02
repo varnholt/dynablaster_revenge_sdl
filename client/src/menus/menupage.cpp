@@ -82,13 +82,19 @@ void MenuPage::initialize()
 void MenuPage::initializeLayers()
 {
    load(_filename.c_str());
+   repeatGroups();
 
    for (int l = 0; l < getLayerCount(); l++)
    {
       PSD::Layer* layer = getLayer(l);
 
       const std::string layer_name = layer->getName();
-      if (layer_name.starts_with("background"))
+      if (layer->isGroupMarker())
+      {
+         // group folders and dividers carry no pixels
+         _render_layers.push_back(nullptr);
+      }
+      else if (layer_name.starts_with("background"))
       {
          _render_layers.push_back(std::make_unique<PSDLayer>(layer, -1.0f, false));
       }
@@ -800,15 +806,101 @@ MenuPageItem* MenuPage::processEditableComboBox(PSDLayer* layer, std::string lay
    return page_item;
 }
 
+/*!
+   a layer group can be repeated, e.g. one column per player:
+
+   repeat_groups = column
+   column_repeat_count = 4          // instances
+   column_repeat_spacing = 240      // horizontal distance between them in the PSD layout
+   column_repeat_layers = a,b       // layers outside the group that belong to every instance
+
+   each instance's layers are named <layer>@<n>, n = 1..count; instance 1 is the PSD's own.
+*/
+void MenuPage::repeatGroups()
+{
+   _settings->beginGroup(_title);
+   const auto groups = _settings->value("repeat_groups").toStringList();
+
+   for (const auto& group : groups)
+   {
+      const int32_t count = _settings->value(group + "_repeat_count", 1).toInt();
+      const int32_t spacing = _settings->value(group + "_repeat_spacing", 0).toInt();
+      const auto extra_layers = _settings->value(group + "_repeat_layers").toStringList();
+
+      std::vector<PSD::Layer*> members;
+      for (int32_t l = 0; l < getLayerCount(); l++)
+      {
+         PSD::Layer* layer = getLayer(l);
+         const std::string name = StringUtils::trim(layer->getName());
+         if (!layer->isGroupMarker() && (layer->getGroup() == group || std::ranges::contains(extra_layers, name)))
+         {
+            members.push_back(layer);
+         }
+      }
+
+      auto& instances = _group_instances[group];
+      instances.assign(static_cast<size_t>(std::max(count, 1)), {});
+      _group_instance_offsets[group].assign(instances.size(), 0);
+
+      for (PSD::Layer* layer : members)
+      {
+         const std::string name = StringUtils::trim(layer->getName());
+         for (int32_t index = 2; index <= count; index++)
+         {
+            instances[index - 1].push_back(addLayer(layer->clone(getInstanceName(name, index), spacing * (index - 1), 0)));
+         }
+         layer->setName(getInstanceName(name, 1));
+         instances.front().push_back(layer);
+      }
+   }
+
+   _settings->endGroup();
+}
+
+int32_t MenuPage::getGroupInstanceCount(const std::string& group) const
+{
+   const auto it = _group_instances.find(group);
+   return it != _group_instances.end() ? static_cast<int32_t>(it->second.size()) : 0;
+}
+
+void MenuPage::setGroupInstanceOffset(const std::string& group, int32_t index, int32_t offset)
+{
+   const auto instances = _group_instances.find(group);
+   if (instances == _group_instances.end() || index < 1 || index > static_cast<int32_t>(instances->second.size()))
+   {
+      return;
+   }
+
+   int32_t& current = _group_instance_offsets[group][index - 1];
+   for (PSD::Layer* layer : instances->second[index - 1])
+   {
+      layer->move(offset - current, 0);
+   }
+   current = offset;
+}
+
+std::string MenuPage::getInstanceName(const std::string& layer_name, int32_t index)
+{
+   return layer_name + "@" + std::to_string(index);
+}
+
 void MenuPage::initializePageItems()
 {
    _settings->beginGroup(_title);
+
+   // plain layers start hidden if they're hidden in the PSD (opt-in, older pages toggle theirs in code)
+   const bool respect_layer_visibility = _settings->value("respect_layer_visibility", false).toBool();
 
    std::string layer_name_without_postfix;
 
    for (int l = 0; l < getLayerCount(); l++)
    {
       PSDLayer* layer = _render_layers[l].get();
+      if (!layer)
+      {
+         continue;
+      }
+
       const std::string layer_name = StringUtils::trim(getLayer(l)->getName());
       layer_name_without_postfix.clear();
 
@@ -873,6 +965,10 @@ void MenuPage::initializePageItems()
       else
       {
          page_item = processDefaultItem(layer, layer_name);
+         if (page_item && respect_layer_visibility)
+         {
+            page_item->setVisible(getLayer(l)->isVisible());
+         }
       }
 
       if (page_item)
