@@ -1,7 +1,7 @@
 // dynablaster_revenge_harness - the test/diagnostic entry point, NOT the shipped game. Builds
 // exactly the same engine/menu/effects code as the real game (src/main.cpp), but wraps it with
 // CLI flags for headless screenshot verification (--selftest), scripted/synthetic input
-// (--click, --realclick), page inspection (--dumplayer, --page, --dumppsd for a standalone PSD
+// (--click, --realclick, --gamepad), page inspection (--dumplayer, --page, --dumppsd for a standalone PSD
 // asset not part of the menu system), an isolated-effect view (--logo3d), the effect lab
 // (--effect) and a standalone castle-level demo (the default mode with no flags at all). See
 // CMakeLists.txt for how this and dynablaster_revenge share the same dynablaster_core library.
@@ -22,6 +22,8 @@
 
 #include "effects/spherefragments/spherefragmentsdrawable.h"
 #include "game/gamelogodrawable.h"
+#include "game/gamepadinput.h"
+#include "game/menujoystickhandler.h"
 
 #include "image/image.h"
 #include "image/psd.h"
@@ -38,6 +40,7 @@
 #include <SDL3/SDL.h>
 
 #include <algorithm>
+#include <sstream>
 #include <array>
 #include <cstdint>
 #include <cstdlib>
@@ -77,6 +80,42 @@ std::string argValue(const std::vector<std::string>& args, const std::string& pr
    }
 
    return arg->substr(prefix.size());
+}
+
+/// rief "up,down,left,right,bomb" -> gamepad buttons for a scripted --gamepad run
+std::vector<SDL_GamepadButton> parseGamepadScript(const std::string& text)
+{
+   std::vector<SDL_GamepadButton> buttons;
+   std::stringstream stream(text);
+   std::string step;
+   while (std::getline(stream, step, ','))
+   {
+      if (step == "up")
+      {
+         buttons.push_back(SDL_GAMEPAD_BUTTON_DPAD_UP);
+      }
+      else if (step == "down")
+      {
+         buttons.push_back(SDL_GAMEPAD_BUTTON_DPAD_DOWN);
+      }
+      else if (step == "left")
+      {
+         buttons.push_back(SDL_GAMEPAD_BUTTON_DPAD_LEFT);
+      }
+      else if (step == "right")
+      {
+         buttons.push_back(SDL_GAMEPAD_BUTTON_DPAD_RIGHT);
+      }
+      else if (step == "bomb")
+      {
+         buttons.push_back(SDL_GAMEPAD_BUTTON_SOUTH);
+      }
+      else
+      {
+         SDL_Log("--gamepad: unknown step '%s'", step.c_str());
+      }
+   }
+   return buttons;
 }
 
 bool hasFlag(const std::vector<std::string>& args, const std::string& flag)
@@ -371,6 +410,43 @@ int main(int argc, char** argv)
    // handlers directly) - pushes genuine SDL_Event structs via SDL_PushEvent so they flow
    // through the same SDL_PollEvent loop and convertFromViewPort() conversion a real OS mouse
    // click would.
+   // --gamepad=right,right,bomb (menu mode): drives the menu with a virtual gamepad through the
+   // real GamepadInput/MenuJoystickHandler path, one step every gamepad_step_frames frames.
+   constexpr int32_t gamepad_first_frame = 20;
+   constexpr int32_t gamepad_step_frames = 40;
+   const auto gamepad_script = parseGamepadScript(argValue(args, "--gamepad="));
+   std::unique_ptr<GamepadInput> gamepad_input;
+   std::unique_ptr<MenuJoystickHandler> menu_joystick_handler;
+   SDL_Joystick* virtual_gamepad = nullptr;
+   if (menu_mode && menu_drawable && !gamepad_script.empty())
+   {
+      // the harness window usually isn't focused, SDL drops joystick input then
+      SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
+      gamepad_input = std::make_unique<GamepadInput>();
+      if (gamepad_input->initialize())
+      {
+         SDL_VirtualJoystickDesc desc;
+         SDL_INIT_INTERFACE(&desc);
+         desc.type = SDL_JOYSTICK_TYPE_GAMEPAD;
+         desc.naxes = SDL_GAMEPAD_AXIS_COUNT;
+         desc.nbuttons = SDL_GAMEPAD_BUTTON_COUNT;
+         desc.name = "harness gamepad";
+         virtual_gamepad = SDL_OpenJoystick(SDL_AttachVirtualJoystick(&desc));
+      }
+
+      menu_joystick_handler = std::make_unique<MenuJoystickHandler>(*menu_drawable, *menu_cursor, *gamepad_input);
+      menu_joystick_handler->initialize();
+      gamepad_input->buttonPressedSignal.connect(
+         [handler = menu_joystick_handler.get()](SDL_JoystickID, GamepadInput::Button button)
+         {
+            SDL_Log("gamepad: button 0x%x pressed", button);
+            handler->buttonPressed(button);
+         }
+      );
+      menu_drawable->pageChangedSignal.connect([handler = menu_joystick_handler.get()](const std::string&)
+                                               { handler->focusDefaultElement(); });
+   }
+
    const std::string realclick_arg = argValue(args, "--realclick=");
    int32_t real_click_x = -1;
    int32_t real_click_y = -1;
@@ -397,6 +473,11 @@ int main(int argc, char** argv)
          if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_ESCAPE)
          {
             running = false;
+         }
+
+         if (gamepad_input)
+         {
+            gamepad_input->handleEvent(event);
          }
 
          if (menu_mode && menu_drawable)
@@ -476,6 +557,24 @@ int main(int argc, char** argv)
                menu_cursor->mouseReleaseEvent();
             }
          }
+      }
+
+      // --gamepad: press a step's button, release it a few frames later
+      if (virtual_gamepad && frame >= gamepad_first_frame)
+      {
+         const int32_t step = (frame - gamepad_first_frame) / gamepad_step_frames;
+         const int32_t step_frame = (frame - gamepad_first_frame) % gamepad_step_frames;
+         if (step < static_cast<int32_t>(gamepad_script.size()) && (step_frame == 0 || step_frame == 3))
+         {
+            SDL_SetJoystickVirtualButton(virtual_gamepad, gamepad_script[static_cast<size_t>(step)], step_frame == 0);
+         }
+      }
+
+      if (gamepad_input)
+      {
+         SDL_UpdateJoysticks();
+         gamepad_input->poll();
+         menu_joystick_handler->update();
       }
 
       // --realclick=x,y: same frame schedule as --click above, but through genuine SDL events
@@ -564,7 +663,9 @@ int main(int argc, char** argv)
 
       ++frame;
 
-      const bool selftest_done = (menu_mode || logo3d_mode) ? (selftest && frame > 40) : (selftest && injector.finished() && frame > 40);
+      const int32_t menu_frames = gamepad_script.empty() ? 40 : gamepad_first_frame + gamepad_step_frames * static_cast<int32_t>(gamepad_script.size()) + 30;
+      const bool selftest_done =
+         (menu_mode || logo3d_mode) ? (selftest && frame > menu_frames) : (selftest && injector.finished() && frame > 40);
 
       if (selftest_done)
       {

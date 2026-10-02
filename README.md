@@ -55,10 +55,12 @@ installation is required beyond a working C++ toolchain and CMake.
 Keyboard: arrow keys move, space places a bomb, `[` / `]` zoom, Tab shows player names, Escape
 leaves the game, F10 ends the round for its owner.
 
-Gamepads can be plugged in at any time. In menus, the left stick or D-pad moves the cursor, A
-clicks and B goes back. In game, the stick or D-pad moves, A/B/X/Y place a bomb, the shoulder
-buttons zoom, the left trigger shows player names, Back leaves the game and Start ends the round
-for its owner. For now all gamepads steer the same local player.
+Gamepads and joysticks can be plugged in at any time. In menus, the D-pad or stick moves the
+focus from item to item, A/B/X/Y click; in a text field up/down cycle the letter and left/right
+move the cursor. In game, the stick or D-pad moves, A/B/X/Y place a bomb and the shoulder
+buttons zoom; the pad rumbles when you collect an extra or die. Devices without a gamepad
+mapping (SDL's own plus `data/game/gamecontrollerdb.txt`) are read as raw joysticks using the
+`[controller]` axes in `game.ini`. For now all gamepads steer the same local player.
 
 # Building
 

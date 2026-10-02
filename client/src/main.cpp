@@ -15,6 +15,7 @@
 #include "game/countdowndrawable.h"
 #include "game/gamedrawable.h"
 #include "game/gamepadinput.h"
+#include "game/menujoystickhandler.h"
 #include "game/gamelogodrawable.h"
 #include "game/gamemessagingdrawable.h"
 #include "game/gamewindrawable.h"
@@ -296,6 +297,13 @@ int main(int /*argc*/, char** /*argv*/)
    // the Switch reads its pad through libnx, see SwitchPlatform
    GamepadInput gamepad_input;
    gamepad_input.initialize();
+   bomberman_client.rumbleSignal.connect([&](float intensity, int duration_ms) { gamepad_input.rumble(intensity, duration_ms); });
+
+   MenuJoystickHandler menu_joystick_handler(menu_drawable, menu_cursor, gamepad_input);
+   menu_joystick_handler.initialize();
+   gamepad_input.buttonPressedSignal.connect([&](SDL_JoystickID, GamepadInput::Button button)
+                                             { menu_joystick_handler.buttonPressed(button); });
+   menu_drawable.pageChangedSignal.connect([&](const std::string&) { menu_joystick_handler.focusDefaultElement(); });
 #endif
 
    // background music
@@ -357,7 +365,7 @@ int main(int /*argc*/, char** /*argv*/)
                menu_drawable.mouseMoveEvent(x, y);
                menu_cursor.mouseMoveEvent(x, y);
 #ifndef __SWITCH__
-               gamepad_input.setCursorPosition(x, y);
+               menu_joystick_handler.mouseMoved(x, y);
 #endif
                break;
             }
@@ -368,6 +376,9 @@ int main(int /*argc*/, char** /*argv*/)
                device.convertFromViewPort(&x, &y, 1920, 1080);
                menu_drawable.mousePressEvent(x, y);
                menu_cursor.mousePressEvent(x, y);
+#ifndef __SWITCH__
+               menu_joystick_handler.mousePressed();
+#endif
                break;
             }
             case SDL_EVENT_MOUSE_BUTTON_UP:
@@ -433,7 +444,8 @@ int main(int /*argc*/, char** /*argv*/)
       }
 
 #ifndef __SWITCH__
-      gamepad_input.update(game_drawable.isVisible(), game_drawable, menu_drawable, menu_cursor);
+      gamepad_input.update(game_drawable.isVisible(), game_drawable);
+      menu_joystick_handler.update();
 #endif
 
       // Timer::update() drives Server's/BombermanClient's own poll() plus every other Timer.

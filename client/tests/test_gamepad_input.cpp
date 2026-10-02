@@ -75,11 +75,11 @@ int main(int /*argc*/, char** /*argv*/)
 
    SDL_SetJoystickVirtualButton(joystick, SDL_GAMEPAD_BUTTON_SOUTH, true);
    pump(input);
-   ok &= check((recorder.held & GamepadInput::ButtonSouth) != 0, "south pressed");
+   ok &= check((recorder.held & GamepadInput::ButtonBomb) != 0, "south pressed");
 
    SDL_SetJoystickVirtualButton(joystick, SDL_GAMEPAD_BUTTON_SOUTH, false);
    pump(input);
-   ok &= check((recorder.released & GamepadInput::ButtonSouth) != 0, "south released");
+   ok &= check((recorder.released & GamepadInput::ButtonBomb) != 0, "south released");
 
    SDL_SetJoystickVirtualAxis(joystick, SDL_GAMEPAD_AXIS_LEFTX, -32767);
    pump(input);

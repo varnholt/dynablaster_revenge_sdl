@@ -314,8 +314,16 @@ add_library(dynablaster_core STATIC
     # Phase 4 (real client<->server networking) prep - small, self-contained utility classes
     # BombermanClient itself depends on, ported ahead of it.
     src/game/gamehelptexts.h
+    src/game/charcycling.cpp
+    src/game/charcycling.h
     src/game/gamepadinput.cpp
     src/game/gamepadinput.h
+    src/game/menujoystickgraph.cpp
+    src/game/menujoystickgraph.h
+    src/game/menujoystickhandler.cpp
+    src/game/menujoystickhandler.h
+    src/game/menujoystickmouseanimation.cpp
+    src/game/menujoystickmouseanimation.h
     src/game/gamesettings.cpp
     src/game/gamesettings.h
     src/game/gamestatemachine.cpp
@@ -535,4 +543,11 @@ add_test(NAME selftest_smoke
 )
 set_tests_properties(selftest_smoke PROPERTIES
     WORKING_DIRECTORY "$<TARGET_FILE_DIR:dynablaster_revenge_harness>")
+# walks the main menu with a virtual gamepad (menu_gamepad.ini graph) and clicks MULTI
+add_test(NAME gamepad_menu
+    COMMAND dynablaster_revenge_harness --menu --selftest --gamepad=right,down,down,right,bomb
+)
+set_tests_properties(gamepad_menu PROPERTIES
+    WORKING_DIRECTORY "$<TARGET_FILE_DIR:dynablaster_revenge_harness>"
+    PASS_REGULAR_EXPRESSION "action=button_multi_active")
 endif()
