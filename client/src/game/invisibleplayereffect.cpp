@@ -1,6 +1,7 @@
 #include "invisibleplayereffect.h"
 
 #include "framework/globaltime.h"
+#include "framebuffer.h"
 #include "gldevice.h"
 #include "materials/invisibilitymaterial.h"
 #include "nodes/mesh.h"
@@ -138,7 +139,7 @@ void InvisiblePlayerEffect::captureBackground()
    activeDevice->getViewPort(&x, &y, &width, &height);
 
    glBindTexture(GL_TEXTURE_2D, _background_texture);
-   glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, x, y, width, height, 0);
+   FrameBuffer::copyTexImage(x, y, width, height);
    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);

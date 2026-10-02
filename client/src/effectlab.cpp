@@ -164,6 +164,7 @@ int runEffectLab(const std::string& effect, const std::string& out_dir, const st
    // captures mustn't depend on the local video options
    auto* video_settings = GameSettings::getInstance()->getVideoSettings();
    video_settings->setResolution(1);
+   video_settings->setAntialias(1);
    video_settings->setBrightness(0.5f);
    VideoOutput video_output(device);
 
