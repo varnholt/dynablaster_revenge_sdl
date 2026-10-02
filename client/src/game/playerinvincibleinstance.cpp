@@ -1,5 +1,6 @@
 #include "playerinvincibleinstance.h"
 
+#include "framework/framebuffer.h"
 #include "framework/gldevice.h"
 
 PlayerInvincibleInstance::PlayerInvincibleInstance()
@@ -30,7 +31,7 @@ PlayerInvincibleInstance::PlayerInvincibleInstance()
       glBindFramebuffer(GL_FRAMEBUFFER, _target[i]);
       glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, _texture[i], 0);
       glClear(GL_COLOR_BUFFER_BIT);
-      glBindFramebuffer(GL_FRAMEBUFFER, 0);
+      glBindFramebuffer(GL_FRAMEBUFFER, FrameBuffer::screenTarget());
    }
 }
 
@@ -118,7 +119,7 @@ void PlayerInvincibleInstance::bind(int id)
 
 void PlayerInvincibleInstance::unbind()
 {
-   glBindFramebuffer(GL_FRAMEBUFFER, 0);
+   glBindFramebuffer(GL_FRAMEBUFFER, FrameBuffer::screenTarget());
 }
 
 void PlayerInvincibleInstance::setCenter(const Vector& center)

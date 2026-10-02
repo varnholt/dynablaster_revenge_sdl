@@ -181,7 +181,7 @@ void DeathFlowFieldAnimation::initialize(FrameBuffer* src, const Vector& min, co
       glBindFramebuffer(GL_FRAMEBUFFER, _target[i]);
       glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, _positions[i], 0);
       glClear(GL_COLOR_BUFFER_BIT);
-      glBindFramebuffer(GL_FRAMEBUFFER, 0);
+      glBindFramebuffer(GL_FRAMEBUFFER, FrameBuffer::screenTarget());
    }
 
    // create vertexbuffer (filled later, per frame, via draw()'s glReadPixels)
@@ -240,7 +240,7 @@ void DeathFlowFieldAnimation::initializePositions(uint32_t depth_map, const Vect
    };
    drawQuad(quad, 4);
 
-   glBindFramebuffer(GL_FRAMEBUFFER, 0);
+   glBindFramebuffer(GL_FRAMEBUFFER, FrameBuffer::screenTarget());
 }
 
 void DeathFlowFieldAnimation::initializeParams(uint32_t depth_map, const Vector& min, const Vector& max)
@@ -283,7 +283,7 @@ void DeathFlowFieldAnimation::initializeParams(uint32_t depth_map, const Vector&
    };
    drawQuad(quad, 4);
 
-   glBindFramebuffer(GL_FRAMEBUFFER, 0);
+   glBindFramebuffer(GL_FRAMEBUFFER, FrameBuffer::screenTarget());
    glDeleteFramebuffers(1, &target);
 }
 
@@ -307,7 +307,7 @@ void DeathFlowFieldAnimation::update(float delta)
    const float quad[4 * 2] = {-1.0f, -1.0f, 1.0f, -1.0f, 1.0f, 1.0f, -1.0f, 1.0f};
    drawQuad(quad, 2);
 
-   glBindFramebuffer(GL_FRAMEBUFFER, 0);
+   glBindFramebuffer(GL_FRAMEBUFFER, FrameBuffer::screenTarget());
 }
 
 void DeathFlowFieldAnimation::draw()
@@ -329,12 +329,9 @@ void DeathFlowFieldAnimation::draw()
    }
    else
    {
-      // no FrameBuffer currently pushed (this port has no MainDrawable owning a top-level FBO,
-      // unlike the original desktop game where `prev` was never null here) - restore the
-      // viewport to the real screen size, matching FrameBuffer::pop()'s own established
-      // convention for this exact case, instead of leaving it stuck at _width x _height (the
-      // tiny particle-texture size) for the rest of this frame and every frame after it.
-      glBindFramebuffer(GL_FRAMEBUFFER, 0);
+      // nothing bound (the harness draws straight to the window) - restore the full viewport
+      // instead of leaving it at the particle texture size, like FrameBuffer::pop()
+      glBindFramebuffer(GL_FRAMEBUFFER, FrameBuffer::screenTarget());
       glViewport(activeDevice->getBorderLeft(), activeDevice->getBorderBottom(), activeDevice->getWidth(), activeDevice->getHeight());
    }
 

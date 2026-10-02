@@ -275,6 +275,8 @@ add_library(dynablaster_core STATIC
     src/postproduction/blurfilter.h
     src/postproduction/motionblurfilter.cpp
     src/postproduction/motionblurfilter.h
+    src/postproduction/brightnessfilter.cpp
+    src/postproduction/brightnessfilter.h
     src/postproduction/shroomfilter.cpp
     src/postproduction/shroomfilter.h
     src/effects/ribbons/ribbonanimationfactory.cpp
@@ -335,6 +337,8 @@ add_library(dynablaster_core STATIC
     src/game/localplayers.h
     src/game/videooptions.cpp
     src/game/videooptions.h
+    src/game/videooutput.cpp
+    src/game/videooutput.h
     src/game/gamesettings.h
     src/game/gamestatemachine.cpp
     src/game/gamestatemachine.h

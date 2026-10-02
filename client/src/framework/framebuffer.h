@@ -23,6 +23,10 @@ public:
    static void pop();
    static FrameBuffer* Instance();
 
+   // the frame everything is drawn into before it's presented, unbind() and pop() return to it
+   static void setScreen(FrameBuffer* frame_buffer);
+   static uint32_t screenTarget();
+
    int32_t width() const;
    int32_t height() const;
    // width / refWidth (no multisampling, so no sqrt(samples) factor)
@@ -49,6 +53,7 @@ private:
    int32_t _format_flags = 0;
 
    static inline FrameBuffer* _instance = nullptr;
+   static inline FrameBuffer* _screen = nullptr;
    static inline std::vector<FrameBuffer*> _stack;
 
    // full-screen quad used by draw(), lazily created, kept for the process lifetime

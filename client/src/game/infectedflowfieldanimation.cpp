@@ -139,7 +139,7 @@ void InfectedFlowFieldAnimation::initialize()
    glGenFramebuffers(1, &_param_target);
    glBindFramebuffer(GL_FRAMEBUFFER, _param_target);
    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, _vertex_param_texture, 0);
-   glBindFramebuffer(GL_FRAMEBUFFER, 0);
+   glBindFramebuffer(GL_FRAMEBUFFER, FrameBuffer::screenTarget());
 
    glGenTextures(1, &_vertex_color_texture);
    glBindTexture(GL_TEXTURE_2D, _vertex_color_texture);
@@ -155,7 +155,7 @@ void InfectedFlowFieldAnimation::initialize()
    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, _vertex_color_texture, 0);
    // transparent until a particle respawns and picks up a color (original's clear color)
    static_cast<GLDevice*>(activeDevice)->clear(0.0f, 0.0f, 0.0f, 0.0f);
-   glBindFramebuffer(GL_FRAMEBUFFER, 0);
+   glBindFramebuffer(GL_FRAMEBUFFER, FrameBuffer::screenTarget());
 
    for (int i = 0; i < 2; i++)
    {
@@ -175,7 +175,7 @@ void InfectedFlowFieldAnimation::initialize()
       glBindFramebuffer(GL_FRAMEBUFFER, _pos_target[i]);
       glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, _positions[i], 0);
       glClear(GL_COLOR_BUFFER_BIT);
-      glBindFramebuffer(GL_FRAMEBUFFER, 0);
+      glBindFramebuffer(GL_FRAMEBUFFER, FrameBuffer::screenTarget());
    }
 
    glGenBuffers(1, &_vertex_pos_buffer);
@@ -215,7 +215,7 @@ void InfectedFlowFieldAnimation::initializePositions(uint32_t depth_map, const V
    };
    drawQuad(quad, 4);
 
-   glBindFramebuffer(GL_FRAMEBUFFER, 0);
+   glBindFramebuffer(GL_FRAMEBUFFER, FrameBuffer::screenTarget());
 }
 
 void InfectedFlowFieldAnimation::initializeParams(uint32_t depth_map, const Vector& min, const Vector& max)
@@ -244,7 +244,7 @@ void InfectedFlowFieldAnimation::initializeParams(uint32_t depth_map, const Vect
    };
    drawQuad(quad, 4);
 
-   glBindFramebuffer(GL_FRAMEBUFFER, 0);
+   glBindFramebuffer(GL_FRAMEBUFFER, FrameBuffer::screenTarget());
 }
 
 void InfectedFlowFieldAnimation::updatePositions(float delta)
@@ -269,7 +269,7 @@ void InfectedFlowFieldAnimation::updatePositions(float delta)
    const float quad[4 * 2] = {-1.0f, -1.0f, 1.0f, -1.0f, 1.0f, 1.0f, -1.0f, 1.0f};
    drawQuad(quad, 2);
 
-   glBindFramebuffer(GL_FRAMEBUFFER, 0);
+   glBindFramebuffer(GL_FRAMEBUFFER, FrameBuffer::screenTarget());
 }
 
 void InfectedFlowFieldAnimation::updateColors()
@@ -286,7 +286,7 @@ void InfectedFlowFieldAnimation::updateColors()
    const float quad[4 * 2] = {-1.0f, -1.0f, 1.0f, -1.0f, 1.0f, 1.0f, -1.0f, 1.0f};
    drawQuad(quad, 2);
 
-   glBindFramebuffer(GL_FRAMEBUFFER, 0);
+   glBindFramebuffer(GL_FRAMEBUFFER, FrameBuffer::screenTarget());
 }
 
 void InfectedFlowFieldAnimation::draw()
@@ -312,7 +312,7 @@ void InfectedFlowFieldAnimation::draw()
    }
    else
    {
-      glBindFramebuffer(GL_FRAMEBUFFER, 0);
+      glBindFramebuffer(GL_FRAMEBUFFER, FrameBuffer::screenTarget());
       glViewport(activeDevice->getBorderLeft(), activeDevice->getBorderBottom(), activeDevice->getWidth(), activeDevice->getHeight());
    }
 
