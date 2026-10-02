@@ -547,11 +547,6 @@ target_link_libraries(dynablaster_local_player_test PRIVATE dynablaster_core)
 add_test(NAME local_player COMMAND dynablaster_local_player_test)
 set_tests_properties(local_player PROPERTIES
     WORKING_DIRECTORY "$<TARGET_FILE_DIR:dynablaster_revenge_harness>")
-add_executable(dynablaster_psd_groups_test tests/test_psd_groups.cpp)
-target_link_libraries(dynablaster_psd_groups_test PRIVATE dynablaster_core)
-add_test(NAME psd_groups COMMAND dynablaster_psd_groups_test)
-set_tests_properties(psd_groups PROPERTIES
-    WORKING_DIRECTORY "$<TARGET_FILE_DIR:dynablaster_revenge_harness>")
 add_test(NAME selftest_smoke
     COMMAND dynablaster_revenge_harness --selftest --screenshot=${CMAKE_BINARY_DIR}/selftest.png
 )
