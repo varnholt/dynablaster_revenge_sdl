@@ -2311,7 +2311,7 @@ void Game::setName(const std::string& name)
    _create_game_data._name = name;
 }
 
-bool Game::joinGame(Player* player, NET_StreamSocket* player_socket)
+bool Game::joinGame(Player* player, NET_StreamSocket* player_socket, std::optional<Constants::Color> preferred_color)
 {
    if (getPlayerCount() >= getMaximumPlayerCount())
    {
@@ -2324,7 +2324,7 @@ bool Game::joinGame(Player* player, NET_StreamSocket* player_socket)
    }
 
    // assign player color
-   player->setColor(getColorForNextPlayer());
+   player->setColor(getColorForNextPlayer(preferred_color));
 
    // reset player stats on join game event
    player->resetStats();
@@ -2525,14 +2525,22 @@ int Game::getGamesPlayed() const
    return _games_played;
 }
 
-Constants::Color Game::getColorForNextPlayer() const
+Constants::Color Game::getColorForNextPlayer(std::optional<Constants::Color> preferred_color) const
 {
+   const auto is_free = [this](Constants::Color color)
+   { return std::ranges::none_of(_players | std::views::values, [color](const Player* player) { return player->getColor() == color; }); };
+
+   if (preferred_color && is_free(*preferred_color))
+   {
+      return *preferred_color;
+   }
+
    // lowest color id (1..10) not taken yet
    for (int i = 1; i <= 10; i++)
    {
       const auto color = static_cast<Constants::Color>(i);
 
-      if (std::ranges::none_of(_players | std::views::values, [color](const Player* player) { return player->getColor() == color; }))
+      if (is_free(color))
       {
          return color;
       }

@@ -6,6 +6,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -108,8 +109,8 @@ public:
    //! check if game is only populated by bots
    bool isGamePopulatedByBots() const;
 
-   //! getter for free player color
-   Constants::Color getColorForNextPlayer() const;
+   //! getter for free player color, the preferred one if it's free
+   Constants::Color getColorForNextPlayer(std::optional<Constants::Color> preferred_color = std::nullopt) const;
 
    //! getter for game information object
    GameInformation getGameInformation();
@@ -124,7 +125,7 @@ public:
    bool isSynchronizationActive() const;
 
    //! player joins a game
-   bool joinGame(Player* player, NET_StreamSocket* player_socket);
+   bool joinGame(Player* player, NET_StreamSocket* player_socket, std::optional<Constants::Color> preferred_color = std::nullopt);
 
    //! getter for position skip count
    int getPositionSkipCount() const;

@@ -21,6 +21,9 @@ public:
    // reader positioned at the first unconsumed byte
    [[nodiscard]] BinaryReader reader() const;
 
+   // reader limited to the next 'bytes' bytes, e.g. one packet's block
+   [[nodiscard]] BinaryReader reader(size_t bytes) const;
+
    // commit that 'bytes' bytes were consumed from the current read position
    void consume(size_t bytes);
 
