@@ -1,4 +1,4 @@
-#include "menujoystickmouseanimation.h"
+#include "menucontrollercursoranimation.h"
 
 #include <algorithm>
 #include <cmath>
@@ -11,17 +11,17 @@ constexpr float duration_ms = 400.0f;
 constexpr float max_manhattan_length = 200.0f;
 }  // namespace
 
-void MenuJoystickMouseAnimation::add(int32_t x, int32_t y)
+void MenuControllerCursorAnimation::add(int32_t x, int32_t y)
 {
    _destinations.push_back({x, y});
 }
 
-bool MenuJoystickMouseAnimation::isBusy() const
+bool MenuControllerCursorAnimation::isBusy() const
 {
    return !_destinations.empty();
 }
 
-void MenuJoystickMouseAnimation::update(uint64_t now_ms)
+void MenuControllerCursorAnimation::update(uint64_t now_ms)
 {
    if (_destinations.empty())
    {
@@ -56,17 +56,17 @@ void MenuJoystickMouseAnimation::update(uint64_t now_ms)
    }
 }
 
-void MenuJoystickMouseAnimation::setPosition(int32_t x, int32_t y)
+void MenuControllerCursorAnimation::setPosition(int32_t x, int32_t y)
 {
    _position = {x, y};
 }
 
-int32_t MenuJoystickMouseAnimation::getX() const
+int32_t MenuControllerCursorAnimation::getX() const
 {
    return _position.x;
 }
 
-int32_t MenuJoystickMouseAnimation::getY() const
+int32_t MenuControllerCursorAnimation::getY() const
 {
    return _position.y;
 }

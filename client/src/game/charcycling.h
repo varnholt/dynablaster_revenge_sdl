@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <string>
 
-/// \brief cycles through the characters a gamepad can type into a line edit
+/// \brief cycles through the characters a controller can type into a line edit
 class CharCycling
 {
 public:

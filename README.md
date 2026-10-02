@@ -55,11 +55,11 @@ installation is required beyond a working C++ toolchain and CMake.
 Keyboard: arrow keys move, space places a bomb, `[` / `]` zoom, Tab shows player names, Escape
 leaves the game, F10 ends the round for its owner.
 
-Gamepads can be plugged in at any time. In menus, the D-pad or stick moves the
+Controllers can be plugged in at any time. In menus, the D-pad or stick moves the
 focus from item to item, A/B/X/Y click; in a text field up/down cycle the letter and left/right
 move the cursor. In game, the stick or D-pad moves, A/B/X/Y place a bomb and the shoulder
-buttons zoom; the pad rumbles when you collect an extra or die. Any controller
-SDL3 recognizes as a gamepad works. For now all gamepads steer the same local player.
+buttons zoom; the controller rumbles when you collect an extra or die. Any controller
+SDL3 recognizes as a controller works. For now all controllers steer the same local player.
 
 # Building
 

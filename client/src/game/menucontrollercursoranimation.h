@@ -6,7 +6,7 @@
 #include <deque>
 
 /// \brief glides the menu cursor (page coordinates) to queued destinations, one after another
-class MenuJoystickMouseAnimation
+class MenuControllerCursorAnimation
 {
 public:
    void add(int32_t x, int32_t y);

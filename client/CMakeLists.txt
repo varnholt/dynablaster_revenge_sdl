@@ -316,14 +316,14 @@ add_library(dynablaster_core STATIC
     src/game/gamehelptexts.h
     src/game/charcycling.cpp
     src/game/charcycling.h
-    src/game/gamepadinput.cpp
-    src/game/gamepadinput.h
-    src/game/menujoystickgraph.cpp
-    src/game/menujoystickgraph.h
-    src/game/menujoystickhandler.cpp
-    src/game/menujoystickhandler.h
-    src/game/menujoystickmouseanimation.cpp
-    src/game/menujoystickmouseanimation.h
+    src/game/controllerinput.cpp
+    src/game/controllerinput.h
+    src/game/menucontrollergraph.cpp
+    src/game/menucontrollergraph.h
+    src/game/menucontrollerhandler.cpp
+    src/game/menucontrollerhandler.h
+    src/game/menucontrollercursoranimation.cpp
+    src/game/menucontrollercursoranimation.h
     src/game/gamesettings.cpp
     src/game/gamesettings.h
     src/game/gamestatemachine.cpp
@@ -358,7 +358,7 @@ add_library(dynablaster_core STATIC
 
     # Phase 5 (real in-game rendering - map/players/bombs/extras/HUD) - see project memory for the
     # full dependency-graph scoping this was based on and what's deliberately deferred (particle
-    # effects, joystick, chat, music player UI, etc).
+    # effects, controller, chat, music player UI, etc).
     src/game/skull.cpp
     src/game/skull.h
     src/game/playerboundingrect.cpp
@@ -535,19 +535,19 @@ enable_testing()
 add_executable(dynablaster_gles_compatibility_test tests/test_gles_compatibility.cpp)
 target_link_libraries(dynablaster_gles_compatibility_test PRIVATE dynablaster_core)
 add_test(NAME gles_compatibility COMMAND dynablaster_gles_compatibility_test)
-add_executable(dynablaster_gamepad_input_test tests/test_gamepad_input.cpp)
-target_link_libraries(dynablaster_gamepad_input_test PRIVATE dynablaster_core)
-add_test(NAME gamepad_input COMMAND dynablaster_gamepad_input_test)
+add_executable(dynablaster_controller_input_test tests/test_controller_input.cpp)
+target_link_libraries(dynablaster_controller_input_test PRIVATE dynablaster_core)
+add_test(NAME controller_input COMMAND dynablaster_controller_input_test)
 add_test(NAME selftest_smoke
     COMMAND dynablaster_revenge_harness --selftest --screenshot=${CMAKE_BINARY_DIR}/selftest.png
 )
 set_tests_properties(selftest_smoke PROPERTIES
     WORKING_DIRECTORY "$<TARGET_FILE_DIR:dynablaster_revenge_harness>")
-# walks the main menu with a virtual gamepad (menu_gamepad.ini graph) and clicks MULTI
-add_test(NAME gamepad_menu
-    COMMAND dynablaster_revenge_harness --menu --selftest --gamepad=right,down,down,right,bomb
+# walks the main menu with a virtual controller (menu_controller.ini graph) and clicks MULTI
+add_test(NAME controller_menu
+    COMMAND dynablaster_revenge_harness --menu --selftest --controller=right,down,down,right,bomb
 )
-set_tests_properties(gamepad_menu PROPERTIES
+set_tests_properties(controller_menu PROPERTIES
     WORKING_DIRECTORY "$<TARGET_FILE_DIR:dynablaster_revenge_harness>"
     PASS_REGULAR_EXPRESSION "action=button_multi_active")
 endif()

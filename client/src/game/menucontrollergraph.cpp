@@ -1,6 +1,6 @@
-#include "menujoystickgraph.h"
+#include "menucontrollergraph.h"
 
-#include "menujoystickmouseanimation.h"
+#include "menucontrollercursoranimation.h"
 
 #include "menus/menu.h"
 #include "menus/menupage.h"
@@ -29,21 +29,21 @@ MenuPage* currentPage()
 }
 }  // namespace
 
-MenuJoystickGraph::MenuJoystickGraph(MenuJoystickMouseAnimation& animation) : _animation(animation)
+MenuControllerGraph::MenuControllerGraph(MenuControllerCursorAnimation& animation) : _animation(animation)
 {
 }
 
-MenuJoystickGraph::~MenuJoystickGraph()
+MenuControllerGraph::~MenuControllerGraph()
 {
    disconnectCombobox();
 }
 
-void MenuJoystickGraph::add(std::unique_ptr<Element> element)
+void MenuControllerGraph::add(std::unique_ptr<Element> element)
 {
    _elements.push_back(std::move(element));
 }
 
-void MenuJoystickGraph::link()
+void MenuControllerGraph::link()
 {
    const auto find = [this](MenuPageItem* item) -> Element*
    {
@@ -64,23 +64,23 @@ void MenuJoystickGraph::link()
    }
 }
 
-MenuPageItem* MenuJoystickGraph::getDefaultPageItem() const
+MenuPageItem* MenuControllerGraph::getDefaultPageItem() const
 {
    return _default_page_item;
 }
 
-void MenuJoystickGraph::setDefaultPageItem(MenuPageItem* item)
+void MenuControllerGraph::setDefaultPageItem(MenuPageItem* item)
 {
    _default_page_item = item;
 }
 
-void MenuJoystickGraph::mouseMove(int32_t x, int32_t y)
+void MenuControllerGraph::mouseMove(int32_t x, int32_t y)
 {
    // a negative coordinate keeps the cursor's current one
    _animation.add(x < 0 ? _animation.getX() : x, y < 0 ? _animation.getY() : y);
 }
 
-void MenuJoystickGraph::changeFocus(MenuPageItem* current_item, MenuPageItem* next_item)
+void MenuControllerGraph::changeFocus(MenuPageItem* current_item, MenuPageItem* next_item)
 {
    if (!next_item)
    {
@@ -159,7 +159,7 @@ void MenuJoystickGraph::changeFocus(MenuPageItem* current_item, MenuPageItem* ne
    mouseMove(x, y);
 }
 
-MenuPageItem* MenuJoystickGraph::internalNavigation(Direction direction)
+MenuPageItem* MenuControllerGraph::internalNavigation(Direction direction)
 {
    MenuPage* page = currentPage();
    if (!page)
@@ -307,7 +307,7 @@ MenuPageItem* MenuJoystickGraph::internalNavigation(Direction direction)
    return nullptr;
 }
 
-void MenuJoystickGraph::updateComboboxFocus(bool visible)
+void MenuControllerGraph::updateComboboxFocus(bool visible)
 {
    MenuPageComboBoxItem* combobox = _opened_combobox;
    disconnectCombobox();
@@ -339,7 +339,7 @@ void MenuJoystickGraph::updateComboboxFocus(bool visible)
    }
 }
 
-void MenuJoystickGraph::disconnectCombobox()
+void MenuControllerGraph::disconnectCombobox()
 {
    if (_opened_combobox)
    {
@@ -348,7 +348,7 @@ void MenuJoystickGraph::disconnectCombobox()
    }
 }
 
-MenuPageItem* MenuJoystickGraph::getModalItem() const
+MenuPageItem* MenuControllerGraph::getModalItem() const
 {
    MenuPage* page = currentPage();
    if (!page)
@@ -383,7 +383,7 @@ MenuPageItem* MenuJoystickGraph::getModalItem() const
    return nullptr;
 }
 
-MenuPageComboBoxItem* MenuJoystickGraph::getVisibleCombobox() const
+MenuPageComboBoxItem* MenuControllerGraph::getVisibleCombobox() const
 {
    MenuPage* page = currentPage();
    if (!page)
@@ -403,7 +403,7 @@ MenuPageComboBoxItem* MenuJoystickGraph::getVisibleCombobox() const
    return nullptr;
 }
 
-MenuPageComboBoxItem* MenuJoystickGraph::getComboBoxForButton(MenuPageItem* button) const
+MenuPageComboBoxItem* MenuControllerGraph::getComboBoxForButton(MenuPageItem* button) const
 {
    MenuPage* page = currentPage();
    if (!page || !button)
@@ -428,7 +428,7 @@ MenuPageComboBoxItem* MenuJoystickGraph::getComboBoxForButton(MenuPageItem* butt
    return combobox;
 }
 
-MenuPageItem* MenuJoystickGraph::getActiveItem(MenuPageItem::PageItemType type) const
+MenuPageItem* MenuControllerGraph::getActiveItem(MenuPageItem::PageItemType type) const
 {
    MenuPage* page = currentPage();
    if (!page)
@@ -447,17 +447,12 @@ MenuPageItem* MenuJoystickGraph::getActiveItem(MenuPageItem::PageItemType type) 
    return nullptr;
 }
 
-MenuPageSliderItem* MenuJoystickGraph::getActiveSlider() const
+MenuPageSliderItem* MenuControllerGraph::getActiveSlider() const
 {
    return static_cast<MenuPageSliderItem*>(getActiveItem(MenuPageItem::PageItemTypeSlider));
 }
 
-MenuPageListItem* MenuJoystickGraph::getActiveList() const
-{
-   return static_cast<MenuPageListItem*>(getActiveItem(MenuPageItem::PageItemTypeList));
-}
-
-MenuPageTextEditItem* MenuJoystickGraph::getEditingActiveTextEdit() const
+MenuPageTextEditItem* MenuControllerGraph::getEditingActiveTextEdit() const
 {
    MenuPage* page = currentPage();
    if (!page)
@@ -480,7 +475,7 @@ MenuPageTextEditItem* MenuJoystickGraph::getEditingActiveTextEdit() const
    return nullptr;
 }
 
-void MenuJoystickGraph::autoAdjust()
+void MenuControllerGraph::autoAdjust()
 {
    // nothing focussed: pick the element closest to the cursor (manhattan distance)
    const int32_t mouse_x = _animation.getX();
@@ -512,7 +507,7 @@ void MenuJoystickGraph::autoAdjust()
    }
 }
 
-void MenuJoystickGraph::walk(Direction direction)
+void MenuControllerGraph::walk(Direction direction)
 {
    Element* current = getFocussedElement();
    if (!current)
@@ -542,12 +537,7 @@ void MenuJoystickGraph::walk(Direction direction)
    changeFocus(current->item, internal ? internal : (next ? next->item : nullptr));
 }
 
-void MenuJoystickGraph::mousePress()
-{
-   mousePressSignal(_animation.getX(), _animation.getY());
-}
-
-void MenuJoystickGraph::buttonForComboBox(Element* current, MenuPageComboBoxItem* visible_combobox)
+void MenuControllerGraph::buttonForComboBox(Element* current, MenuPageComboBoxItem* visible_combobox)
 {
    // a combobox that was just opened: move the cursor onto its value once it's shown
    if (current)
@@ -567,7 +557,7 @@ void MenuJoystickGraph::buttonForComboBox(Element* current, MenuPageComboBoxItem
    }
 }
 
-void MenuJoystickGraph::buttonForSlider(MenuPageSliderItem* activated_slider)
+void MenuControllerGraph::buttonForSlider(MenuPageSliderItem* activated_slider)
 {
    if (activated_slider)
    {
@@ -575,7 +565,7 @@ void MenuJoystickGraph::buttonForSlider(MenuPageSliderItem* activated_slider)
    }
 }
 
-void MenuJoystickGraph::buttonForLists(Element* current)
+void MenuControllerGraph::buttonForLists(Element* current)
 {
    if (!current || current->item->getPageItemType() != MenuPageItem::PageItemTypeList)
    {
@@ -595,7 +585,7 @@ void MenuJoystickGraph::buttonForLists(Element* current)
    }
 }
 
-void MenuJoystickGraph::buttonForTextEdit(MenuPageTextEditItem* text_edit)
+void MenuControllerGraph::buttonForTextEdit(MenuPageTextEditItem* text_edit)
 {
    // it was active before, so it only needs to be deactivated
    if (text_edit && text_edit->isEditingActive())
@@ -604,7 +594,7 @@ void MenuJoystickGraph::buttonForTextEdit(MenuPageTextEditItem* text_edit)
    }
 }
 
-void MenuJoystickGraph::button()
+void MenuControllerGraph::click()
 {
    Element* current = getFocussedElement();
 
@@ -618,7 +608,7 @@ void MenuJoystickGraph::button()
    // mostly every other item
    if (current && !activated_slider && !active_text_edit)
    {
-      mousePress();
+      clickSignal(_animation.getX(), _animation.getY());
    }
 
    buttonForTextEdit(active_text_edit);
@@ -626,7 +616,7 @@ void MenuJoystickGraph::button()
    buttonForComboBox(current, visible_combobox);
 }
 
-MenuJoystickGraph::Element* MenuJoystickGraph::getFocussedElement() const
+MenuControllerGraph::Element* MenuControllerGraph::getFocussedElement() const
 {
    MenuPage* page = currentPage();
    if (!page)

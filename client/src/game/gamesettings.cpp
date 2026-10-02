@@ -294,7 +294,7 @@ void GameSettings::DevelopmentSettings::deserialize()
    _level = value("development/level", "castle").toString();
    _dry_run_enabled = value("development/dryrun", false).toBool();
    _game_recording_enabled = value("development/gamerecording", false).toBool();
-   _joysticks_enabled = value("development/joysticksenabled", true).toBool();
+   _controllers_enabled = value("development/controllersenabled", true).toBool();
 
    setPageFacebook(value("development/page_facebook", "https://www.facebook.com/DynablasterRevenge").toString());
 
@@ -343,14 +343,14 @@ void GameSettings::DevelopmentSettings::setGameRecordingEnabled(bool value)
    _game_recording_enabled = value;
 }
 
-bool GameSettings::DevelopmentSettings::isJoysticksEnabled() const
+bool GameSettings::DevelopmentSettings::isControllersEnabled() const
 {
-   return _joysticks_enabled;
+   return _controllers_enabled;
 }
 
-void GameSettings::DevelopmentSettings::setJoysticksEnabled(bool value)
+void GameSettings::DevelopmentSettings::setControllersEnabled(bool value)
 {
-   _joysticks_enabled = value;
+   _controllers_enabled = value;
 }
 
 std::string GameSettings::DevelopmentSettings::getPageHome() const

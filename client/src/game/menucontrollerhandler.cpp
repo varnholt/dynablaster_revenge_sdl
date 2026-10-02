@@ -1,4 +1,4 @@
-#include "menujoystickhandler.h"
+#include "menucontrollerhandler.h"
 
 #include "constants.h"
 #include "game/gamestatemachine.h"
@@ -12,24 +12,24 @@
 
 namespace
 {
-constexpr const char* graph_file = "data/menus/menu_gamepad.ini";
+constexpr const char* graph_file = "data/menus/menu_controller.ini";
 
-// the key queue holds at most this many moves while the cursor is still gliding
-constexpr size_t max_queued_keys = 5;
+// at most this many moves are queued while the cursor is still gliding
+constexpr size_t max_queued_buttons = 5;
 
 std::string unquoted(const std::string& text)
 {
    return text.size() >= 2 && text.front() == '"' && text.back() == '"' ? text.substr(1, text.size() - 2) : text;
 }
 
-bool isMenuStopped()
+bool isInMenu()
 {
    return GameStateMachine::getInstance()->getState() == Constants::GameStopped;
 }
 }  // namespace
 
-MenuJoystickHandler::MenuJoystickHandler(MenuDrawable& menu, MenuMouseCursor& cursor, const GamepadInput& gamepad_input)
-    : _menu(menu), _cursor(cursor), _gamepad_input(gamepad_input)
+MenuControllerHandler::MenuControllerHandler(MenuDrawable& menu, MenuMouseCursor& cursor, const ControllerInput& controller_input)
+    : _menu(menu), _cursor(cursor), _controller_input(controller_input)
 {
    _animation.movedSignal.connect(
       [this](int32_t x, int32_t y)
@@ -43,15 +43,15 @@ MenuJoystickHandler::MenuJoystickHandler(MenuDrawable& menu, MenuMouseCursor& cu
    _animation.doneSignal.connect(
       [this]()
       {
-         if (!_key_queue.empty())
+         if (!_button_queue.empty())
          {
-            processKeyQueue();
+            processButtonQueue();
          }
       }
    );
 }
 
-void MenuJoystickHandler::initialize()
+void MenuControllerHandler::initialize()
 {
    Settings settings(graph_file);
 
@@ -68,11 +68,11 @@ void MenuJoystickHandler::initialize()
          continue;
       }
 
-      auto graph = std::make_unique<MenuJoystickGraph>(_animation);
-      graph->mousePressSignal.connect(
+      auto graph = std::make_unique<MenuControllerGraph>(_animation);
+      graph->clickSignal.connect(
          [this](int32_t x, int32_t y)
          {
-            _gamepad_used = true;
+            _controller_used = true;
             _menu.mousePressEvent(x, y);
             _cursor.mousePressEvent(x, y);
             _cursor.mouseReleaseEvent();
@@ -90,7 +90,7 @@ void MenuJoystickHandler::initialize()
          // element=north,south,east,west
          if (items.size() == 4)
          {
-            auto element = std::make_unique<MenuJoystickGraph::Element>();
+            auto element = std::make_unique<MenuControllerGraph::Element>();
             element->item = page->getPageItem(element_name);
             element->north_item = page->getPageItem(unquoted(items[0]));
             element->south_item = page->getPageItem(unquoted(items[1]));
@@ -115,7 +115,7 @@ void MenuJoystickHandler::initialize()
    }
 }
 
-MenuJoystickGraph* MenuJoystickHandler::getCurrentGraph() const
+MenuControllerGraph* MenuControllerHandler::getCurrentGraph() const
 {
    MenuPage* page = Menu::getInstance()->getCurrentPage();
    if (!page)
@@ -127,41 +127,41 @@ MenuJoystickGraph* MenuJoystickHandler::getCurrentGraph() const
    return it != _graphs.end() ? it->second.get() : nullptr;
 }
 
-void MenuJoystickHandler::buttonPressed(GamepadInput::Button button)
+void MenuControllerHandler::buttonPressed(ControllerInput::Button button)
 {
-   if (!isMenuStopped())
+   if (!isInMenu())
    {
       return;
    }
 
    switch (button)
    {
-      case GamepadInput::ButtonUp:
-      case GamepadInput::ButtonDown:
-      case GamepadInput::ButtonLeft:
-      case GamepadInput::ButtonRight:
-      case GamepadInput::ButtonBomb:
+      case ControllerInput::ButtonUp:
+      case ControllerInput::ButtonDown:
+      case ControllerInput::ButtonLeft:
+      case ControllerInput::ButtonRight:
+      case ControllerInput::ButtonBomb:
          break;
       default:
          return;
    }
 
-   if (_key_queue.size() < max_queued_keys)
+   if (_button_queue.size() < max_queued_buttons)
    {
-      _key_queue.push_back(button);
+      _button_queue.push_back(button);
       if (!_animation.isBusy())
       {
-         processKeyQueue();
+         processButtonQueue();
       }
    }
 }
 
-void MenuJoystickHandler::processKeyQueue()
+void MenuControllerHandler::processButtonQueue()
 {
-   const GamepadInput::Button button = _key_queue.front();
-   _key_queue.pop_front();
+   const ControllerInput::Button button = _button_queue.front();
+   _button_queue.pop_front();
 
-   MenuJoystickGraph* graph = getCurrentGraph();
+   MenuControllerGraph* graph = getCurrentGraph();
    if (!graph)
    {
       return;
@@ -169,50 +169,50 @@ void MenuJoystickHandler::processKeyQueue()
 
    switch (button)
    {
-      case GamepadInput::ButtonUp:
-         graph->walk(MenuJoystickGraph::Direction::North);
+      case ControllerInput::ButtonUp:
+         graph->walk(MenuControllerGraph::Direction::North);
          break;
-      case GamepadInput::ButtonDown:
-         graph->walk(MenuJoystickGraph::Direction::South);
+      case ControllerInput::ButtonDown:
+         graph->walk(MenuControllerGraph::Direction::South);
          break;
-      case GamepadInput::ButtonLeft:
-         graph->walk(MenuJoystickGraph::Direction::West);
+      case ControllerInput::ButtonLeft:
+         graph->walk(MenuControllerGraph::Direction::West);
          break;
-      case GamepadInput::ButtonRight:
-         graph->walk(MenuJoystickGraph::Direction::East);
+      case ControllerInput::ButtonRight:
+         graph->walk(MenuControllerGraph::Direction::East);
          break;
-      case GamepadInput::ButtonBomb:
-         graph->button();
+      case ControllerInput::ButtonBomb:
+         graph->click();
          break;
       default:
          break;
    }
 }
 
-void MenuJoystickHandler::focusDefaultElement()
+void MenuControllerHandler::focusDefaultItem()
 {
-   if (_gamepad_input.getDevices().empty() || !_gamepad_used || !isMenuStopped())
+   if (_controller_input.getDevices().empty() || !_controller_used || !isInMenu())
    {
       return;
    }
 
-   if (MenuJoystickGraph* graph = getCurrentGraph())
+   if (MenuControllerGraph* graph = getCurrentGraph())
    {
       graph->changeFocus(nullptr, graph->getDefaultPageItem());
    }
 }
 
-void MenuJoystickHandler::mouseMoved(int32_t x, int32_t y)
+void MenuControllerHandler::mouseMoved(int32_t x, int32_t y)
 {
    _animation.setPosition(x, y);
 }
 
-void MenuJoystickHandler::mousePressed()
+void MenuControllerHandler::mousePressed()
 {
-   _gamepad_used = false;
+   _controller_used = false;
 }
 
-void MenuJoystickHandler::update()
+void MenuControllerHandler::update()
 {
    _animation.update(SDL_GetTicks());
 }

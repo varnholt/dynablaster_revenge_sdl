@@ -117,11 +117,11 @@ public:
       //! setter for game recording flag
       void setGameRecordingEnabled(bool value);
 
-      //! getter for joysticks enabled flag
-      bool isJoysticksEnabled() const;
+      //! getter for controllers enabled flag
+      bool isControllersEnabled() const;
 
-      //! setter for joysticks enabled flag
-      void setJoysticksEnabled(bool value);
+      //! setter for controllers enabled flag
+      void setControllersEnabled(bool value);
 
       //! getter for pouet page
       std::string getPagePouet() const;
@@ -160,8 +160,8 @@ public:
       //! game recording enabled
       bool _game_recording_enabled = false;
 
-      //! joysticks enabled
-      bool _joysticks_enabled = true;
+      //! controllers enabled
+      bool _controllers_enabled = true;
 
       //! pouet page
       std::string _page_pouet;

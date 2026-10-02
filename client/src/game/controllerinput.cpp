@@ -1,4 +1,4 @@
-#include "gamepadinput.h"
+#include "controllerinput.h"
 
 #include "framework/keyevent.h"
 #include "game/gamedrawable.h"
@@ -9,34 +9,26 @@
 
 namespace
 {
-uint32_t axisButtons(int16_t x, int16_t y, int32_t threshold)
-{
-   uint32_t buttons = 0;
-   if (x < -threshold)
-   {
-      buttons |= GamepadInput::ButtonLeft;
-   }
-   else if (x > threshold)
-   {
-      buttons |= GamepadInput::ButtonRight;
-   }
-   if (y < -threshold)
-   {
-      buttons |= GamepadInput::ButtonUp;
-   }
-   else if (y > threshold)
-   {
-      buttons |= GamepadInput::ButtonDown;
-   }
-   return buttons;
-}
+constexpr std::array<std::pair<SDL_GamepadButton, uint32_t>, 11> button_map{{
+   {SDL_GAMEPAD_BUTTON_DPAD_UP, ControllerInput::ButtonUp},
+   {SDL_GAMEPAD_BUTTON_DPAD_DOWN, ControllerInput::ButtonDown},
+   {SDL_GAMEPAD_BUTTON_DPAD_LEFT, ControllerInput::ButtonLeft},
+   {SDL_GAMEPAD_BUTTON_DPAD_RIGHT, ControllerInput::ButtonRight},
+   {SDL_GAMEPAD_BUTTON_SOUTH, ControllerInput::ButtonBomb},
+   {SDL_GAMEPAD_BUTTON_EAST, ControllerInput::ButtonBomb},
+   {SDL_GAMEPAD_BUTTON_WEST, ControllerInput::ButtonBomb},
+   {SDL_GAMEPAD_BUTTON_NORTH, ControllerInput::ButtonBomb},
+   {SDL_GAMEPAD_BUTTON_LEFT_SHOULDER, ControllerInput::ButtonShoulderLeft},
+   {SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER, ControllerInput::ButtonShoulderRight},
+   {SDL_GAMEPAD_BUTTON_START, ControllerInput::ButtonStart},
+}};
 }  // namespace
 
-GamepadInput::~GamepadInput()
+ControllerInput::~ControllerInput()
 {
    for (auto& [id, device] : _devices)
    {
-      SDL_CloseGamepad(device.gamepad);
+      SDL_CloseGamepad(device.controller);
    }
 
    if (_initialized)
@@ -45,9 +37,9 @@ GamepadInput::~GamepadInput()
    }
 }
 
-bool GamepadInput::initialize()
+bool ControllerInput::initialize()
 {
-   if (!GameSettings::getInstance()->getDevelopmentSettings()->isJoysticksEnabled())
+   if (!GameSettings::getInstance()->getDevelopmentSettings()->isControllersEnabled())
    {
       return false;
    }
@@ -55,15 +47,15 @@ bool GamepadInput::initialize()
    _initialized = SDL_InitSubSystem(SDL_INIT_GAMEPAD);
    if (!_initialized)
    {
-      SDL_Log("Failed to initialize gamepads: %s", SDL_GetError());
+      SDL_Log("Failed to initialize controllers: %s", SDL_GetError());
       return false;
    }
 
-   // already connected pads arrive as SDL_EVENT_GAMEPAD_ADDED, too
+   // already connected controllers arrive as SDL_EVENT_GAMEPAD_ADDED, too
    return true;
 }
 
-void GamepadInput::handleEvent(const SDL_Event& event)
+void ControllerInput::handleEvent(const SDL_Event& event)
 {
    if (event.type == SDL_EVENT_GAMEPAD_ADDED)
    {
@@ -75,7 +67,7 @@ void GamepadInput::handleEvent(const SDL_Event& event)
    }
 }
 
-void GamepadInput::addDevice(SDL_JoystickID id)
+void ControllerInput::addDevice(Id id)
 {
    if (_devices.contains(id))
    {
@@ -83,26 +75,26 @@ void GamepadInput::addDevice(SDL_JoystickID id)
    }
 
    Device device;
-   device.gamepad = SDL_OpenGamepad(id);
-   if (!device.gamepad)
+   device.controller = SDL_OpenGamepad(id);
+   if (!device.controller)
    {
-      SDL_Log("Failed to open gamepad %u: %s", id, SDL_GetError());
+      SDL_Log("Failed to open controller %u: %s", id, SDL_GetError());
       return;
    }
 
    device.info.id = id;
-   const char* name = SDL_GetGamepadName(device.gamepad);
-   device.info.name = name ? name : "gamepad";
+   const char* name = SDL_GetGamepadName(device.controller);
+   device.info.name = name ? name : "controller";
    std::array<char, 33> guid{};
    SDL_GUIDToString(SDL_GetGamepadGUIDForID(id), guid.data(), static_cast<int>(guid.size()));
    device.info.guid = guid.data();
 
-   SDL_Log("Gamepad %u connected: %s", id, device.info.name.c_str());
+   SDL_Log("Controller %u connected: %s", id, device.info.name.c_str());
    _devices.emplace(id, std::move(device));
    deviceAddedSignal(id);
 }
 
-void GamepadInput::removeDevice(SDL_JoystickID id)
+void ControllerInput::removeDevice(Id id)
 {
    auto it = _devices.find(id);
    if (it == _devices.end())
@@ -120,63 +112,48 @@ void GamepadInput::removeDevice(SDL_JoystickID id)
       }
    }
 
-   SDL_CloseGamepad(it->second.gamepad);
+   SDL_CloseGamepad(it->second.controller);
    _devices.erase(it);
 
-   SDL_Log("Gamepad %u disconnected", id);
+   SDL_Log("Controller %u disconnected", id);
    deviceRemovedSignal(id);
 }
 
-uint32_t GamepadInput::readButtons(const Device& device) const
+uint32_t ControllerInput::readButtons(const Device& device) const
 {
-   const auto* controls = GameSettings::getInstance()->getControllerSettings();
-   const int32_t threshold = controls->getAnalogueThreshold();
    uint32_t buttons = 0;
-
-   SDL_Gamepad* gamepad = device.gamepad;
-
-   if (SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_DPAD_UP))
+   for (const auto& [sdl_button, button] : button_map)
    {
-      buttons |= ButtonUp;
+      if (SDL_GetGamepadButton(device.controller, sdl_button))
+      {
+         buttons |= button;
+      }
    }
-   if (SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_DPAD_DOWN))
-   {
-      buttons |= ButtonDown;
-   }
-   if (SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_DPAD_LEFT))
+
+   const int32_t threshold = GameSettings::getInstance()->getControllerSettings()->getAnalogueThreshold();
+   const int16_t x = SDL_GetGamepadAxis(device.controller, SDL_GAMEPAD_AXIS_LEFTX);
+   const int16_t y = SDL_GetGamepadAxis(device.controller, SDL_GAMEPAD_AXIS_LEFTY);
+   if (x < -threshold)
    {
       buttons |= ButtonLeft;
    }
-   if (SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_DPAD_RIGHT))
+   else if (x > threshold)
    {
       buttons |= ButtonRight;
    }
-
-   buttons |=
-      axisButtons(SDL_GetGamepadAxis(gamepad, SDL_GAMEPAD_AXIS_LEFTX), SDL_GetGamepadAxis(gamepad, SDL_GAMEPAD_AXIS_LEFTY), threshold);
-
-   if (SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_SOUTH) || SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_EAST) ||
-       SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_WEST) || SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_NORTH))
+   if (y < -threshold)
    {
-      buttons |= ButtonBomb;
+      buttons |= ButtonUp;
    }
-   if (SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_LEFT_SHOULDER))
+   else if (y > threshold)
    {
-      buttons |= ButtonShoulderLeft;
-   }
-   if (SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER))
-   {
-      buttons |= ButtonShoulderRight;
-   }
-   if (SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_START))
-   {
-      buttons |= ButtonStart;
+      buttons |= ButtonDown;
    }
 
    return buttons;
 }
 
-void GamepadInput::refreshButtons(Device& device)
+void ControllerInput::refreshButtons(Device& device)
 {
    const uint32_t buttons = readButtons(device);
    const uint32_t changed = buttons ^ device.buttons;
@@ -198,7 +175,7 @@ void GamepadInput::refreshButtons(Device& device)
    }
 }
 
-void GamepadInput::poll()
+void ControllerInput::poll()
 {
    for (auto& [id, device] : _devices)
    {
@@ -206,13 +183,13 @@ void GamepadInput::poll()
    }
 }
 
-void GamepadInput::update(bool in_game, GameDrawable& game)
+void ControllerInput::update(bool in_game, GameDrawable& game)
 {
    poll();
    updateGame(in_game, game);
 }
 
-void GamepadInput::updateGame(bool in_game, GameDrawable& game)
+void ControllerInput::updateGame(bool in_game, GameDrawable& game)
 {
    // all devices share the local player for now, keys are synthesized from the combined state
    std::vector<SDL_Keycode> keys;
@@ -261,16 +238,16 @@ void GamepadInput::updateGame(bool in_game, GameDrawable& game)
    _held_keys = std::move(keys);
 }
 
-void GamepadInput::rumble(float intensity, int32_t duration_ms)
+void ControllerInput::rumble(float intensity, int32_t duration_ms)
 {
    const auto strength = static_cast<uint16_t>(std::clamp(intensity, 0.0f, 1.0f) * 0xffff);
    for (const auto& [id, device] : _devices)
    {
-      SDL_RumbleGamepad(device.gamepad, strength, strength, static_cast<uint32_t>(duration_ms));
+      SDL_RumbleGamepad(device.controller, strength, strength, static_cast<uint32_t>(duration_ms));
    }
 }
 
-std::vector<GamepadInput::DeviceInfo> GamepadInput::getDevices() const
+std::vector<ControllerInput::DeviceInfo> ControllerInput::getDevices() const
 {
    std::vector<DeviceInfo> devices;
    devices.reserve(_devices.size());
@@ -284,7 +261,7 @@ std::vector<GamepadInput::DeviceInfo> GamepadInput::getDevices() const
    return devices;
 }
 
-uint32_t GamepadInput::getButtons(SDL_JoystickID id) const
+uint32_t ControllerInput::getButtons(Id id) const
 {
    const auto it = _devices.find(id);
    return it != _devices.end() ? it->second.buttons : 0;

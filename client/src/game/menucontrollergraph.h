@@ -8,16 +8,16 @@
 #include <memory>
 #include <vector>
 
-class MenuJoystickMouseAnimation;
+class MenuControllerCursorAnimation;
 class MenuPageComboBoxItem;
 class MenuPageListItem;
 class MenuPageSliderItem;
 class MenuPageTextEditItem;
 
-/// \brief gamepad navigation of one menu page: every item knows its north/south/east/west
-/// neighbour (data/menus/menu_gamepad.ini), focus is moved by gliding the cursor onto it.
+/// \brief controller navigation of one menu page: every item knows its north/south/east/west
+/// neighbour (data/menus/menu_controller.ini), focus is moved by gliding the cursor onto it.
 /// comboboxes, lists, sliders and line edits are navigated internally while they're open.
-class MenuJoystickGraph
+class MenuControllerGraph
 {
 public:
    enum class Direction
@@ -41,10 +41,10 @@ public:
       Element* west = nullptr;
    };
 
-   explicit MenuJoystickGraph(MenuJoystickMouseAnimation& animation);
-   MenuJoystickGraph(const MenuJoystickGraph&) = delete;
-   MenuJoystickGraph& operator=(const MenuJoystickGraph&) = delete;
-   ~MenuJoystickGraph();
+   explicit MenuControllerGraph(MenuControllerCursorAnimation& animation);
+   MenuControllerGraph(const MenuControllerGraph&) = delete;
+   MenuControllerGraph& operator=(const MenuControllerGraph&) = delete;
+   ~MenuControllerGraph();
 
    void add(std::unique_ptr<Element> element);
 
@@ -58,10 +58,10 @@ public:
    void changeFocus(MenuPageItem* current_item, MenuPageItem* next_item);
 
    void walk(Direction direction);
-   void button();
+   void click();
 
    /// \brief a click at the cursor position is requested
-   Signal<int32_t, int32_t> mousePressSignal;
+   Signal<int32_t, int32_t> clickSignal;
 
 private:
    void mouseMove(int32_t x, int32_t y);
@@ -71,11 +71,9 @@ private:
    MenuPageComboBoxItem* getComboBoxForButton(MenuPageItem* button) const;
    MenuPageItem* getActiveItem(MenuPageItem::PageItemType type) const;
    MenuPageSliderItem* getActiveSlider() const;
-   MenuPageListItem* getActiveList() const;
    MenuPageTextEditItem* getEditingActiveTextEdit() const;
    Element* getFocussedElement() const;
    void autoAdjust();
-   void mousePress();
    void buttonForComboBox(Element* current, MenuPageComboBoxItem* visible_combobox);
    void buttonForSlider(MenuPageSliderItem* activated_slider);
    void buttonForLists(Element* current);
@@ -83,7 +81,7 @@ private:
    void updateComboboxFocus(bool visible);
    void disconnectCombobox();
 
-   MenuJoystickMouseAnimation& _animation;
+   MenuControllerCursorAnimation& _animation;
    std::vector<std::unique_ptr<Element>> _elements;
    MenuPageItem* _default_page_item = nullptr;
    CharCycling _char_cycling;

@@ -14,8 +14,8 @@
 
 #include "game/countdowndrawable.h"
 #include "game/gamedrawable.h"
-#include "game/gamepadinput.h"
-#include "game/menujoystickhandler.h"
+#include "game/controllerinput.h"
+#include "game/menucontrollerhandler.h"
 #include "game/gamelogodrawable.h"
 #include "game/gamemessagingdrawable.h"
 #include "game/gamewindrawable.h"
@@ -294,16 +294,16 @@ int main(int /*argc*/, char** /*argv*/)
    bomberman_client.showMainMenuSignal.connect([&]() { menu_drawable.pageChangeRequest("data/menus/mainmenu.psd"); });
 
 #ifndef __SWITCH__
-   // the Switch reads its pad through libnx, see SwitchPlatform
-   GamepadInput gamepad_input;
-   gamepad_input.initialize();
-   bomberman_client.rumbleSignal.connect([&](float intensity, int duration_ms) { gamepad_input.rumble(intensity, duration_ms); });
+   // the Switch reads its controllers through libnx, see SwitchPlatform
+   ControllerInput controller_input;
+   controller_input.initialize();
+   bomberman_client.rumbleSignal.connect([&](float intensity, int duration_ms) { controller_input.rumble(intensity, duration_ms); });
 
-   MenuJoystickHandler menu_joystick_handler(menu_drawable, menu_cursor, gamepad_input);
-   menu_joystick_handler.initialize();
-   gamepad_input.buttonPressedSignal.connect([&](SDL_JoystickID, GamepadInput::Button button)
-                                             { menu_joystick_handler.buttonPressed(button); });
-   menu_drawable.pageChangedSignal.connect([&](const std::string&) { menu_joystick_handler.focusDefaultElement(); });
+   MenuControllerHandler menu_controller_handler(menu_drawable, menu_cursor, controller_input);
+   menu_controller_handler.initialize();
+   controller_input.buttonPressedSignal.connect([&](ControllerInput::Id, ControllerInput::Button button)
+                                             { menu_controller_handler.buttonPressed(button); });
+   menu_drawable.pageChangedSignal.connect([&](const std::string&) { menu_controller_handler.focusDefaultItem(); });
 #endif
 
    // background music
@@ -331,7 +331,7 @@ int main(int /*argc*/, char** /*argv*/)
       while (SDL_PollEvent(&event))
       {
 #ifndef __SWITCH__
-         gamepad_input.handleEvent(event);
+         controller_input.handleEvent(event);
 #endif
 
          if (event.type == SDL_EVENT_QUIT)
@@ -365,7 +365,7 @@ int main(int /*argc*/, char** /*argv*/)
                menu_drawable.mouseMoveEvent(x, y);
                menu_cursor.mouseMoveEvent(x, y);
 #ifndef __SWITCH__
-               menu_joystick_handler.mouseMoved(x, y);
+               menu_controller_handler.mouseMoved(x, y);
 #endif
                break;
             }
@@ -377,7 +377,7 @@ int main(int /*argc*/, char** /*argv*/)
                menu_drawable.mousePressEvent(x, y);
                menu_cursor.mousePressEvent(x, y);
 #ifndef __SWITCH__
-               menu_joystick_handler.mousePressed();
+               menu_controller_handler.mousePressed();
 #endif
                break;
             }
@@ -444,8 +444,8 @@ int main(int /*argc*/, char** /*argv*/)
       }
 
 #ifndef __SWITCH__
-      gamepad_input.update(game_drawable.isVisible(), game_drawable);
-      menu_joystick_handler.update();
+      controller_input.update(game_drawable.isVisible(), game_drawable);
+      menu_controller_handler.update();
 #endif
 
       // Timer::update() drives Server's/BombermanClient's own poll() plus every other Timer.
