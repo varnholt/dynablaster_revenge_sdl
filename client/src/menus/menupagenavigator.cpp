@@ -393,9 +393,8 @@ void MenuPageNavigator::onActionRequest(const std::string& page, const std::stri
       }
       else if (action == kLoungeActionAddPlayer)
       {
-         // real headless-player handling - not ported yet, not required to prove the
-         // login->create->join->lounge chain works.
-         logUnhandled(page, action);
+         // the next free controller joins as another player on this machine
+         addLocalPlayerRequestSignal();
       }
       else
       {

@@ -120,6 +120,12 @@ public:
    //! getter for current player info
    PlayerInfo* getCurrentPlayerInfo() const;
 
+   //! the other players on this machine (see LocalPlayers)
+   void setLocalPlayerIds(const std::vector<int>& ids);
+
+   //! true for this client's own player and the other players on this machine
+   bool isLocalPlayer(int id) const;
+
    //! getter for message
    const std::string& getMessage() const;
 
@@ -189,6 +195,7 @@ public:
    Signal<float, int> rumbleSignal;
    Signal<int, int> timeChangedSignal;
    Signal<bool> hostingSignal;
+   Signal<> leaveGameSignal;
 
 public:
    // key event handlers
@@ -421,6 +428,9 @@ private:
 
    //! host name
    std::string _host;
+
+   //! the other players on this machine
+   std::vector<int> _local_player_ids;
 
    //! color asked for when joining
    std::optional<Constants::Color> _preferred_color;

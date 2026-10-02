@@ -2092,6 +2092,28 @@ void BombermanClient::leaveGameRequest()
 {
    LeaveGameRequestPacket packet(getGameId(), getPlayerId());
    send(&packet);
+
+   // the other local players leave with us
+   leaveGameSignal();
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param ids player ids of the other players on this machine
+*/
+void BombermanClient::setLocalPlayerIds(const std::vector<int>& ids)
+{
+   _local_player_ids = ids;
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param id player id
+   \return true for this client's own player and the other players on this machine
+*/
+bool BombermanClient::isLocalPlayer(int id) const
+{
+   return id == getPlayerId() || std::ranges::find(_local_player_ids, id) != _local_player_ids.end();
 }
 
 //-----------------------------------------------------------------------------

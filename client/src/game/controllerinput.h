@@ -7,12 +7,14 @@
 #include <cstdint>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 class GameDrawable;
 
-/// \brief SDL3 controllers incl. hotplug. in game the controllers synthesize the keyboard's keymap, the
-/// menu side is MenuControllerHandler.
+/// \brief SDL3 controllers incl. hotplug. in game the unassigned ones synthesize the keyboard's
+/// keymap for the main player (assigned ones are read by LocalPlayers), the menu side is
+/// MenuControllerHandler.
 class ControllerInput
 {
 public:
@@ -54,8 +56,15 @@ public:
    /// \brief poll() plus feeding the game while it is visible
    void update(bool in_game, GameDrawable& game);
 
-   /// \brief rumbles every device, intensity 0..1
+   /// \brief rumbles the controllers steering the main player, intensity 0..1
    void rumble(float intensity, int32_t duration_ms);
+
+   /// \brief rumbles one controller, intensity 0..1
+   void rumble(Id id, float intensity, int32_t duration_ms);
+
+   /// \brief an assigned controller steers another local player, not the main one
+   void setAssigned(Id id, bool assigned);
+   bool isAssigned(Id id) const;
 
    std::vector<DeviceInfo> getDevices() const;
    uint32_t getButtons(Id id) const;
@@ -81,5 +90,6 @@ private:
 
    bool _initialized = false;
    std::unordered_map<Id, Device> _devices;
+   std::unordered_set<Id> _assigned;
    std::vector<SDL_Keycode> _held_keys;
 };

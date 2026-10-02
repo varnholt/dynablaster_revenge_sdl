@@ -59,7 +59,12 @@ Controllers can be plugged in at any time. In menus, the D-pad or stick moves th
 focus from item to item, A/B/X/Y click; in a text field up/down cycle the letter and left/right
 move the cursor. In game, the stick or D-pad moves, A/B/X/Y place a bomb and the shoulder
 buttons zoom; the controller rumbles when you collect an extra or die. Any controller
-SDL3 recognizes as a controller works. For now all controllers steer the same local player.
+SDL3 recognizes as a gamepad works.
+
+More players can join on the same machine: in the lounge, the PLUS button turns the next free
+controller into another player in the game, named after `[logindata] player2..player10` in
+`game.ini`. The keyboard and all controllers not taken that way steer the first player; the
+camera keeps all players of this machine in view.
 
 # Building
 
