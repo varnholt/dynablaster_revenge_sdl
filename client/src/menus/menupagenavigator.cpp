@@ -27,9 +27,11 @@
 
 #include "logging.h"
 
+#include <SDL3/SDL_keyboard.h>
 #include <SDL3_net/SDL_net.h>
 
 #include <algorithm>
+#include <array>
 #include <cstdlib>
 #include <format>
 
@@ -69,6 +71,24 @@ const char* const kOptionsVideoComboVsync = "combobox_vsync_table";
 const char* const kOptionsVideoCheckBoxFps = "checkbox_fps";
 const char* const kOptionsVideoSliderBrightness = "slider_brightness";
 const char* const kOptionsAudioActionRestoreDefaults = "button_default_active";
+const char* const kOptionsGameActionRestoreDefaults = "button_default_active";
+const char* const kOptionsGameCheckBoxCameraFollows = "checkbox_cfollow";
+const char* const kOptionsGameSliderShake = "slider_shake";
+const char* const kOptionsControlsActionRestoreDefaults = "button_default_active";
+
+struct KeyField
+{
+   const char* item;
+   Constants::Key key;
+};
+
+const std::array<KeyField, 5> kOptionsControlsKeyFields{{
+   {"lineedit_keyboard_up", Constants::KeyUp},
+   {"lineedit_keyboard_down", Constants::KeyDown},
+   {"lineedit_keyboard_left", Constants::KeyLeft},
+   {"lineedit_keyboard_right", Constants::KeyRight},
+   {"lineedit_keyboard_bomb", Constants::KeyBomb},
+}};
 const char* const kOptionsAudioSliderMusic = "slider_music";
 const char* const kOptionsAudioSliderSfx = "slider_game";
 
@@ -313,7 +333,20 @@ void MenuPageNavigator::onActionRequest(const std::string& page, const std::stri
          // SoundManager back to whatever was last persisted, discarding an unsaved drag.
          // video: OK stores and applies the video page (any tab's OK, like storeOptions()),
          // Cancel restores the backup taken when it was first shown, undoing a brightness drag.
-         // controls/game options aren't backed by live-applied state yet.
+         // controls/game: OK stores what their pages show, Cancel just doesn't.
+         if (action == kOptionsActionOk && _gameplay_settings_shown)
+         {
+            serializeGameplaySettings();
+         }
+
+         if (action == kOptionsActionOk && _controller_settings_shown)
+         {
+            serializeControllerSettings();
+         }
+
+         _gameplay_settings_shown = false;
+         _controller_settings_shown = false;
+
          if (_video_settings_shown)
          {
             if (action == kOptionsActionOk)
@@ -363,6 +396,14 @@ void MenuPageNavigator::onActionRequest(const std::string& page, const std::stri
       else if (action == kOptionsActionGame)
       {
          pageChangeRequestSignal(kOptionsGame);
+      }
+      else if (page == kOptionsGame && action == kOptionsGameActionRestoreDefaults)
+      {
+         restoreGameDefaults();
+      }
+      else if (page == kOptionsControls && action == kOptionsControlsActionRestoreDefaults)
+      {
+         restoreControlsDefaults();
       }
       else if (page == kOptionsVideo && action == kOptionsVideoActionRestoreDefaults)
       {
@@ -520,6 +561,14 @@ void MenuPageNavigator::onPageChanged(const std::string& page)
          add_player->setVisible(false);
       }
    }
+   else if (page == kOptionsGame)
+   {
+      deserializeGameplaySettings();
+   }
+   else if (page == kOptionsControls)
+   {
+      deserializeControllerSettings();
+   }
    else if (page == kOptionsVideo)
    {
       deserializeVideoSettings();
@@ -545,6 +594,52 @@ void MenuPageNavigator::setBotsWaitCondition(std::function<bool()> condition)
 void MenuPageNavigator::setVideoSettingsHandler(std::function<void()> handler)
 {
    _video_settings_handler = std::move(handler);
+}
+
+MenuPageTextEditItem* MenuPageNavigator::getActiveKeyField() const
+{
+   MenuPage* page = Menu::getInstance()->getCurrentPage();
+   if (!page || page->getFilename() != kOptionsControls)
+   {
+      return nullptr;
+   }
+
+   MenuPageItem* item = page->getActiveItem();
+   if (!item || !item->getCurrentLayer())
+   {
+      return nullptr;
+   }
+
+   const auto& name = item->getCurrentLayer()->getName();
+   const bool is_key_field =
+      std::ranges::any_of(kOptionsControlsKeyFields, [&name](const KeyField& field) { return name == field.item; });
+
+   return is_key_field ? dynamic_cast<MenuPageTextEditItem*>(item) : nullptr;
+}
+
+bool MenuPageNavigator::onKeyPressed(int key)
+{
+   // matches processOptionsControlKeyPressed(): the field shows the key's name. escape and tab
+   // keep their menu meaning
+   MenuPageTextEditItem* field = getActiveKeyField();
+   if (!field || key == SDLK_ESCAPE || key == SDLK_TAB)
+   {
+      return false;
+   }
+
+   const std::string name = SDL_GetKeyName(static_cast<SDL_Keycode>(key));
+   if (!name.empty())
+   {
+      field->setText(name);
+      field->setCursorPosition(static_cast<int>(name.length()));
+   }
+
+   return true;
+}
+
+bool MenuPageNavigator::onTextInput()
+{
+   return getActiveKeyField() != nullptr;
 }
 
 void MenuPageNavigator::initializeBots(int32_t remaining_tries)
@@ -1139,6 +1234,105 @@ void MenuPageNavigator::restoreVideoDefaults()
    settings->setHeight(height);
 
    deserializeVideoSettings();
+}
+
+void MenuPageNavigator::deserializeGameplaySettings()
+{
+   GameSettings::GameplaySettings* settings = GameSettings::getInstance()->getGameplaySettings();
+   MenuPage* page = Menu::getInstance()->getPageByName(kOptionsGame);
+
+   auto* camera_follows_checkbox = dynamic_cast<MenuPageCheckBoxItem*>(page->getPageItem(kOptionsGameCheckBoxCameraFollows));
+   auto* shake_slider = dynamic_cast<MenuPageSliderItem*>(page->getPageItem(kOptionsGameSliderShake));
+
+   camera_follows_checkbox->setChecked(settings->isCameraFollowingPlayer());
+   shake_slider->setValue(settings->getCameraShakeIntensity());
+
+   _gameplay_settings_shown = true;
+}
+
+void MenuPageNavigator::serializeGameplaySettings()
+{
+   MenuPage* page = Menu::getInstance()->getPageByName(kOptionsGame);
+
+   auto* camera_follows_checkbox = dynamic_cast<MenuPageCheckBoxItem*>(page->getPageItem(kOptionsGameCheckBoxCameraFollows));
+   auto* shake_slider = dynamic_cast<MenuPageSliderItem*>(page->getPageItem(kOptionsGameSliderShake));
+
+   GameSettings::GameplaySettings* settings = GameSettings::getInstance()->getGameplaySettings();
+   settings->setCameraFollowsPlayer(camera_follows_checkbox->isChecked());
+   settings->setCameraShakeIntensity(shake_slider->getValue());
+   settings->serialize();
+}
+
+void MenuPageNavigator::restoreGameDefaults()
+{
+   // the settings themselves only change on OK
+   GameSettings::GameplaySettings* settings = GameSettings::getInstance()->getGameplaySettings();
+   const bool camera_follows = settings->isCameraFollowingPlayer();
+   const float shake = settings->getCameraShakeIntensity();
+
+   settings->restoreDefaults();
+   deserializeGameplaySettings();
+
+   settings->setCameraFollowsPlayer(camera_follows);
+   settings->setCameraShakeIntensity(shake);
+}
+
+void MenuPageNavigator::deserializeControllerSettings()
+{
+   const auto key_map = GameSettings::getInstance()->getControllerSettings()->getKeyMap();
+   MenuPage* page = Menu::getInstance()->getPageByName(kOptionsControls);
+
+   for (const auto& field : kOptionsControlsKeyFields)
+   {
+      auto* item = dynamic_cast<MenuPageTextEditItem*>(page->getPageItem(field.item));
+      const auto it = key_map.find(field.key);
+      const std::string name = it != key_map.end() ? SDL_GetKeyName(static_cast<SDL_Keycode>(it->second)) : "";
+
+      item->setText(name);
+      item->setCursorPosition(static_cast<int>(name.length()));
+   }
+
+   _controller_settings_shown = true;
+}
+
+void MenuPageNavigator::serializeControllerSettings()
+{
+   GameSettings::ControllerSettings* settings = GameSettings::getInstance()->getControllerSettings();
+   auto key_map = settings->getKeyMap();
+
+   MenuPage* page = Menu::getInstance()->getPageByName(kOptionsControls);
+
+   for (const auto& field : kOptionsControlsKeyFields)
+   {
+      auto* item = dynamic_cast<MenuPageTextEditItem*>(page->getPageItem(field.item));
+      const SDL_Keycode key = SDL_GetKeyFromName(item->getText().c_str());
+
+      // like setKeyMapValid(false): one unreadable field keeps the whole key map
+      if (key == SDLK_UNKNOWN)
+      {
+         qWarning("MenuPageNavigator: '%s' is no key, keyboard controls not changed", item->getText().c_str());
+         return;
+      }
+
+      key_map[field.key] = static_cast<int>(key);
+   }
+
+   settings->setKeyMap(key_map);
+   settings->serialize();
+}
+
+void MenuPageNavigator::restoreControlsDefaults()
+{
+   // the settings themselves only change on OK
+   GameSettings::ControllerSettings* settings = GameSettings::getInstance()->getControllerSettings();
+   const auto key_map = settings->getKeyMap();
+   const auto analogue_threshold = settings->getAnalogueThreshold();
+
+   settings->restoreDefaults();
+   deserializeControllerSettings();
+
+   settings->setKeyMap(key_map);
+   settings->setAnalogueThreshold(analogue_threshold);
 }
 
 void MenuPageNavigator::deserializeAudioSettings()

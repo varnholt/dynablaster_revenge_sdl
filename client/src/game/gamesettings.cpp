@@ -738,7 +738,9 @@ GameSettings::ControllerSettings::ControllerSettings()
 
 void GameSettings::ControllerSettings::serialize()
 {
-   if (_key_map.size() == KEYMAP_NOMINAL_SIZE)
+   // the default map also holds zoom and start, so an exact size check (the original's) never
+   // stored it
+   if (_key_map.size() >= KEYMAP_NOMINAL_SIZE)
    {
       SettingsMap serialize_map;
 
