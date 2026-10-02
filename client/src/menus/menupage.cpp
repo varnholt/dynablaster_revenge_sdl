@@ -928,10 +928,14 @@ void MenuPage::initializePageItems()
 
       MenuPageItem* page_item = nullptr;
 
-      // menu.ini can give plain layers a type: <layer>_item = label | lineedit | clickable
+      // menu.ini can give plain layers a type: <layer>_item = label | lineedit | clickable | none
       const std::string item_type = _settings->value(getInstanceBaseName(layer_name) + "_item").toString();
 
-      if (item_type == "label")
+      if (item_type == "none")
+      {
+         continue;
+      }
+      else if (item_type == "label")
       {
          page_item = processLabel(layer, layer_name);
       }
