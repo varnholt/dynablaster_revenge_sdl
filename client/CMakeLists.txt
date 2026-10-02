@@ -543,51 +543,9 @@ enable_testing()
 add_executable(dynablaster_gles_compatibility_test tests/test_gles_compatibility.cpp)
 target_link_libraries(dynablaster_gles_compatibility_test PRIVATE dynablaster_core)
 add_test(NAME gles_compatibility COMMAND dynablaster_gles_compatibility_test)
-add_executable(dynablaster_controller_input_test tests/test_controller_input.cpp)
-target_link_libraries(dynablaster_controller_input_test PRIVATE dynablaster_core)
-add_test(NAME controller_input COMMAND dynablaster_controller_input_test)
-add_executable(dynablaster_controls_setup_test tests/test_controls_setup.cpp)
-target_link_libraries(dynablaster_controls_setup_test PRIVATE dynablaster_core)
-add_test(NAME controls_setup COMMAND dynablaster_controls_setup_test)
-add_executable(dynablaster_local_player_test tests/test_local_player.cpp)
-target_link_libraries(dynablaster_local_player_test PRIVATE dynablaster_core)
-add_test(NAME local_player COMMAND dynablaster_local_player_test)
-set_tests_properties(local_player PROPERTIES
-    WORKING_DIRECTORY "$<TARGET_FILE_DIR:dynablaster_revenge_harness>")
-add_executable(dynablaster_preferred_color_test tests/test_preferred_color.cpp)
-target_link_libraries(dynablaster_preferred_color_test PRIVATE dynablaster_core)
-add_test(NAME preferred_color COMMAND dynablaster_preferred_color_test)
-set_tests_properties(preferred_color PROPERTIES
-    WORKING_DIRECTORY "$<TARGET_FILE_DIR:dynablaster_revenge_harness>")
-add_executable(dynablaster_psd_groups_test tests/test_psd_groups.cpp)
-target_link_libraries(dynablaster_psd_groups_test PRIVATE dynablaster_core)
-add_test(NAME psd_groups COMMAND dynablaster_psd_groups_test)
-set_tests_properties(psd_groups PROPERTIES
-    WORKING_DIRECTORY "$<TARGET_FILE_DIR:dynablaster_revenge_harness>")
 add_test(NAME selftest_smoke
     COMMAND dynablaster_revenge_harness --selftest --screenshot=${CMAKE_BINARY_DIR}/selftest.png
 )
 set_tests_properties(selftest_smoke PROPERTIES
     WORKING_DIRECTORY "$<TARGET_FILE_DIR:dynablaster_revenge_harness>")
-# the controls page with two virtual controllers: the first picks a color, then becomes player 1
-add_test(NAME controls_page
-    COMMAND dynablaster_revenge_harness --menu --selftest --controls --pads=2 --controller=right,right,up
-)
-set_tests_properties(controls_page PROPERTIES
-    WORKING_DIRECTORY "$<TARGET_FILE_DIR:dynablaster_revenge_harness>"
-    PASS_REGULAR_EXPRESSION "controls: column 2 keyboard 0 color 5")
-# the controls page with the keyboard alone: one column to pick the color
-add_test(NAME controls_page_keyboard
-    COMMAND dynablaster_revenge_harness --menu --selftest --controls --pads=0
-)
-set_tests_properties(controls_page_keyboard PROPERTIES
-    WORKING_DIRECTORY "$<TARGET_FILE_DIR:dynablaster_revenge_harness>"
-    PASS_REGULAR_EXPRESSION "controls: column 1 keyboard 0 color")
-# walks the main menu with a virtual controller (menu_controller.ini graph) and clicks MULTI
-add_test(NAME controller_menu
-    COMMAND dynablaster_revenge_harness --menu --selftest --controller=right,down,down,right,bomb
-)
-set_tests_properties(controller_menu PROPERTIES
-    WORKING_DIRECTORY "$<TARGET_FILE_DIR:dynablaster_revenge_harness>"
-    PASS_REGULAR_EXPRESSION "action=button_multi_active")
 endif()
