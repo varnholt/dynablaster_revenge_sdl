@@ -333,15 +333,23 @@ void MenuPageNavigator::onActionRequest(const std::string& page, const std::stri
          // SoundManager back to whatever was last persisted, discarding an unsaved drag.
          // video: OK stores and applies the video page (any tab's OK, like storeOptions()),
          // Cancel restores the backup taken when it was first shown, undoing a brightness drag.
-         // controls/game: OK stores what their pages show, Cancel just doesn't.
+         // controls/game: OK stores what their pages show, Cancel just doesn't - and reloads the
+         // stored steering axes the stick calibration may have changed.
          if (action == kOptionsActionOk && _gameplay_settings_shown)
          {
             serializeGameplaySettings();
          }
 
-         if (action == kOptionsActionOk && _controller_settings_shown)
+         if (_controller_settings_shown)
          {
-            serializeControllerSettings();
+            if (action == kOptionsActionOk)
+            {
+               serializeControllerSettings();
+            }
+            else
+            {
+               GameSettings::getInstance()->getControllerSettings()->deserialize();
+            }
          }
 
          _gameplay_settings_shown = false;

@@ -32,6 +32,8 @@
 // control
 #define KEYMAP_NOMINAL_SIZE 5
 #define DEFAULT_ANALOGUE_THRESHOLD 3200
+#define DEFAULT_ANALOGUE_AXIS_1 0
+#define DEFAULT_ANALOGUE_AXIS_2 1
 
 // gameplay
 #define DEFAULT_GAMEPLAY_CAMERA_SHAKE_INTENSITY 1.0f
@@ -732,7 +734,7 @@ void GameSettings::CreateGameSettings::setSinglePlayer(bool value)
 }
 
 GameSettings::ControllerSettings::ControllerSettings()
-    : _analogue_treshold(DEFAULT_ANALOGUE_THRESHOLD)
+    : _analogue_treshold(DEFAULT_ANALOGUE_THRESHOLD), _analogue_axis_1(DEFAULT_ANALOGUE_AXIS_1), _analogue_axis_2(DEFAULT_ANALOGUE_AXIS_2)
 {
 }
 
@@ -752,6 +754,8 @@ void GameSettings::ControllerSettings::serialize()
       setValue("controller/keymap", serialize_map);
    }
 
+   setValue("controller/analogueaxis1", getAnalogueAxis1());
+   setValue("controller/analogueaxis2", getAnalogueAxis2());
    setValue("controller/analoguethreshold", getAnalogueThreshold());
 }
 
@@ -776,6 +780,8 @@ void GameSettings::ControllerSettings::deserialize()
       }
    }
 
+   setAnalogueAxis1(value("controller/analogueaxis1", DEFAULT_ANALOGUE_AXIS_1).toInt());
+   setAnalogueAxis2(value("controller/analogueaxis2", DEFAULT_ANALOGUE_AXIS_2).toInt());
    setAnalogueThreshold(value("controller/analoguethreshold", DEFAULT_ANALOGUE_THRESHOLD).toInt());
 }
 
@@ -786,6 +792,8 @@ void GameSettings::ControllerSettings::restoreDefaults()
    _key_map.clear();
    initializeDefaultMap();
 
+   setAnalogueAxis1(DEFAULT_ANALOGUE_AXIS_1);
+   setAnalogueAxis2(DEFAULT_ANALOGUE_AXIS_2);
    setAnalogueThreshold(DEFAULT_ANALOGUE_THRESHOLD);
 }
 
@@ -855,6 +863,26 @@ SDL_Keycode GameSettings::ControllerSettings::getZoomOutKey() const
 SDL_Keycode GameSettings::ControllerSettings::getStartKey() const
 {
    return getKey(Constants::KeyStart);
+}
+
+void GameSettings::ControllerSettings::setAnalogueAxis1(int axis)
+{
+   _analogue_axis_1 = axis;
+}
+
+int GameSettings::ControllerSettings::getAnalogueAxis1() const
+{
+   return _analogue_axis_1;
+}
+
+void GameSettings::ControllerSettings::setAnalogueAxis2(int axis)
+{
+   _analogue_axis_2 = axis;
+}
+
+int GameSettings::ControllerSettings::getAnalogueAxis2() const
+{
+   return _analogue_axis_2;
 }
 
 void GameSettings::ControllerSettings::setAnalogueThreshold(int threshold)

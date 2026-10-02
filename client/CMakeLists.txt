@@ -323,6 +323,8 @@ add_library(dynablaster_core STATIC
     src/game/controlspage.h
     src/game/controlssetup.cpp
     src/game/controlssetup.h
+    src/game/controllertestview.cpp
+    src/game/controllertestview.h
     src/game/controllerinput.h
     src/game/menucontrollergraph.cpp
     src/game/menucontrollergraph.h
@@ -433,6 +435,8 @@ add_library(dynablaster_core STATIC
     src/game/roundsdrawable.h
     src/game/startalersfactory.cpp
     src/game/startalersfactory.h
+    src/game/stickcalibration.cpp
+    src/game/stickcalibration.h
     src/game/musicplayerdrawable.cpp
     src/game/musicplayerdrawable.h
     src/game/gameversion.h
