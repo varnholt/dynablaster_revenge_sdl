@@ -25,6 +25,7 @@
 #include "game/musicplayerdrawable.h"
 #include "game/roundsdrawable.h"
 #include "game/soundmanager.h"
+#include "game/videooptions.h"
 
 #include "menus/bitmapfont.h"
 #include "menus/fontmap.h"
@@ -142,9 +143,13 @@ int main(int /*argc*/, char** /*argv*/)
    BombermanClient bomberman_client;
    bomberman_client.initialize();
 
+   // the last windowed size, 1024x576 (16:9 like the menu's page space) by default
+   const auto* video_settings = GameSettings::getInstance()->getVideoSettings();
+   const int window_width = video_settings->getWidth() > 0 ? video_settings->getWidth() : 1024;
+   const int window_height = video_settings->getHeight() > 0 ? video_settings->getHeight() : 576;
+
    GlesContext context;
-   // DEFAULT_VIDEO_WIDTH/HEIGHT, same 16:9 aspect as the menu's 1920x1080 page space
-   if (!context.init("Dynablaster Revenge", 1024, 576))
+   if (!context.init("Dynablaster Revenge", window_width, window_height))
    {
       NET_Quit();
       return 1;
@@ -200,6 +205,11 @@ int main(int /*argc*/, char** /*argv*/)
    menu_drawable.getMenu()->actionRequestSignal.connect([&](const std::string& page, const std::string& action)
                                                         { navigator.onActionRequest(page, action); });
    navigator.pageChangeRequestSignal.connect([&](const std::string& page) { menu_drawable.pageChangeRequest(page); });
+
+   // fullscreen, vsync and the fps title, at startup and whenever the video options are stored
+   VideoOptions video_options(context);
+   video_options.apply();
+   navigator.setVideoSettingsHandler([&]() { video_options.apply(); });
 
    // populates GAME_CREATE's dropdowns/checkboxes once the page becomes current
    menu_drawable.pageChangedSignal.connect([&](const std::string& page) { navigator.onPageChanged(page); });
@@ -376,8 +386,7 @@ int main(int /*argc*/, char** /*argv*/)
          // Alt+Enter toggles fullscreen, regardless of menu/game state
          if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_RETURN && (event.key.mod & SDL_KMOD_ALT))
          {
-            const bool is_fullscreen = (SDL_GetWindowFlags(context.window()) & SDL_WINDOW_FULLSCREEN) != 0;
-            SDL_SetWindowFullscreen(context.window(), !is_fullscreen);
+            video_options.toggleFullscreen();
             continue;  // don't also forward the plain Return key to the menu/game below
          }
 
@@ -386,6 +395,11 @@ int main(int /*argc*/, char** /*argv*/)
          {
             context.updateSize();
             device.resize(context.width(), context.height());
+         }
+
+         if (event.type == SDL_EVENT_WINDOW_RESIZED)
+         {
+            video_options.storeWindowSize();
          }
 
          // menu items live in 1920x1080 page space, not window space
@@ -561,6 +575,7 @@ int main(int /*argc*/, char** /*argv*/)
       }
 
       context.swap();
+      video_options.frameSwapped();
    };
 
 #ifdef __EMSCRIPTEN__

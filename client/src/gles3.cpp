@@ -82,6 +82,7 @@ PFNGLBINDRENDERBUFFERPROC glBindRenderbuffer;
 PFNGLDELETERENDERBUFFERSPROC glDeleteRenderbuffers;
 PFNGLRENDERBUFFERSTORAGEPROC glRenderbufferStorage;
 PFNGLFRAMEBUFFERRENDERBUFFERPROC glFramebufferRenderbuffer;
+PFNGLGETINTERNALFORMATIVPROC glGetInternalformativ;
 
 namespace
 {
@@ -177,6 +178,7 @@ bool loadGles3Functions()
    ok &= load(glDeleteRenderbuffers, "glDeleteRenderbuffers");
    ok &= load(glRenderbufferStorage, "glRenderbufferStorage");
    ok &= load(glFramebufferRenderbuffer, "glFramebufferRenderbuffer");
+   ok &= load(glGetInternalformativ, "glGetInternalformativ");
 
    return ok;
 }
