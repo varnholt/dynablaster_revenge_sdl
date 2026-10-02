@@ -4,7 +4,9 @@
 
 #include <SDL3/SDL.h>
 
+#include <array>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -42,6 +44,15 @@ public:
       std::string guid;
    };
 
+   //! a controller's raw buttons and axes, for the controls options' test view
+   struct State
+   {
+      std::array<bool, SDL_GAMEPAD_BUTTON_COUNT> buttons{};
+      std::array<int16_t, SDL_GAMEPAD_AXIS_COUNT> axes{};
+
+      bool operator==(const State&) const = default;
+   };
+
    ControllerInput() = default;
    ControllerInput(const ControllerInput&) = delete;
    ControllerInput& operator=(const ControllerInput&) = delete;
@@ -68,6 +79,7 @@ public:
 
    std::vector<DeviceInfo> getDevices() const;
    uint32_t getButtons(Id id) const;
+   std::optional<State> getState(Id id) const;
 
    Signal<Id> deviceAddedSignal;
    Signal<Id> deviceRemovedSignal;

@@ -16,6 +16,7 @@
 #include "game/gamedrawable.h"
 #include "game/controllerinput.h"
 #include "game/controlspage.h"
+#include "game/controllertestview.h"
 #include "game/gamesettings.h"
 #include "game/localplayers.h"
 #include "game/menucontrollerhandler.h"
@@ -338,6 +339,10 @@ int main(int /*argc*/, char** /*argv*/)
                                              { menu_controller_handler.buttonPressed(button); });
    menu_drawable.pageChangedSignal.connect([&](const std::string&) { menu_controller_handler.focusDefaultItem(); });
 
+   // the controller picture and stick calibration of the controls options
+   ControllerTestView controller_test_view(controller_input);
+   menu_drawable.pageChangedSignal.connect([&](const std::string& page) { controller_test_view.onPageChanged(page); });
+
    // further players on this machine, each on its own controller or the keyboard
    LocalPlayers local_players(controller_input, bomberman_client);
    bomberman_client.leaveGameSignal.connect([&]() { local_players.removeAll(); });
@@ -539,6 +544,7 @@ int main(int /*argc*/, char** /*argv*/)
       controller_input.update(game_drawable.isVisible(), game_drawable);
       menu_controller_handler.update();
       controls_page.update();
+      controller_test_view.update();
       local_players.update(game_drawable.isVisible());
 #endif
 

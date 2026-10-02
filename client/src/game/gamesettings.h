@@ -556,6 +556,12 @@ public:
       //! getter for analogue sensitivity
       int getAnalogueThreshold() const;
 
+      //! the gamepad axes that steer (SDL_GamepadAxis, left stick by default), set by calibration
+      void setAnalogueAxis1(int axis);
+      int getAnalogueAxis1() const;
+      void setAnalogueAxis2(int axis);
+      int getAnalogueAxis2() const;
+
    protected:
       //! initialize default map
       void initializeDefaultMap();
@@ -568,6 +574,10 @@ public:
 
       //! analogue sensitivity
       int _analogue_treshold;
+
+      //! steering axes
+      int _analogue_axis_1;
+      int _analogue_axis_2;
    };
 
    class CreateGameSettings : public SettingsPrivate

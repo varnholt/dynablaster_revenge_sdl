@@ -131,9 +131,12 @@ uint32_t ControllerInput::readButtons(const Device& device) const
       }
    }
 
-   const int32_t threshold = GameSettings::getInstance()->getControllerSettings()->getAnalogueThreshold();
-   const int16_t x = SDL_GetGamepadAxis(device.controller, SDL_GAMEPAD_AXIS_LEFTX);
-   const int16_t y = SDL_GetGamepadAxis(device.controller, SDL_GAMEPAD_AXIS_LEFTY);
+   // the left stick unless calibration picked another one
+   const auto* controls = GameSettings::getInstance()->getControllerSettings();
+   const auto axis = [](int value) { return static_cast<SDL_GamepadAxis>(std::clamp(value, 0, SDL_GAMEPAD_AXIS_COUNT - 1)); };
+   const int32_t threshold = controls->getAnalogueThreshold();
+   const int16_t x = SDL_GetGamepadAxis(device.controller, axis(controls->getAnalogueAxis1()));
+   const int16_t y = SDL_GetGamepadAxis(device.controller, axis(controls->getAnalogueAxis2()));
    if (x < -threshold)
    {
       buttons |= ButtonLeft;
@@ -298,4 +301,26 @@ uint32_t ControllerInput::getButtons(Id id) const
 {
    const auto it = _devices.find(id);
    return it != _devices.end() ? it->second.buttons : 0;
+}
+
+std::optional<ControllerInput::State> ControllerInput::getState(Id id) const
+{
+   const auto it = _devices.find(id);
+   if (it == _devices.end())
+   {
+      return std::nullopt;
+   }
+
+   State state;
+   for (int32_t button = 0; button < SDL_GAMEPAD_BUTTON_COUNT; button++)
+   {
+      state.buttons[button] = SDL_GetGamepadButton(it->second.controller, static_cast<SDL_GamepadButton>(button));
+   }
+
+   for (int32_t axis = 0; axis < SDL_GAMEPAD_AXIS_COUNT; axis++)
+   {
+      state.axes[axis] = SDL_GetGamepadAxis(it->second.controller, static_cast<SDL_GamepadAxis>(axis));
+   }
+
+   return state;
 }
