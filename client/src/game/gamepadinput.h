@@ -11,21 +11,19 @@
 
 class GameDrawable;
 
-/// \brief SDL3 port of the SDL2 joystick code (JoystickInterfaceSDL, GameJoystickMapping) incl.
-/// hotplug. devices with a gamepad mapping (SDL's own plus data/game/gamecontrollerdb.txt) are
-/// opened as gamepads, anything else as raw joystick using the configured analogue axes.
-/// in game the pads synthesize the keyboard's keymap, the menu side is MenuJoystickHandler.
+/// \brief SDL3 gamepads incl. hotplug. in game the pads synthesize the keyboard's keymap, the
+/// menu side is MenuJoystickHandler.
 class GamepadInput
 {
 public:
-   /// \brief logical buttons; directions merge the d-pad/hat and the analogue stick
+   /// \brief logical buttons; directions merge the d-pad and the left stick
    enum Button : uint32_t
    {
       ButtonUp = 0x0001,
       ButtonDown = 0x0002,
       ButtonLeft = 0x0004,
       ButtonRight = 0x0008,
-      ButtonBomb = 0x0010,  //!< a, b, x, y or any button of a raw joystick
+      ButtonBomb = 0x0010,  //!< a, b, x or y
       ButtonShoulderLeft = 0x0020,
       ButtonShoulderRight = 0x0040,
       ButtonStart = 0x0080,
@@ -37,7 +35,6 @@ public:
       SDL_JoystickID id = 0;
       std::string name;
       std::string guid;
-      bool gamepad = false;
    };
 
    GamepadInput() = default;
@@ -69,7 +66,6 @@ private:
    struct Device
    {
       SDL_Gamepad* gamepad = nullptr;
-      SDL_Joystick* joystick = nullptr;  //!< owned only if gamepad is null
       DeviceInfo info;
       uint32_t buttons = 0;
    };

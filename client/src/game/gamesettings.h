@@ -550,18 +550,6 @@ public:
       SDL_Keycode getZoomInKey() const;
       SDL_Keycode getStartKey() const;
 
-      //! setter for analogue axis 1
-      void setAnalogueAxis1(int axis1);
-
-      //! getter for analogue axis 1
-      int getAnalogueAxis1() const;
-
-      //! setter for analogue axis 2
-      void setAnalogueAxis2(int axis2);
-
-      //! getter for analogue axis 2
-      int getAnalogueAxis2() const;
-
       //! setter for analogue sensitivity
       void setAnalogueThreshold(int);
 
@@ -577,12 +565,6 @@ public:
 
       //! keymap
       std::unordered_map<Constants::Key, int> _key_map;
-
-      //! analogue axis 1
-      int _analogue_axis1;
-
-      //! analogue axis 2
-      int _analogue_axis2;
 
       //! analogue sensitivity
       int _analogue_treshold;
