@@ -15,6 +15,7 @@
 #include "game/countdowndrawable.h"
 #include "game/gamedrawable.h"
 #include "game/controllerinput.h"
+#include "game/localplayers.h"
 #include "game/menucontrollerhandler.h"
 #include "game/gamelogodrawable.h"
 #include "game/gamemessagingdrawable.h"
@@ -304,6 +305,11 @@ int main(int /*argc*/, char** /*argv*/)
    controller_input.buttonPressedSignal.connect([&](ControllerInput::Id, ControllerInput::Button button)
                                              { menu_controller_handler.buttonPressed(button); });
    menu_drawable.pageChangedSignal.connect([&](const std::string&) { menu_controller_handler.focusDefaultItem(); });
+
+   // further players on this machine, each on its own controller
+   LocalPlayers local_players(controller_input, bomberman_client);
+   navigator.addLocalPlayerRequestSignal.connect([&]() { local_players.add(); });
+   bomberman_client.leaveGameSignal.connect([&]() { local_players.removeAll(); });
 #endif
 
    // background music
@@ -446,6 +452,7 @@ int main(int /*argc*/, char** /*argv*/)
 #ifndef __SWITCH__
       controller_input.update(game_drawable.isVisible(), game_drawable);
       menu_controller_handler.update();
+      local_players.update(game_drawable.isVisible());
 #endif
 
       // Timer::update() drives Server's/BombermanClient's own poll() plus every other Timer.

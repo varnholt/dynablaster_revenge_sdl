@@ -1275,11 +1275,15 @@ void GameDrawable::paintGL()
 
       if (_camera_follows_player)
       {
-         // real HeadlessIntegration (bot/multi-instance camera) branch deferred - always follows
-         // this client's own player, matching the single-player-on-this-pc path.
-         PlayerInfo* player = BombermanClient::getInstance()->getCurrentPlayerInfo();
-         if (player)
-            _level->addPlayerPosition(player);
+         // keep every player on this machine in view
+         const auto* client = BombermanClient::getInstance();
+         for (const auto& [player_id, player] : *client->getPlayerInfoMap())
+         {
+            if (client->isLocalPlayer(player_id))
+            {
+               _level->addPlayerPosition(player);
+            }
+         }
 
          // if no players have been added to the camera interpolation; then add all players
          if (_level->isPlayerMapEmpty())

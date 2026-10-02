@@ -114,6 +114,7 @@ void ControllerInput::removeDevice(Id id)
 
    SDL_CloseGamepad(it->second.controller);
    _devices.erase(it);
+   _assigned.erase(id);
 
    SDL_Log("Controller %u disconnected", id);
    deviceRemovedSignal(id);
@@ -191,14 +192,17 @@ void ControllerInput::update(bool in_game, GameDrawable& game)
 
 void ControllerInput::updateGame(bool in_game, GameDrawable& game)
 {
-   // all devices share the local player for now, keys are synthesized from the combined state
+   // the unassigned controllers share the main player, keys are synthesized from their combined state
    std::vector<SDL_Keycode> keys;
    if (in_game)
    {
       uint32_t buttons = 0;
       for (const auto& [id, device] : _devices)
       {
-         buttons |= device.buttons;
+         if (!_assigned.contains(id))
+         {
+            buttons |= device.buttons;
+         }
       }
 
       const auto* controls = GameSettings::getInstance()->getControllerSettings();
@@ -240,11 +244,40 @@ void ControllerInput::updateGame(bool in_game, GameDrawable& game)
 
 void ControllerInput::rumble(float intensity, int32_t duration_ms)
 {
-   const auto strength = static_cast<uint16_t>(std::clamp(intensity, 0.0f, 1.0f) * 0xffff);
    for (const auto& [id, device] : _devices)
    {
-      SDL_RumbleGamepad(device.controller, strength, strength, static_cast<uint32_t>(duration_ms));
+      if (!_assigned.contains(id))
+      {
+         rumble(id, intensity, duration_ms);
+      }
    }
+}
+
+void ControllerInput::rumble(Id id, float intensity, int32_t duration_ms)
+{
+   const auto it = _devices.find(id);
+   if (it != _devices.end())
+   {
+      const auto strength = static_cast<uint16_t>(std::clamp(intensity, 0.0f, 1.0f) * 0xffff);
+      SDL_RumbleGamepad(it->second.controller, strength, strength, static_cast<uint32_t>(duration_ms));
+   }
+}
+
+void ControllerInput::setAssigned(Id id, bool assigned)
+{
+   if (assigned)
+   {
+      _assigned.insert(id);
+   }
+   else
+   {
+      _assigned.erase(id);
+   }
+}
+
+bool ControllerInput::isAssigned(Id id) const
+{
+   return _assigned.contains(id);
 }
 
 std::vector<ControllerInput::DeviceInfo> ControllerInput::getDevices() const
