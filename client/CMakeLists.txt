@@ -547,6 +547,11 @@ target_link_libraries(dynablaster_local_player_test PRIVATE dynablaster_core)
 add_test(NAME local_player COMMAND dynablaster_local_player_test)
 set_tests_properties(local_player PROPERTIES
     WORKING_DIRECTORY "$<TARGET_FILE_DIR:dynablaster_revenge_harness>")
+add_executable(dynablaster_preferred_color_test tests/test_preferred_color.cpp)
+target_link_libraries(dynablaster_preferred_color_test PRIVATE dynablaster_core)
+add_test(NAME preferred_color COMMAND dynablaster_preferred_color_test)
+set_tests_properties(preferred_color PROPERTIES
+    WORKING_DIRECTORY "$<TARGET_FILE_DIR:dynablaster_revenge_harness>")
 add_executable(dynablaster_psd_groups_test tests/test_psd_groups.cpp)
 target_link_libraries(dynablaster_psd_groups_test PRIVATE dynablaster_core)
 add_test(NAME psd_groups COMMAND dynablaster_psd_groups_test)

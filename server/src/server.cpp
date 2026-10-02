@@ -231,7 +231,7 @@ void Server::processJoinGameRequest(NET_StreamSocket* tcp_socket, Packet* packet
 
       if (player)
       {
-         if (game->joinGame(player, tcp_socket))
+         if (game->joinGame(player, tcp_socket, request->getPreferredColor()))
          {
             game->broadcastMessage(std::format("{} joined the game", player->getNick()));
 
@@ -430,10 +430,11 @@ void Server::readSocket(NET_StreamSocket* tcp_socket)
       // reset expected blocksize
       _packet_sizes[tcp_socket] = 0;
 
-      // block was read completely
-      BinaryReader in = buffer->reader();
+      // block was read completely; reading is limited to it, so a packet with trailing fields
+      // this server doesn't know (or one shorter than expected) can't desync the stream
+      BinaryReader in = buffer->reader(block_size);
       auto packet = Packet::deserialize(in);
-      buffer->consume(in.pos());
+      buffer->consume(block_size);
 
       if (packet)
       {
