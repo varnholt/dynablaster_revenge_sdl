@@ -155,6 +155,11 @@ using GLsizeiptr = intptr_t;
 #define GL_RGBA8 0x8058
 #define GL_SAMPLES 0x80A9
 #define GL_NUM_SAMPLE_COUNTS 0x9380
+#define GL_READ_FRAMEBUFFER 0x8CA8
+#define GL_DRAW_FRAMEBUFFER 0x8CA9
+#define GL_DRAW_FRAMEBUFFER_BINDING 0x8CA6
+#define GL_RENDERBUFFER_SAMPLES 0x8CAB
+#define GL_MAX_SAMPLES 0x8D57
 
 // The legacy renderer targeted the pre-promotion EXT_framebuffer_object extension (same values
 // as the later core FBO functionality); aliased so ported call sites compile unchanged.
@@ -260,6 +265,10 @@ using PFNGLDELETERENDERBUFFERSPROC = void (*)(GLsizei, const GLuint*);
 using PFNGLRENDERBUFFERSTORAGEPROC = void (*)(GLenum, GLenum, GLsizei, GLsizei);
 using PFNGLFRAMEBUFFERRENDERBUFFERPROC = void (*)(GLenum, GLenum, GLenum, GLuint);
 using PFNGLGETINTERNALFORMATIVPROC = void (*)(GLenum, GLenum, GLenum, GLsizei, GLint*);
+using PFNGLRENDERBUFFERSTORAGEMULTISAMPLEPROC = void (*)(GLenum, GLsizei, GLenum, GLsizei, GLsizei);
+using PFNGLGETRENDERBUFFERPARAMETERIVPROC = void (*)(GLenum, GLenum, GLint*);
+using PFNGLBLITFRAMEBUFFERPROC = void (*)(GLint, GLint, GLint, GLint, GLint, GLint, GLint, GLint, GLbitfield, GLenum);
+using PFNGLGETINTEGERVPROC = void (*)(GLenum, GLint*);
 
 extern PFNGLGENFRAMEBUFFERSPROC glGenFramebuffers;
 extern PFNGLBINDFRAMEBUFFERPROC glBindFramebuffer;
@@ -272,6 +281,10 @@ extern PFNGLDELETERENDERBUFFERSPROC glDeleteRenderbuffers;
 extern PFNGLRENDERBUFFERSTORAGEPROC glRenderbufferStorage;
 extern PFNGLFRAMEBUFFERRENDERBUFFERPROC glFramebufferRenderbuffer;
 extern PFNGLGETINTERNALFORMATIVPROC glGetInternalformativ;
+extern PFNGLRENDERBUFFERSTORAGEMULTISAMPLEPROC glRenderbufferStorageMultisample;
+extern PFNGLGETRENDERBUFFERPARAMETERIVPROC glGetRenderbufferParameteriv;
+extern PFNGLBLITFRAMEBUFFERPROC glBlitFramebuffer;
+extern PFNGLGETINTEGERVPROC glGetIntegerv;
 
 extern PFNGLVIEWPORTPROC glViewport;
 extern PFNGLCLEARCOLORPROC glClearColor;

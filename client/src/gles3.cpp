@@ -83,6 +83,10 @@ PFNGLDELETERENDERBUFFERSPROC glDeleteRenderbuffers;
 PFNGLRENDERBUFFERSTORAGEPROC glRenderbufferStorage;
 PFNGLFRAMEBUFFERRENDERBUFFERPROC glFramebufferRenderbuffer;
 PFNGLGETINTERNALFORMATIVPROC glGetInternalformativ;
+PFNGLRENDERBUFFERSTORAGEMULTISAMPLEPROC glRenderbufferStorageMultisample;
+PFNGLGETRENDERBUFFERPARAMETERIVPROC glGetRenderbufferParameteriv;
+PFNGLBLITFRAMEBUFFERPROC glBlitFramebuffer;
+PFNGLGETINTEGERVPROC glGetIntegerv;
 
 namespace
 {
@@ -179,6 +183,10 @@ bool loadGles3Functions()
    ok &= load(glRenderbufferStorage, "glRenderbufferStorage");
    ok &= load(glFramebufferRenderbuffer, "glFramebufferRenderbuffer");
    ok &= load(glGetInternalformativ, "glGetInternalformativ");
+   ok &= load(glRenderbufferStorageMultisample, "glRenderbufferStorageMultisample");
+   ok &= load(glGetRenderbufferParameteriv, "glGetRenderbufferParameteriv");
+   ok &= load(glBlitFramebuffer, "glBlitFramebuffer");
+   ok &= load(glGetIntegerv, "glGetIntegerv");
 
    return ok;
 }

@@ -1,5 +1,6 @@
 #include "shroomfilter.h"
 
+#include "framework/framebuffer.h"
 #include "framework/gldevice.h"
 
 #include <cstdint>
@@ -39,7 +40,7 @@ void ShroomFilter::apply()
 
    // sampling the framebuffer we draw into would be a feedback loop, so copy it first
    glBindTexture(GL_TEXTURE_2D, _snapshot_texture);
-   glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, x, y, width, height, 0);
+   FrameBuffer::copyTexImage(x, y, width, height);
    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);

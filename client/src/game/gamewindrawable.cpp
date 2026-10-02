@@ -314,7 +314,7 @@ void GameWinDrawable::drawBackBuffer(float alpha)
    // from this while writing its result into _backdrop_fb below; sampling and writing the same
    // live FBO attachment at once would be an undefined feedback loop.
    glBindTexture(GL_TEXTURE_2D, _snapshot_texture);
-   glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 0, 0, width, height, 0);
+   FrameBuffer::copyTexImage(0, 0, width, height);
    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);

@@ -23,8 +23,10 @@ void VideoOutput::beginFrame(int32_t window_width, int32_t window_height)
    _window_width = std::max(window_width, 1);
    _window_height = std::max(window_height, 1);
 
+   auto* video_settings = GameSettings::getInstance()->getVideoSettings();
+
    // the frame: window / resolution divisor, cut to 16:9
-   const auto resolution = std::max(GameSettings::getInstance()->getVideoSettings()->getResolution(), 1);
+   const auto resolution = std::max(video_settings->getResolution(), 1);
    auto width = (_window_width + resolution - 1) / resolution;
    auto height = (_window_height + resolution - 1) / resolution;
 
@@ -40,14 +42,22 @@ void VideoOutput::beginFrame(int32_t window_width, int32_t window_height)
    width = std::max(width, 1);
    height = std::max(height, 1);
 
+   const auto samples = video_settings->getAntialias();
+
    if (!_frame)
    {
-      _frame = std::make_unique<FrameBuffer>(width, height);
+      _frame = std::make_unique<FrameBuffer>(width, height, samples);
       FrameBuffer::setScreen(_frame.get());
    }
-   else if (_frame->resolutionChanged(width, height))
+   else if (_frame->resolutionChanged(width, height, samples))
    {
-      _frame->setResolution(width, height);
+      _frame->setResolution(width, height, samples);
+   }
+
+   // what the driver actually gave, like updateFrameBufferSettings()
+   if (samples > 1 && _frame->samples() != samples)
+   {
+      video_settings->setAntialias(_frame->samples());
    }
 
    // its place in the window: pillarbox if the window is wider than 16:9, letterbox otherwise

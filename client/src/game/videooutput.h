@@ -8,8 +8,9 @@
 class FrameBuffer;
 class GLDevice;
 
-/// \brief draws each frame offscreen at the configured render resolution and presents it 16:9,
-/// pillar- or letterboxed, scaled up and with the configured brightness (GameView::paintGL()).
+/// \brief draws each frame offscreen at the configured render resolution and antialiasing and
+/// presents it 16:9, pillar- or letterboxed, scaled up and with the configured brightness
+/// (GameView::paintGL()).
 class VideoOutput
 {
 public:
