@@ -164,6 +164,11 @@ size_t LocalPlayers::getCount() const
    return _slots.size();
 }
 
+bool LocalPlayers::isJoining() const
+{
+   return std::ranges::any_of(_slots, [](const Slot& slot) { return !slot.client->isJoined(); });
+}
+
 bool LocalPlayers::isKeyboardAssigned() const
 {
    return std::ranges::any_of(_slots, [](const Slot& slot) { return !slot.controller; });

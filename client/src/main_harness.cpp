@@ -624,6 +624,10 @@ int main(int argc, char** argv)
          SDL_UpdateJoysticks();
          controller_input->poll();
          menu_controller_handler->update();
+         if (controls_page)
+         {
+            controls_page->update();
+         }
       }
 
       // --realclick=x,y: same frame schedule as --click above, but through genuine SDL events

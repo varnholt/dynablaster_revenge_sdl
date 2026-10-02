@@ -43,12 +43,18 @@ public:
    /// \brief keyboard input while the page is shown, true if it was used
    bool onKeyPressed(SDL_Keycode key);
 
+   /// \brief animates the glow of the columns whose device was just used
+   void update();
+
 private:
    MenuPage* getPage() const;
    std::vector<std::string> getDefaultNames() const;
    void readNames();
    void refresh();
    void identify(size_t column);
+
+   /// \brief the glow behind the column's helmet pulses once, so its player sees which is theirs
+   void pulse(size_t column);
    void confirm();
    void cancel();
    void joinLocalPlayers(bool joined);
@@ -62,6 +68,10 @@ private:
    int32_t _game_id = -1;
    std::string _return_page;
    int32_t _column_left = 0;  // where the PSD has the first column
+
+   // column -> pulse start in ms
+   std::vector<uint64_t> _pulse_start;
+   float _glow_opacity = 1.0f;
 
    // joined once the main player is in the game
    std::vector<LocalPlayers::Player> _pending_players;

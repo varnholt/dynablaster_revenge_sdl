@@ -27,6 +27,9 @@ constexpr const char* arrow_device_left = "Shape 14 copy 4";
 constexpr const char* arrow_device_right = "Shape 14 copy 5";
 constexpr const char* action_ok = "button_ok_active";
 constexpr const char* action_cancel = "button_cancel_active";
+constexpr const char* glow = "player-select";
+constexpr uint64_t pulse_ms = 350;
+constexpr size_t max_controller_name = 18;
 
 // dstar's helmets follow Constants::Color, except green and blue which are swapped in the PSD
 std::string colorIcon(Constants::Color color)
@@ -62,6 +65,11 @@ ControlsPage::ControlsPage(MenuDrawable& menu, ControllerInput& controller_input
    {
       const auto first_column = page->getLayer(MenuPage::getInstanceName("controls_window", 1));
       _column_left = first_column != page->getLayers().end() ? first_column->getLeft() : 0;
+
+      if (MenuPageItem* item = page->getPageItem(MenuPage::getInstanceName(glow, 1)); item && item->getActiveLayer())
+      {
+         _glow_opacity = item->getActiveLayer()->getOpacity();
+      }
    }
 }
 
@@ -215,6 +223,21 @@ void ControlsPage::refresh()
          set_visible(colorIcon(static_cast<Constants::Color>(color)), plays && column->color == static_cast<Constants::Color>(color));
       }
 
+      // which controller it is
+      if (auto* label = dynamic_cast<MenuPageLabelItem*>(page->getPageItem(MenuPage::getInstanceName("gamepad-icon", index))))
+      {
+         std::string name;
+         if (column && column->device.type == ControlsSetup::DeviceType::Controller)
+         {
+            const auto devices = _controller_input.getDevices();
+            if (const auto info = std::ranges::find(devices, column->device.id, &ControllerInput::DeviceInfo::id); info != devices.end())
+            {
+               name = info->name.substr(0, max_controller_name);
+            }
+         }
+         label->setText(name);
+      }
+
       // the player number in joining order
       if (auto* label = dynamic_cast<MenuPageLabelItem*>(page->getPageItem(MenuPage::getInstanceName("player_number", index))))
       {
@@ -231,6 +254,45 @@ void ControlsPage::identify(size_t column)
    if (device.type == ControlsSetup::DeviceType::Controller)
    {
       _controller_input.rumble(device.id, 0.4f, 250);
+   }
+}
+
+void ControlsPage::pulse(size_t column)
+{
+   _pulse_start.resize(std::max(_pulse_start.size(), column + 1), 0);
+   _pulse_start[column] = std::max<uint64_t>(SDL_GetTicks(), 1);
+}
+
+void ControlsPage::update()
+{
+   MenuPage* page = getPage();
+   if (!page)
+   {
+      return;
+   }
+
+   const uint64_t now = SDL_GetTicks();
+   for (size_t column = 0; column < _pulse_start.size(); column++)
+   {
+      if (_pulse_start[column] == 0)
+      {
+         continue;
+      }
+
+      MenuPageItem* item = page->getPageItem(MenuPage::getInstanceName(glow, static_cast<int32_t>(column + 1)));
+      PSDLayer* layer = item ? item->getActiveLayer() : nullptr;
+      if (!layer)
+      {
+         continue;
+      }
+
+      // dims, then flares back up
+      const float t = std::min(1.0f, static_cast<float>(now - _pulse_start[column]) / static_cast<float>(pulse_ms));
+      layer->setOpacity(_glow_opacity * (0.3f + 0.7f * t));
+      if (t >= 1.0f)
+      {
+         _pulse_start[column] = 0;
+      }
    }
 }
 
@@ -309,18 +371,21 @@ void ControlsPage::onControllerButtonPressed(ControllerInput::Id id, ControllerI
    {
       case ControllerInput::ButtonLeft:
       case ControllerInput::ButtonRight:
+         pulse(*column);
          _setup.cycleColor(*column, button == ControllerInput::ButtonLeft ? -1 : 1);
          break;
       case ControllerInput::ButtonUp:
       case ControllerInput::ButtonDown:
          _setup.moveDevice(*column, button == ControllerInput::ButtonUp ? -1 : 1);
          identify(*_setup.findColumn(device));
+         pulse(*_setup.findColumn(device));
          break;
       case ControllerInput::ButtonBomb:
       case ControllerInput::ButtonStart:
          confirm();
          return;
       default:
+         pulse(*column);
          break;
    }
    refresh();
@@ -354,6 +419,7 @@ bool ControlsPage::onKeyPressed(SDL_Keycode key)
       case SDLK_RIGHT:
          if (column)
          {
+            pulse(*column);
             _setup.cycleColor(*column, key == SDLK_LEFT ? -1 : 1);
             refresh();
          }
@@ -363,6 +429,7 @@ bool ControlsPage::onKeyPressed(SDL_Keycode key)
          if (column)
          {
             _setup.moveDevice(*column, key == SDLK_UP ? -1 : 1);
+            pulse(*_setup.findColumn(ControlsSetup::keyboard()));
             refresh();
          }
          return true;

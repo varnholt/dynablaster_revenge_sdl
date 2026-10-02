@@ -47,6 +47,9 @@ public:
 
    size_t getCount() const;
 
+   /// \brief some players are still connecting or joining
+   bool isJoining() const;
+
    /// \brief the keyboard steers one of these players, not the main one
    bool isKeyboardAssigned() const;
 
