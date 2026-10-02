@@ -4,7 +4,7 @@
 
 #include <SDL3/SDL.h>
 
-#include <memory>
+#include <algorithm>
 #include <string>
 
 namespace
@@ -27,39 +27,34 @@ int main(int /*argc*/, char** /*argv*/)
       return 1;
    }
 
-   int32_t column_layers = 0;
-   int32_t markers = 0;
-   for (int32_t i = 0; i < psd.getLayerCount(); i++)
-   {
-      const PSD::Layer* layer = psd.getLayer(i);
-      if (layer->isGroupMarker())
-      {
-         markers++;
-      }
-      else if (layer->getGroup() == "column")
-      {
-         column_layers++;
-      }
-   }
+   const auto& layers = psd.getLayers();
+   const auto dividers = std::ranges::count_if(layers, &PSD::Layer::isSectionDivider);
+   const auto column_layers =
+      std::ranges::count_if(layers, [](const auto& layer) { return layer.isImageLayer() && layer.getGroup() == "column"; });
 
    bool ok = true;
-   ok &= check(markers == 2, "one folder and one divider");
+   ok &= check(dividers == 2, "one folder and one divider");
    ok &= check(column_layers == 20, "20 layers in the column group");
-   ok &= check(psd.getLayer("p1-icon") && psd.getLayer("p1-icon")->getGroup() == "column", "p1-icon is in the column");
-   ok &= check(psd.getLayer("header") && psd.getLayer("header")->getGroup().empty(), "header is top level");
-   ok &= check(psd.getLayer("column") && psd.getLayer("column")->getSection() != PSD::Layer::Section::None, "column is the folder");
 
-   const PSD::Layer* icon = psd.getLayer("p1-icon");
-   auto clone = icon->clone("p1-icon@2", 240, 0);
-   ok &= check(std::string(clone->getName()) == "p1-icon@2", "clone is renamed");
-   ok &= check(clone->getLeft() == icon->getLeft() + 240 && clone->getTop() == icon->getTop(), "clone is shifted");
-   ok &= check(clone->getImage() && clone->getImage() != icon->getImage(), "clone owns its pixels");
-   ok &= check(clone->getImage()->getWidth() == icon->getImage()->getWidth(), "clone has the same pixels");
-   ok &= check(clone->getGroup() == "column", "clone stays in its group");
+   const auto icon = psd.getLayer("p1-icon");
+   const auto header = psd.getLayer("header");
+   const auto column = psd.getLayer("column");
+   ok &= check(icon != layers.end() && icon->getGroup() == "column", "p1-icon is in the column");
+   ok &= check(header != layers.end() && header->getGroup().empty(), "header is top level");
+   ok &= check(column != layers.end() && column->getSectionDivider() == PSD::Layer::SectionDivider::OpenFolder, "column is the folder");
+   ok &= check(psd.getLayer("missing") == layers.end(), "unknown names are not found");
 
-   const int32_t count = psd.getLayerCount();
-   psd.addLayer(std::move(clone));
-   ok &= check(psd.getLayerCount() == count + 1 && psd.getLayer("p1-icon@2"), "clone added");
+   // copies are plain values sharing the pixels
+   PSD::Layer copy = *icon;
+   copy.setName("p1-icon@2");
+   copy.move(240, 0);
+   ok &= check(copy.getLeft() == icon->getLeft() + 240 && copy.getTop() == icon->getTop(), "copy is shifted");
+   ok &= check(copy.getImage().getData() == icon->getImage().getData(), "copy shares the pixels");
+   ok &= check(copy.getGroup() == "column", "copy stays in its group");
+
+   const size_t count = psd.getLayerCount();
+   psd.addLayer(std::move(copy));
+   ok &= check(psd.getLayerCount() == count + 1 && psd.getLayer("p1-icon@2") != psd.getLayers().end(), "copy added");
 
    SDL_Log(ok ? "psd groups test passed" : "psd groups test failed");
    return ok ? 0 : 1;

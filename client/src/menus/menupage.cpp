@@ -84,12 +84,10 @@ void MenuPage::initializeLayers()
    load(_filename.c_str());
    repeatGroups();
 
-   for (int l = 0; l < getLayerCount(); l++)
+   for (auto& layer : getLayers())
    {
-      PSD::Layer* layer = getLayer(l);
-
-      const std::string layer_name = layer->getName();
-      if (layer->isGroupMarker())
+      const std::string& layer_name = layer.getName();
+      if (layer.isSectionDivider())
       {
          // group folders and dividers carry no pixels
          _render_layers.push_back(nullptr);
@@ -335,14 +333,10 @@ MenuPageItem* MenuPage::processSliderScrollBarIcons(PSDLayer* layer, std::string
    page_item->setInactiveLayer(layer);
 
    const std::string bar_name = layer_name + "_bar";
-   for (int l = 0; l < getLayerCount(); l++)
+   if (const auto bar_layer = getLayer(bar_name); bar_layer != getLayers().end())
    {
-      const PSD::Layer* bar_layer = getLayer(l);
-      if (bar_layer->getName() == bar_name)
-      {
-         page_item->setMinimum(bar_layer->getLeft());
-         page_item->setMaximum(bar_layer->getLeft() + bar_layer->getWidth());
-      }
+      page_item->setMinimum(bar_layer->getLeft());
+      page_item->setMaximum(bar_layer->getLeft() + bar_layer->getWidth());
    }
 
    return page_item;
@@ -827,14 +821,14 @@ void MenuPage::repeatGroups()
       const int32_t spacing = _settings->value(group + "_repeat_spacing", 0).toInt();
       const auto extra_layers = _settings->value(group + "_repeat_layers").toStringList();
 
-      std::vector<PSD::Layer*> members;
-      for (int32_t l = 0; l < getLayerCount(); l++)
+      // indices, appending the copies reallocates the layers
+      std::vector<size_t> members;
+      for (size_t l = 0; l < getLayerCount(); l++)
       {
-         PSD::Layer* layer = getLayer(l);
-         const std::string name = StringUtils::trim(layer->getName());
-         if (!layer->isGroupMarker() && (layer->getGroup() == group || std::ranges::contains(extra_layers, name)))
+         const PSD::Layer& layer = getLayer(l);
+         if (layer.isImageLayer() && (layer.getGroup() == group || std::ranges::contains(extra_layers, StringUtils::trim(layer.getName()))))
          {
-            members.push_back(layer);
+            members.push_back(l);
          }
       }
 
@@ -842,15 +836,20 @@ void MenuPage::repeatGroups()
       instances.assign(static_cast<size_t>(std::max(count, 1)), {});
       _group_instance_offsets[group].assign(instances.size(), 0);
 
-      for (PSD::Layer* layer : members)
+      for (const size_t member : members)
       {
-         const std::string name = StringUtils::trim(layer->getName());
+         const std::string name = StringUtils::trim(getLayer(member).getName());
          for (int32_t index = 2; index <= count; index++)
          {
-            instances[index - 1].push_back(addLayer(layer->clone(getInstanceName(name, index), spacing * (index - 1), 0)));
+            // copies share the pixels
+            PSD::Layer copy = getLayer(member);
+            copy.setName(getInstanceName(name, index));
+            copy.move(spacing * (index - 1), 0);
+            instances[index - 1].push_back(getLayerCount());
+            addLayer(std::move(copy));
          }
-         layer->setName(getInstanceName(name, 1));
-         instances.front().push_back(layer);
+         getLayer(member).setName(getInstanceName(name, 1));
+         instances.front().push_back(member);
       }
    }
 
@@ -872,9 +871,9 @@ void MenuPage::setGroupInstanceOffset(const std::string& group, int32_t index, i
    }
 
    int32_t& current = _group_instance_offsets[group][index - 1];
-   for (PSD::Layer* layer : instances->second[index - 1])
+   for (const size_t layer : instances->second[index - 1])
    {
-      layer->move(offset - current, 0);
+      getLayer(layer).move(offset - current, 0);
    }
    current = offset;
 }
@@ -893,7 +892,7 @@ void MenuPage::initializePageItems()
 
    std::string layer_name_without_postfix;
 
-   for (int l = 0; l < getLayerCount(); l++)
+   for (size_t l = 0; l < getLayerCount(); l++)
    {
       PSDLayer* layer = _render_layers[l].get();
       if (!layer)
@@ -901,7 +900,7 @@ void MenuPage::initializePageItems()
          continue;
       }
 
-      const std::string layer_name = StringUtils::trim(getLayer(l)->getName());
+      const std::string layer_name = StringUtils::trim(getLayer(l).getName());
       layer_name_without_postfix.clear();
 
       MenuPageItem* page_item = nullptr;
@@ -967,7 +966,7 @@ void MenuPage::initializePageItems()
          page_item = processDefaultItem(layer, layer_name);
          if (page_item && respect_layer_visibility)
          {
-            page_item->setVisible(getLayer(l)->isVisible());
+            page_item->setVisible(getLayer(l).isVisible());
          }
       }
 

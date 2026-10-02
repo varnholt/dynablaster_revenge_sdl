@@ -171,8 +171,8 @@ protected:
    //! page is active
    bool _active = false;
 
-   //! repeated group -> layers of each instance (non-owning)
-   std::map<std::string, std::vector<std::vector<PSD::Layer*>>> _group_instances;
+   //! repeated group -> layer indices of each instance
+   std::map<std::string, std::vector<std::vector<size_t>>> _group_instances;
 
    //! repeated group -> current horizontal offset of each instance
    std::map<std::string, std::vector<int32_t>> _group_instance_offsets;

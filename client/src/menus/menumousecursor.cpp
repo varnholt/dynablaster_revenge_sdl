@@ -59,23 +59,25 @@ void MenuMouseCursor::initializeLayers()
 {
    _psd.load(_filename.c_str());
 
-   if (PSD::Layer* psd_layer = _psd.getLayer(LAYER_DEFAULT))
+   const auto end = _psd.getLayers().end();
+
+   if (const auto psd_layer = _psd.getLayer(LAYER_DEFAULT); psd_layer != end)
    {
-      _default_layer = std::make_unique<PSDLayer>(psd_layer);
+      _default_layer = std::make_unique<PSDLayer>(*psd_layer);
    }
 
-   if (PSD::Layer* psd_layer = _psd.getLayer(LAYER_CLICKED))
+   if (const auto psd_layer = _psd.getLayer(LAYER_CLICKED); psd_layer != end)
    {
-      _clicked_layer = std::make_unique<PSDLayer>(psd_layer);
+      _clicked_layer = std::make_unique<PSDLayer>(*psd_layer);
    }
 
-   if (PSD::Layer* psd_layer = _psd.getLayer(LAYER_BUSY))
+   if (const auto psd_layer = _psd.getLayer(LAYER_BUSY); psd_layer != end)
    {
       _busy_x = psd_layer->getLeft();
       _busy_y = psd_layer->getTop();
       psd_layer->setX(0);
       psd_layer->setY(0);
-      _busy_layer = std::make_unique<PSDLayer>(psd_layer);
+      _busy_layer = std::make_unique<PSDLayer>(*psd_layer);
    }
 }
 
