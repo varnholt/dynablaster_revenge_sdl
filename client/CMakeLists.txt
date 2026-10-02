@@ -333,6 +333,8 @@ add_library(dynablaster_core STATIC
     src/game/localplayerclient.h
     src/game/localplayers.cpp
     src/game/localplayers.h
+    src/game/videooptions.cpp
+    src/game/videooptions.h
     src/game/gamesettings.h
     src/game/gamestatemachine.cpp
     src/game/gamestatemachine.h

@@ -34,7 +34,14 @@ bool GlesContext::init(const std::string& title, int width, int height)
    height = static_cast<int>(native_height);
 #endif
 
-   _window = SDL_CreateWindow(title.c_str(), width, height, SDL_WINDOW_OPENGL);
+#ifdef __EMSCRIPTEN__
+   // the page lays out the canvas
+   const SDL_WindowFlags flags = SDL_WINDOW_OPENGL;
+#else
+   const SDL_WindowFlags flags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE;
+#endif
+
+   _window = SDL_CreateWindow(title.c_str(), width, height, flags);
    if (_window == nullptr)
    {
       SDL_Log("SDL_CreateWindow failed: %s", SDL_GetError());

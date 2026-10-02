@@ -17,7 +17,7 @@ class PlayerInfo;
 
 /// \brief page navigation and BombermanClient wiring for the menu system: drives the
 /// login -> create game -> join game -> lounge chain and populates/reads the GAME_CREATE,
-/// OPTIONS_AUDIO and LOUNGE pages (mirrors the original GameMenuWorkflow/GameMenuInterface*).
+/// OPTIONS_VIDEO, OPTIONS_AUDIO and LOUNGE pages (mirrors the original GameMenuWorkflow/GameMenuInterface*).
 ///
 /// Signal<> has no auto-disconnect: every connection capturing this is disconnected again in the
 /// destructor, so BombermanClient and the menu items must simply outlive this object.
@@ -42,6 +42,9 @@ public:
 
    //! bots are created in the lounge once this returns false, e.g. while local players still join
    void setBotsWaitCondition(std::function<bool()> condition);
+
+   //! called once OK stored changed video settings, to apply them to the window
+   void setVideoSettingsHandler(std::function<void()> handler);
 
    //! mirrors GameMenuWorkflow::pageChanged() - populates GAME_CREATE's controls once the page
    //! actually becomes current. Connect to MenuDrawable::pageChangedSignal.
@@ -101,6 +104,20 @@ private:
 
    void setMonitorCreateGameOptionsEnabled(bool enabled);
 
+   //! mirrors GameMenuInterfaceOptions::deserializeVideoSettings() - fills the video page's
+   //! controls from GameSettings, the first visit of an options session also backs them up
+   void deserializeVideoSettings();
+
+   //! mirrors GameMenuInterfaceOptions::serializeVideoSettings() - stores the video page's
+   //! controls and has them applied
+   void serializeVideoSettings();
+
+   //! brightness follows the slider while it's dragged, Cancel restores the backup
+   void setMonitorVideoSettingsEnabled(bool enabled);
+
+   //! mirrors GameMenuInterfaceOptions::restoreVideoDefaults()
+   void restoreVideoDefaults();
+
    //! mirrors GameMenuInterfaceOptions::deserializeAudioSettings() - seeds the audio options
    //! page's sliders from SoundManager's current volume whenever OPTIONS_AUDIO becomes current.
    void deserializeAudioSettings();
@@ -146,6 +163,13 @@ private:
    Signal<float>::Connection _sfx_volume_changed_connection = INVALID_CONNECTION;
    Signal<float>::Connection _sfx_tick_connection = INVALID_CONNECTION;
 
+   //! connection token for setMonitorVideoSettingsEnabled()
+   Signal<float>::Connection _brightness_changed_connection = INVALID_CONNECTION;
+
+   //! the video page was shown since the options were opened, OK/Cancel store/restore it
+   bool _video_settings_shown = false;
+
    JoinHandler _join_handler;
+   std::function<void()> _video_settings_handler;
    std::function<bool()> _bots_wait_condition;
 };

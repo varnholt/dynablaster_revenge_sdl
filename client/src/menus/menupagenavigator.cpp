@@ -4,6 +4,7 @@
 #include "game/gamesettings.h"
 #include "game/gameversion.h"
 #include "game/soundmanager.h"
+#include "game/videooptions.h"
 #include "game/wordwrap.h"
 #include "gameinformation.h"
 #include "levels/level.h"
@@ -30,6 +31,7 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <format>
 
 namespace
 {
@@ -59,6 +61,13 @@ const char* const kOptionsActionVideo = "button_video_active";
 const char* const kOptionsActionAudio = "button_audio_active";
 const char* const kOptionsActionControls = "button_controls_active";
 const char* const kOptionsActionGame = "button_game_active";
+const char* const kOptionsVideoActionRestoreDefaults = "button_default_active";
+const char* const kOptionsVideoComboResolution = "combobox_resolution_table";
+const char* const kOptionsVideoComboDisplayMode = "combobox_display_table";
+const char* const kOptionsVideoComboAntialias = "combobox_antialiasing_table";
+const char* const kOptionsVideoComboVsync = "combobox_vsync_table";
+const char* const kOptionsVideoCheckBoxFps = "checkbox_fps";
+const char* const kOptionsVideoSliderBrightness = "slider_brightness";
 const char* const kOptionsAudioActionRestoreDefaults = "button_default_active";
 const char* const kOptionsAudioSliderMusic = "slider_music";
 const char* const kOptionsAudioSliderSfx = "slider_game";
@@ -180,8 +189,9 @@ MenuPageNavigator::MenuPageNavigator()
 
 MenuPageNavigator::~MenuPageNavigator()
 {
-   // only still connected while GAME_CREATE / OPTIONS_AUDIO is the current page
+   // only still connected while GAME_CREATE / OPTIONS_VIDEO / OPTIONS_AUDIO is the current page
    setMonitorCreateGameOptionsEnabled(false);
+   setMonitorVideoSettingsEnabled(false);
    setMonitorAudioSettingsEnabled(false);
 
    if (BombermanClient* client = BombermanClient::getInstance())
@@ -301,8 +311,24 @@ void MenuPageNavigator::onActionRequest(const std::string& page, const std::stri
          // audio: matches GameMenuInterfaceOptions::storeOptions()/restoreAudioOptions() - OK
          // persists the (already live-applied) SoundManager volume to disk, Cancel reverts
          // SoundManager back to whatever was last persisted, discarding an unsaved drag.
-         // video/controls/game options aren't backed by live-applied state yet, so they stay
-         // a plain navigate-back.
+         // video: OK stores and applies the video page (any tab's OK, like storeOptions()),
+         // Cancel restores the backup taken when it was first shown, undoing a brightness drag.
+         // controls/game options aren't backed by live-applied state yet.
+         if (_video_settings_shown)
+         {
+            if (action == kOptionsActionOk)
+            {
+               serializeVideoSettings();
+            }
+            else
+            {
+               GameSettings::VideoSettings::duplicate(GameSettings::getInstance()->getVideoSettings(),
+                                                      GameSettings::getInstance()->getVideoSettingsBackup());
+            }
+
+            _video_settings_shown = false;
+         }
+
          if (page == kOptionsAudio)
          {
             GameSettings::AudioSettings* audio_settings = GameSettings::getInstance()->getAudioSettings();
@@ -337,6 +363,10 @@ void MenuPageNavigator::onActionRequest(const std::string& page, const std::stri
       else if (action == kOptionsActionGame)
       {
          pageChangeRequestSignal(kOptionsGame);
+      }
+      else if (page == kOptionsVideo && action == kOptionsVideoActionRestoreDefaults)
+      {
+         restoreVideoDefaults();
       }
       else if (page == kOptionsAudio && action == kOptionsAudioActionRestoreDefaults)
       {
@@ -458,6 +488,7 @@ void MenuPageNavigator::onPageChanged(const std::string& page)
    // matches GameMenuWorkflow::pageChanged(): monitoring is disabled unconditionally first, then
    // re-enabled only for the page actually being shown.
    setMonitorCreateGameOptionsEnabled(false);
+   setMonitorVideoSettingsEnabled(false);
    setMonitorAudioSettingsEnabled(false);
 
    if (page == kMainMenu)
@@ -489,6 +520,11 @@ void MenuPageNavigator::onPageChanged(const std::string& page)
          add_player->setVisible(false);
       }
    }
+   else if (page == kOptionsVideo)
+   {
+      deserializeVideoSettings();
+      setMonitorVideoSettingsEnabled(true);
+   }
    else if (page == kOptionsAudio)
    {
       deserializeAudioSettings();
@@ -504,6 +540,11 @@ void MenuPageNavigator::setJoinHandler(JoinHandler handler)
 void MenuPageNavigator::setBotsWaitCondition(std::function<bool()> condition)
 {
    _bots_wait_condition = std::move(condition);
+}
+
+void MenuPageNavigator::setVideoSettingsHandler(std::function<void()> handler)
+{
+   _video_settings_handler = std::move(handler);
 }
 
 void MenuPageNavigator::initializeBots(int32_t remaining_tries)
@@ -971,6 +1012,133 @@ void MenuPageNavigator::setMonitorCreateGameOptionsEnabled(bool enabled)
       _level_value_changed_connection = INVALID_CONNECTION;
       _level_element_focussed_connection = INVALID_CONNECTION;
    }
+}
+
+void MenuPageNavigator::deserializeVideoSettings()
+{
+   GameSettings::VideoSettings* settings = GameSettings::getInstance()->getVideoSettings();
+
+   // later visits (e.g. video -> audio -> video) keep the first backup, so Cancel still undoes them
+   if (!_video_settings_shown)
+   {
+      GameSettings::VideoSettings::duplicate(GameSettings::getInstance()->getVideoSettingsBackup(), settings);
+      _video_settings_shown = true;
+   }
+
+   MenuPage* page = Menu::getInstance()->getPageByName(kOptionsVideo);
+
+   auto* resolution_combo = dynamic_cast<MenuPageComboBoxItem*>(page->getPageItem(kOptionsVideoComboResolution));
+   auto* display_mode_combo = dynamic_cast<MenuPageComboBoxItem*>(page->getPageItem(kOptionsVideoComboDisplayMode));
+   auto* antialias_combo = dynamic_cast<MenuPageComboBoxItem*>(page->getPageItem(kOptionsVideoComboAntialias));
+   auto* vsync_combo = dynamic_cast<MenuPageComboBoxItem*>(page->getPageItem(kOptionsVideoComboVsync));
+   auto* fps_checkbox = dynamic_cast<MenuPageCheckBoxItem*>(page->getPageItem(kOptionsVideoCheckBoxFps));
+   auto* brightness_slider = dynamic_cast<MenuPageSliderItem*>(page->getPageItem(kOptionsVideoSliderBrightness));
+
+   const auto fill = [](MenuPageComboBoxItem* combo, const std::vector<std::string>& texts, size_t active)
+   {
+      combo->clear();
+
+      for (const auto& text : texts)
+      {
+         combo->appendItem(text);
+      }
+
+      const auto index = static_cast<int>(active < texts.size() ? active : 0);
+      combo->setValue(combo->getElementText(index));
+      combo->setActiveElement(index);
+      combo->setFocussedElement(index);
+   };
+
+   // values.size() if missing, fill() then picks the first entry
+   const auto index_of = [](const std::vector<int32_t>& values, int32_t value)
+   { return static_cast<size_t>(std::distance(values.begin(), std::ranges::find(values, value))); };
+
+   const auto resolutions = VideoOptions::resolutions();
+   std::vector<std::string> resolution_texts;
+   for (const auto resolution : resolutions)
+   {
+      resolution_texts.push_back(std::format("{} x {}", resolution, resolution));
+   }
+   fill(resolution_combo, resolution_texts, index_of(resolutions, settings->getResolution()));
+
+   fill(display_mode_combo, {"fullscreen", "windowed"}, settings->isFullscreen() ? 0 : 1);
+
+   const auto sample_counts = VideoOptions::sampleCounts();
+   std::vector<std::string> sample_texts;
+   for (const auto samples : sample_counts)
+   {
+      sample_texts.push_back(std::format("{}x", samples));
+   }
+   fill(antialias_combo, sample_texts, index_of(sample_counts, settings->getAntialias()));
+
+   // the index is the swap interval
+   fill(vsync_combo, {"off", "60fps", "30fps"}, static_cast<size_t>(settings->getVSync()));
+
+   fps_checkbox->setChecked(settings->isFpsShown());
+   brightness_slider->setValue(settings->getBrightness());
+}
+
+void MenuPageNavigator::serializeVideoSettings()
+{
+   MenuPage* page = Menu::getInstance()->getPageByName(kOptionsVideo);
+
+   auto* resolution_combo = dynamic_cast<MenuPageComboBoxItem*>(page->getPageItem(kOptionsVideoComboResolution));
+   auto* display_mode_combo = dynamic_cast<MenuPageComboBoxItem*>(page->getPageItem(kOptionsVideoComboDisplayMode));
+   auto* antialias_combo = dynamic_cast<MenuPageComboBoxItem*>(page->getPageItem(kOptionsVideoComboAntialias));
+   auto* vsync_combo = dynamic_cast<MenuPageComboBoxItem*>(page->getPageItem(kOptionsVideoComboVsync));
+   auto* fps_checkbox = dynamic_cast<MenuPageCheckBoxItem*>(page->getPageItem(kOptionsVideoCheckBoxFps));
+
+   const auto value_at = [](const std::vector<int32_t>& values, int index)
+   { return (index >= 0 && static_cast<size_t>(index) < values.size()) ? values[static_cast<size_t>(index)] : 1; };
+
+   GameSettings::VideoSettings* settings = GameSettings::getInstance()->getVideoSettings();
+   settings->setResolution(value_at(VideoOptions::resolutions(), resolution_combo->getActiveElement()));
+   settings->setFullscreen(display_mode_combo->getActiveElement() == 0);
+   settings->setAntialias(value_at(VideoOptions::sampleCounts(), antialias_combo->getActiveElement()));
+   settings->setVSync(std::clamp(vsync_combo->getActiveElement(), 0, 2));
+   settings->setShowFps(fps_checkbox->isChecked());
+   settings->serialize();
+
+   if (_video_settings_handler)
+   {
+      _video_settings_handler();
+   }
+}
+
+void MenuPageNavigator::setMonitorVideoSettingsEnabled(bool enabled)
+{
+   if (!enabled && _brightness_changed_connection == INVALID_CONNECTION)
+   {
+      return;
+   }
+
+   MenuPage* page = Menu::getInstance()->getPageByName(kOptionsVideo);
+   auto* brightness_slider = dynamic_cast<MenuPageSliderItem*>(page->getPageItem(kOptionsVideoSliderBrightness));
+
+   if (enabled)
+   {
+      _brightness_changed_connection = brightness_slider->valueChangedSignal.connect(
+         [](float value) { GameSettings::getInstance()->getVideoSettings()->setBrightness(value); });
+   }
+   else
+   {
+      brightness_slider->valueChangedSignal.disconnect(_brightness_changed_connection);
+      _brightness_changed_connection = INVALID_CONNECTION;
+   }
+}
+
+void MenuPageNavigator::restoreVideoDefaults()
+{
+   // the window size isn't on the page, it stays
+   GameSettings::VideoSettings* settings = GameSettings::getInstance()->getVideoSettings();
+   const auto width = settings->getWidth();
+   const auto height = settings->getHeight();
+
+   settings->restoreDefaults();
+   settings->setWidth(width);
+   settings->setHeight(height);
+
+   deserializeVideoSettings();
 }
 
 void MenuPageNavigator::deserializeAudioSettings()

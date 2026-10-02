@@ -152,6 +152,9 @@ using GLsizeiptr = intptr_t;
 #define GL_DEPTH_ATTACHMENT 0x8D00
 #define GL_FRAMEBUFFER_COMPLETE 0x8CD5
 #define GL_DEPTH_COMPONENT24 0x81A6
+#define GL_RGBA8 0x8058
+#define GL_SAMPLES 0x80A9
+#define GL_NUM_SAMPLE_COUNTS 0x9380
 
 // The legacy renderer targeted the pre-promotion EXT_framebuffer_object extension (same values
 // as the later core FBO functionality); aliased so ported call sites compile unchanged.
@@ -256,6 +259,7 @@ using PFNGLBINDRENDERBUFFERPROC = void (*)(GLenum, GLuint);
 using PFNGLDELETERENDERBUFFERSPROC = void (*)(GLsizei, const GLuint*);
 using PFNGLRENDERBUFFERSTORAGEPROC = void (*)(GLenum, GLenum, GLsizei, GLsizei);
 using PFNGLFRAMEBUFFERRENDERBUFFERPROC = void (*)(GLenum, GLenum, GLenum, GLuint);
+using PFNGLGETINTERNALFORMATIVPROC = void (*)(GLenum, GLenum, GLenum, GLsizei, GLint*);
 
 extern PFNGLGENFRAMEBUFFERSPROC glGenFramebuffers;
 extern PFNGLBINDFRAMEBUFFERPROC glBindFramebuffer;
@@ -267,6 +271,7 @@ extern PFNGLBINDRENDERBUFFERPROC glBindRenderbuffer;
 extern PFNGLDELETERENDERBUFFERSPROC glDeleteRenderbuffers;
 extern PFNGLRENDERBUFFERSTORAGEPROC glRenderbufferStorage;
 extern PFNGLFRAMEBUFFERRENDERBUFFERPROC glFramebufferRenderbuffer;
+extern PFNGLGETINTERNALFORMATIVPROC glGetInternalformativ;
 
 extern PFNGLVIEWPORTPROC glViewport;
 extern PFNGLCLEARCOLORPROC glClearColor;
