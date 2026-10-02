@@ -277,11 +277,9 @@ void GameWinDrawable::drawGameData()
 
 void GameWinDrawable::drawLayers(float alpha)
 {
-   for (int layer_index = 0; layer_index < _psd.getLayerCount(); layer_index++)
+   for (size_t layer_index = 0; layer_index < _psd.getLayerCount(); layer_index++)
    {
-      PSD::Layer* psd_layer = _psd.getLayer(layer_index);
-
-      if (psd_layer->isVisible())
+      if (_psd.getLayer(layer_index).isVisible())
       {
          _psd_layers[layer_index]->render(0.0f, 0.0f, alpha);
       }
@@ -644,9 +642,9 @@ void GameWinDrawable::initializeLayers()
    bars.insert({"bar-bg-9", 8});
    bars.insert({"bar-bg-10", 9});
 
-   for (int l = 0; l < _psd.getLayerCount(); l++)
+   for (auto& psd_layer : _psd.getLayers())
    {
-      auto owned_layer = std::make_unique<PSDLayer>(_psd.getLayer(l));
+      auto owned_layer = std::make_unique<PSDLayer>(psd_layer);
       PSDLayer* layer = owned_layer.get();
       std::string layer_name = layer->getLayer()->getName();
 

@@ -73,12 +73,12 @@ BlockMaterial::BlockMaterial(
          matrix_layers->load("block-shadow.psd");
       }
 
-      const std::array<Image*, 5> sources = {
-         matrix_layers->getLayer("back 3")->getImage(),
-         matrix_layers->getLayer("left 3")->getImage(),
-         matrix_layers->getLayer("right 3")->getImage(),
-         matrix_layers->getLayer("front 3")->getImage(),
-         matrix_layers->getLayer("none")->getImage()
+      const std::array<const Image*, 5> sources = {
+         &matrix_layers->getLayer("back 3")->getImage(),
+         &matrix_layers->getLayer("left 3")->getImage(),
+         &matrix_layers->getLayer("right 3")->getImage(),
+         &matrix_layers->getLayer("front 3")->getImage(),
+         &matrix_layers->getLayer("none")->getImage()
       };
 
       const int32_t width = matrix_layers->getWidth();

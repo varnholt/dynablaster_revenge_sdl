@@ -215,25 +215,26 @@ int main(int argc, char** argv)
    if (!dump_psd.empty())
    {
       PSD psd;
-      if (!psd.load(dump_psd.c_str()))
+      if (!psd.load(dump_psd))
       {
          SDL_Log("--dumppsd=%s: load failed", dump_psd.c_str());
          return 1;
       }
-      SDL_Log("psd %s: %dx%d layers=%d", dump_psd.c_str(), psd.getWidth(), psd.getHeight(), psd.getLayerCount());
-      for (int32_t i = 0; i < psd.getLayerCount(); i++)
+      SDL_Log("psd %s: %dx%d layers=%zu", dump_psd.c_str(), psd.getWidth(), psd.getHeight(), psd.getLayerCount());
+      for (size_t i = 0; i < psd.getLayerCount(); i++)
       {
-         PSD::Layer* layer = psd.getLayer(i);
+         const PSD::Layer& layer = psd.getLayer(i);
          SDL_Log(
-            "  [%d] name=%s left=%d top=%d w=%d h=%d opacity=%d visible=%d",
+            "  [%zu] name=%s group=%s left=%d top=%d w=%d h=%d opacity=%d visible=%d",
             i,
-            layer->getName() ? layer->getName() : "(null)",
-            layer->getLeft(),
-            layer->getTop(),
-            layer->getWidth(),
-            layer->getHeight(),
-            layer->getOpacity(),
-            layer->isVisible()
+            layer.getName().c_str(),
+            layer.getGroup().c_str(),
+            layer.getLeft(),
+            layer.getTop(),
+            layer.getWidth(),
+            layer.getHeight(),
+            layer.getOpacity(),
+            layer.isVisible()
          );
       }
       return 0;
@@ -339,10 +340,13 @@ int main(int argc, char** argv)
       // own layers - not just page items - are queryable by name).
       if (!dump_layer.empty())
       {
-         PSD::Layer* layer = menu_drawable->getMenu()->getCurrentPage()->getLayer(dump_layer.c_str());
-         if (!layer)
+         const PSD::Layer* layer = nullptr;
+         for (const MenuPage* page : {menu_drawable->getMenu()->getCurrentPage(), menu_drawable->getMenu()->getBackground()})
          {
-            layer = menu_drawable->getMenu()->getBackground()->getLayer(dump_layer.c_str());
+            if (const auto found = page->getLayer(dump_layer); !layer && found != page->getLayers().end())
+            {
+               layer = &*found;
+            }
          }
          if (layer)
          {
@@ -359,10 +363,7 @@ int main(int argc, char** argv)
             );
 
             // decoded pixel alpha at several points, separates psd decode issues from blending issues
-            if (const Image* image = layer->getImage())
-            {
-               dumpLayerPixels(*image);
-            }
+            dumpLayerPixels(layer->getImage());
 
             // the gl texture ids the render path uses, to rule out a texture id mixup
             MenuPageItem* background_item = menu_drawable->getMenu()->getBackground()->getPageItem("background_active");

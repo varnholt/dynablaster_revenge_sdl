@@ -410,19 +410,18 @@ void GameMessagingDrawable::initializeLayers()
 {
    _psd.load(_filename.c_str());
 
-   for (int l = 0; l < _psd.getLayerCount(); l++)
+   for (auto& layer : _psd.getLayers())
    {
-      PSD::Layer* layer = _psd.getLayer(l);
       auto owned_layer = std::make_unique<PSDLayer>(layer);
       PSDLayer* render_layer = owned_layer.get();
 
       _psd_layers.push_back(std::move(owned_layer));
 
-      if (layer->getName() == std::string(LINEEDIT_SAY))
+      if (layer.getName() == std::string(LINEEDIT_SAY))
       {
          _line_edit_say_layer = render_layer;
       }
-      else if (layer->getName() == std::string(LABEL_PLAYER_NAME))
+      else if (layer.getName() == std::string(LABEL_PLAYER_NAME))
       {
          _player_name_layer = render_layer;
       }

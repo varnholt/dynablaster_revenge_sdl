@@ -11,7 +11,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstring>
 #include <numbers>
 
 namespace
@@ -185,38 +184,37 @@ void RoundsDrawable::initializeLayers()
 {
    _psd.load(_filename.c_str());
 
-   for (int l = 0; l < _psd.getLayerCount(); l++)
+   for (auto& psd_layer : _psd.getLayers())
    {
-      PSD::Layer* psd_layer = _psd.getLayer(l);
       auto layer = std::make_unique<PSDLayer>(psd_layer);
 
       _max_layer_width = std::max(_max_layer_width, static_cast<float>(layer->getWidth()));
 
-      if (std::strcmp(psd_layer->getName(), "round_label") == 0)
+      if (psd_layer.getName() == "round_label")
       {
          _layer_round = layer.get();
       }
-      else if (std::strcmp(psd_layer->getName(), "finalround_label") == 0)
+      else if (psd_layer.getName() == "finalround_label")
       {
          _layer_round_final = layer.get();
       }
-      else if (std::strcmp(psd_layer->getName(), "r1") == 0)
+      else if (psd_layer.getName() == "r1")
       {
          _layer_round1 = layer.get();
       }
-      else if (std::strcmp(psd_layer->getName(), "r2") == 0)
+      else if (psd_layer.getName() == "r2")
       {
          _layer_round2 = layer.get();
       }
-      else if (std::strcmp(psd_layer->getName(), "r3") == 0)
+      else if (psd_layer.getName() == "r3")
       {
          _layer_round3 = layer.get();
       }
-      else if (std::strcmp(psd_layer->getName(), "r4") == 0)
+      else if (psd_layer.getName() == "r4")
       {
          _layer_round4 = layer.get();
       }
-      else if (std::strcmp(psd_layer->getName(), "r5") == 0)
+      else if (psd_layer.getName() == "r5")
       {
          _layer_round5 = layer.get();
       }

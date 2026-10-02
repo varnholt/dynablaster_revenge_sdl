@@ -106,9 +106,9 @@ void CountdownDrawable::initializeLayers()
    _psd.load(_filename.c_str());
 
    // assign layers to menu page items
-   for (int l = 0; l < _psd.getLayerCount(); l++)
+   for (auto& psd_layer : _psd.getLayers())
    {
-      _psd_layers.push_back(std::make_unique<PSDLayer>(_psd.getLayer(l)));
+      _psd_layers.push_back(std::make_unique<PSDLayer>(psd_layer));
       _layer_alphas.push_back(0.0f);
    }
 }
