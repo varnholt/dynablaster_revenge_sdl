@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <ranges>
 #include <string_view>
 
 #include "image/image.h"
@@ -52,6 +53,45 @@ PSD::Layer::~Layer() = default;
 const char* PSD::Layer::getName() const
 {
    return _name.c_str();
+}
+
+void PSD::Layer::setName(const std::string& name)
+{
+   _name = name;
+}
+
+PSD::Layer::Section PSD::Layer::getSection() const
+{
+   return _section;
+}
+
+bool PSD::Layer::isGroupMarker() const
+{
+   return _section != Section::None;
+}
+
+const std::string& PSD::Layer::getGroup() const
+{
+   return _group;
+}
+
+std::unique_ptr<PSD::Layer> PSD::Layer::clone(const std::string& name, int32_t dx, int32_t dy) const
+{
+   auto layer = std::make_unique<Layer>();
+   layer->_top = _top + dy;
+   layer->_left = _left + dx;
+   layer->_bottom = _bottom + dy;
+   layer->_right = _right + dx;
+   layer->_channel_count = _channel_count;
+   layer->_image = _image ? std::make_unique<Image>(*_image) : nullptr;
+   layer->_blend_mode = _blend_mode;
+   layer->_opacity = _opacity;
+   layer->_clipping = _clipping;
+   layer->_flags = _flags;
+   layer->_name = name;
+   layer->_section = _section;
+   layer->_group = _group;
+   return layer;
 }
 
 int32_t PSD::Layer::getBottom() const
@@ -208,7 +248,12 @@ void PSD::Layer::load(Stream* stream)
          const auto block_id = static_cast<uint32_t>(stream->getInt());
          const int32_t block_size = stream->getInt();
          const int32_t block_position = stream->pos();
-         if (block_id == fourCC("luni"))
+         if (block_id == fourCC("lsct") || block_id == fourCC("lsdk"))
+         {
+            const int32_t section = stream->getInt();
+            _section = (section >= 1 && section <= 3) ? static_cast<Section>(section) : Section::None;
+         }
+         else if (block_id == fourCC("luni"))
          {
             // unicode layer name, only the low byte of each utf-16 character is kept
             const auto length = static_cast<uint32_t>(stream->getInt());
@@ -396,24 +441,23 @@ int32_t PSD::getHeight() const
 
 int32_t PSD::getLayerCount() const
 {
-   return _layer_count;
+   return static_cast<int32_t>(_layers.size());
 }
 
 PSD::Layer* PSD::getLayer(int32_t index) const
 {
-   return &_layers[index];
+   return _layers[index].get();
 }
 
 PSD::Layer* PSD::getLayer(const char* name) const
 {
-   for (int32_t i = 0; i < _layer_count; i++)
-   {
-      if (std::string_view(_layers[i].getName()) == name)
-      {
-         return &_layers[i];
-      }
-   }
-   return nullptr;
+   const auto it = std::ranges::find_if(_layers, [name](const auto& layer) { return std::string_view(layer->getName()) == name; });
+   return it != _layers.end() ? it->get() : nullptr;
+}
+
+PSD::Layer* PSD::addLayer(std::unique_ptr<Layer> layer)
+{
+   return _layers.emplace_back(std::move(layer)).get();
 }
 
 // load pascal string (leading length byte)
@@ -444,22 +488,53 @@ void PSD::loadLayerInformation(Stream* stream)
    stream->getInt();
 
    // negative count: first alpha channel holds the merged transparency
-   _layer_count = std::abs(stream->getShort());
-   _layers = std::make_unique<Layer[]>(_layer_count);
+   const int32_t layer_count = std::abs(stream->getShort());
+   _layers.clear();
+   _layers.reserve(layer_count);
 
    // load layer parameters
-   for (int32_t i = 0; i < _layer_count; i++)
+   for (int32_t i = 0; i < layer_count; i++)
    {
-      _layers[i].load(stream);
+      _layers.emplace_back(std::make_unique<Layer>())->load(stream);
    }
 
    // load layer channels (bitmap data)
-   for (int32_t i = 0; i < _layer_count; i++)
+   for (const auto& layer : _layers)
    {
-      _layers[i].loadChannels(stream);
+      layer->loadChannels(stream);
    }
 
+   assignGroups();
+
    // TODO: skip mask block
+}
+
+void PSD::assignGroups()
+{
+   // layers are stored bottom to top, so walking top down a folder layer opens its group and
+   // the matching divider closes it again
+   std::vector<std::string> groups;
+   for (auto& layer : std::views::reverse(_layers))
+   {
+      switch (layer->_section)
+      {
+         case Layer::Section::OpenFolder:
+         case Layer::Section::ClosedFolder:
+            layer->_group = groups.empty() ? std::string() : groups.back();
+            groups.push_back(layer->_name);
+            break;
+         case Layer::Section::Divider:
+            if (!groups.empty())
+            {
+               groups.pop_back();
+            }
+            layer->_group = groups.empty() ? std::string() : groups.back();
+            break;
+         case Layer::Section::None:
+            layer->_group = groups.empty() ? std::string() : groups.back();
+            break;
+      }
+   }
 }
 
 bool PSD::load(const char* filename)

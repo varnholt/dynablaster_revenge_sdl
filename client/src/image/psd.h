@@ -72,8 +72,21 @@ public:
          std::vector<uint8_t> _data;
       };
 
+      //! photoshop's layer group markers: a group is stored as its divider, its layers and
+      //! finally the folder layer carrying the group's name
+      enum class Section
+      {
+         None,
+         OpenFolder,
+         ClosedFolder,
+         Divider
+      };
+
       Layer();
       ~Layer();
+
+      //! a copy incl. pixels under another name, shifted by dx/dy
+      std::unique_ptr<Layer> clone(const std::string& name, int32_t dx, int32_t dy) const;
 
       void load(Stream* stream);
       void loadChannels(Stream* stream);
@@ -88,6 +101,13 @@ public:
       bool isVisible() const;
       void setVisible(bool visible);
       const char* getName() const;
+      void setName(const std::string& name);
+
+      Section getSection() const;
+      bool isGroupMarker() const;
+
+      //! name of the innermost group the layer is in, empty at top level
+      const std::string& getGroup() const;
       void move(int32_t x, int32_t y);
       void setX(int32_t x);
       void setY(int32_t y);
@@ -110,6 +130,10 @@ public:
       uint8_t _clipping = 0;
       uint8_t _flags = 0;
       std::string _name;
+      Section _section = Section::None;
+      std::string _group;
+
+      friend class PSD;
    };
 
    PSD();
@@ -121,6 +145,9 @@ public:
    Layer* getLayer(int32_t index) const;
    Layer* getLayer(const char* name) const;
 
+   //! appends a layer on top of all others
+   Layer* addLayer(std::unique_ptr<Layer> layer);
+
    bool load(const char* filename);
    bool load(Stream* stream);
 
@@ -129,8 +156,8 @@ public:
 private:
    void loadImageResourceSection(Stream* stream);
    void loadLayerInformation(Stream* stream);
+   void assignGroups();
 
    Header _header;
-   int32_t _layer_count = 0;
-   std::unique_ptr<Layer[]> _layers;
+   std::vector<std::unique_ptr<Layer>> _layers;
 };
