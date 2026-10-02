@@ -14,6 +14,7 @@
 
 #include "game/countdowndrawable.h"
 #include "game/gamedrawable.h"
+#include "game/gamepadinput.h"
 #include "game/gamelogodrawable.h"
 #include "game/gamemessagingdrawable.h"
 #include "game/gamewindrawable.h"
@@ -291,6 +292,12 @@ int main(int /*argc*/, char** /*argv*/)
    bomberman_client.gameStoppedSignal.connect([&]() { Timer::singleShot(SHOW_WINNER_TIME_SUM, show_menu_again); });
    bomberman_client.showMainMenuSignal.connect([&]() { menu_drawable.pageChangeRequest("data/menus/mainmenu.psd"); });
 
+#ifndef __SWITCH__
+   // the Switch reads its pad through libnx, see SwitchPlatform
+   GamepadInput gamepad_input;
+   gamepad_input.initialize();
+#endif
+
    // background music
    SoundManager::getInstance()->startPlaylist();
 
@@ -315,6 +322,10 @@ int main(int /*argc*/, char** /*argv*/)
       SDL_Event event{};
       while (SDL_PollEvent(&event))
       {
+#ifndef __SWITCH__
+         gamepad_input.handleEvent(event);
+#endif
+
          if (event.type == SDL_EVENT_QUIT)
          {
             running = false;
@@ -345,6 +356,9 @@ int main(int /*argc*/, char** /*argv*/)
                device.convertFromViewPort(&x, &y, 1920, 1080);
                menu_drawable.mouseMoveEvent(x, y);
                menu_cursor.mouseMoveEvent(x, y);
+#ifndef __SWITCH__
+               gamepad_input.setCursorPosition(x, y);
+#endif
                break;
             }
             case SDL_EVENT_MOUSE_BUTTON_DOWN:
@@ -417,6 +431,10 @@ int main(int /*argc*/, char** /*argv*/)
                break;
          }
       }
+
+#ifndef __SWITCH__
+      gamepad_input.update(game_drawable.isVisible(), game_drawable, menu_drawable, menu_cursor);
+#endif
 
       // Timer::update() drives Server's/BombermanClient's own poll() plus every other Timer.
       Timer::update();

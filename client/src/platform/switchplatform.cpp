@@ -2,6 +2,7 @@
 
 #include "framework/keyevent.h"
 #include "game/gamedrawable.h"
+#include "game/gamepadinput.h"
 #include "game/gamesettings.h"
 #include "menus/menu.h"
 #include "menus/menudrawable.h"
@@ -196,25 +197,5 @@ void SwitchPlatform::updateInput(bool in_game, GameDrawable& game, MenuDrawable&
    if (down & HidNpadButton_X)
       editText(menu);
    if (down & HidNpadButton_B)
-   {
-      if (auto* page = menu.getMenu()->getCurrentPage())
-      {
-         for (const auto& item : page->getPageItems())
-         {
-            auto* layer = item->getCurrentLayer();
-            if (!layer || !item->isVisible() || !item->isEnabled())
-               continue;
-            const std::string name = layer->getName();
-            if (name.starts_with("button_back") || name.starts_with("button_cancel") || name.starts_with("button_leave"))
-            {
-               const int bx = layer->getLeft() + layer->getWidth() / 2;
-               const int by = layer->getTop() + layer->getHeight() / 2;
-               menu.mouseMoveEvent(bx, by);
-               menu.mousePressEvent(bx, by);
-               menu.mouseReleaseEvent();
-               break;
-            }
-         }
-      }
-   }
+      GamepadInput::clickBackButton(menu);
 }

@@ -50,6 +50,16 @@ holds a single `.nro`; see [docs/switch.md](docs/switch.md) for how to install i
 All third-party dependencies are pulled in via CMake's `FetchContent`, so no manual dependency
 installation is required beyond a working C++ toolchain and CMake.
 
+# Controls
+
+Keyboard: arrow keys move, space places a bomb, `[` / `]` zoom, Tab shows player names, Escape
+leaves the game, F10 ends the round for its owner.
+
+Gamepads can be plugged in at any time. In menus, the left stick or D-pad moves the cursor, A
+clicks and B goes back. In game, the stick or D-pad moves, A/B/X/Y place a bomb, the shoulder
+buttons zoom, the left trigger shows player names, Back leaves the game and Start ends the round
+for its owner. For now all gamepads steer the same local player.
+
 # Building
 
 ## Client

@@ -314,6 +314,8 @@ add_library(dynablaster_core STATIC
     # Phase 4 (real client<->server networking) prep - small, self-contained utility classes
     # BombermanClient itself depends on, ported ahead of it.
     src/game/gamehelptexts.h
+    src/game/gamepadinput.cpp
+    src/game/gamepadinput.h
     src/game/gamesettings.cpp
     src/game/gamesettings.h
     src/game/gamestatemachine.cpp
@@ -525,6 +527,9 @@ enable_testing()
 add_executable(dynablaster_gles_compatibility_test tests/test_gles_compatibility.cpp)
 target_link_libraries(dynablaster_gles_compatibility_test PRIVATE dynablaster_core)
 add_test(NAME gles_compatibility COMMAND dynablaster_gles_compatibility_test)
+add_executable(dynablaster_gamepad_input_test tests/test_gamepad_input.cpp)
+target_link_libraries(dynablaster_gamepad_input_test PRIVATE dynablaster_core)
+add_test(NAME gamepad_input COMMAND dynablaster_gamepad_input_test)
 add_test(NAME selftest_smoke
     COMMAND dynablaster_revenge_harness --selftest --screenshot=${CMAKE_BINARY_DIR}/selftest.png
 )
