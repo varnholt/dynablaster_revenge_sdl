@@ -22,6 +22,16 @@ FrameBuffer* FrameBuffer::Instance()
    return _instance;
 }
 
+void FrameBuffer::setScreen(FrameBuffer* frame_buffer)
+{
+   _screen = frame_buffer;
+}
+
+uint32_t FrameBuffer::screenTarget()
+{
+   return _screen ? _screen->_target : 0;
+}
+
 void FrameBuffer::discard()
 {
    if (_target)
@@ -118,7 +128,8 @@ bool FrameBuffer::setResolution(int32_t width, int32_t height)
       glClear(GL_COLOR_BUFFER_BIT);
    }
 
-   glBindFramebuffer(GL_FRAMEBUFFER, 0);
+   // a buffer created mid-frame mustn't leave the frame unbound
+   glBindFramebuffer(GL_FRAMEBUFFER, _instance ? _instance->_target : screenTarget());
 
    return ok;
 }
@@ -139,6 +150,12 @@ void FrameBuffer::bind(int32_t width, int32_t height)
 
 void FrameBuffer::unbind()
 {
+   if (_screen && _screen != this)
+   {
+      _screen->bind();
+      return;
+   }
+
    _instance = nullptr;
    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
@@ -161,6 +178,10 @@ void FrameBuffer::pop()
       if (previous)
       {
          previous->bind();
+      }
+      else if (_screen)
+      {
+         _screen->bind();
       }
       else
       {

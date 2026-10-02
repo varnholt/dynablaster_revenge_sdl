@@ -13,6 +13,8 @@
 #include "constants.h"
 #include "game/bombermanclient.h"
 #include "game/gamedrawable.h"
+#include "game/gamesettings.h"
+#include "game/videooutput.h"
 #include "gameinformation.h"
 #include "bombmapitem.h"
 #include "extramapitem.h"
@@ -159,6 +161,12 @@ int runEffectLab(const std::string& effect, const std::string& out_dir, const st
    game.setPlayerPosition(LOCAL_PLAYER_ID, 6.5f, 5.5f, 0.0f);
    game.setPlayerPosition(OTHER_PLAYER_ID, 4.5f, 5.5f, 0.0f);
 
+   // captures mustn't depend on the local video options
+   auto* video_settings = GameSettings::getInstance()->getVideoSettings();
+   video_settings->setResolution(1);
+   video_settings->setBrightness(0.5f);
+   VideoOutput video_output(device);
+
    const int32_t last_frame = TRIGGER_FRAME + (effect == "snow" ? LONG_CAPTURE_OFFSETS.back() : CAPTURE_OFFSETS.back());
 
    for (int32_t frame = 0; frame <= last_frame; ++frame)
@@ -182,12 +190,16 @@ int runEffectLab(const std::string& effect, const std::string& out_dir, const st
 
       const float time_ms = static_cast<float>(frame) / FPS * 1000.0f;
 
-      glViewport(0, 0, context.width(), context.height());
+      // like the game: animate first, draw into the offscreen frame, present it
+      game.animate(time_ms * 0.0625f);
+
+      video_output.beginFrame(context.width(), context.height());
       glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-      game.animate(time_ms * 0.0625f);
       game.paintGL();
+
+      video_output.endFrame();
 
       std::vector<int32_t> offsets(CAPTURE_OFFSETS.begin(), CAPTURE_OFFSETS.end());
       if (effect.starts_with("extra"))

@@ -26,6 +26,7 @@
 #include "game/roundsdrawable.h"
 #include "game/soundmanager.h"
 #include "game/videooptions.h"
+#include "game/videooutput.h"
 
 #include "menus/bitmapfont.h"
 #include "menus/fontmap.h"
@@ -42,6 +43,7 @@
 #include <SDL3/SDL.h>
 #include <SDL3_net/SDL_net.h>
 
+#include <array>
 #include <functional>
 
 #ifdef __SWITCH__
@@ -356,6 +358,23 @@ int main(int /*argc*/, char** /*argv*/)
    bool running = true;
    navigator.quitRequestSignal.connect([&running]() { running = false; });
 
+   // the frame is drawn offscreen at the video options' resolution, then shown 16:9 with their brightness
+   VideoOutput video_output(device);
+
+   const std::array<std::reference_wrapper<Drawable>, 6> animated_drawables{
+      logo_drawable, game_drawable, countdown_drawable, rounds_drawable, game_win_drawable, music_player_drawable};
+
+   // in drawing order
+   const std::array<std::reference_wrapper<Drawable>, 9> painted_drawables{menu_drawable,
+                                                                           menu_cursor,
+                                                                           logo_drawable,
+                                                                           game_drawable,
+                                                                           game_messaging_drawable,
+                                                                           countdown_drawable,
+                                                                           rounds_drawable,
+                                                                           game_win_drawable,
+                                                                           music_player_drawable};
+
    // a std::function so Emscripten can drive it from requestAnimationFrame, a blocking loop
    // would freeze the browser tab
    std::function<void()> frame = [&]()
@@ -402,14 +421,14 @@ int main(int /*argc*/, char** /*argv*/)
             video_options.storeWindowSize();
          }
 
-         // menu items live in 1920x1080 page space, not window space
+         // menu items live in 1920x1080 page space, not window space - the frame may be boxed
          switch (event.type)
          {
             case SDL_EVENT_MOUSE_MOTION:
             {
                int x = static_cast<int>(event.motion.x);
                int y = static_cast<int>(event.motion.y);
-               device.convertFromViewPort(&x, &y, 1920, 1080);
+               video_output.toPageSpace(x, y);
                menu_drawable.mouseMoveEvent(x, y);
                menu_cursor.mouseMoveEvent(x, y);
 #ifndef __SWITCH__
@@ -421,7 +440,7 @@ int main(int /*argc*/, char** /*argv*/)
             {
                int x = static_cast<int>(event.button.x);
                int y = static_cast<int>(event.button.y);
-               device.convertFromViewPort(&x, &y, 1920, 1080);
+               video_output.toPageSpace(x, y);
                menu_drawable.mousePressEvent(x, y);
                menu_cursor.mousePressEvent(x, y);
 #ifndef __SWITCH__
@@ -510,8 +529,6 @@ int main(int /*argc*/, char** /*argv*/)
       // Timer::update() drives Server's/BombermanClient's own poll() plus every other Timer.
       Timer::update();
 
-      device.clear();
-
       // must run before the menu's paintGL(), its page cross-fade reads GlobalTime via FrameTimer
       global_time.update();
 
@@ -520,59 +537,38 @@ int main(int /*argc*/, char** /*argv*/)
 
       const float time_ms = static_cast<float>(SDL_GetTicks());
 
+      // everything animates before the frame is bound, like GameView::paintGL(): some animations
+      // run GPU passes of their own. drawables animate in real seconds * 62.5
       if (menu_drawable.isVisible())
       {
          menu_drawable.animate(time_ms);
-         menu_drawable.paintGL();
       }
 
       if (menu_cursor.isVisible())
       {
          menu_cursor.animate(time_ms);
-         menu_cursor.paintGL();
       }
 
-      // drawables animate in real seconds * 62.5
-      if (logo_drawable.isVisible())
+      for (Drawable& drawable : animated_drawables)
       {
-         logo_drawable.animate(time_ms * 0.0625f);
-         logo_drawable.paintGL();
+         if (drawable.isVisible())
+         {
+            drawable.animate(time_ms * 0.0625f);
+         }
       }
 
-      if (game_drawable.isVisible())
+      video_output.beginFrame(context.width(), context.height());
+      device.clear();
+
+      for (Drawable& drawable : painted_drawables)
       {
-         game_drawable.animate(time_ms * 0.0625f);
-         game_drawable.paintGL();
+         if (drawable.isVisible())
+         {
+            drawable.paintGL();
+         }
       }
 
-      if (game_messaging_drawable.isVisible())
-      {
-         game_messaging_drawable.paintGL();
-      }
-
-      if (countdown_drawable.isVisible())
-      {
-         countdown_drawable.animate(time_ms * 0.0625f);
-         countdown_drawable.paintGL();
-      }
-
-      if (rounds_drawable.isVisible())
-      {
-         rounds_drawable.animate(time_ms * 0.0625f);
-         rounds_drawable.paintGL();
-      }
-
-      if (game_win_drawable.isVisible())
-      {
-         game_win_drawable.animate(time_ms * 0.0625f);
-         game_win_drawable.paintGL();
-      }
-
-      if (music_player_drawable.isVisible())
-      {
-         music_player_drawable.animate(time_ms * 0.0625f);
-         music_player_drawable.paintGL();
-      }
+      video_output.endFrame();
 
       context.swap();
       video_options.frameSwapped();
