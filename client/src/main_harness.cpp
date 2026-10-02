@@ -1,7 +1,7 @@
 // dynablaster_revenge_harness - the test/diagnostic entry point, NOT the shipped game. Builds
 // exactly the same engine/menu/effects code as the real game (src/main.cpp), but wraps it with
 // CLI flags for headless screenshot verification (--selftest), scripted/synthetic input
-// (--click, --realclick), page inspection (--dumplayer, --page, --dumppsd for a standalone PSD
+// (--click, --realclick, --controller), page inspection (--dumplayer, --page, --dumppsd for a standalone PSD
 // asset not part of the menu system), an isolated-effect view (--logo3d), the effect lab
 // (--effect) and a standalone castle-level demo (the default mode with no flags at all). See
 // CMakeLists.txt for how this and dynablaster_revenge share the same dynablaster_core library.
@@ -22,6 +22,8 @@
 
 #include "effects/spherefragments/spherefragmentsdrawable.h"
 #include "game/gamelogodrawable.h"
+#include "game/controllerinput.h"
+#include "game/menucontrollerhandler.h"
 
 #include "image/image.h"
 #include "image/psd.h"
@@ -38,6 +40,7 @@
 #include <SDL3/SDL.h>
 
 #include <algorithm>
+#include <sstream>
 #include <array>
 #include <cstdint>
 #include <cstdlib>
@@ -77,6 +80,42 @@ std::string argValue(const std::vector<std::string>& args, const std::string& pr
    }
 
    return arg->substr(prefix.size());
+}
+
+/// rief "up,down,left,right,bomb" -> controller buttons for a scripted --controller run
+std::vector<SDL_GamepadButton> parseControllerScript(const std::string& text)
+{
+   std::vector<SDL_GamepadButton> buttons;
+   std::stringstream stream(text);
+   std::string step;
+   while (std::getline(stream, step, ','))
+   {
+      if (step == "up")
+      {
+         buttons.push_back(SDL_GAMEPAD_BUTTON_DPAD_UP);
+      }
+      else if (step == "down")
+      {
+         buttons.push_back(SDL_GAMEPAD_BUTTON_DPAD_DOWN);
+      }
+      else if (step == "left")
+      {
+         buttons.push_back(SDL_GAMEPAD_BUTTON_DPAD_LEFT);
+      }
+      else if (step == "right")
+      {
+         buttons.push_back(SDL_GAMEPAD_BUTTON_DPAD_RIGHT);
+      }
+      else if (step == "bomb")
+      {
+         buttons.push_back(SDL_GAMEPAD_BUTTON_SOUTH);
+      }
+      else
+      {
+         SDL_Log("--controller: unknown step '%s'", step.c_str());
+      }
+   }
+   return buttons;
 }
 
 bool hasFlag(const std::vector<std::string>& args, const std::string& flag)
@@ -371,6 +410,46 @@ int main(int argc, char** argv)
    // handlers directly) - pushes genuine SDL_Event structs via SDL_PushEvent so they flow
    // through the same SDL_PollEvent loop and convertFromViewPort() conversion a real OS mouse
    // click would.
+   // --controller=right,right,bomb (menu mode): drives the menu with a virtual controller through the
+   // real ControllerInput/MenuControllerHandler path. a step's button is held for one frame, the
+   // next step follows controller_step_ms later - the cursor glides in real time (up to 400 ms).
+   constexpr uint64_t controller_step_ms = 600;
+   size_t controller_step = 0;
+   bool controller_held = false;
+   uint64_t controller_step_start_ms = 0;
+   const auto controller_script = parseControllerScript(argValue(args, "--controller="));
+   std::unique_ptr<ControllerInput> controller_input;
+   std::unique_ptr<MenuControllerHandler> menu_controller_handler;
+   SDL_Joystick* virtual_controller = nullptr;
+   if (menu_mode && menu_drawable && !controller_script.empty())
+   {
+      // the harness window usually isn't focused, SDL drops controller input then
+      SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
+      controller_input = std::make_unique<ControllerInput>();
+      if (controller_input->initialize())
+      {
+         SDL_VirtualJoystickDesc desc;
+         SDL_INIT_INTERFACE(&desc);
+         desc.type = SDL_JOYSTICK_TYPE_GAMEPAD;
+         desc.naxes = SDL_GAMEPAD_AXIS_COUNT;
+         desc.nbuttons = SDL_GAMEPAD_BUTTON_COUNT;
+         desc.name = "harness controller";
+         virtual_controller = SDL_OpenJoystick(SDL_AttachVirtualJoystick(&desc));
+      }
+
+      menu_controller_handler = std::make_unique<MenuControllerHandler>(*menu_drawable, *menu_cursor, *controller_input);
+      menu_controller_handler->initialize();
+      controller_input->buttonPressedSignal.connect(
+         [handler = menu_controller_handler.get()](ControllerInput::Id, ControllerInput::Button button)
+         {
+            SDL_Log("controller: button 0x%x pressed", button);
+            handler->buttonPressed(button);
+         }
+      );
+      menu_drawable->pageChangedSignal.connect([handler = menu_controller_handler.get()](const std::string&)
+                                               { handler->focusDefaultItem(); });
+   }
+
    const std::string realclick_arg = argValue(args, "--realclick=");
    int32_t real_click_x = -1;
    int32_t real_click_y = -1;
@@ -397,6 +476,11 @@ int main(int argc, char** argv)
          if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_ESCAPE)
          {
             running = false;
+         }
+
+         if (controller_input)
+         {
+            controller_input->handleEvent(event);
          }
 
          if (menu_mode && menu_drawable)
@@ -476,6 +560,31 @@ int main(int argc, char** argv)
                menu_cursor->mouseReleaseEvent();
             }
          }
+      }
+
+      // --controller: press, release on the next frame, then wait for the next step
+      if (virtual_controller && !controller_input->getDevices().empty() && controller_step < controller_script.size())
+      {
+         const uint64_t now_ms = SDL_GetTicks();
+         if (controller_held)
+         {
+            SDL_SetJoystickVirtualButton(virtual_controller, controller_script[controller_step], false);
+            controller_held = false;
+            ++controller_step;
+         }
+         else if (now_ms - controller_step_start_ms >= controller_step_ms)
+         {
+            SDL_SetJoystickVirtualButton(virtual_controller, controller_script[controller_step], true);
+            controller_held = true;
+            controller_step_start_ms = now_ms;
+         }
+      }
+
+      if (controller_input)
+      {
+         SDL_UpdateJoysticks();
+         controller_input->poll();
+         menu_controller_handler->update();
       }
 
       // --realclick=x,y: same frame schedule as --click above, but through genuine SDL events
@@ -564,7 +673,10 @@ int main(int argc, char** argv)
 
       ++frame;
 
-      const bool selftest_done = (menu_mode || logo3d_mode) ? (selftest && frame > 40) : (selftest && injector.finished() && frame > 40);
+      const bool controller_done = controller_script.empty() ||
+                                   (controller_step == controller_script.size() && SDL_GetTicks() - controller_step_start_ms > controller_step_ms);
+      const bool selftest_done = (menu_mode || logo3d_mode) ? (selftest && frame > 40 && controller_done)
+                                                            : (selftest && injector.finished() && frame > 40);
 
       if (selftest_done)
       {
