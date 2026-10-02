@@ -79,10 +79,20 @@ SDL_Keycode mapEditingKey(SDL_Keycode key)
    }
 }
 
-/// \brief allow-lists the keys the game side handles: the default keymap of
-/// GameSettings::ControllerSettings (arrows, space, [ ], F10), the hardcoded Return/Enter/Escape
-/// chat and leave keys of BombermanClient::processKeyPressed(), and the chat editing keys of
-/// GameMessagingDrawable. both receive every key event, each gated on its own "chat active" flag.
+/// \brief the keys of GameSettings::ControllerSettings, as set on the controls options page
+bool isConfiguredGameKey(SDL_Keycode key)
+{
+   const auto* controls = GameSettings::getInstance()->getControllerSettings();
+   return key == controls->getUpKey() || key == controls->getDownKey() || key == controls->getLeftKey() ||
+          key == controls->getRightKey() || key == controls->getBombKey() || key == controls->getZoomInKey() ||
+          key == controls->getZoomOutKey() || key == controls->getStartKey();
+}
+
+/// \brief allow-lists the keys the game side handles: the configured keymap of
+/// GameSettings::ControllerSettings (arrows, space, [ ], F10 by default), the hardcoded
+/// Return/Enter/Escape chat and leave keys of BombermanClient::processKeyPressed(), and the chat
+/// editing keys of GameMessagingDrawable. both receive every key event, each gated on its own
+/// "chat active" flag.
 SDL_Keycode mapGameKey(SDL_Keycode key)
 {
    switch (key)
@@ -105,7 +115,7 @@ SDL_Keycode mapGameKey(SDL_Keycode key)
       case SDLK_END:
          return key;
       default:
-         return SDLK_UNKNOWN;
+         return isConfiguredGameKey(key) ? key : SDLK_UNKNOWN;
    }
 }
 
@@ -477,6 +487,12 @@ int main(int /*argc*/, char** /*argv*/)
                      break;
                   }
 #endif
+                  // the keyboard fields of the controls options take any key
+                  if (navigator.onKeyPressed(event.key.key))
+                  {
+                     break;
+                  }
+
                   const SDL_Keycode key = mapEditingKey(event.key.key);
                   if (key != SDLK_UNKNOWN)
                   {
@@ -507,7 +523,7 @@ int main(int /*argc*/, char** /*argv*/)
                {
                   game_messaging_drawable.keyPressEvent(key_event);
                }
-               else
+               else if (!navigator.onTextInput())
                {
                   menu_drawable.keyPressEvent(key_event);
                }

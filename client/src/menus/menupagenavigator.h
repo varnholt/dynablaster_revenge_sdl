@@ -13,11 +13,12 @@
 #include <vector>
 
 class MenuPage;
+class MenuPageTextEditItem;
 class PlayerInfo;
 
 /// \brief page navigation and BombermanClient wiring for the menu system: drives the
 /// login -> create game -> join game -> lounge chain and populates/reads the GAME_CREATE,
-/// OPTIONS_VIDEO, OPTIONS_AUDIO and LOUNGE pages (mirrors the original GameMenuWorkflow/GameMenuInterface*).
+/// OPTIONS_VIDEO, OPTIONS_AUDIO, OPTIONS_CONTROLS, OPTIONS_GAME and LOUNGE pages (mirrors the original GameMenuWorkflow/GameMenuInterface*).
 ///
 /// Signal<> has no auto-disconnect: every connection capturing this is disconnected again in the
 /// destructor, so BombermanClient and the menu items must simply outlive this object.
@@ -45,6 +46,12 @@ public:
 
    //! called once OK stored changed video settings, to apply them to the window
    void setVideoSettingsHandler(std::function<void()> handler);
+
+   //! a key field on the controls page takes the pressed key, returns true if it did
+   bool onKeyPressed(int key);
+
+   //! typed text for a key field on the controls page is dropped, returns true if it was
+   bool onTextInput();
 
    //! mirrors GameMenuWorkflow::pageChanged() - populates GAME_CREATE's controls once the page
    //! actually becomes current. Connect to MenuDrawable::pageChangedSignal.
@@ -118,6 +125,28 @@ private:
    //! mirrors GameMenuInterfaceOptions::restoreVideoDefaults()
    void restoreVideoDefaults();
 
+   //! mirrors GameMenuInterfaceOptions::deserializeGameplaySettings()
+   void deserializeGameplaySettings();
+
+   //! mirrors GameMenuInterfaceOptions::serializeGameplaySettings()
+   void serializeGameplaySettings();
+
+   //! fills the game page with the defaults, OK stores them
+   void restoreGameDefaults();
+
+   //! mirrors GameMenuInterfaceOptions::deserializeControllerSettings() - the keyboard fields
+   void deserializeControllerSettings();
+
+   //! mirrors GameMenuInterfaceOptions::serializeControllerSettings() - keeps the key map unless
+   //! every field names a key
+   void serializeControllerSettings();
+
+   //! fills the keyboard fields with the defaults, OK stores them
+   void restoreControlsDefaults();
+
+   //! the key field that's being edited, if any
+   MenuPageTextEditItem* getActiveKeyField() const;
+
    //! mirrors GameMenuInterfaceOptions::deserializeAudioSettings() - seeds the audio options
    //! page's sliders from SoundManager's current volume whenever OPTIONS_AUDIO becomes current.
    void deserializeAudioSettings();
@@ -168,6 +197,10 @@ private:
 
    //! the video page was shown since the options were opened, OK/Cancel store/restore it
    bool _video_settings_shown = false;
+
+   //! the game and controls pages were shown since the options were opened, OK stores them
+   bool _gameplay_settings_shown = false;
+   bool _controller_settings_shown = false;
 
    JoinHandler _join_handler;
    std::function<void()> _video_settings_handler;
