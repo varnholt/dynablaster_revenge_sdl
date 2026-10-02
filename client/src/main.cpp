@@ -322,6 +322,7 @@ int main(int /*argc*/, char** /*argv*/)
 
    // who plays with which device, color and name - set up before joining a game
    ControlsPage controls_page(menu_drawable, controller_input, local_players, bomberman_client);
+   navigator.setBotsWaitCondition([&]() { return local_players.isJoining(); });
    navigator.setJoinHandler([&](int game_id, const std::string& return_page) { return controls_page.open(game_id, return_page); });
    menu_drawable.getMenu()->actionRequestSignal.connect([&](const std::string& page, const std::string& action)
                                                         { controls_page.onActionRequest(page, action); });
@@ -488,6 +489,7 @@ int main(int /*argc*/, char** /*argv*/)
 #ifndef __SWITCH__
       controller_input.update(game_drawable.isVisible(), game_drawable);
       menu_controller_handler.update();
+      controls_page.update();
       local_players.update(game_drawable.isVisible());
 #endif
 

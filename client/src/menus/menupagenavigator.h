@@ -40,6 +40,9 @@ public:
    using JoinHandler = std::function<bool(int game_id, const std::string& return_page)>;
    void setJoinHandler(JoinHandler handler);
 
+   //! bots are created in the lounge once this returns false, e.g. while local players still join
+   void setBotsWaitCondition(std::function<bool()> condition);
+
    //! mirrors GameMenuWorkflow::pageChanged() - populates GAME_CREATE's controls once the page
    //! actually becomes current. Connect to MenuDrawable::pageChangedSignal.
    void onPageChanged(const std::string& page);
@@ -52,6 +55,9 @@ private:
 
    //! joins directly unless the join handler takes over
    void requestJoin(int game_id, const std::string& return_page);
+
+   //! creates the bots, after waiting a while for the wait condition
+   void initializeBots(int32_t remaining_tries);
 
    //! mirrors GameMenuInterfaceCreate::updateCreateGamePlayerCounts()/updateCreateGameLevelPreview()
    void updateCreateGamePlayerCounts();
@@ -141,4 +147,5 @@ private:
    Signal<float>::Connection _sfx_tick_connection = INVALID_CONNECTION;
 
    JoinHandler _join_handler;
+   std::function<bool()> _bots_wait_condition;
 };

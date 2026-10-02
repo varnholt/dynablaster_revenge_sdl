@@ -440,7 +440,8 @@ void MenuPageNavigator::onJoinGameResponse(bool success)
       // matches GameMenuWorkflow::pageChanged()'s LOUNGE branch (real GameMenuWorkflow isn't
       // ported - this is the only trigger for BombermanClient::initializeBots(), which was
       // otherwise fully wired to BotFactory but never called from anywhere in this port).
-      Timer::singleShot(1000, []() { BombermanClient::getInstance()->initializeBots(); });
+      // after the players of this machine, so they get their colors first and bots the rest
+      Timer::singleShot(1000, [this]() { initializeBots(20); });
    }
 }
 
@@ -498,6 +499,22 @@ void MenuPageNavigator::onPageChanged(const std::string& page)
 void MenuPageNavigator::setJoinHandler(JoinHandler handler)
 {
    _join_handler = std::move(handler);
+}
+
+void MenuPageNavigator::setBotsWaitCondition(std::function<bool()> condition)
+{
+   _bots_wait_condition = std::move(condition);
+}
+
+void MenuPageNavigator::initializeBots(int32_t remaining_tries)
+{
+   if (remaining_tries > 0 && _bots_wait_condition && _bots_wait_condition())
+   {
+      Timer::singleShot(250, [this, remaining_tries]() { initializeBots(remaining_tries - 1); });
+      return;
+   }
+
+   BombermanClient::getInstance()->initializeBots();
 }
 
 void MenuPageNavigator::requestJoin(int game_id, const std::string& return_page)
