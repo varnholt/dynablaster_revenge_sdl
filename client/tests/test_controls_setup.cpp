@@ -63,6 +63,14 @@ int main(int /*argc*/, char** /*argv*/)
    ok &= check(columns[1].device.type == Type::None && setup.getPlayingColumns().size() == 2, "a column can sit out");
    ok &= check(!setup.findColumn(ControlsSetup::keyboard()), "the keyboard is in no column");
 
+   // the keyboard alone can't sit out, there is nothing else to pick
+   ControlsSetup alone;
+   alone.reset({}, 5, names);
+   ok &= check(alone.getColumns().size() == 1 && !alone.canCycleDevice(0), "a single keyboard has nothing to switch to");
+   alone.cycleDevice(0, 1);
+   ok &= check(alone.getColumns()[0].device.type == Type::Keyboard, "the last player doesn't sit out");
+   ok &= check(setup.canCycleDevice(0), "with controllers there is a choice");
+
    // remembered per controller count, controllers found by guid even if their ids changed
    const char* file = "test_controls_setup.ini";
    std::remove(file);

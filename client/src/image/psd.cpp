@@ -172,6 +172,11 @@ const Image& PSD::Layer::getImage() const
    return _image;
 }
 
+void PSD::Layer::setImage(const Image& image)
+{
+   _image = image;
+}
+
 int32_t PSD::Layer::getOpacity() const
 {
    return _opacity;

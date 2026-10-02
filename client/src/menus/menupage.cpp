@@ -82,6 +82,20 @@ void MenuPage::initialize()
 void MenuPage::initializeLayers()
 {
    load(_filename.c_str());
+
+   // <layer>_pixels_from = <other layer>: e.g. a hidden shape layer whose pixels the PSD didn't
+   // render in its real color
+   _settings->beginGroup(_title);
+   for (auto& layer : getLayers())
+   {
+      const std::string source_name = _settings->value(StringUtils::trim(layer.getName()) + "_pixels_from").toString();
+      if (const auto source = getLayer(source_name); !source_name.empty() && source != getLayers().end())
+      {
+         layer.setImage(source->getImage());
+      }
+   }
+   _settings->endGroup();
+
    repeatGroups();
 
    for (auto& layer : getLayers())

@@ -52,8 +52,11 @@ public:
    void cycleColor(size_t column, int32_t direction);
 
    /// \brief next or previous device of all available ones incl. none; one taken by another
-   /// column is swapped with it
+   /// column is swapped with it. the last playing column can't sit out.
    void cycleDevice(size_t column, int32_t direction);
+
+   /// \brief cycleDevice() has something to switch to
+   bool canCycleDevice(size_t column) const;
 
    /// \brief puts a device into a column; the column that had it gets this column's device
    void assign(size_t column, const Device& device);
@@ -76,6 +79,7 @@ public:
 
 private:
    bool isColorTaken(Constants::Color color, size_t except_column) const;
+   std::vector<Device> getDeviceChoices(size_t column) const;
    void makeColorsUnique();
 
    std::vector<Column> _columns;

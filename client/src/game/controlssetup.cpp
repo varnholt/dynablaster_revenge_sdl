@@ -187,14 +187,31 @@ void ControlsSetup::cycleDevice(size_t column, int32_t direction)
       return;
    }
 
-   // none, keyboard, controllers...
-   std::vector<Device> choices = {Device{}};
-   choices.insert(choices.end(), _devices.begin(), _devices.end());
-
+   const auto choices = getDeviceChoices(column);
    const auto current = std::ranges::find(choices, _columns[column].device);
    const auto size = static_cast<int32_t>(choices.size());
    const int32_t index = static_cast<int32_t>(current - choices.begin());
    assign(column, choices[static_cast<size_t>(((index + (direction > 0 ? 1 : -1)) % size + size) % size)]);
+}
+
+std::vector<ControlsSetup::Device> ControlsSetup::getDeviceChoices(size_t column) const
+{
+   // none, keyboard, controllers... - none only if another column still plays
+   const auto playing = getPlayingColumns();
+   const bool last_player = playing.size() == 1 && playing.front() == column;
+
+   std::vector<Device> choices;
+   if (!last_player)
+   {
+      choices.emplace_back();
+   }
+   choices.insert(choices.end(), _devices.begin(), _devices.end());
+   return choices;
+}
+
+bool ControlsSetup::canCycleDevice(size_t column) const
+{
+   return column < _columns.size() && getDeviceChoices(column).size() > 1;
 }
 
 void ControlsSetup::assign(size_t column, const Device& device)

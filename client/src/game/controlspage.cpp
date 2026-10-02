@@ -120,7 +120,8 @@ bool ControlsPage::open(int32_t game_id, const std::string& return_page)
 
    const auto max_columns = static_cast<size_t>(page->getGroupInstanceCount(column_group));
    Settings settings(GameSettings::getFilename());
-   if (!_setup.restore(settings, controllers, max_columns))
+   // a stored setup where nobody plays is of no use
+   if (!_setup.restore(settings, controllers, max_columns) || _setup.getPlayingColumns().empty())
    {
       _setup.reset(controllers, max_columns, getDefaultNames());
    }
@@ -194,9 +195,10 @@ void ControlsPage::refresh()
          }
       };
 
-      for (const char* base : {"controls_window", arrow_device_left, arrow_device_right})
+      set_visible("controls_window", shown);
+      for (const char* base : {arrow_device_left, arrow_device_right})
       {
-         set_visible(base, shown);
+         set_visible(base, shown && _setup.canCycleDevice(static_cast<size_t>(index - 1)));
       }
       for (const char* base : {"player-select", "bg_linedit_name", "player_number", arrow_color_left, arrow_color_right})
       {
