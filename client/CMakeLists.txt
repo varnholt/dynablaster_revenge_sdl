@@ -325,6 +325,10 @@ add_library(dynablaster_core STATIC
     src/game/menucontrollercursoranimation.cpp
     src/game/menucontrollercursoranimation.h
     src/game/gamesettings.cpp
+    src/game/localplayerclient.cpp
+    src/game/localplayerclient.h
+    src/game/localplayers.cpp
+    src/game/localplayers.h
     src/game/gamesettings.h
     src/game/gamestatemachine.cpp
     src/game/gamestatemachine.h
@@ -538,6 +542,11 @@ add_test(NAME gles_compatibility COMMAND dynablaster_gles_compatibility_test)
 add_executable(dynablaster_controller_input_test tests/test_controller_input.cpp)
 target_link_libraries(dynablaster_controller_input_test PRIVATE dynablaster_core)
 add_test(NAME controller_input COMMAND dynablaster_controller_input_test)
+add_executable(dynablaster_local_player_test tests/test_local_player.cpp)
+target_link_libraries(dynablaster_local_player_test PRIVATE dynablaster_core)
+add_test(NAME local_player COMMAND dynablaster_local_player_test)
+set_tests_properties(local_player PROPERTIES
+    WORKING_DIRECTORY "$<TARGET_FILE_DIR:dynablaster_revenge_harness>")
 add_test(NAME selftest_smoke
     COMMAND dynablaster_revenge_harness --selftest --screenshot=${CMAKE_BINARY_DIR}/selftest.png
 )
