@@ -110,7 +110,7 @@ bool ControlsPage::open(int32_t game_id, const std::string& return_page)
 {
    MenuPage* page = getPage();
    const auto controllers = _controller_input.getDevices();
-   if (!page || controllers.empty())
+   if (!page)
    {
       return false;
    }
@@ -123,6 +123,12 @@ bool ControlsPage::open(int32_t game_id, const std::string& return_page)
    if (!_setup.restore(settings, controllers, max_columns))
    {
       _setup.reset(controllers, max_columns, getDefaultNames());
+   }
+
+   // the main player starts with the nick it logged in with
+   if (const auto playing = _setup.getPlayingColumns(); !playing.empty())
+   {
+      _setup.setName(playing.front(), GameSettings::getInstance()->getLoginSettings()->getNick());
    }
 
    // the names belong to the columns, not to whoever edited them last
@@ -379,6 +385,15 @@ void ControlsPage::confirm()
    const auto& columns = _setup.getColumns();
    const ControlsSetup::Column& main = columns[playing.front()];
    _client.setPreferredColor(main.color);
+
+   // the main player is already logged in, a new name renames it
+   if (!main.name.empty() && main.name != _client.getNick())
+   {
+      auto* login = GameSettings::getInstance()->getLoginSettings();
+      login->setNick(main.name);
+      login->serialize();
+      _client.rename(main.name);
+   }
 
    _pending_players.clear();
    for (size_t i = 1; i < playing.size(); i++)

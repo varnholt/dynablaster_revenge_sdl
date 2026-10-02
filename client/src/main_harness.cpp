@@ -430,7 +430,7 @@ int main(int argc, char** argv)
    // virtual controllers (default 1); --controller= steps are pressed on the first one
    const bool controls_mode = hasFlag(args, "--controls");
    const std::string pads_arg = argValue(args, "--pads=");
-   const int32_t pad_count = controls_mode ? std::max(1, pads_arg.empty() ? 1 : std::atoi(pads_arg.c_str())) : 1;
+   const int32_t pad_count = controls_mode ? std::max(0, pads_arg.empty() ? 1 : std::atoi(pads_arg.c_str())) : 1;
    std::unique_ptr<BombermanClient> bomberman_client;
    std::unique_ptr<LocalPlayers> local_players;
    std::unique_ptr<ControlsPage> controls_page;
@@ -449,7 +449,10 @@ int main(int argc, char** argv)
          desc.naxes = SDL_GAMEPAD_AXIS_COUNT;
          desc.nbuttons = SDL_GAMEPAD_BUTTON_COUNT;
          desc.name = "harness controller";
-         virtual_controller = SDL_OpenJoystick(SDL_AttachVirtualJoystick(&desc));
+         if (pad_count > 0)
+         {
+            virtual_controller = SDL_OpenJoystick(SDL_AttachVirtualJoystick(&desc));
+         }
          for (int32_t pad = 1; pad < pad_count; pad++)
          {
             SDL_OpenJoystick(SDL_AttachVirtualJoystick(&desc));

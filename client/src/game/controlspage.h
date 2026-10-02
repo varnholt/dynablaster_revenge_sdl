@@ -30,7 +30,7 @@ public:
    ControlsPage& operator=(const ControlsPage&) = delete;
    ~ControlsPage();
 
-   /// \brief shows the page if there is a controller to set up, false to join right away
+   /// \brief shows the page; with the keyboard alone it's a single column to pick the color
    bool open(int32_t game_id, const std::string& return_page);
 
    bool isCurrentPage() const;

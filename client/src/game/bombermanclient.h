@@ -247,6 +247,9 @@ public:
    //! join a game
    void joinGame(int game = 1);
 
+   //! renames the logged-in player by logging in again, without the menu reacting to it
+   void rename(const std::string& nick);
+
    //! the color asked for when joining, the server assigns another one if it's taken
    void setPreferredColor(std::optional<Constants::Color> color);
 
@@ -431,6 +434,9 @@ private:
 
    //! the other players on this machine
    std::vector<int> _local_player_ids;
+
+   //! the next login response only confirms a rename
+   bool _renaming = false;
 
    //! color asked for when joining
    std::optional<Constants::Color> _preferred_color;

@@ -61,8 +61,9 @@ move the cursor. In game, the stick or D-pad moves, A/B/X/Y place a bomb and the
 buttons zoom; the controller rumbles when you collect an extra or die. Any controller
 SDL3 recognizes as a gamepad works.
 
-More players can play on the same machine. With controllers connected, joining or creating a
-game first shows the controls page: one column per player with its device, color and name. Each
+Joining or creating a game first shows the controls page (with the keyboard alone it is a single
+column to pick the color); more players can play on the same machine there: one column per player with its device, color and name (player 1's name renames the logged-in
+player). Each
 controller steers its own column (left/right: color, up/down: move to another column, A: OK),
 the keyboard does the same for its column; with the mouse the upper arrows pick the color and
 the lower ones the device (incl. none). The first column joins as the main player, the others as

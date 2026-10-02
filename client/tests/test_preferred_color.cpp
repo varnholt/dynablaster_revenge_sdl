@@ -183,10 +183,12 @@ int main(int /*argc*/, char** /*argv*/)
       client.initialize();
 
       bool joined = false;
+      int32_t login_responses = 0;
       client.setPreferredColor(Constants::ColorRed);
       client.loginResponseSignal.connect(
          [&](bool success)
          {
+            login_responses++;
             if (success)
             {
                client.createGameAutomatic();
@@ -198,6 +200,8 @@ int main(int /*argc*/, char** /*argv*/)
          {
             if (success)
             {
+               // a rename before joining, as the controls page does for the main player
+               client.rename("renamed");
                client.joinGame(game_id);
             }
          }
@@ -210,6 +214,11 @@ int main(int /*argc*/, char** /*argv*/)
       ok &= check(
          client.getCurrentPlayerInfo() && client.getCurrentPlayerInfo()->getColor() == Constants::ColorRed, "free preferred color granted"
       );
+      ok &= check(
+         client.getCurrentPlayerInfo() && client.getCurrentPlayerInfo()->getNick() == "renamed",
+         "the rename reached the server before the join"
+      );
+      ok &= check(login_responses == 1, "the rename doesn't count as a new login");
 
       const int32_t game_id = client.getGameId();
       ok &= check(joinAs(game_id, Constants::ColorRed) == Constants::ColorWhite, "taken preferred color falls back to the next free one");

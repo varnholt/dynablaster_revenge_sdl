@@ -576,6 +576,13 @@ add_test(NAME controls_page
 set_tests_properties(controls_page PROPERTIES
     WORKING_DIRECTORY "$<TARGET_FILE_DIR:dynablaster_revenge_harness>"
     PASS_REGULAR_EXPRESSION "controls: column 2 keyboard 0 color 5")
+# the controls page with the keyboard alone: one column to pick the color
+add_test(NAME controls_page_keyboard
+    COMMAND dynablaster_revenge_harness --menu --selftest --controls --pads=0
+)
+set_tests_properties(controls_page_keyboard PROPERTIES
+    WORKING_DIRECTORY "$<TARGET_FILE_DIR:dynablaster_revenge_harness>"
+    PASS_REGULAR_EXPRESSION "controls: column 1 keyboard 0 color")
 # walks the main menu with a virtual controller (menu_controller.ini graph) and clicks MULTI
 add_test(NAME controller_menu
     COMMAND dynablaster_revenge_harness --menu --selftest --controller=right,down,down,right,bomb
