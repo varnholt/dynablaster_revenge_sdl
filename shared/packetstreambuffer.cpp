@@ -1,5 +1,6 @@
 #include "packetstreambuffer.h"
 
+#include <algorithm>
 #include <cstring>
 
 void PacketStreamBuffer::append(const char* data, size_t length)
@@ -17,6 +18,11 @@ size_t PacketStreamBuffer::bytesAvailable() const
 BinaryReader PacketStreamBuffer::reader() const
 {
    return BinaryReader(_buffer.data() + _pos, _buffer.size() - _pos);
+}
+
+BinaryReader PacketStreamBuffer::reader(size_t bytes) const
+{
+   return BinaryReader(_buffer.data() + _pos, std::min(bytes, _buffer.size() - _pos));
 }
 
 void PacketStreamBuffer::consume(size_t bytes)

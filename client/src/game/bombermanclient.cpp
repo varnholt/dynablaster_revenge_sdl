@@ -2000,8 +2000,17 @@ void BombermanClient::createGame(
  */
 void BombermanClient::joinGame(int game)
 {
-   JoinGameRequestPacket packet(game);
+   JoinGameRequestPacket packet(game, _preferred_color);
    send(&packet);
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param color color to ask for when joining, none to take the next free one
+*/
+void BombermanClient::setPreferredColor(std::optional<Constants::Color> color)
+{
+   _preferred_color = color;
 }
 
 //-----------------------------------------------------------------------------

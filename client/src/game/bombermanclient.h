@@ -14,6 +14,7 @@
 #include <string>
 #include <thread>
 #include <unordered_map>
+#include <optional>
 #include <vector>
 
 // game
@@ -239,6 +240,9 @@ public:
    //! join a game
    void joinGame(int game = 1);
 
+   //! the color asked for when joining, the server assigns another one if it's taken
+   void setPreferredColor(std::optional<Constants::Color> color);
+
    //! start a game
    void startGame(int game = 1);
 
@@ -417,6 +421,9 @@ private:
 
    //! host name
    std::string _host;
+
+   //! color asked for when joining
+   std::optional<Constants::Color> _preferred_color;
 
    //! nick name
    std::string _nick;

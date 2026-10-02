@@ -538,6 +538,11 @@ add_test(NAME gles_compatibility COMMAND dynablaster_gles_compatibility_test)
 add_executable(dynablaster_controller_input_test tests/test_controller_input.cpp)
 target_link_libraries(dynablaster_controller_input_test PRIVATE dynablaster_core)
 add_test(NAME controller_input COMMAND dynablaster_controller_input_test)
+add_executable(dynablaster_preferred_color_test tests/test_preferred_color.cpp)
+target_link_libraries(dynablaster_preferred_color_test PRIVATE dynablaster_core)
+add_test(NAME preferred_color COMMAND dynablaster_preferred_color_test)
+set_tests_properties(preferred_color PROPERTIES
+    WORKING_DIRECTORY "$<TARGET_FILE_DIR:dynablaster_revenge_harness>")
 add_test(NAME selftest_smoke
     COMMAND dynablaster_revenge_harness --selftest --screenshot=${CMAKE_BINARY_DIR}/selftest.png
 )
