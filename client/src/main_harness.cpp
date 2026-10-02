@@ -22,7 +22,10 @@
 
 #include "effects/spherefragments/spherefragmentsdrawable.h"
 #include "game/gamelogodrawable.h"
+#include "game/bombermanclient.h"
 #include "game/controllerinput.h"
+#include "game/controlspage.h"
+#include "game/localplayers.h"
 #include "game/menucontrollerhandler.h"
 
 #include "image/image.h"
@@ -422,7 +425,18 @@ int main(int argc, char** argv)
    std::unique_ptr<ControllerInput> controller_input;
    std::unique_ptr<MenuControllerHandler> menu_controller_handler;
    SDL_Joystick* virtual_controller = nullptr;
-   if (menu_mode && menu_drawable && !controller_script.empty())
+
+   // --controls [--pads=n] (menu mode): opens the controls page as if joining a game, with n
+   // virtual controllers (default 1); --controller= steps are pressed on the first one
+   const bool controls_mode = hasFlag(args, "--controls");
+   const std::string pads_arg = argValue(args, "--pads=");
+   const int32_t pad_count = controls_mode ? std::max(1, pads_arg.empty() ? 1 : std::atoi(pads_arg.c_str())) : 1;
+   std::unique_ptr<BombermanClient> bomberman_client;
+   std::unique_ptr<LocalPlayers> local_players;
+   std::unique_ptr<ControlsPage> controls_page;
+   bool controls_opened = false;
+
+   if (menu_mode && menu_drawable && (!controller_script.empty() || controls_mode))
    {
       // the harness window usually isn't focused, SDL drops controller input then
       SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
@@ -436,6 +450,21 @@ int main(int argc, char** argv)
          desc.nbuttons = SDL_GAMEPAD_BUTTON_COUNT;
          desc.name = "harness controller";
          virtual_controller = SDL_OpenJoystick(SDL_AttachVirtualJoystick(&desc));
+         for (int32_t pad = 1; pad < pad_count; pad++)
+         {
+            SDL_OpenJoystick(SDL_AttachVirtualJoystick(&desc));
+         }
+      }
+
+      if (controls_mode)
+      {
+         bomberman_client = std::make_unique<BombermanClient>();
+         local_players = std::make_unique<LocalPlayers>(*controller_input, *bomberman_client);
+         controls_page = std::make_unique<ControlsPage>(*menu_drawable, *controller_input, *local_players, *bomberman_client);
+         menu_drawable->getMenu()->actionRequestSignal.connect([page = controls_page.get()](const std::string& page_name, const std::string& action)
+                                                               { page->onActionRequest(page_name, action); });
+         controller_input->buttonPressedSignal.connect([page = controls_page.get()](ControllerInput::Id id, ControllerInput::Button button)
+                                                       { page->onControllerButtonPressed(id, button); });
       }
 
       menu_controller_handler = std::make_unique<MenuControllerHandler>(*menu_drawable, *menu_cursor, *controller_input);
@@ -581,6 +610,12 @@ int main(int argc, char** argv)
          }
       }
 
+      // the controls page needs its controllers connected
+      if (controls_page && !controls_opened && controller_input->getDevices().size() == static_cast<size_t>(pad_count))
+      {
+         controls_opened = controls_page->open(1, "data/menus/mainmenu.psd");
+      }
+
       if (controller_input)
       {
          SDL_UpdateJoysticks();
@@ -678,6 +713,19 @@ int main(int argc, char** argv)
                                    (controller_step == controller_script.size() && SDL_GetTicks() - controller_step_start_ms > controller_step_ms);
       const bool selftest_done = (menu_mode || logo3d_mode) ? (selftest && frame > 40 && controller_done)
                                                             : (selftest && injector.finished() && frame > 40);
+
+      if (selftest_done && controls_page)
+      {
+         const auto& columns = controls_page->getSetup().getColumns();
+         for (size_t i = 0; i < columns.size(); i++)
+         {
+            const auto& column = columns[i];
+            const char* type = column.device.type == ControlsSetup::DeviceType::Keyboard     ? "keyboard"
+                               : column.device.type == ControlsSetup::DeviceType::Controller ? "controller"
+                                                                                             : "none";
+            SDL_Log("controls: column %zu %s %u color %d", i + 1, type, column.device.id, static_cast<int>(column.color));
+         }
+      }
 
       if (selftest_done)
       {

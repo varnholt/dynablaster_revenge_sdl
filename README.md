@@ -61,10 +61,14 @@ move the cursor. In game, the stick or D-pad moves, A/B/X/Y place a bomb and the
 buttons zoom; the controller rumbles when you collect an extra or die. Any controller
 SDL3 recognizes as a gamepad works.
 
-More players can join on the same machine: in the lounge, the PLUS button turns the next free
-controller into another player in the game, named after `[logindata] player2..player10` in
-`game.ini`. The keyboard and all controllers not taken that way steer the first player; the
-camera keeps all players of this machine in view.
+More players can play on the same machine. With controllers connected, joining or creating a
+game first shows the controls page: one column per player with its device, color and name. Each
+controller steers its own column (left/right: color, up/down: move to another column, A: OK),
+the keyboard does the same for its column; with the mouse the upper arrows pick the color and
+the lower ones the device (incl. none). The first column joins as the main player, the others as
+further players on their own connections. The setup is remembered per number of controllers in
+`game.ini` (`[controls<n>]`), controllers are recognized by their hardware id. The camera keeps
+all players of this machine in view.
 
 # Building
 

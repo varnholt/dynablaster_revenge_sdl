@@ -1,10 +1,12 @@
 #pragma once
 
+#include "constants.h"
 #include "gamesignal.h"
 #include "packetstreambuffer.h"
 #include "timer.h"
 
 #include <cstdint>
+#include <optional>
 #include <string>
 
 class Packet;
@@ -17,7 +19,7 @@ struct NET_StreamSocket;
 class LocalPlayerClient
 {
 public:
-   LocalPlayerClient(std::string host, std::string nick, int32_t game_id);
+   LocalPlayerClient(std::string host, std::string nick, int32_t game_id, std::optional<Constants::Color> preferred_color = std::nullopt);
    LocalPlayerClient(const LocalPlayerClient&) = delete;
    LocalPlayerClient& operator=(const LocalPlayerClient&) = delete;
    ~LocalPlayerClient();
@@ -48,6 +50,7 @@ private:
    std::string _host;
    std::string _nick;
    int32_t _game_id = -1;
+   std::optional<Constants::Color> _preferred_color;
    int32_t _player_id = -1;
    bool _joined = false;
    bool _connected = false;

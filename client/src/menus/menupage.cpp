@@ -111,13 +111,21 @@ MenuPageItem* MenuPage::processLabel(PSDLayer* layer, std::string layer_name)
    page_item->setActiveLayer(layer);
    page_item->setInactiveLayer(layer);
 
-   const std::string font_name_key = layer_name + "_font_name";
-   const std::string font_x_offset_key = layer_name + "_font_x_offset";
-   const std::string font_y_offset_key = layer_name + "_font_y_offset";
-   const std::string max_chars_key = layer_name + "_field_width";
-   const std::string scale_key = layer_name + "_scale";
-   const std::string color_key = layer_name + "_color";
-   const std::string alpha_key = layer_name + "_alpha";
+   // copies in a repeated group share their settings
+   const std::string base_name = getInstanceBaseName(layer_name);
+   const std::string font_name_key = base_name + "_font_name";
+   const std::string font_x_offset_key = base_name + "_font_x_offset";
+   const std::string font_y_offset_key = base_name + "_font_y_offset";
+   const std::string max_chars_key = base_name + "_field_width";
+   const std::string scale_key = base_name + "_scale";
+   const std::string color_key = base_name + "_color";
+   const std::string alpha_key = base_name + "_alpha";
+
+   page_item->setLayerDrawn(_settings->value(base_name + "_draw_layer", true).toBool());
+   if (_settings->value(base_name + "_centered", false).toBool())
+   {
+      page_item->setCenterWidth(static_cast<float>(layer->getWidth()));
+   }
 
    page_item->setFontName(_settings->value(font_name_key, "default").toString());
    page_item->setFontXOffset(_settings->value(font_x_offset_key).toInt());
@@ -141,14 +149,18 @@ MenuPageItem* MenuPage::processLineEdit(PSDLayer* layer, std::string layer_name)
    page_item->setActiveLayer(layer);
    page_item->setInactiveLayer(layer);
 
-   const std::string font_name_key = layer_name + "_font_name";
-   const std::string font_x_offset_key = layer_name + "_font_x_offset";
-   const std::string font_y_offset_key = layer_name + "_font_y_offset";
-   const std::string field_width_key = layer_name + "_field_width";
-   const std::string field_max_length_key = layer_name + "_max_length";
-   const std::string scale_key = layer_name + "_scale";
-   const std::string color_key = layer_name + "_color";
-   const std::string alpha_key = layer_name + "_alpha";
+   // copies in a repeated group share their settings
+   const std::string base_name = getInstanceBaseName(layer_name);
+   const std::string font_name_key = base_name + "_font_name";
+   const std::string font_x_offset_key = base_name + "_font_x_offset";
+   const std::string font_y_offset_key = base_name + "_font_y_offset";
+   const std::string field_width_key = base_name + "_field_width";
+   const std::string field_max_length_key = base_name + "_max_length";
+   const std::string scale_key = base_name + "_scale";
+   const std::string color_key = base_name + "_color";
+   const std::string alpha_key = base_name + "_alpha";
+
+   page_item->setLayerDrawn(_settings->value(base_name + "_draw_layer", false).toBool());
 
    page_item->setFontName(_settings->value(font_name_key, "default").toString());
    page_item->setFontXOffset(_settings->value(font_x_offset_key).toInt());
@@ -883,6 +895,17 @@ std::string MenuPage::getInstanceName(const std::string& layer_name, int32_t ind
    return layer_name + "@" + std::to_string(index);
 }
 
+std::string MenuPage::getInstanceBaseName(const std::string& layer_name)
+{
+   const auto at = layer_name.rfind('@');
+   if (at == std::string::npos || at + 1 == layer_name.size() ||
+       !std::ranges::all_of(layer_name.substr(at + 1), [](char c) { return c >= '0' && c <= '9'; }))
+   {
+      return layer_name;
+   }
+   return layer_name.substr(0, at);
+}
+
 void MenuPage::initializePageItems()
 {
    _settings->beginGroup(_title);
@@ -905,7 +928,30 @@ void MenuPage::initializePageItems()
 
       MenuPageItem* page_item = nullptr;
 
-      if (layer_name.starts_with("combobox"))
+      // menu.ini can give plain layers a type: <layer>_item = label | lineedit | clickable
+      const std::string item_type = _settings->value(getInstanceBaseName(layer_name) + "_item").toString();
+
+      if (item_type == "label")
+      {
+         page_item = processLabel(layer, layer_name);
+      }
+      else if (item_type == "lineedit")
+      {
+         page_item = processLineEdit(layer, layer_name);
+      }
+      else if (item_type == "clickable")
+      {
+         page_item = processDefaultItem(layer, layer_name);
+         if (page_item)
+         {
+            page_item->setInteractive(true);
+            if (respect_layer_visibility)
+            {
+               page_item->setVisible(getLayer(l).isVisible());
+            }
+         }
+      }
+      else if (layer_name.starts_with("combobox"))
       {
          page_item = processComboBox(layer, layer_name);
       }

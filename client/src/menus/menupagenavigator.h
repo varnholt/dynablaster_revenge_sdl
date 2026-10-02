@@ -4,6 +4,7 @@
 #include "gamesignal.h"
 
 #include <cstddef>
+#include <functional>
 #include <limits>
 #include <map>
 #include <string>
@@ -31,9 +32,13 @@ public:
 
    Signal<const std::string&> pageChangeRequestSignal;
    Signal<> quitRequestSignal;
-   Signal<> addLocalPlayerRequestSignal;
 
    void onActionRequest(const std::string& page, const std::string& action);
+
+   //! called instead of joining a game right away, e.g. to set up the players on this machine
+   //! first; returns false to join directly. return_page is where cancelling goes back to.
+   using JoinHandler = std::function<bool(int game_id, const std::string& return_page)>;
+   void setJoinHandler(JoinHandler handler);
 
    //! mirrors GameMenuWorkflow::pageChanged() - populates GAME_CREATE's controls once the page
    //! actually becomes current. Connect to MenuDrawable::pageChangedSignal.
@@ -44,6 +49,9 @@ private:
    void onCreateGameResponse(bool granted, int game_id, bool owner);
    void onJoinGameResponse(bool success);
    void onGameStarted();
+
+   //! joins directly unless the join handler takes over
+   void requestJoin(int game_id, const std::string& return_page);
 
    //! mirrors GameMenuInterfaceCreate::updateCreateGamePlayerCounts()/updateCreateGameLevelPreview()
    void updateCreateGamePlayerCounts();
@@ -131,4 +139,6 @@ private:
    Signal<float>::Connection _music_volume_changed_connection = INVALID_CONNECTION;
    Signal<float>::Connection _sfx_volume_changed_connection = INVALID_CONNECTION;
    Signal<float>::Connection _sfx_tick_connection = INVALID_CONNECTION;
+
+   JoinHandler _join_handler;
 };

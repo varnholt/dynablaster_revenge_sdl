@@ -97,6 +97,9 @@ public:
    //! name of a layer's copy in a repeated group's instance (1-based)
    static std::string getInstanceName(const std::string& layer_name, int32_t index);
 
+   //! the layer name without its instance suffix
+   static std::string getInstanceBaseName(const std::string& layer_name);
+
    //! send out an action request
    Signal<const std::string&, const std::string&> actionRequestSignal;
 
