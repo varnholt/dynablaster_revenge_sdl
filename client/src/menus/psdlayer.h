@@ -26,7 +26,7 @@ public:
    };
 
    PSDLayer() = default;
-   PSDLayer(PSD::Layer* layer, float z = -1.0f, bool unwrap = true);
+   PSDLayer(PSD::Layer& layer, float z = -1.0f, bool unwrap = true);
    virtual ~PSDLayer() = default;
 
    PSD::Layer* getLayer() const;

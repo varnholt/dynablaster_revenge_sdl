@@ -11,7 +11,6 @@
 
 // cmath
 #include <cmath>
-#include <cstring>
 // the real page-name string MenuDrawable's pageChangedSignal carries for the actual
 // main menu page (client/src/menus/gamemenudefines.h's MAINMENU - that header itself isn't
 // ported, it's all networking/gameplay action-name constants unrelated to rendering).
@@ -238,18 +237,16 @@ void GameLogoDrawable::initializeLayers()
    // comment - "earth"/"highlight" layers are still constructed here, matching the original 1:1,
    // even though nothing renders them: harmless data loading, not GL-drawing code, so left as-is
    // per this port's own scope rule).
-   for (int l = 0; l < _psd.getLayerCount(); l++)
+   for (auto& psd_layer : _psd.getLayers())
    {
-      PSD::Layer* psdlayer = _psd.getLayer(l);
-
-      auto owned_layer = std::make_unique<PSDLayer>(psdlayer);
+      auto owned_layer = std::make_unique<PSDLayer>(psd_layer);
       PSDLayer* layer = owned_layer.get();
 
-      if (std::strcmp(psdlayer->getName(), LAYER_DYNABLASTER) == 0)
+      if (psd_layer.getName() == LAYER_DYNABLASTER)
       {
          _layer_dynablaster = layer;
       }
-      else if (std::strcmp(psdlayer->getName(), LAYER_REVENGE) == 0)
+      else if (psd_layer.getName() == LAYER_REVENGE)
       {
          _layer_revenge = layer;
       }

@@ -1,22 +1,48 @@
 #include "psd.h"
 
-#include <algorithm>
-#include <cstdlib>
-#include <ranges>
-#include <string_view>
-
-#include "image/image.h"
 #include "tools/filestream.h"
+
+#include <algorithm>
+#include <array>
+#include <cstdlib>
+#include <cstring>
+#include <ranges>
+#include <sstream>
+
+// https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/
 
 namespace
 {
-constexpr uint8_t kVisibilityFlag = 0x02;
+constexpr uint8_t visibility_flag = 0x02;
 
-// four-character code as read big endian by Stream::getInt()
-constexpr uint32_t fourCC(const char (&code)[5])
+// four-character code as read big endian
+constexpr int32_t fourCC(const char (&code)[5])
 {
-   return (static_cast<uint32_t>(code[0]) << 24) | (static_cast<uint32_t>(code[1]) << 16) | (static_cast<uint32_t>(code[2]) << 8) |
-          static_cast<uint32_t>(code[3]);
+   return static_cast<int32_t>(
+      (static_cast<uint32_t>(code[0]) << 24) | (static_cast<uint32_t>(code[1]) << 16) | (static_cast<uint32_t>(code[2]) << 8) |
+      static_cast<uint32_t>(code[3])
+   );
+}
+
+// photoshop files are big endian
+template <typename T>
+void read(T& value, std::istream& stream)
+{
+   std::array<char, sizeof(T)> bytes{};
+   stream.read(bytes.data(), bytes.size());
+   std::ranges::reverse(bytes);
+   std::memcpy(&value, bytes.data(), sizeof(T));
+}
+
+template <size_t size>
+void read(std::array<uint8_t, size>& value, std::istream& stream)
+{
+   stream.read(reinterpret_cast<char*>(value.data()), size);
+}
+
+void read(std::vector<uint8_t>& value, std::istream& stream)
+{
+   stream.read(reinterpret_cast<char*>(value.data()), static_cast<std::streamsize>(value.size()));
 }
 }  // namespace
 
@@ -32,27 +58,23 @@ int32_t PSD::Header::getHeight() const
    return _height;
 }
 
-void PSD::Header::load(Stream* stream)
+void PSD::Header::load(std::istream& stream)
 {
-   stream->getData(_sign.data(), 4);
-   _version = static_cast<uint16_t>(stream->getWord());
-   stream->getData(_reserved.data(), 6);
-   _channels = static_cast<uint16_t>(stream->getWord());
-   _height = stream->getInt();
-   _width = stream->getInt();
-   _depth = static_cast<uint16_t>(stream->getWord());
-   _mode = static_cast<ColorMode>(stream->getWord());
+   read(_signature, stream);
+   read(_version, stream);
+   read(_reserved, stream);
+   read(_channels, stream);
+   read(_height, stream);
+   read(_width, stream);
+   read(_depth, stream);
+   read(_mode, stream);
 }
 
 // Layer
 
-PSD::Layer::Layer() = default;
-
-PSD::Layer::~Layer() = default;
-
-const char* PSD::Layer::getName() const
+const std::string& PSD::Layer::getName() const
 {
-   return _name.c_str();
+   return _name;
 }
 
 void PSD::Layer::setName(const std::string& name)
@@ -60,38 +82,24 @@ void PSD::Layer::setName(const std::string& name)
    _name = name;
 }
 
-PSD::Layer::Section PSD::Layer::getSection() const
+PSD::Layer::SectionDivider PSD::Layer::getSectionDivider() const
 {
-   return _section;
+   return _section_divider;
 }
 
-bool PSD::Layer::isGroupMarker() const
+bool PSD::Layer::isSectionDivider() const
 {
-   return _section != Section::None;
+   return _section_divider != SectionDivider::None && _section_divider != SectionDivider::Any;
+}
+
+bool PSD::Layer::isImageLayer() const
+{
+   return !isSectionDivider() && getWidth() > 0 && getHeight() > 0;
 }
 
 const std::string& PSD::Layer::getGroup() const
 {
    return _group;
-}
-
-std::unique_ptr<PSD::Layer> PSD::Layer::clone(const std::string& name, int32_t dx, int32_t dy) const
-{
-   auto layer = std::make_unique<Layer>();
-   layer->_top = _top + dy;
-   layer->_left = _left + dx;
-   layer->_bottom = _bottom + dy;
-   layer->_right = _right + dx;
-   layer->_channel_count = _channel_count;
-   layer->_image = _image ? std::make_unique<Image>(*_image) : nullptr;
-   layer->_blend_mode = _blend_mode;
-   layer->_opacity = _opacity;
-   layer->_clipping = _clipping;
-   layer->_flags = _flags;
-   layer->_name = name;
-   layer->_section = _section;
-   layer->_group = _group;
-   return layer;
 }
 
 int32_t PSD::Layer::getBottom() const
@@ -107,6 +115,11 @@ int32_t PSD::Layer::getTop() const
 int32_t PSD::Layer::getLeft() const
 {
    return _left;
+}
+
+int32_t PSD::Layer::getRight() const
+{
+   return _right;
 }
 
 int32_t PSD::Layer::getWidth() const
@@ -154,9 +167,9 @@ void PSD::Layer::setTop(int32_t value)
    _top = value;
 }
 
-Image* PSD::Layer::getImage() const
+const Image& PSD::Layer::getImage() const
 {
-   return _image.get();
+   return _image;
 }
 
 int32_t PSD::Layer::getOpacity() const
@@ -164,173 +177,161 @@ int32_t PSD::Layer::getOpacity() const
    return _opacity;
 }
 
+void PSD::Layer::setOpacity(int32_t opacity)
+{
+   _opacity = static_cast<uint8_t>(opacity);
+}
+
 bool PSD::Layer::isVisible() const
 {
-   return ((_flags & kVisibilityFlag) != 2);
+   return (_flags & visibility_flag) == 0;
 }
 
 void PSD::Layer::setVisible(bool visible)
 {
    if (visible)
    {
-      _flags &= ~kVisibilityFlag;
+      _flags &= ~visibility_flag;
    }
    else
    {
-      _flags |= kVisibilityFlag;
+      _flags |= visibility_flag;
    }
 }
 
-const PSD::Layer::Channel* PSD::Layer::getChannel(int32_t id) const
+const PSD::Layer::Channel& PSD::Layer::getChannel(int16_t id) const
 {
-   for (int32_t i = 0; i < _channel_count && i < static_cast<int32_t>(_channels.size()); i++)
-   {
-      if (_channels[i].getID() == id)
-      {
-         return &_channels[i];
-      }
-   }
-
-   return nullptr;
+   const auto it = std::ranges::find(_channels, id, &Channel::getID);
+   return it != _channels.end() ? *it : _channels.back();
 }
 
-void PSD::Layer::setOpacity(int32_t opacity)
+void PSD::Layer::loadLayerRecords(std::istream& stream)
 {
-   _opacity = static_cast<uint8_t>(opacity);
-}
+   read(_top, stream);
+   read(_left, stream);
+   read(_bottom, stream);
+   read(_right, stream);
 
-// load layer parameters from stream
-void PSD::Layer::load(Stream* stream)
-{
-   std::array<char, 4> signature{};
-
-   _top = stream->getInt();
-   _left = stream->getInt();
-   _bottom = stream->getInt();
-   _right = stream->getInt();
-
-   _channel_count = static_cast<uint16_t>(stream->getWord());
-   // one spare slot for the opaque alpha channel loadChannels() adds to rgb-only layers
-   _channels.resize(std::max<size_t>(4, _channel_count));
-
-   for (int32_t i = 0; i < _channel_count; i++)
+   read(_channel_count, stream);
+   _channels.resize(_channel_count);
+   for (auto& channel : _channels)
    {
-      _channels[i].load(stream);
+      channel.load(stream);
    }
 
-   stream->getData(signature.data(), 4);
-   // TODO: drop out if signature doesn't fit
-   stream->getData(_blend_mode.data(), 4);
-   _opacity = stream->getByte();
-   _clipping = stream->getByte();
-   _flags = stream->getByte();
-   stream->getByte();  // filler
+   read(_blend_mode_signature, stream);
+   read(_blend_mode_key, stream);
+   read(_opacity, stream);
+   read(_clipping, stream);
+   read(_flags, stream);
+   stream.ignore(1);  // filler
 
-   const int32_t total_size = stream->getInt();
-   const int32_t start_position = stream->pos();
+   int32_t extra_data_length = 0;
+   read(extra_data_length, stream);
+   const auto extra_data_start = stream.tellg();
 
-   // Layer mask / adjust layer data
-   int32_t size = stream->getInt();
-   stream->skip(size);
+   // layer mask / adjustment layer data
+   int32_t size = 0;
+   read(size, stream);
+   stream.ignore(size);
 
-   // Layer blending ranges data
-   size = stream->getInt();
-   stream->skip(size);
+   // layer blending ranges data
+   read(size, stream);
+   stream.ignore(size);
 
-   _name = PSD::loadString(stream);
+   _name = loadString(stream);
 
-   uint32_t block_header = 0;
-   while (total_size - (stream->pos() - start_position) > 4)
+   // tagged blocks
+   int32_t block_header = 0;
+   while (extra_data_length - (stream.tellg() - extra_data_start) > 4)
    {
-      block_header = (block_header << 8) | stream->getByte();
+      uint8_t byte = 0;
+      read(byte, stream);
+      block_header = (block_header << 8) | byte;
+
       if (block_header == fourCC("8BIM"))
       {
-         const auto block_id = static_cast<uint32_t>(stream->getInt());
-         const int32_t block_size = stream->getInt();
-         const int32_t block_position = stream->pos();
+         int32_t block_id = 0;
+         int32_t block_size = 0;
+         read(block_id, stream);
+         read(block_size, stream);
+         const auto block_start = stream.tellg();
+
          if (block_id == fourCC("lsct") || block_id == fourCC("lsdk"))
          {
-            const int32_t section = stream->getInt();
-            _section = (section >= 1 && section <= 3) ? static_cast<Section>(section) : Section::None;
+            int32_t section_divider = 0;
+            read(section_divider, stream);
+            _section_divider =
+               (section_divider >= 0 && section_divider <= 3) ? static_cast<SectionDivider>(section_divider) : SectionDivider::None;
          }
          else if (block_id == fourCC("luni"))
          {
             // unicode layer name, only the low byte of each utf-16 character is kept
-            const auto length = static_cast<uint32_t>(stream->getInt());
+            uint32_t length = 0;
+            read(length, stream);
             _name.assign(length, '\0');
-            for (uint32_t i = 0; i < length; i++)
+            for (auto& c : _name)
             {
-               _name[i] = static_cast<char>(stream->getWord() & 255);
+               uint16_t word = 0;
+               read(word, stream);
+               c = static_cast<char>(word & 255);
             }
          }
-         // skip rest of block
-         stream->skip(block_size - (stream->pos() - block_position));
+
+         stream.ignore(block_size - (stream.tellg() - block_start));
          block_header = 0;
       }
    }
 
-   // skip rest of data
-   stream->skip(total_size - (stream->pos() - start_position));
+   stream.ignore(extra_data_length - (stream.tellg() - extra_data_start));
 }
 
-void PSD::Layer::loadChannels(Stream* stream)
+void PSD::Layer::loadChannelImageData(std::istream& stream)
 {
-   const int32_t height = _bottom - _top;
-   const int32_t width = _right - _left;
+   const int32_t width = getWidth();
+   const int32_t height = getHeight();
 
-   for (int32_t i = 0; i < _channel_count; i++)
+   for (auto& channel : _channels)
    {
-      const auto compression = static_cast<uint16_t>(stream->getWord());
+      uint16_t compression = 0;
+      read(compression, stream);
 
       switch (compression)
       {
-         case 0:  // Raw
-            _channels[i].loadRaw(width, height, stream);
+         case 0:  // raw
+            channel.loadRaw(width, height, stream);
             break;
-
-         case 1:  // RLE
-            _channels[i].loadRLE(width, height, stream);
+         case 1:  // rle
+            channel.loadRLE(width, height, stream);
             break;
-
-         case 2:  // Zip
-            break;
-
-         case 3:  // Zip Prediction
-            break;
-
-         default:
+         default:  // zip (2, 3) is not supported
             break;
       }
    }
 
+   // rgb-only layers are opaque
    if (_channel_count == 3)
    {
-      _channels[_channel_count].init(-1, width, height);
+      _channels.emplace_back().init(-1, width, height);
       _channel_count++;
    }
 
-   _image = std::make_unique<Image>(width, height);
+   _image = Image(width, height);
    for (int32_t y = 0; y < height; y++)
    {
-      uint32_t* destination = _image->getScanline(y);
+      uint32_t* destination = _image.getScanline(y);
 
-      const uint8_t* red = getChannel(0)->getScanline(y);
-      const uint8_t* green = getChannel(1)->getScanline(y);
-      const uint8_t* blue = getChannel(2)->getScanline(y);
-      const uint8_t* alpha = getChannel(-1)->getScanline(y);
+      const uint8_t* red = getChannel(0).getScanline(y);
+      const uint8_t* green = getChannel(1).getScanline(y);
+      const uint8_t* blue = getChannel(2).getScanline(y);
+      const uint8_t* alpha = getChannel(-1).getScanline(y);
 
       for (int32_t x = 0; x < width; x++)
       {
          const uint8_t a = alpha[x];
-         uint8_t r = 0;
-         uint8_t g = 0;
-         uint8_t b = 0;
-         if (a > 0)
-         {
-            r = red[x];
-            g = green[x];
-            b = blue[x];
-         }
+         const uint8_t r = a > 0 ? red[x] : 0;
+         const uint8_t g = a > 0 ? green[x] : 0;
+         const uint8_t b = a > 0 ? blue[x] : 0;
          destination[x] = (a << 24) | (r << 16) | (g << 8) | b;
       }
    }
@@ -346,68 +347,72 @@ int16_t PSD::Layer::Channel::getID() const
    return _id;
 }
 
-const uint8_t* PSD::Layer::Channel::data() const
+void PSD::Layer::Channel::load(std::istream& stream)
 {
-   return _data.data();
+   read(_id, stream);
+   read(_size, stream);
 }
 
-void PSD::Layer::Channel::load(Stream* stream)
+void PSD::Layer::Channel::loadRLE(int32_t width, int32_t height, std::istream& stream)
 {
-   _id = static_cast<int16_t>(stream->getWord());
-   _size = stream->getInt();
-}
-
-void PSD::Layer::Channel::loadRLE(int32_t width, int32_t height, Stream* stream)
-{
-   _width = width;
-   std::vector<uint16_t> scan_sizes(height);
-   for (auto& scan_size : scan_sizes)
+   std::vector<uint16_t> scanline_sizes(static_cast<size_t>(std::max(height, 0)));
+   for (auto& scanline_size : scanline_sizes)
    {
-      scan_size = static_cast<uint16_t>(stream->getWord());
+      read(scanline_size, stream);
    }
 
-   _data.resize(static_cast<size_t>(width) * height);
+   _width = width;
+   _data.assign(static_cast<size_t>(width) * height, 0);
 
-   for (int32_t y = 0; y < height; y++)
+   // packbits: a non-negative control byte copies control + 1 bytes, a negative one repeats the
+   // next byte 1 - control times
+   size_t offset = 0;
+   for (const auto scanline_size : scanline_sizes)
    {
-      uint8_t* destination = _data.data() + static_cast<size_t>(y) * width;
-
-      int32_t size = scan_sizes[y];
-
-      while (size > 0)
+      const size_t scanline_end = offset + static_cast<size_t>(width);
+      int32_t remaining = scanline_size;
+      while (remaining > 0)
       {
-         const int32_t start = stream->pos();
+         int8_t control = 0;
+         read(control, stream);
+         remaining--;
 
-         const auto control = static_cast<int8_t>(stream->getChar());
          if (control >= 0)
          {
-            stream->getData(destination, control + 1);
-            destination += control + 1;
+            for (int32_t i = 0; i <= control; i++)
+            {
+               uint8_t value = 0;
+               read(value, stream);
+               if (offset < scanline_end)
+               {
+                  _data[offset++] = value;
+               }
+            }
+            remaining -= control + 1;
          }
          else if (control > -128)
          {
-            const uint8_t color = stream->getByte();
-            for (int32_t x = 0; x < (1 - control); x++)
+            uint8_t value = 0;
+            read(value, stream);
+            remaining--;
+            for (int32_t i = 0; i < 1 - control; i++)
             {
-               *destination++ = color;
+               if (offset < scanline_end)
+               {
+                  _data[offset++] = value;
+               }
             }
          }
-
-         const int32_t end = stream->pos();
-         size -= (end - start);
       }
+      offset = scanline_end;
    }
 }
 
-void PSD::Layer::Channel::loadRaw(int32_t width, int32_t height, Stream* stream)
+void PSD::Layer::Channel::loadRaw(int32_t width, int32_t height, std::istream& stream)
 {
    _width = width;
    _data.resize(static_cast<size_t>(width) * height);
-
-   for (int32_t y = 0; y < height; y++)
-   {
-      stream->getData(_data.data() + static_cast<size_t>(y) * width, width);
-   }
+   read(_data, stream);
 }
 
 // fully opaque channel
@@ -425,10 +430,6 @@ const uint8_t* PSD::Layer::Channel::getScanline(int32_t y) const
 
 // PSD
 
-PSD::PSD() = default;
-
-PSD::~PSD() = default;
-
 int32_t PSD::getWidth() const
 {
    return _header.getWidth();
@@ -439,74 +440,98 @@ int32_t PSD::getHeight() const
    return _header.getHeight();
 }
 
-int32_t PSD::getLayerCount() const
+size_t PSD::getLayerCount() const
 {
-   return static_cast<int32_t>(_layers.size());
+   return _layers.size();
 }
 
-PSD::Layer* PSD::getLayer(int32_t index) const
+const std::vector<PSD::Layer>& PSD::getLayers() const
 {
-   return _layers[index].get();
+   return _layers;
 }
 
-PSD::Layer* PSD::getLayer(const char* name) const
+std::vector<PSD::Layer>& PSD::getLayers()
 {
-   const auto it = std::ranges::find_if(_layers, [name](const auto& layer) { return std::string_view(layer->getName()) == name; });
-   return it != _layers.end() ? it->get() : nullptr;
+   return _layers;
 }
 
-PSD::Layer* PSD::addLayer(std::unique_ptr<Layer> layer)
+const PSD::Layer& PSD::getLayer(size_t index) const
 {
-   return _layers.emplace_back(std::move(layer)).get();
+   return _layers[index];
 }
 
-// load pascal string (leading length byte)
-std::string PSD::loadString(Stream* stream)
+PSD::Layer& PSD::getLayer(size_t index)
 {
-   const uint8_t size = stream->getByte();
-   std::string name(size, '\0');
-   for (auto& c : name)
-   {
-      c = stream->getChar();
-   }
-   return name;
+   return _layers[index];
 }
 
-void PSD::loadImageResourceSection(Stream* stream)
+std::vector<PSD::Layer>::const_iterator PSD::getLayer(const std::string& name) const
 {
-   // resources are not used, skip the whole section
-   const int32_t total = stream->getInt();
-   stream->skip(total);
+   return std::ranges::find(_layers, name, &Layer::getName);
 }
 
-void PSD::loadLayerInformation(Stream* stream)
+std::vector<PSD::Layer>::iterator PSD::getLayer(const std::string& name)
 {
-   // total size of layer and mask block
-   stream->getInt();
+   return std::ranges::find(_layers, name, &Layer::getName);
+}
 
-   // size of layer block
-   stream->getInt();
+void PSD::addLayer(Layer layer)
+{
+   _layers.push_back(std::move(layer));
+}
+
+// pascal string (leading length byte)
+std::string PSD::loadString(std::istream& stream)
+{
+   uint8_t size = 0;
+   read(size, stream);
+   std::string text(size, '\0');
+   stream.read(text.data(), size);
+   return text;
+}
+
+void PSD::loadColorModeData(std::istream& stream)
+{
+   // only indexed color and duotone have color mode data
+   int32_t length = 0;
+   read(length, stream);
+   stream.ignore(length);
+}
+
+void PSD::loadImageResourceSection(std::istream& stream)
+{
+   // resources are not used
+   int32_t length = 0;
+   read(length, stream);
+   stream.ignore(length);
+}
+
+void PSD::loadLayerAndMaskInformation(std::istream& stream)
+{
+   // length of the layer and mask information section
+   int32_t length = 0;
+   read(length, stream);
+
+   // length of the layers info section
+   read(length, stream);
 
    // negative count: first alpha channel holds the merged transparency
-   const int32_t layer_count = std::abs(stream->getShort());
-   _layers.clear();
-   _layers.reserve(layer_count);
+   int16_t layer_count = 0;
+   read(layer_count, stream);
 
-   // load layer parameters
-   for (int32_t i = 0; i < layer_count; i++)
+   _layers.clear();
+   _layers.resize(static_cast<size_t>(std::abs(layer_count)));
+   for (auto& layer : _layers)
    {
-      _layers.emplace_back(std::make_unique<Layer>())->load(stream);
+      layer.loadLayerRecords(stream);
    }
 
-   // load layer channels (bitmap data)
-   for (const auto& layer : _layers)
+   for (auto& layer : _layers)
    {
-      layer->loadChannels(stream);
+      layer.loadChannelImageData(stream);
    }
 
    assignGroups();
-
-   // TODO: skip mask block
 }
 
 void PSD::assignGroups()
@@ -516,53 +541,47 @@ void PSD::assignGroups()
    std::vector<std::string> groups;
    for (auto& layer : std::views::reverse(_layers))
    {
-      switch (layer->_section)
+      switch (layer._section_divider)
       {
-         case Layer::Section::OpenFolder:
-         case Layer::Section::ClosedFolder:
-            layer->_group = groups.empty() ? std::string() : groups.back();
-            groups.push_back(layer->_name);
+         case Layer::SectionDivider::OpenFolder:
+         case Layer::SectionDivider::ClosedFolder:
+            layer._group = groups.empty() ? std::string() : groups.back();
+            groups.push_back(layer._name);
             break;
-         case Layer::Section::Divider:
+         case Layer::SectionDivider::BoundingSectionDivider:
             if (!groups.empty())
             {
                groups.pop_back();
             }
-            layer->_group = groups.empty() ? std::string() : groups.back();
+            layer._group = groups.empty() ? std::string() : groups.back();
             break;
-         case Layer::Section::None:
-            layer->_group = groups.empty() ? std::string() : groups.back();
+         default:
+            layer._group = groups.empty() ? std::string() : groups.back();
             break;
       }
    }
 }
 
-bool PSD::load(const char* filename)
+void PSD::load(std::istream& stream)
 {
-   FileStream stream;
-   if (stream.open(filename))
-   {
-      return load(&stream);
-   }
-   return false;
+   _header.load(stream);
+   loadColorModeData(stream);
+   loadImageResourceSection(stream);
+   loadLayerAndMaskInformation(stream);
 }
 
-bool PSD::load(Stream* stream)
+bool PSD::load(const std::string& filename)
 {
-   const int32_t endian = stream->getEndian();
-   stream->setEndian(1);  // photoshop files are big endian
+   FileStream file;
+   if (!file.open(filename.c_str()))
+   {
+      return false;
+   }
 
-   _header.load(stream);
+   std::string data(static_cast<size_t>(file.size()), '\0');
+   file.getData(data.data(), static_cast<int32_t>(data.size()));
 
-   // skip color mode data
-   const int32_t size = stream->getInt();
-   stream->skip(size);
-
-   loadImageResourceSection(stream);
-
-   loadLayerInformation(stream);
-
-   stream->setEndian(endian);
-
-   return true;
+   std::istringstream stream(std::move(data));
+   load(stream);
+   return !stream.fail();
 }

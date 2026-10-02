@@ -6,24 +6,24 @@
 
 #include <memory>
 
-PSDLayer::PSDLayer(PSD::Layer* layer, float z, bool unwrap) : _layer(layer), _opacity(layer->getOpacity() / 255.0)
+PSDLayer::PSDLayer(PSD::Layer& layer, float z, bool unwrap) : _layer(&layer), _opacity(layer.getOpacity() / 255.0)
 {
-   const int width = layer->getWidth();
-   const int height = layer->getHeight();
+   const int width = layer.getWidth();
+   const int height = layer.getHeight();
 
    const int texture_width = width;
    const int texture_height = height;
 
    auto image = std::make_unique<Image>(texture_width, texture_height);
-   Image* source = layer->getImage();
+   const Image& source = layer.getImage();
 
    if (!unwrap)
    {
-      image->scaled(*source);
+      image->scaled(source);
    }
    else
    {
-      image->copy(0, 0, *source, true);
+      image->copy(0, 0, source, true);
    }
 
    _texture = TexturePool::Instance()->getTexture(image.get(), TexturePool::Trilinear | TexturePool::Clamp);

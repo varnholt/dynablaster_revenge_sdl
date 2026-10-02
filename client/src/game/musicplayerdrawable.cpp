@@ -66,39 +66,37 @@ void MusicPlayerDrawable::initializeLayers()
 {
    _psd.load(_filename.c_str());
 
-   for (int l = 0; l < _psd.getLayerCount(); l++)
+   for (auto& layer : _psd.getLayers())
    {
-      PSD::Layer* layer = _psd.getLayer(l);
-
-      const std::string layer_name = layer->getName();
+      const std::string& layer_name = layer.getName();
 
       if (layer_name == LAYER_TRACK_LINE_1)
       {
-         _font_offset_track_line1_x = layer->getLeft() + TRACK_LINE_1_CORRECTION_OFFSET_X;
-         _font_offset_track_line1_y = layer->getTop() + TRACK_LINE_1_CORRECTION_OFFSET_Y;
-         _font_offset_track_line1_height = layer->getHeight();
+         _font_offset_track_line1_x = layer.getLeft() + TRACK_LINE_1_CORRECTION_OFFSET_X;
+         _font_offset_track_line1_y = layer.getTop() + TRACK_LINE_1_CORRECTION_OFFSET_Y;
+         _font_offset_track_line1_height = layer.getHeight();
       }
       else if (layer_name == LAYER_TRACK_LINE_2)
       {
-         _font_offset_track_line2_x = layer->getLeft() + TRACK_LINE_2_CORRECTION_OFFSET_X;
-         _font_offset_track_line2_y = layer->getTop() + TRACK_LINE_2_CORRECTION_OFFSET_X;
-         _font_offset_track_line2_height = layer->getHeight();
+         _font_offset_track_line2_x = layer.getLeft() + TRACK_LINE_2_CORRECTION_OFFSET_X;
+         _font_offset_track_line2_y = layer.getTop() + TRACK_LINE_2_CORRECTION_OFFSET_X;
+         _font_offset_track_line2_height = layer.getHeight();
       }
       else if (layer_name == LAYER_ALBUM)
       {
-         _font_offset_album_x = layer->getLeft() + ALBUM_CORRECTION_OFFSET_X;
-         _font_offset_album_y = layer->getTop() + ALBUM_CORRECTION_OFFSET_Y;
-         _font_offset_album_height = layer->getHeight();
+         _font_offset_album_x = layer.getLeft() + ALBUM_CORRECTION_OFFSET_X;
+         _font_offset_album_y = layer.getTop() + ALBUM_CORRECTION_OFFSET_Y;
+         _font_offset_album_height = layer.getHeight();
       }
       else if (layer_name == LAYER_ARTIST)
       {
-         _font_offset_artist_x = layer->getLeft() + ARTIST_CORRECTION_OFFSET_X;
-         _font_offset_artist_y = layer->getTop() + ARTIST_CORRECTION_OFFSET_Y;
-         _font_offset_artist_height = layer->getHeight();
+         _font_offset_artist_x = layer.getLeft() + ARTIST_CORRECTION_OFFSET_X;
+         _font_offset_artist_y = layer.getTop() + ARTIST_CORRECTION_OFFSET_Y;
+         _font_offset_artist_height = layer.getHeight();
       }
 
-      if (layer->getWidth() + layer->getLeft() > _max_width)
-         _max_width = layer->getWidth() + layer->getLeft();
+      if (layer.getWidth() + layer.getLeft() > _max_width)
+         _max_width = layer.getWidth() + layer.getLeft();
 
       _psd_layers.push_back(std::make_unique<PSDLayer>(layer));
    }
@@ -137,13 +135,13 @@ void MusicPlayerDrawable::paintGL()
    const float x_offset = (1.0f - _animation_factor) * _max_width;
    const float y_factor = isInGame() ? MENU_Y_FACTOR_INGAME : MENU_Y_FACTOR_MENUS;
 
-   for (int layer_index = 0; layer_index < _psd.getLayerCount(); layer_index++)
+   for (size_t layer_index = 0; layer_index < _psd.getLayerCount(); layer_index++)
    {
-      PSD::Layer* psd_layer = _psd.getLayer(layer_index);
+      const PSD::Layer& psd_layer = _psd.getLayer(layer_index);
 
-      if (psd_layer->isVisible())
+      if (psd_layer.isVisible())
       {
-         const float top = -(float)psd_layer->getTop() * (1.0f - y_factor);
+         const float top = -static_cast<float>(psd_layer.getTop()) * (1.0f - y_factor);
          _psd_layers[layer_index]->render(-x_offset, top);
       }
    }
