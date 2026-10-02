@@ -88,6 +88,15 @@ public:
    //! getter for the focussed item
    MenuPageItem* getFocussedItem() const;
 
+   //! a repeated layer group (see repeatGroups()) has this many instances, 0 if it isn't one
+   int32_t getGroupInstanceCount(const std::string& group) const;
+
+   //! moves one instance of a repeated group horizontally, relative to where the PSD has it
+   void setGroupInstanceOffset(const std::string& group, int32_t index, int32_t offset);
+
+   //! name of a layer's copy in a repeated group's instance (1-based)
+   static std::string getInstanceName(const std::string& layer_name, int32_t index);
+
    //! send out an action request
    Signal<const std::string&, const std::string&> actionRequestSignal;
 
@@ -122,6 +131,9 @@ protected:
 
    //! initialize layers
    void initializeLayers();
+
+   //! clones the layer groups listed in the page's repeat_groups setting
+   void repeatGroups();
 
    //! initialize page items
    void initializePageItems();
@@ -158,4 +170,10 @@ protected:
 
    //! page is active
    bool _active = false;
+
+   //! repeated group -> layers of each instance (non-owning)
+   std::map<std::string, std::vector<std::vector<PSD::Layer*>>> _group_instances;
+
+   //! repeated group -> current horizontal offset of each instance
+   std::map<std::string, std::vector<int32_t>> _group_instance_offsets;
 };
