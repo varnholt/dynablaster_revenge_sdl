@@ -61,6 +61,10 @@ public:
    //! getter for interactive flag
    bool isInteractive();
 
+   //! the item's PSD layer is drawn, text items may use it as background only optionally
+   void setLayerDrawn(bool drawn);
+   bool isLayerDrawn() const;
+
    //! menupage item is focussed
    bool isFocussed() const;
 
@@ -157,6 +161,8 @@ protected:
    bool _interactive = false;
    bool _active = false;
    bool _visible = true;
+
+   bool _layer_drawn = true;
    bool _enabled = true;
 
    int _tab_index = -1;

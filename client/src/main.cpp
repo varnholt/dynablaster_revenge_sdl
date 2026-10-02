@@ -15,6 +15,8 @@
 #include "game/countdowndrawable.h"
 #include "game/gamedrawable.h"
 #include "game/controllerinput.h"
+#include "game/controlspage.h"
+#include "game/gamesettings.h"
 #include "game/localplayers.h"
 #include "game/menucontrollerhandler.h"
 #include "game/gamelogodrawable.h"
@@ -102,6 +104,14 @@ SDL_Keycode mapGameKey(SDL_Keycode key)
       default:
          return SDLK_UNKNOWN;
    }
+}
+
+/// rief the keys that move the player and drop bombs, see GameSettings::ControllerSettings
+bool isMovementKey(SDL_Keycode key)
+{
+   const auto* controls = GameSettings::getInstance()->getControllerSettings();
+   return key == controls->getUpKey() || key == controls->getDownKey() || key == controls->getLeftKey() ||
+          key == controls->getRightKey() || key == controls->getBombKey();
 }
 
 }  // namespace
@@ -306,11 +316,28 @@ int main(int /*argc*/, char** /*argv*/)
                                              { menu_controller_handler.buttonPressed(button); });
    menu_drawable.pageChangedSignal.connect([&](const std::string&) { menu_controller_handler.focusDefaultItem(); });
 
-   // further players on this machine, each on its own controller
+   // further players on this machine, each on its own controller or the keyboard
    LocalPlayers local_players(controller_input, bomberman_client);
-   navigator.addLocalPlayerRequestSignal.connect([&]() { local_players.add(); });
    bomberman_client.leaveGameSignal.connect([&]() { local_players.removeAll(); });
+
+   // who plays with which device, color and name - set up before joining a game
+   ControlsPage controls_page(menu_drawable, controller_input, local_players, bomberman_client);
+   navigator.setJoinHandler([&](int game_id, const std::string& return_page) { return controls_page.open(game_id, return_page); });
+   menu_drawable.getMenu()->actionRequestSignal.connect([&](const std::string& page, const std::string& action)
+                                                        { controls_page.onActionRequest(page, action); });
+   controller_input.buttonPressedSignal.connect([&](ControllerInput::Id id, ControllerInput::Button button)
+                                             { controls_page.onControllerButtonPressed(id, button); });
 #endif
+
+   // movement keys steer the main player unless the keyboard belongs to another local player
+   const auto keyboard_steers_main = [&](SDL_Keycode key)
+   {
+#ifndef __SWITCH__
+      return !(local_players.isKeyboardAssigned() && isMovementKey(key));
+#else
+      return true;
+#endif
+   };
 
    // background music
    SoundManager::getInstance()->startPlaylist();
@@ -401,12 +428,21 @@ int main(int /*argc*/, char** /*argv*/)
                      // both get the event, each side's "chat active" gate keeps movement and
                      // chat text entry from double-handling it
                      KeyEvent key_event(key, std::string(), event.key.repeat);
-                     game_drawable.keyPressEvent(key_event);
+                     if (keyboard_steers_main(key))
+                     {
+                        game_drawable.keyPressEvent(key_event);
+                     }
                      game_messaging_drawable.keyPressEvent(key_event);
                   }
                }
                else
                {
+#ifndef __SWITCH__
+                  if (controls_page.onKeyPressed(event.key.key))
+                  {
+                     break;
+                  }
+#endif
                   const SDL_Keycode key = mapEditingKey(event.key.key);
                   if (key != SDLK_UNKNOWN)
                   {
@@ -421,7 +457,7 @@ int main(int /*argc*/, char** /*argv*/)
                if (game_drawable.isVisible())
                {
                   const SDL_Keycode key = mapGameKey(event.key.key);
-                  if (key != SDLK_UNKNOWN)
+                  if (key != SDLK_UNKNOWN && keyboard_steers_main(key))
                   {
                      KeyEvent key_event(key, std::string(), event.key.repeat);
                      game_drawable.keyReleaseEvent(key_event);

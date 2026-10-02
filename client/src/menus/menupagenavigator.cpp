@@ -68,7 +68,7 @@ const char* const kAboutActionBack = "button_back_active";
 const char* const kLounge = "data/menus/lounge.psd";
 const char* const kLoungeActionStart = "button_start_active";
 const char* const kLoungeActionBack = "button_leave_active";
-const char* const kLoungeActionAddPlayer = "button_addplayer_active";
+const char* const kLoungeAddPlayer = "button_addplayer";
 const char* const kLoungeLineeditSay = "lineedit_say";
 const char* const kLoungeTableMain = "table_lounge_main";
 
@@ -263,7 +263,7 @@ void MenuPageNavigator::onActionRequest(const std::string& page, const std::stri
          const std::vector<GameInformation>* games = BombermanClient::getInstance()->getGames();
          if (games && !games->empty())
          {
-            BombermanClient::getInstance()->joinGame(games->front().getId());
+            requestJoin(games->front().getId(), kGameSelect);
          }
          else
          {
@@ -391,11 +391,6 @@ void MenuPageNavigator::onActionRequest(const std::string& page, const std::stri
             }
          }
       }
-      else if (action == kLoungeActionAddPlayer)
-      {
-         // the next free controller joins as another player on this machine
-         addLocalPlayerRequestSignal();
-      }
       else
       {
          logUnhandled(page, action);
@@ -428,7 +423,7 @@ void MenuPageNavigator::onCreateGameResponse(bool granted, int game_id, bool own
    // made; everyone else (broadcast of the same response) just sees the updated game list.
    if (granted && owner)
    {
-      BombermanClient::getInstance()->joinGame(game_id);
+      requestJoin(game_id, kGameCreate);
    }
    else if (granted)
    {
@@ -486,11 +481,30 @@ void MenuPageNavigator::onPageChanged(const std::string& page)
       // signal connection - populates the rows immediately instead of waiting for the next
       // join/leave to trigger a redraw.
       updateLoungePlayerList(BombermanClient::getInstance()->getPlayerInfoMap());
+
+      // players on this machine are set up on the controls page before joining
+      if (MenuPageItem* add_player = Menu::getInstance()->getPageByName(kLounge)->getPageItem(kLoungeAddPlayer))
+      {
+         add_player->setVisible(false);
+      }
    }
    else if (page == kOptionsAudio)
    {
       deserializeAudioSettings();
       setMonitorAudioSettingsEnabled(true);
+   }
+}
+
+void MenuPageNavigator::setJoinHandler(JoinHandler handler)
+{
+   _join_handler = std::move(handler);
+}
+
+void MenuPageNavigator::requestJoin(int game_id, const std::string& return_page)
+{
+   if (!_join_handler || !_join_handler(game_id, return_page))
+   {
+      BombermanClient::getInstance()->joinGame(game_id);
    }
 }
 

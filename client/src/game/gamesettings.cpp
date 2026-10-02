@@ -83,6 +83,11 @@ GameSettings* GameSettings::getInstance()
    return s_settings;
 }
 
+const char* GameSettings::getFilename()
+{
+   return SETTINGS_FILE;
+}
+
 GameSettings::SettingsPrivate::SettingsPrivate() : Settings(SETTINGS_FILE, Settings::IniFormat)
 {
 }

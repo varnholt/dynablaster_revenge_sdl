@@ -19,6 +19,9 @@ MenuPageTextEditItem::MenuPageTextEditItem()
 {
    _page_item_type = PageItemTypeTextedit;
    _interactive = true;
+
+   // the text is drawn, the layer only marks its position
+   _layer_drawn = false;
 }
 
 void MenuPageTextEditItem::initialize()
@@ -37,6 +40,9 @@ void MenuPageTextEditItem::draw()
    {
       return;
    }
+
+   // optional background
+   MenuPageItem::draw();
 
    if (_color.isValid())
    {

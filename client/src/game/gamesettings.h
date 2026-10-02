@@ -707,6 +707,9 @@ public:
    //! instance getter
    static GameSettings* getInstance();
 
+   //! the ini file all settings live in
+   static const char* getFilename();
+
    //! getter for development settings
    DevelopmentSettings* getDevelopmentSettings();
 

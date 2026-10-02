@@ -101,6 +101,7 @@ public:
       void setBottom(int32_t value);
       void setTop(int32_t value);
       const Image& getImage() const;
+      void setImage(const Image& image);
 
       SectionDivider getSectionDivider() const;
       bool isSectionDivider() const;

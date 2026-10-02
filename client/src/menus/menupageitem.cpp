@@ -43,14 +43,24 @@ void MenuPageItem::deactivated()
 {
 }
 
+bool MenuPageItem::isInteractive()
+{
+   return _interactive;
+}
+
 void MenuPageItem::setInteractive(bool interactive)
 {
    _interactive = interactive;
 }
 
-bool MenuPageItem::isInteractive()
+void MenuPageItem::setLayerDrawn(bool drawn)
 {
-   return _interactive;
+   _layer_drawn = drawn;
+}
+
+bool MenuPageItem::isLayerDrawn() const
+{
+   return _layer_drawn;
 }
 
 void MenuPageItem::setAction(const std::string& action)
@@ -70,7 +80,7 @@ void MenuPageItem::setActive(bool active)
 
 void MenuPageItem::draw()
 {
-   if (isVisible())
+   if (isVisible() && isLayerDrawn())
    {
       if (PSDLayer* psd_layer = getLayer())
       {

@@ -616,9 +616,32 @@ void BombermanClient::processLoginResponse(Packet* packet)
 
    setPlayerId(login->getId());
 
+   if (_renaming)
+   {
+      _renaming = false;
+      return;
+   }
+
    // login is always supposed to work
    playerIdSignal(getPlayerId());
    loginResponseSignal(true);
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param nick new nick, the server keeps the player's id
+*/
+void BombermanClient::rename(const std::string& nick)
+{
+   if (nick.empty() || nick == getNick())
+   {
+      return;
+   }
+
+   setNick(nick);
+   _renaming = true;
+   LoginRequestPacket login(nick, false);
+   send(&login);
 }
 
 //-----------------------------------------------------------------------------

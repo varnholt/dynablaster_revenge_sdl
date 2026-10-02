@@ -1,53 +1,70 @@
 #pragma once
 
+#include "constants.h"
 #include "controllerinput.h"
 #include "localplayerclient.h"
 
 #include <cstdint>
 #include <memory>
+#include <optional>
+#include <string>
+#include <unordered_set>
 #include <vector>
 
 class BombermanClient;
 
-/// \brief the players on this machine beyond the main one, each driven by its own controller.
-/// controllers not assigned here (and the keyboard) steer the main player.
+/// \brief the players on this machine beyond the main one, each driven by its own controller or
+/// the keyboard. controllers not taken here steer the main player unless they're excluded.
 class LocalPlayers
 {
 public:
    //! the server's maximum is 10 players, the main one included
    static constexpr size_t max_local_players = 9;
 
+   struct Player
+   {
+      std::optional<ControllerInput::Id> controller;  //!< none: the keyboard
+      std::optional<Constants::Color> color;
+      std::string nick;
+   };
+
    LocalPlayers(ControllerInput& controller_input, BombermanClient& client);
    LocalPlayers(const LocalPlayers&) = delete;
    LocalPlayers& operator=(const LocalPlayers&) = delete;
    ~LocalPlayers();
 
-   /// \brief there is a free controller and the main player is in a game
-   bool canAdd() const;
+   /// \brief the player joins the main player's game
+   void add(const Player& player);
 
-   /// \brief the next free controller joins the main player's game as a new player
-   void add();
+   /// \brief keeps a controller from steering the main player, until removeAll()
+   void exclude(ControllerInput::Id controller);
 
+   /// \brief all players leave, all controllers steer the main player again
    void removeAll();
 
-   /// \brief forwards every assigned controller's state to its player
+   /// \brief forwards every assigned device's state to its player
    void update(bool in_game);
 
    size_t getCount() const;
 
+   /// \brief the keyboard steers one of these players, not the main one
+   bool isKeyboardAssigned() const;
+
 private:
    struct Slot
    {
-      ControllerInput::Id controller = 0;
+      std::optional<ControllerInput::Id> controller;
       std::unique_ptr<LocalPlayerClient> client;
    };
 
-   void remove(ControllerInput::Id controller);
+   void remove(const LocalPlayerClient* client);
+   void removeController(ControllerInput::Id controller);
    void updateLocalPlayerIds();
-   std::string nickForSlot(size_t index) const;
+   uint8_t readKeyboard() const;
 
    ControllerInput& _controller_input;
    BombermanClient& _client;
    std::vector<Slot> _slots;
+   std::unordered_set<ControllerInput::Id> _excluded;
    Signal<ControllerInput::Id>::Connection _device_removed_connection = 0;
 };
