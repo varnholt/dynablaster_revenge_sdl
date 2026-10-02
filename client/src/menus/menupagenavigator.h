@@ -31,6 +31,7 @@ public:
 
    Signal<const std::string&> pageChangeRequestSignal;
    Signal<> quitRequestSignal;
+   Signal<> addLocalPlayerRequestSignal;
 
    void onActionRequest(const std::string& page, const std::string& action);
 
