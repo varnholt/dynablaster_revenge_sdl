@@ -1,22 +1,23 @@
+#include "engine/materials/material.h"
+#include "framework/gldevice.h"
 #include "gles3.h"
 #include "glescontext.h"
-#include "framework/gldevice.h"
-#include "engine/materials/material.h"
 #include "image/image.h"
 
 #include <SDL3/SDL.h>
 
 #include <array>
+#include <string>
 #include <vector>
 
 namespace
 {
-bool checkError(const char* operation)
+bool checkError(const std::string& operation)
 {
    const GLenum error = glGetError();
    if (error != GL_NO_ERROR)
    {
-      SDL_Log("%s: GL error 0x%x", operation, error);
+      SDL_Log("%s: GL error 0x%x", operation.c_str(), error);
       return false;
    }
    return true;
@@ -38,8 +39,8 @@ bool checkTexture(GLuint texture, GLenum target, int level, const Image& expecte
       for (size_t i = 0; i < count; ++i)
       {
          const uint32_t argb = expected.getData()[i];
-         if (pixels[i * 4] != ((argb >> 16) & 255) || pixels[i * 4 + 1] != ((argb >> 8) & 255)
-             || pixels[i * 4 + 2] != (argb & 255) || pixels[i * 4 + 3] != (argb >> 24))
+         if (pixels[i * 4] != ((argb >> 16) & 255) || pixels[i * 4 + 1] != ((argb >> 8) & 255) || pixels[i * 4 + 2] != (argb & 255) ||
+             pixels[i * 4 + 3] != (argb >> 24))
          {
             SDL_Log("Texture 0x%x mip %d pixel %zu: channel or orientation mismatch", target, level, i);
             ok = false;
@@ -87,19 +88,22 @@ int main()
    {
       for (int x = 0; x < cross.getWidth(); ++x)
       {
-         cross.getScanline(y)[x] = (static_cast<uint32_t>(128 + x + y) << 24)
-                                  | (static_cast<uint32_t>(16 + x * 3) << 16)
-                                  | (static_cast<uint32_t>(32 + y * 5) << 8) | (240 - x - y);
+         cross.getScanline(y)[x] = (static_cast<uint32_t>(128 + x + y) << 24) | (static_cast<uint32_t>(16 + x * 3) << 16) |
+                                   (static_cast<uint32_t>(32 + y * 5) << 8) | (240 - x - y);
       }
    }
-   const std::vector<uint32_t> original(cross.getData(), cross.getData() + cross.getWidth() * cross.getHeight());
+   const auto cross_data = cross.getData().first(static_cast<size_t>(cross.getWidth() * cross.getHeight()));
+   const std::vector<uint32_t> original(cross_data.begin(), cross_data.end());
    const GLuint cube = Material::uploadCubeMap(cross);
    ok = checkError("cubemap upload") && cube != 0 && ok;
 
    constexpr std::array<GLenum, 6> targets = {
-      GL_TEXTURE_CUBE_MAP_POSITIVE_X, GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
-      GL_TEXTURE_CUBE_MAP_POSITIVE_Y, GL_TEXTURE_CUBE_MAP_NEGATIVE_Y,
-      GL_TEXTURE_CUBE_MAP_POSITIVE_Z, GL_TEXTURE_CUBE_MAP_NEGATIVE_Z
+      GL_TEXTURE_CUBE_MAP_POSITIVE_X,
+      GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
+      GL_TEXTURE_CUBE_MAP_POSITIVE_Y,
+      GL_TEXTURE_CUBE_MAP_NEGATIVE_Y,
+      GL_TEXTURE_CUBE_MAP_POSITIVE_Z,
+      GL_TEXTURE_CUBE_MAP_NEGATIVE_Z
    };
    constexpr std::array<std::array<int, 2>, 6> cells = {{{2, 1}, {0, 1}, {1, 0}, {1, 2}, {1, 1}, {1, 3}}};
    for (size_t side = 0; side < targets.size(); ++side)
