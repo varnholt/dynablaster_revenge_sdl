@@ -136,9 +136,9 @@ bool PlayerInfo::isInfected() const
    return _disease != nullptr;
 }
 
-PlayerDisease* PlayerInfo::getDisease() const
+PlayerDisease& PlayerInfo::getDisease() const
 {
-   return _disease.get();
+   return *_disease;
 }
 
 int8_t PlayerInfo::getDirections() const

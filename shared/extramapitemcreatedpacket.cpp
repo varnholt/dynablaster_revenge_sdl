@@ -1,13 +1,16 @@
 #include "extramapitemcreatedpacket.h"
 
+#include <string_view>
+
 #include "extramapitem.h"
 
 namespace
 {
-constexpr auto PACKETNAME = "ExtraMapItemCreated";
+constexpr std::string_view PACKETNAME = "ExtraMapItemCreated";
 }
 
-ExtraMapItemCreatedPacket::ExtraMapItemCreatedPacket(ExtraMapItem* item) : MapItemCreatedPacket(item), _extra_type(item->getExtraType())
+ExtraMapItemCreatedPacket::ExtraMapItemCreatedPacket(const ExtraMapItem& item)
+    : MapItemCreatedPacket(item), _extra_type(item.getExtraType())
 {
    _packet_type = Packet::EXTRAMAPITEMCREATED;
    _packet_name = PACKETNAME;

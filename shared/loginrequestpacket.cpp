@@ -2,9 +2,11 @@
 
 #include "logging.h"
 
+#include <string_view>
+
 namespace
 {
-constexpr auto PACKETNAME = "LoginRequest";
+constexpr std::string_view PACKETNAME = "LoginRequest";
 }
 
 LoginRequestPacket::LoginRequestPacket(const std::string& nick, bool bot) : Packet(Packet::LOGINREQUEST), _nick(nick), _bot(bot)

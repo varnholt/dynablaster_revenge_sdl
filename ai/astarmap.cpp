@@ -3,7 +3,6 @@
 // shared
 #include "mapitem.h"
 
-#include <algorithm>
 #include <cstdio>
 #include <format>
 #include <string>
@@ -21,34 +20,29 @@ AStarMap::AStarMap(int width, int height) : BotMap(width, height)
 
 void AStarMap::initMap()
 {
-   _node_map.assign(static_cast<size_t>(getWidth() * getHeight()), nullptr);
+   _nodes.clear();
 }
 
 void AStarMap::buildNodes()
 {
    const int width = getWidth();
 
+   // fresh nodes for every search
+   _nodes.assign(static_cast<size_t>(width * getHeight()), AStarNode{});
+
    for (int x = 0; x < width; x++)
    {
       for (int y = 0; y < getHeight(); y++)
       {
-         // init node
-         auto node = std::make_unique<AStarNode>();
-         node->setX(x);
-         node->setY(y);
-
-         // add node to map
-         _node_map[y * width + x] = node.get();
-
-         // add node to node list
-         _nodes.push_back(std::move(node));
+         AStarNode& node = _nodes[static_cast<size_t>(getNodeIndex(x, y))];
+         node.setX(x);
+         node.setY(y);
       }
    }
 }
 
 void AStarMap::clearNodes()
 {
-   std::ranges::fill(_node_map, nullptr);
    _nodes.clear();
 }
 
@@ -56,11 +50,11 @@ void AStarMap::clearNodes()
   \param x x position
   \param y y position
   \param regard_stones \c true if stones are to be regarded
-  \return list of neighbors
+  \return list of neighbor node indices
 */
-std::vector<AStarNode*> AStarMap::getNeighbors(int x, int y, bool regard_stones)
+std::vector<int32_t> AStarMap::getNeighbors(int x, int y, bool regard_stones) const
 {
-   std::vector<AStarNode*> list;
+   std::vector<int32_t> list;
 
    const Point up(x, y - 1);
    const Point down(x, y + 1);
@@ -69,22 +63,22 @@ std::vector<AStarNode*> AStarMap::getNeighbors(int x, int y, bool regard_stones)
 
    if (up.y() >= 0 && isTraversable(up, regard_stones))
    {
-      list.push_back(getNode(up.x(), up.y()));
+      list.push_back(getNodeIndex(up.x(), up.y()));
    }
 
    if (down.y() < getHeight() && isTraversable(down, regard_stones))
    {
-      list.push_back(getNode(down.x(), down.y()));
+      list.push_back(getNodeIndex(down.x(), down.y()));
    }
 
    if (left.x() >= 0 && isTraversable(left, regard_stones))
    {
-      list.push_back(getNode(left.x(), left.y()));
+      list.push_back(getNodeIndex(left.x(), left.y()));
    }
 
    if (right.x() < getWidth() && isTraversable(right, regard_stones))
    {
-      list.push_back(getNode(right.x(), right.y()));
+      list.push_back(getNodeIndex(right.x(), right.y()));
    }
 
    return list;
@@ -97,7 +91,8 @@ std::vector<AStarNode*> AStarMap::getNeighbors(int x, int y, bool regard_stones)
 */
 bool AStarMap::isTraversable(const Point& point, bool regard_stones) const
 {
-   MapItem* item = getItem(point.x(), point.y());
+   const auto& item = getItem(point.x(), point.y());
+
    bool add = true;
 
    if (item && item->getType() == MapItem::Bomb)
@@ -119,26 +114,44 @@ bool AStarMap::isTraversable(const Point& point, bool regard_stones) const
 }
 
 /*!
-   \return pointer to node
    \param x x position
    \param y y position
+   \return index of the node at x, y
 */
-AStarNode* AStarMap::getNode(int x, int y) const
+int32_t AStarMap::getNodeIndex(int x, int y) const
 {
-   return _node_map[y * getWidth() + x];
+   return y * getWidth() + x;
+}
+
+/*!
+   \param index node index
+   \return node
+*/
+AStarNode& AStarMap::getNode(int32_t index)
+{
+   return _nodes[static_cast<size_t>(index)];
+}
+
+/*!
+   \param index node index
+   \return node
+*/
+const AStarNode& AStarMap::getNode(int32_t index) const
+{
+   return _nodes[static_cast<size_t>(index)];
 }
 
 /*!
   \param path path to debug
 */
-void AStarMap::debugPath(const std::vector<AStarNode*>& path)
+void AStarMap::debugPath(const std::vector<Point>& path)
 {
    const int width = getWidth();
-   std::vector<AStarNode*> map(static_cast<size_t>(width * getHeight()), nullptr);
+   std::vector<bool> map(static_cast<size_t>(width * getHeight()), false);
 
-   for (AStarNode* node : path)
+   for (const Point& node : path)
    {
-      map[node->getY() * width + node->getX()] = node;
+      map[static_cast<size_t>(node.y() * width + node.x())] = true;
    }
 
    std::string joined;
@@ -151,11 +164,11 @@ void AStarMap::debugPath(const std::vector<AStarNode*>& path)
       {
          char c = ' ';
 
-         if (map[yi * width + xi])
+         if (map[static_cast<size_t>(yi * width + xi)])
          {
             c = 'x';
          }
-         else if (MapItem* item = getItem(xi, yi))
+         else if (const auto& item = getItem(xi, yi))
          {
             switch (item->getType())
             {

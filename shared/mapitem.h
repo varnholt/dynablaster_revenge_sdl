@@ -1,12 +1,14 @@
 #pragma once
 
 #include <cstdint>
+#include <memory>
 
 #include "constants.h"
 
 class MapItemCreatedPacket;
 
-class MapItem
+// held by std::shared_ptr wherever it lives on a map (see Map)
+class MapItem : public std::enable_shared_from_this<MapItem>
 {
 public:
    enum ItemType
@@ -20,7 +22,7 @@ public:
 
    MapItem(ItemType type, int32_t appearance, bool blocking, bool destroyable, int32_t x, int32_t y);
 
-   explicit MapItem(MapItemCreatedPacket* packet);
+   explicit MapItem(const MapItemCreatedPacket& packet);
 
    virtual ~MapItem() = default;
 

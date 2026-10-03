@@ -2,8 +2,10 @@
 #define BOTCLIENT_H
 
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <queue>
 #include <string>
 #include <vector>
@@ -11,19 +13,34 @@
 // shared
 #include "elapsedtimer.h"
 #include "gameinformation.h"
+#include "gamesignal.h"
+#include "nethandles.h"
 #include "packetstreambuffer.h"
 #include "serverconfiguration.h"
-#include "gamesignal.h"
 #include "timer.h"
 
 // forward declarations
 class Bot;
-class BotMap;
-class MapItem;
-class Packet;
 class BotPlayerInfo;
-struct NET_Address;
-struct NET_StreamSocket;
+class CountdownPacket;
+class ExtraMapItemCreatedPacket;
+class ExtraShakePacket;
+class GameEventPacket;
+class JoinGameResponsePacket;
+class LeaveGameResponsePacket;
+class ListGamesResponsePacket;
+class LoginResponsePacket;
+class MapItem;
+class MapItemCreatedPacket;
+class MapItemDestroyedPacket;
+class MapItemMovePacket;
+class MapItemRemovedPacket;
+class Packet;
+class PlayerInfectedPacket;
+class PlayerKilledPacket;
+class PositionPacket;
+class StartGameResponsePacket;
+class StopGameResponsePacket;
 
 class BotClient
 {
@@ -66,13 +83,10 @@ public:
    int getGameId() const;
 
    //! get info object for given player id
-   BotPlayerInfo* getPlayerInfo(int id) const;
-
-   //! get a list of players
-   std::vector<BotPlayerInfo*> getPlayerInfoList() const;
+   std::optional<std::reference_wrapper<BotPlayerInfo>> getPlayerInfo(int id) const;
 
    //! getter for the map of players
-   PlayerInfoMap* getPlayerInfoMap();
+   const PlayerInfoMap& getPlayerInfoMap() const;
 
    //! setter for server configuration
    void setServerConfiguration(const ServerConfiguration&);
@@ -96,10 +110,10 @@ public:
    Signal<int> updatePlayerIdSignal;
 
    //! a map item has been created
-   Signal<MapItem*> mapItemCreatedSignal;
+   Signal<const std::shared_ptr<MapItem>&> mapItemCreatedSignal;
 
    //! a map item has been removed
-   Signal<MapItem*> mapItemRemovedSignal;
+   Signal<const MapItem&> mapItemRemovedSignal;
 
    //! game selected
    Signal<> gameSelectedSignal;
@@ -159,55 +173,55 @@ private:
    // packet handlers
 
    //! login response
-   void processLoginResponse(Packet* packet);
+   void processLoginResponse(const LoginResponsePacket& login_response);
 
    //! join game response
-   void processJoinGameResponse(Packet* packet);
+   void processJoinGameResponse(const JoinGameResponsePacket& response);
 
    //! leave game response
-   void processLeaveGameResponse(Packet* packet);
+   void processLeaveGameResponse(const LeaveGameResponsePacket& response);
 
    //! process position packet
-   void processPosition(Packet* packet);
+   void processPosition(const PositionPacket& position_packet);
 
    //! a map item has been created
-   void processMapItemCreated(Packet* packet);
+   void processMapItemCreated(const MapItemCreatedPacket& created_packet);
 
    //! a map item has been destroyed
-   void processMapItemRemoved(Packet* packet);
+   void processMapItemRemoved(const MapItemRemovedPacket& removed_packet);
 
    //! a map item is moved (kicked)
-   void processMapItemMove(Packet* packet);
+   void processMapItemMove(const MapItemMovePacket& move_packet);
 
    //! an extra map item has been created
-   void processExtraMapItemCreated(Packet* packet);
+   void processExtraMapItemCreated(const ExtraMapItemCreatedPacket& created_packet);
 
    //! an extra map item has been destroyed
-   void processMapItemDestroyed(Packet* packet);
+   void processMapItemDestroyed(const MapItemDestroyedPacket& destroyed_packet);
 
    //! game was started
-   void processStartGameResponse(Packet* packet);
+   void processStartGameResponse(const StartGameResponsePacket& response);
 
    //! game event received
-   void processGameEvent(Packet* packet);
+   void processGameEvent(const GameEventPacket& game_event_packet);
 
    //! player infected packet received
-   void processPlayerInfected(Packet* packet);
+   void processPlayerInfected(const PlayerInfectedPacket& infected_packet);
 
    //! player killed packet received
-   void processPlayerKilled(Packet* packet);
+   void processPlayerKilled(const PlayerKilledPacket& killed_packet);
 
    //! game stopped
-   void processStopGameResponse(Packet* packet);
+   void processStopGameResponse(const StopGameResponsePacket& stop_game_packet);
 
    //! list games
-   void processListGameResponse(Packet* packet);
+   void processListGameResponse(const ListGamesResponsePacket& list);
 
    //! process countdown
-   void processCountdown(Packet* packet);
+   void processCountdown(const CountdownPacket& countdown_packet);
 
    //! process extra shake
-   void processExtraShake(Packet* packet);
+   void processExtraShake(const ExtraShakePacket& extra_shake_packet);
 
    //! setter for game joined flag
    void setGameJoined(bool joined);
@@ -225,19 +239,19 @@ private:
    int getPlayerId() const;
 
    //! queue delete item
-   void queueObsoleteItem(MapItem* item);
+   void queueObsoleteItem(int id);
 
    //! clear obsolete items
    void clearObsoleteItems();
 
-   //! getter for map item by id
-   MapItem* getMapItem(int id) const;
+   //! getter for map item by id, empty if unknown
+   std::shared_ptr<MapItem> getMapItem(int id) const;
 
    //! add a map item
-   void addMapItem(std::unique_ptr<MapItem> map_item);
+   void addMapItem(std::shared_ptr<MapItem> map_item);
 
    //! send a packet
-   void send(Packet* packet);
+   void send(Packet& packet);
 
    //! check for packets
    bool packetAvailable();
@@ -251,11 +265,8 @@ private:
    //! initialize a bot map
    void initBotMap(int width, int height);
 
-   //! take all map items out of the bot map without deleting them (they are owned by _map_items)
-   void detachBotMapItems();
-
-   //! getter for bot ptr
-   Bot* getBot() const;
+   //! getter for bot
+   Bot& getBot() const;
 
    //! reset bot
    void resetBot();
@@ -272,11 +283,11 @@ private:
    //! reset walk count
    void resetWalkCount();
 
-   //! stream socket to server, null unless connected or connecting
-   NET_StreamSocket* _socket = nullptr;
+   //! stream socket to server, empty unless connected or connecting
+   NetStreamSocketHandle _socket{nullptr, &NET_DestroyStreamSocket};
 
-   //! host address pending resolution, null once resolved (or if not resolving)
-   NET_Address* _address = nullptr;
+   //! host address pending resolution, empty once resolved (or if not resolving)
+   NetAddressHandle _address{nullptr, &NET_UnrefAddress};
 
    //! drives poll() once per tick
    Timer _poll_timer;
@@ -296,17 +307,14 @@ private:
    //! expected block size of current packet
    uint16_t _block_size = 0;
 
-   //! map items, the bot map only holds non-owning pointers to these
-   std::map<int, std::unique_ptr<MapItem>> _map_items;
+   //! map items by id, shared with the bot map
+   std::map<int, std::shared_ptr<MapItem>> _map_items;
 
-   //! queue of items to be deleted later
-   std::queue<std::unique_ptr<MapItem>> _obsolete_map_items;
+   //! queue of items to be removed from the bot map later
+   std::queue<std::shared_ptr<MapItem>> _obsolete_map_items;
 
    //! map id <-> player info object
    PlayerInfoMap _player_info;
-
-   //! botmap
-   std::unique_ptr<BotMap> _bot_map;
 
    //! bot
    std::unique_ptr<Bot> _bot;

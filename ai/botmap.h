@@ -7,6 +7,8 @@
 // shared
 #include "constants.h"
 
+#include <functional>
+#include <memory>
 #include <vector>
 
 // forward declarations
@@ -69,8 +71,8 @@ public:
    //! check if a bomb drop could kill
    bool isBombDropDeadly(int x, int y, int flames, const std::vector<Point>& enemies) const;
 
-   //! get bombs placed by player id
-   std::vector<BotBombMapItem*> getBombs(int player_id = -1) const;
+   //! get bombs placed by player id, valid while the map is unchanged
+   std::vector<std::reference_wrapper<BotBombMapItem>> getBombs(int player_id = -1) const;
 
    //! check if player has consumed all its pots
    bool isBombAmountConsumed(int player_id, int bomb_count) const;
@@ -79,10 +81,10 @@ public:
    const std::vector<Constants::Direction>& getDirectionsAndCurrent();
 
    //! a map item has been created
-   void createMapItem(MapItem* item);
+   void createMapItem(const std::shared_ptr<MapItem>& item);
 
    //! a map item has been removed
-   void removeMapItem(MapItem* remove_item);
+   void removeMapItem(const MapItem& remove_item);
 
 protected:
    //! constructors

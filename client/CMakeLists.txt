@@ -129,6 +129,8 @@ list(REMOVE_ITEM DYNABLASTER_SHARED_SOURCES
 set(DYNABLASTER_SERVER_SOURCES
     ../server/src/collisiondetection.cpp
     ../server/src/collisiondetection.h
+    ../server/src/connection.cpp
+    ../server/src/connection.h
     ../server/src/extrashakepackethandler.cpp
     ../server/src/extrashakepackethandler.h
     ../server/src/extraspawn.cpp

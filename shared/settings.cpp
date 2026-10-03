@@ -41,37 +41,38 @@ SettingsValue::SettingsValue(const std::string& text) : _text(text), _valid(true
 {
 }
 
-int32_t SettingsValue::toInt(bool* ok) const
+int32_t SettingsValue::toInt() const
+{
+   bool ok = false;
+   return toInt(ok);
+}
+
+float SettingsValue::toFloat() const
+{
+   bool ok = false;
+   return toFloat(ok);
+}
+
+int32_t SettingsValue::toInt(bool& ok) const
 {
    int32_t result = 0;
    const auto [end, error] = std::from_chars(_text.data(), _text.data() + _text.size(), result);
-   const auto success = (error == std::errc()) && end == _text.data() + _text.size();
-   if (ok)
-   {
-      *ok = success;
-   }
-   return success ? result : 0;
+   ok = (error == std::errc()) && end == _text.data() + _text.size();
+   return ok ? result : 0;
 }
 
-float SettingsValue::toFloat(bool* ok) const
+float SettingsValue::toFloat(bool& ok) const
 {
    try
    {
       size_t position = 0;
       const auto result = std::stof(_text, &position);
-      const auto success = position == _text.size();
-      if (ok)
-      {
-         *ok = success;
-      }
-      return success ? result : 0.0f;
+      ok = position == _text.size();
+      return ok ? result : 0.0f;
    }
    catch (...)
    {
-      if (ok)
-      {
-         *ok = false;
-      }
+      ok = false;
       return 0.0f;
    }
 }
@@ -262,11 +263,6 @@ SettingsValue Settings::value(const std::string& key, const std::string& default
    return SettingsValue(found == values.end() ? default_value : found->second);
 }
 
-SettingsValue Settings::value(const std::string& key, const char* default_value) const
-{
-   return value(key, std::string(default_value));
-}
-
 SettingsValue Settings::value(const std::string& key, int32_t default_value) const
 {
    const auto& values = _file->values;
@@ -288,7 +284,7 @@ SettingsValue Settings::value(const std::string& key, double default_value) cons
    return SettingsValue(found == values.end() ? std::to_string(default_value) : found->second);
 }
 
-SettingsValue Settings::value(const std::string& key, bool default_value) const
+SettingsValue Settings::valueBool(const std::string& key, bool default_value) const
 {
    const auto& values = _file->values;
    const auto found = values.find(qualifiedKey(key));
@@ -299,11 +295,6 @@ void Settings::setValue(const std::string& key, const std::string& value)
 {
    _file->values[qualifiedKey(key)] = value;
    save();
-}
-
-void Settings::setValue(const std::string& key, const char* value)
-{
-   setValue(key, std::string(value));
 }
 
 void Settings::setValue(const std::string& key, int32_t value)
@@ -321,7 +312,7 @@ void Settings::setValue(const std::string& key, double value)
    setValue(key, std::to_string(value));
 }
 
-void Settings::setValue(const std::string& key, bool value)
+void Settings::setValueBool(const std::string& key, bool value)
 {
    setValue(key, std::string(value ? "true" : "false"));
 }

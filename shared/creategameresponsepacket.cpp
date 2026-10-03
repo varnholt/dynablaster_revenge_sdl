@@ -2,9 +2,11 @@
 
 #include "logging.h"
 
+#include <string_view>
+
 namespace
 {
-constexpr auto PACKETNAME = "CreateGameResponse";
+constexpr std::string_view PACKETNAME = "CreateGameResponse";
 }
 
 CreateGameResponsePacket::CreateGameResponsePacket(const GameInformation& game_information)

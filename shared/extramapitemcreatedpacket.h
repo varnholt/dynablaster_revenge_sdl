@@ -10,7 +10,7 @@ class ExtraMapItemCreatedPacket : public MapItemCreatedPacket
 {
 public:
    // write constructor
-   ExtraMapItemCreatedPacket(ExtraMapItem* item);
+   explicit ExtraMapItemCreatedPacket(const ExtraMapItem& item);
 
    // read constructor
    ExtraMapItemCreatedPacket();

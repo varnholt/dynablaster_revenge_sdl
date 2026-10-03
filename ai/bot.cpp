@@ -63,25 +63,33 @@ bool Bot::isActive()
 /*!
    \param bot_map bot map
 */
-void Bot::setBotMap(BotMap* bot_map)
+void Bot::setBotMap(std::unique_ptr<BotMap> bot_map)
 {
-   _bot_map = bot_map;
+   _bot_map = std::move(bot_map);
 }
 
 /*!
-   \param info player info ptr
+   \return bot map
 */
-void Bot::setPlayerInfo(BotPlayerInfo* info)
+BotMap& Bot::getBotMap() const
+{
+   return *_bot_map;
+}
+
+/*!
+   \param info player info
+*/
+void Bot::setPlayerInfo(BotPlayerInfo& info)
 {
    _player_info = info;
 }
 
 /*!
-   \return player info ptr
+   \return player info
 */
-BotPlayerInfo* Bot::getPlayerInfo() const
+BotPlayerInfo& Bot::getPlayerInfo() const
 {
-   return _player_info;
+   return _player_info->get();
 }
 
 void Bot::think()
@@ -92,7 +100,7 @@ void Bot::think()
 void Bot::decide()
 {
    _actions.clear();
-   BotOption* best_option = nullptr;
+   std::optional<std::reference_wrapper<const BotOption>> best_option;
    int max_score = std::numeric_limits<int>::min();
 
    for (const auto& option : _options)
@@ -100,7 +108,7 @@ void Bot::decide()
       if (option->getScore() > max_score)
       {
          max_score = option->getScore();
-         best_option = option.get();
+         best_option = *option;
       }
 
       // at the moment there's no option that is combinable
@@ -111,17 +119,22 @@ void Bot::decide()
    }
 
    // do not execute an action twice
-   if (best_option && std::ranges::find(_actions, best_option->getAction()) == _actions.end())
+   if (best_option)
    {
-      _actions.push_back(best_option->getAction());
+      BotAction& best_action = best_option->get().getAction();
+
+      if (std::ranges::none_of(_actions, [&best_action](const BotAction& action) { return &action == &best_action; }))
+      {
+         _actions.push_back(best_action);
+      }
    }
 }
 
 void Bot::act()
 {
-   for (BotAction* action : _actions)
+   for (BotAction& action : _actions)
    {
-      switch (action->getActionType())
+      switch (action.getActionType())
       {
          case BotAction::ActionType::ActionBomb:
          {
@@ -141,7 +154,7 @@ void Bot::act()
                qDebug("Bot::act(): BotAction::ActionWalk:");
             }
 
-            walkSignal(static_cast<BotWalkAction*>(action)->getWalkKeys());
+            walkSignal(static_cast<BotWalkAction&>(action).getWalkKeys());
             break;
          }
 

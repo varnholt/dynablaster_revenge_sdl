@@ -2,9 +2,11 @@
 
 #include "logging.h"
 
+#include <string_view>
+
 namespace
 {
-constexpr auto PACKETNAME = "LeaveGameResponse";
+constexpr std::string_view PACKETNAME = "LeaveGameResponse";
 }
 
 LeaveGameResponsePacket::LeaveGameResponsePacket() : Packet(Packet::LEAVEGAMERESPONSE)

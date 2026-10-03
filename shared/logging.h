@@ -1,37 +1,46 @@
 #pragma once
 
 // printf-style debug/warning/fatal logging, matching the call-site shape every real qDebug()/
-// qWarning()/qFatal() usage in this tree already uses (plain format string + varargs, never the
-// Qt streaming qDebug() << x style) - so no call site needs to change, just the include.
+// qWarning()/qFatal() usage in this tree already uses (plain format string + printf arguments,
+// never the Qt streaming qDebug() << x style) - so no call site needs to change, just the include.
 
-#include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
+#include <string>
 
-inline void qDebug(const char* format, ...)
+namespace logging_detail
 {
-   va_list args;
-   va_start(args, format);
-   std::vfprintf(stdout, format, args);
-   va_end(args);
-   std::fputc('\n', stdout);
+template <typename... Args>
+void print(std::FILE& stream, const std::string& format, const Args&... args)
+{
+   if constexpr (sizeof...(Args) == 0)
+   {
+      std::fputs(format.c_str(), &stream);
+   }
+   else
+   {
+      std::fprintf(&stream, format.c_str(), args...);
+   }
+
+   std::fputc('\n', &stream);
+}
+}  // namespace logging_detail
+
+template <typename... Args>
+void qDebug(const std::string& format, const Args&... args)
+{
+   logging_detail::print(*stdout, format, args...);
 }
 
-inline void qWarning(const char* format, ...)
+template <typename... Args>
+void qWarning(const std::string& format, const Args&... args)
 {
-   va_list args;
-   va_start(args, format);
-   std::vfprintf(stderr, format, args);
-   va_end(args);
-   std::fputc('\n', stderr);
+   logging_detail::print(*stderr, format, args...);
 }
 
-[[noreturn]] inline void qFatal(const char* format, ...)
+template <typename... Args>
+[[noreturn]] void qFatal(const std::string& format, const Args&... args)
 {
-   va_list args;
-   va_start(args, format);
-   std::vfprintf(stderr, format, args);
-   va_end(args);
-   std::fputc('\n', stderr);
+   logging_detail::print(*stderr, format, args...);
    std::abort();
 }

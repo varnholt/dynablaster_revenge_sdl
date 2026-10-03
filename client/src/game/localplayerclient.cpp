@@ -16,6 +16,7 @@
 #include <SDL3_net/SDL_net.h>
 
 #include <array>
+#include <span>
 
 namespace
 {
@@ -39,17 +40,6 @@ LocalPlayerClient::LocalPlayerClient(std::string host, std::string nick, int32_t
 LocalPlayerClient::~LocalPlayerClient()
 {
    leave();
-}
-
-void LocalPlayerClient::AddressDeleter::operator()(NET_Address* address) const
-{
-   NET_UnrefAddress(address);
-}
-
-void LocalPlayerClient::SocketDeleter::operator()(NET_StreamSocket* socket) const
-{
-   NET_WaitUntilStreamSocketDrained(socket, 100);
-   NET_DestroyStreamSocket(socket);
 }
 
 void LocalPlayerClient::poll()
@@ -99,7 +89,7 @@ void LocalPlayerClient::readData()
    int32_t bytes_read = 0;
    while ((bytes_read = NET_ReadFromStreamSocket(_socket.get(), chunk.data(), static_cast<int>(chunk.size()))) > 0)
    {
-      _buffer.append(chunk.data(), static_cast<size_t>(bytes_read));
+      _buffer.append(std::span(chunk).first(static_cast<size_t>(bytes_read)));
    }
 
    if (bytes_read < 0)
@@ -141,13 +131,13 @@ bool LocalPlayerClient::packetAvailable()
    return _buffer.bytesAvailable() >= _block_size;
 }
 
-void LocalPlayerClient::processPacket(Packet& packet)
+void LocalPlayerClient::processPacket(const Packet& packet)
 {
    switch (packet.getType())
    {
       case Packet::LOGINRESPONSE:
       {
-         const auto& response = static_cast<LoginResponsePacket&>(packet);
+         const auto& response = static_cast<const LoginResponsePacket&>(packet);
          _player_id = response.getId();
          if (_player_id < 0)
          {
@@ -163,7 +153,7 @@ void LocalPlayerClient::processPacket(Packet& packet)
       case Packet::JOINGAMERESPONSE:
       {
          // join responses are broadcast for every player, only ours matters
-         const auto& response = static_cast<JoinGameResponsePacket&>(packet);
+         const auto& response = static_cast<const JoinGameResponsePacket&>(packet);
          if (response.getPlayerId() != _player_id || _joined)
          {
             break;
@@ -194,7 +184,7 @@ void LocalPlayerClient::processPacket(Packet& packet)
 
       case Packet::GAMEEVENT:
       {
-         const auto& event = static_cast<GameEventPacket&>(packet);
+         const auto& event = static_cast<const GameEventPacket&>(packet);
          if (event.getGameEvent() == GameEventPacket::ExtraCollected && event.getPlayerId() == _player_id)
          {
             rumbleSignal(0.2f, 500);
@@ -215,7 +205,7 @@ void LocalPlayerClient::send(Packet& packet)
    }
 
    packet.serialize();
-   NET_WriteToStreamSocket(_socket.get(), packet.constData(), static_cast<int>(packet.size()));
+   NET_WriteToStreamSocket(_socket.get(), packet.data(), static_cast<int>(packet.size()));
 }
 
 void LocalPlayerClient::setKeys(uint8_t keys)
@@ -271,7 +261,12 @@ void LocalPlayerClient::disconnect()
    _poll_timer.stop();
 
    _address.reset();
-   _socket.reset();
+
+   if (_socket)
+   {
+      NET_WaitUntilStreamSocketDrained(_socket.get(), 100);
+      _socket.reset();
+   }
 
    _connected = false;
    _joined = false;

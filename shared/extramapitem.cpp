@@ -7,8 +7,8 @@ ExtraMapItem::ExtraMapItem(int32_t id, Constants::ExtraType type, int32_t x, int
 {
 }
 
-ExtraMapItem::ExtraMapItem(ExtraMapItemCreatedPacket* packet)
-    : MapItem(packet), _extra_type(static_cast<Constants::ExtraType>(packet->getExtraType()))
+ExtraMapItem::ExtraMapItem(const ExtraMapItemCreatedPacket& packet)
+    : MapItem(packet), _extra_type(static_cast<Constants::ExtraType>(packet.getExtraType()))
 {
 }
 

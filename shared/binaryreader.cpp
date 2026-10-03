@@ -1,16 +1,14 @@
 #include "binaryreader.h"
 
-#include <cstring>
+#include <algorithm>
+#include <array>
+#include <bit>
 
-BinaryReader::BinaryReader(const uint8_t* data, size_t size) : _data(data), _size(size)
+BinaryReader::BinaryReader(std::span<const uint8_t> buffer) : _data(buffer)
 {
 }
 
-BinaryReader::BinaryReader(std::span<const uint8_t> buffer) : _data(buffer.data()), _size(buffer.size())
-{
-}
-
-BinaryReader::BinaryReader(const std::vector<uint8_t>& buffer) : _data(buffer.data()), _size(buffer.size())
+BinaryReader::BinaryReader(const std::vector<uint8_t>& buffer) : _data(buffer)
 {
 }
 
@@ -24,13 +22,15 @@ T BinaryReader::read()
       return value;
    }
 
-   if (_pos + sizeof(T) > _size)
+   if (_pos + sizeof(T) > _data.size())
    {
       _ok = false;
       return value;
    }
 
-   std::memcpy(&value, _data + _pos, sizeof(T));
+   std::array<uint8_t, sizeof(T)> bytes{};
+   std::ranges::copy(_data.subspan(_pos, sizeof(T)), bytes.begin());
+   value = std::bit_cast<T>(bytes);
    _pos += sizeof(T);
    return value;
 }
@@ -105,14 +105,15 @@ BinaryReader& BinaryReader::operator>>(std::string& value)
 {
    const auto length = read<uint32_t>();
 
-   if (!_ok || _pos + length > _size)
+   if (!_ok || _pos + length > _data.size())
    {
       _ok = false;
       value.clear();
       return *this;
    }
 
-   value.assign(reinterpret_cast<const char*>(_data + _pos), length);
+   const auto bytes = _data.subspan(_pos, length);
+   value.assign(bytes.begin(), bytes.end());
    _pos += length;
    return *this;
 }
@@ -139,5 +140,5 @@ size_t BinaryReader::pos() const
 
 size_t BinaryReader::bytesAvailable() const
 {
-   return _size - _pos;
+   return _data.size() - _pos;
 }

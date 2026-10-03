@@ -3,6 +3,7 @@
 
 // server
 #include "collisiondetection.h"
+#include "connection.h"
 #include "extrashakepackethandler.h"
 #include "extraspawn.h"
 
@@ -62,6 +63,16 @@
 // SDL
 #include <SDL3_net/SDL_net.h>
 
+namespace
+{
+//! the players of the given connections
+auto playersOf(const std::map<int8_t, std::reference_wrapper<Connection>>& connections)
+{
+   return connections | std::views::values |
+          std::views::transform([](Connection& connection) -> Player& { return connection.getPlayer(); });
+}
+}  // namespace
+
 int Game::_game_id_counter = 0;
 
 Game::Game()
@@ -81,21 +92,19 @@ Game::Game()
    _sync_max_time = settings.value("player_sync_max_time", SERVER_PLAYER_SYNC_MAX_TIME).toInt();
 
    // shake packet handler
-   _shake_packet_handler = std::make_unique<ExtraShakePacketHandler>();
-   _shake_packet_handler->setGame(this);
+   _shake_packet_handler = std::make_unique<ExtraShakePacketHandler>(*this);
    _shake_packet_handler->setEnabled(shake_packets_enabled);
 
    // collision detection
-   _collision_detection = std::make_unique<CollisionDetection>();
-   _collision_detection->setGame(this);
+   _collision_detection = std::make_unique<CollisionDetection>(*this);
 
-   _collision_detection->playerKicksBombSignal.connect([this](Player* player, MapItem* item, bool vertically_kicked, int keys_pressed)
+   _collision_detection->playerKicksBombSignal.connect([this](const Player& player, MapItem& item, bool vertically_kicked, int keys_pressed)
                                                        { playerKicksBomb(player, item, vertically_kicked, keys_pressed); });
 
-   _collision_detection->playerIdleSignal.connect([this](int8_t directions, Player* player) { playerIdle(directions, player); });
+   _collision_detection->playerIdleSignal.connect([this](int8_t directions, Player& player) { playerIdle(directions, player); });
 
    _collision_detection->playerMoveSignal.connect([this](
-                                                     Player* player, float assigned_x_position, float assigned_y_position, int8_t directions
+                                                     Player& player, float assigned_x_position, float assigned_y_position, int8_t directions
                                                   ) { playerMove(player, assigned_x_position, assigned_y_position, directions); });
 
    // init skulls
@@ -106,25 +115,8 @@ Game::~Game()
 {
    qDebug("Game::~Game");
 
-   // a once-kicked bomb still on the map owns its kick animation - drop it here, otherwise
-   // deleteAll() below frees it and the bomb frees it a second time when the map goes away
-   if (_map)
-   {
-      for (int y = 0; y < _map->getHeight(); y++)
-      {
-         for (int x = 0; x < _map->getWidth(); x++)
-         {
-            if (auto* bomb = dynamic_cast<BombMapItem*>(_map->getItem(x, y)))
-            {
-               bomb->setBombKickAnimation(nullptr);
-            }
-         }
-      }
-   }
-
-   // remove those animations first since they access _map
-   BombKickAnimation::deleteAll();
-
+   // the bombs and their kick animations go first, the animations' destroy callbacks still
+   // disconnect from this game's signals
    _map.reset();
 }
 
@@ -424,10 +416,10 @@ void Game::initializeTimers()
 
 void Game::broadcastStartPositions()
 {
-   for (Player* current_player : _players | std::views::values)
+   for (const Player& current_player : playersOf(_players))
    {
       _outgoing_packets.push_back(std::make_unique<PositionPacket>(
-         current_player->getId(), Constants::KeyDown, current_player->getX(), current_player->getY(), std::numbers::pi_v<float> * 1.5f
+         current_player.getId(), Constants::KeyDown, current_player.getX(), current_player.getY(), std::numbers::pi_v<float> * 1.5f
       ));
    }
 }
@@ -435,16 +427,16 @@ void Game::broadcastStartPositions()
 void Game::initializePlayerStartPositions()
 {
    int start_position_index = 0;
-   for (Player* current_player : _players | std::views::values)
+   for (Player& current_player : playersOf(_players))
    {
       // reset player's extras
-      current_player->reset();
-      current_player->getPlayerRotation()->reset();
+      current_player.reset();
+      current_player.getPlayerRotation().reset();
 
       // reposition player
       const Point start_position = _map->getStartPosition(start_position_index);
-      current_player->setX(start_position.x() + 0.5f);
-      current_player->setY(start_position.y() + 0.5f);
+      current_player.setX(start_position.x() + 0.5f);
+      current_player.setY(start_position.y() + 0.5f);
 
       start_position_index++;
    }
@@ -532,13 +524,13 @@ GameInformation Game::getGameInformation()
       getMaximumPlayerCount(),
       getName(),
       getLevelName(),
-      getCreator()->getId(),
+      getCreatorId(),
       getMapDimension(),
       getExtras(),
       getDuration(),
       getGamesPlayed(),
-      getGameRound()->getCurrent(),
-      getGameRound()->getCount(),
+      getGameRound().getCurrent(),
+      getGameRound().getCount(),
       isSpawnExtrasEnabled()
    );
 }
@@ -621,7 +613,7 @@ void Game::updatePlayerPositions()
 
    if (isStartPositionInitialized())
    {
-      for (Player* player : _player_sockets | std::views::values)
+      for (Player& player : playersOf(_players))
       {
          _collision_detection->process(player);
       }
@@ -657,10 +649,10 @@ bool Game::isKickPossible(int x, int y, Constants::Direction kick_direction)
          break;
    }
 
-   if (check_offset_x >= 0 && check_offset_x < getMap()->getWidth() && check_offset_y >= 0 && check_offset_y < getMap()->getHeight())
+   if (check_offset_x >= 0 && check_offset_x < getMap().getWidth() && check_offset_y >= 0 && check_offset_y < getMap().getHeight())
    {
       // check if there is an obstructing map item
-      MapItem* item = getMap()->getItem(check_offset_x, check_offset_y);
+      const auto& item = getMap().getItem(check_offset_x, check_offset_y);
 
       if (item)
       {
@@ -677,15 +669,15 @@ bool Game::isKickPossible(int x, int y, Constants::Direction kick_direction)
       // check if there is an obstructing player
       if (kick_possible)
       {
-         for (Player* other_player : _players | std::views::values)
+         for (const Player& other_player : playersOf(_players))
          {
-            if (other_player->isKilled())
+            if (other_player.isKilled())
             {
                continue;
             }
 
-            const int player_x = static_cast<int32_t>(std::floor(other_player->getX()));
-            const int player_y = static_cast<int32_t>(std::floor(other_player->getY()));
+            const int player_x = static_cast<int32_t>(std::floor(other_player.getX()));
+            const int player_y = static_cast<int32_t>(std::floor(other_player.getY()));
 
             // there is an obstructing player
             if (player_x == check_offset_x && player_y == check_offset_y)
@@ -714,7 +706,7 @@ bool Game::isKickPossible(int x, int y, Constants::Direction kick_direction)
                // horizontal kick movement
                if (kick_direction == Constants::DirectionLeft || kick_direction == Constants::DirectionRight)
                {
-                  const float dx = std::fabs(other_player->getX() - x);
+                  const float dx = std::fabs(other_player.getX() - x);
 
                   if (dx < 1.0f + SERVER_KICK_PLAYER_DISTANCE)
                   {
@@ -725,7 +717,7 @@ bool Game::isKickPossible(int x, int y, Constants::Direction kick_direction)
                // vertical kick movement
                if (kick_direction == Constants::DirectionUp || kick_direction == Constants::DirectionDown)
                {
-                  const float dy = std::fabs(other_player->getY() - y);
+                  const float dy = std::fabs(other_player.getY() - y);
 
                   if (dy < 1.0f + SERVER_KICK_PLAYER_DISTANCE)
                   {
@@ -740,10 +732,11 @@ bool Game::isKickPossible(int x, int y, Constants::Direction kick_direction)
    return kick_possible;
 }
 
-void Game::createKickAnimation(BombMapItem* kicked_bomb, Constants::Direction kick_direction)
+void Game::createKickAnimation(BombMapItem& kicked_bomb, Constants::Direction kick_direction)
 {
-   kicked_bomb->kickAnimationSignal.connect(
-      [this, lifetime = std::weak_ptr<bool>(_lifetime), kicked_bomb](Constants::Direction direction, float speed)
+   // the bomb's own signal, it never outlives the bomb
+   kicked_bomb.kickAnimationSignal.connect(
+      [this, lifetime = std::weak_ptr<bool>(_lifetime), &kicked_bomb](Constants::Direction direction, float speed)
       {
          if (!lifetime.expired())
          {
@@ -753,30 +746,29 @@ void Game::createKickAnimation(BombMapItem* kicked_bomb, Constants::Direction ki
    );
 
    // a kick animation needs the playfield map for collision detection
-   auto kick_animation_owner = std::make_unique<BombKickAnimation>();
-   BombKickAnimation* kick_animation = kick_animation_owner.get();
-   kick_animation->setDirection(kick_direction);
-   kick_animation->setMap(getMap());
+   auto kick_animation_owner = std::make_unique<BombKickAnimation>(getMap());
+   BombKickAnimation& kick_animation = *kick_animation_owner;
+   kick_animation.setDirection(kick_direction);
 
    // a kick animations needs to "know" about current player
    // positions so they bounce back once they hit another player
-   for (Player* player : _players | std::views::values)
+   for (const Player& player : playersOf(_players))
    {
-      if (!player->isKilled())
+      if (!player.isKilled())
       {
-         kick_animation->updatePlayerPosition(player->getId(), player->getX(), player->getY());
+         kick_animation.updatePlayerPosition(player.getId(), player.getX(), player.getY());
       }
    }
 
    // the animation is short-lived, the signals below live for the whole match: Signal<> has
    // no auto-disconnect, so the animation disconnects itself on destruction
    auto position_changed_connection =
-      _collision_detection->playerPositionChangedSignal.connect([kick_animation](int id, float x, float y)
-                                                                { kick_animation->updatePlayerPosition(id, x, y); });
-   auto player_killed_connection = playerKilledSignal.connect([kick_animation](int id) { kick_animation->removePlayerPosition(id); });
-   auto player_leaves_connection = playerLeavesSignal.connect([kick_animation](int id) { kick_animation->removePlayerPosition(id); });
+      _collision_detection->playerPositionChangedSignal.connect([&kick_animation](int id, float x, float y)
+                                                                { kick_animation.updatePlayerPosition(id, x, y); });
+   auto player_killed_connection = playerKilledSignal.connect([&kick_animation](int id) { kick_animation.removePlayerPosition(id); });
+   auto player_leaves_connection = playerLeavesSignal.connect([&kick_animation](int id) { kick_animation.removePlayerPosition(id); });
 
-   kick_animation->addDestroyCallback(
+   kick_animation.addDestroyCallback(
       [this, lifetime = std::weak_ptr<bool>(_lifetime), position_changed_connection, player_killed_connection, player_leaves_connection]()
       {
          if (lifetime.expired())
@@ -790,7 +782,7 @@ void Game::createKickAnimation(BombMapItem* kicked_bomb, Constants::Direction ki
       }
    );
 
-   kicked_bomb->setBombKickAnimation(std::move(kick_animation_owner));
+   kicked_bomb.setBombKickAnimation(std::move(kick_animation_owner));
 }
 
 void Game::updateImmuneTimes()
@@ -798,6 +790,14 @@ void Game::updateImmuneTimes()
    for (int32_t& immune_time : _immune_times)
    {
       immune_time = std::max(0, immune_time - (1000 / SERVER_HEARTBEAT_IN_HZ));
+   }
+}
+
+void Game::markDestroyed(const std::shared_ptr<MapItem>& item)
+{
+   if (std::ranges::find(_destroyed_map_items, item) == _destroyed_map_items.end())
+   {
+      _destroyed_map_items.push_back(item);
    }
 }
 
@@ -811,19 +811,14 @@ bool Game::isFieldImmune(int x, int y) const
    return _immune_times[static_cast<size_t>(y * _map->getWidth() + x)] > 0;
 }
 
-void Game::playerKicksBomb(Player* player, MapItem* item, bool vertically_kicked, int keys_pressed)
+void Game::playerKicksBomb(const Player& player, MapItem& item, bool vertically_kicked, int keys_pressed)
 {
-   if (!item || item->getType() != MapItem::Bomb || player->isKilled() || !player->isKickEnabled())
+   if (item.getType() != MapItem::Bomb || player.isKilled() || !player.isKickEnabled())
    {
       return;
    }
 
-   auto* kicked_bomb = dynamic_cast<BombMapItem*>(item);
-
-   if (!kicked_bomb)
-   {
-      return;
-   }
+   auto& kicked_bomb = static_cast<BombMapItem&>(item);
 
    Constants::Direction kick_direction = Constants::DirectionUnknown;
 
@@ -836,130 +831,128 @@ void Game::playerKicksBomb(Player* player, MapItem* item, bool vertically_kicked
       kick_direction = (keys_pressed & Constants::KeyLeft) ? Constants::DirectionLeft : Constants::DirectionRight;
    }
 
-   if (isKickPossible(item->getX(), item->getY(), kick_direction))
+   if (isKickPossible(item.getX(), item.getY(), kick_direction))
    {
-      if (!kicked_bomb->isKicked())
+      if (!kicked_bomb.isKicked())
       {
          createKickAnimation(kicked_bomb, kick_direction);
       }
       else
       {
-         // bomb has already been kicked once - getBombKickAnimation() can be null if the
-         // animation already finished/exploded between kicks
-         BombKickAnimation* kick_animation = kicked_bomb->getBombKickAnimation();
-
-         if (kick_animation)
+         // bomb has already been kicked once - the animation may be gone already if it
+         // finished/exploded between kicks
+         if (kicked_bomb.hasBombKickAnimation())
          {
-            kick_animation->setDirection(kick_direction);
+            kicked_bomb.getBombKickAnimation().setDirection(kick_direction);
          }
       }
 
-      kicked_bomb->kick();
+      kicked_bomb.kick();
    }
 }
 
-void Game::playerDiseaseStopped(PlayerDisease* disease)
+void Game::playerDiseaseStopped(const PlayerDisease& disease)
 {
-   if (disease)
-   {
-      _outgoing_packets.push_back(std::make_unique<PlayerInfectedPacket>(disease->getPlayerId(), Constants::SkullReset));
-   }
+   _outgoing_packets.push_back(std::make_unique<PlayerInfectedPacket>(disease.getPlayerId(), Constants::SkullReset));
 }
 
-void Game::playerMove(Player* player, float assigned_x_position, float assigned_y_position, int8_t directions)
+void Game::playerMove(Player& player, float assigned_x_position, float assigned_y_position, int8_t directions)
 {
    float speed_x = 0.0;
    float speed_y = 0.0;
 
-   if (!player->isKilled())
+   if (!player.isKilled())
    {
-      speed_x = assigned_x_position - player->getX();
-      speed_y = assigned_y_position - player->getY();
+      speed_x = assigned_x_position - player.getX();
+      speed_y = assigned_y_position - player.getY();
    }
 
    _outgoing_packets.push_back(std::make_unique<PositionPacket>(
-      player->getId(),
+      player.getId(),
       directions,
       assigned_x_position,
       assigned_y_position,
-      player->getPlayerRotation()->getAngle(),
+      player.getPlayerRotation().getAngle(),
       speed_x,
       speed_y,
-      player->getPlayerRotation()->getAngleDelta(),
-      player->getSpeed()
+      player.getPlayerRotation().getAngleDelta(),
+      player.getSpeed()
    ));
 
-   player->setPositionSkipCounter(0);
-   player->setKeysPressed(player->getKeysPressed());
+   player.setPositionSkipCounter(0);
+   player.setKeysPressed(player.getKeysPressed());
 
    // reset idle packet flag
-   _idle_packet_sent_set.erase(player);
+   _idle_packet_sent_set.erase(player.getId());
 }
 
-void Game::playerIdle(int8_t directions, Player* player)
+void Game::playerIdle(int8_t directions, Player& player)
 {
-   if (!_idle_packet_sent_set.contains(player))
+   if (!_idle_packet_sent_set.contains(player.getId()))
    {
       // send a zero-distance (speed=0.0 packet)
       _outgoing_packets.push_back(std::make_unique<PositionPacket>(
-         player->getId(),
+         player.getId(),
          directions,
-         player->getX(),
-         player->getY(),
-         player->getPlayerRotation()->getAngle(),
+         player.getX(),
+         player.getY(),
+         player.getPlayerRotation().getAngle(),
          0.0f,
          0.0f,
-         player->getPlayerRotation()->getAngleDelta(),
+         player.getPlayerRotation().getAngleDelta(),
          0.0f
       ));
 
-      _idle_packet_sent_set.insert(player);
+      _idle_packet_sent_set.insert(player.getId());
    }
 }
 
-void Game::createInfection(
-   Player* infected_player,
-   Player* infecting_player,
-   ExtraMapItem* extra,
-   const std::vector<Constants::SkullType>& faces
-)
+void Game::infectFromExtra(Player& infected_player, const ExtraMapItem& extra)
 {
-   float extra_elapsed_time = 0.0f;
+   const std::vector<Constants::SkullType> faces = extra.getSkullFaces();
 
-   if (extra)
-   {
-      extra_elapsed_time = extra->getElapsedTime();
-   }
+   // find out which side the rotating cube is showing right now
+   const int side_step = (static_cast<int32_t>(std::floor(extra.getElapsedTime() + 0.5f))) % 6;
+   const Constants::SkullType skull_type = faces[static_cast<size_t>(side_step)];
 
+   auto packet = createInfection(infected_player, skull_type);
+
+   // add the position of the extra the extra is contained in
+   packet->setExtraPos(extra.getX(), extra.getY());
+
+   _outgoing_packets.push_back(std::move(packet));
+}
+
+void Game::infectFromPlayer(Player& infected_player, const Player& infecting_player)
+{
+   // infecting player infects other player
+   auto packet = createInfection(infected_player, infecting_player.getDisease().getType());
+
+   // add the id of the player that infected the other
+   packet->setInfectorId(infecting_player.getId());
+
+   _outgoing_packets.push_back(std::move(packet));
+}
+
+std::unique_ptr<PlayerInfectedPacket> Game::createInfection(Player& infected_player, Constants::SkullType skull_type)
+{
    auto disease_owner = std::make_unique<PlayerDisease>();
-   PlayerDisease* disease = disease_owner.get();
-   disease->setPlayerId(infected_player->getId());
-
-   if (infecting_player)
-   {
-      // infecting player infects other player
-      disease->setType(infecting_player->getDisease()->getType());
-   }
-   else
-   {
-      // find out which side the rotating cube is showing right now
-      const int side_step = (static_cast<int32_t>(std::floor(extra_elapsed_time + 0.5f))) % 6;
-      const Constants::SkullType skull_type = faces[static_cast<size_t>(side_step)];
-      disease->setType(skull_type);
-   }
+   PlayerDisease& disease = *disease_owner;
+   disease.setPlayerId(infected_player.getId());
+   disease.setType(skull_type);
 
    // if the infected player has been infected before, abort the old infection
-   if (infected_player->getDisease())
+   if (infected_player.isInfected())
    {
-      infected_player->getDisease()->abort();
+      infected_player.getDisease().abort();
    }
 
-   disease->activate();
+   disease.activate();
 
    // abort the disease once the game changes to 'stopped' - the disease is owned by the player
    // and may outlive this game, so it disconnects itself on destruction
-   const auto state_changed_connection = stateChangedSignal.connect([disease](Constants::GameState) { disease->abort(); });
-   disease->addDestroyCallback(
+   const auto state_changed_connection = stateChangedSignal.connect([&disease](Constants::GameState) { disease.abort(); });
+   disease.addDestroyCallback(
       [this, lifetime = std::weak_ptr<bool>(_lifetime), state_changed_connection]()
       {
          if (!lifetime.expired())
@@ -969,8 +962,9 @@ void Game::createInfection(
       }
    );
 
-   disease->stoppedSignal.connect(
-      [this, lifetime = std::weak_ptr<bool>(_lifetime), disease]()
+   // the disease's own signal, it never outlives the disease
+   disease.stoppedSignal.connect(
+      [this, lifetime = std::weak_ptr<bool>(_lifetime), &disease]()
       {
          if (!lifetime.expired())
          {
@@ -979,33 +973,23 @@ void Game::createInfection(
       }
    );
 
-   auto packet = std::make_unique<PlayerInfectedPacket>(infected_player->getId(), disease->getType());
+   auto packet = std::make_unique<PlayerInfectedPacket>(infected_player.getId(), disease.getType());
 
-   infected_player->infect(std::move(disease_owner));
+   infected_player.infect(std::move(disease_owner));
 
-   // either add the id of the player that infected the other
-   // or add the position of the extra the extra is contained in
-   if (infecting_player)
-   {
-      packet->setInfectorId(infecting_player->getId());
-   }
-   else
-   {
-      packet->setExtraPos(extra->getX(), extra->getY());
-   }
-
-   _outgoing_packets.push_back(std::move(packet));
+   return packet;
 }
 
 void Game::updateExtras()
 {
-   for (Player* player : _player_sockets | std::views::values)
+   for (Player& player : playersOf(_players))
    {
       // init player position
-      const int x = static_cast<int32_t>(std::floor(player->getX()));
-      const int y = static_cast<int32_t>(std::floor(player->getY()));
+      const int x = static_cast<int32_t>(std::floor(player.getX()));
+      const int y = static_cast<int32_t>(std::floor(player.getY()));
 
-      MapItem* map_item = _map->getItem(x, y);
+      // keeps the extra alive until it is fully processed
+      const auto map_item = _map->getItem(x, y);
 
       if (!map_item || map_item->getType() != MapItem::Extra)
       {
@@ -1013,41 +997,40 @@ void Game::updateExtras()
       }
 
       // update player stats
-      player->increaseExtrasCollected();
+      player.increaseExtrasCollected();
 
       // evaluate extra and pass it to the player
-      auto* extra = dynamic_cast<ExtraMapItem*>(map_item);
+      const auto& extra = static_cast<const ExtraMapItem&>(*map_item);
 
-      switch (extra->getExtraType())
+      switch (extra.getExtraType())
       {
          case Constants::ExtraBomb:
          {
-            player->increaseBombCount();
+            player.increaseBombCount();
             break;
          }
 
          case Constants::ExtraFlame:
          {
-            player->increaseFlameCount();
+            player.increaseFlameCount();
             break;
          }
 
          case Constants::ExtraSpeedup:
          {
-            player->setSpeed(std::min(player->getSpeed() + SERVER_SPEEDUP_INCREMENT, _max_speed));
+            player.setSpeed(std::min(player.getSpeed() + SERVER_SPEEDUP_INCREMENT, _max_speed));
             break;
          }
 
          case Constants::ExtraKick:
          {
-            player->setKickEnabled(true);
+            player.setKickEnabled(true);
             break;
          }
 
          case Constants::ExtraSkull:
          {
-            const std::vector<Constants::SkullType> faces = extra->getSkullFaces();
-            createInfection(player, nullptr, extra, faces);
+            infectFromExtra(player, extra);
             break;
          }
       }
@@ -1055,8 +1038,8 @@ void Game::updateExtras()
       // play that lovely coin sample
       auto game_event_packet = std::make_unique<GameEventPacket>(GameEventPacket::ExtraCollected, 1.0f, x, y);
 
-      game_event_packet->setPlayerId(player->getId());
-      game_event_packet->setExtraType(extra->getExtraType());
+      game_event_packet->setPlayerId(player.getId());
+      game_event_packet->setExtraType(extra.getExtraType());
 
       _outgoing_packets.push_back(std::move(game_event_packet));
 
@@ -1066,11 +1049,8 @@ void Game::updateExtras()
       // remove extra from the map
       _map->setItem(x, y, nullptr);
 
-      delete extra;
-
-      // if the extra is removed here, remove it from the destroyed maps
-      // also, so we don't have a dangling pointer in that list
-      _destroyed_map_items.erase(extra);
+      // if the extra is removed here, remove it from the destroyed items as well
+      std::erase(_destroyed_map_items, map_item);
    }
 }
 
@@ -1082,25 +1062,25 @@ void Game::updateInfections()
       return;
    }
 
-   const std::vector<Player*> players = getPlayers();
+   const std::vector<std::reference_wrapper<Player>> players = getPlayers();
 
-   for (Player* player1 : players)
+   for (Player& player1 : players)
    {
-      if (!player1->isInfected() || player1->isKilled())
+      if (!player1.isInfected() || player1.isKilled())
       {
          continue;
       }
 
-      for (Player* player2 : players)
+      for (Player& player2 : players)
       {
          // player must be someone else, "to be infected" must be not infected yet
-         if (player2 == player1 || player2->isInfected() || player2->isKilled())
+         if (&player2 == &player1 || player2.isInfected() || player2.isKilled())
          {
             continue;
          }
 
-         const Vec2 position1(player1->getX(), player1->getY());
-         const Vec2 position2(player2->getX(), player2->getY());
+         const Vec2 position1(player1.getX(), player1.getY());
+         const Vec2 position2(player2.getX(), player2.getY());
 
          const Vec2 delta = position1 - position2;
 
@@ -1109,7 +1089,7 @@ void Game::updateInfections()
          {
             // player2: the player who is now infected
             // player1: the one who was already infected
-            createInfection(player2, player1, nullptr);
+            infectFromPlayer(player2, player1);
          }
       }
    }
@@ -1117,28 +1097,26 @@ void Game::updateInfections()
 
 void Game::updateBombs()
 {
-   for (Player* player : _player_sockets | std::views::values)
+   for (Player& player : playersOf(_players))
    {
       // check if player wants to drop a bomb
-      if (!player->isBombKeyLocked())
+      if (!player.isBombKeyLocked())
       {
          continue;
       }
 
-      const int x = static_cast<int32_t>(std::floor(player->getX()));
-      const int y = static_cast<int32_t>(std::floor(player->getY()));
-      MapItem* item = _map->getItem(x, y);
+      const int x = static_cast<int32_t>(std::floor(player.getX()));
+      const int y = static_cast<int32_t>(std::floor(player.getY()));
 
       // if player is allowed to drop more bombs
-      if (!item && player->getBombsDroppedCount() < player->getBombCount())
+      if (!_map->getItem(x, y) && player.getBombsDroppedCount() < player.getBombCount())
       {
-         player->setBombsDroppedCount(player->getBombsDroppedCount() + 1);
+         player.setBombsDroppedCount(player.getBombsDroppedCount() + 1);
 
-         // owned by the map
-         auto* bomb = new BombMapItem(player->getId(), player->getFlameCount(), -1, x, y);
+         auto bomb = std::make_shared<BombMapItem>(player.getId(), player.getFlameCount(), -1, x, y);
 
          bomb->explodedSignal.connect(
-            [this, lifetime = std::weak_ptr<bool>(_lifetime)](BombMapItem* exploded_bomb, bool recursive)
+            [this, lifetime = std::weak_ptr<bool>(_lifetime)](BombMapItem& exploded_bomb, bool recursive)
             {
                if (!lifetime.expired())
                {
@@ -1147,41 +1125,38 @@ void Game::updateBombs()
             }
          );
 
-         _map->setItem(x, y, bomb);
+         _outgoing_packets.push_back(std::make_unique<MapItemCreatedPacket>(*bomb, player.getId()));
 
-         _outgoing_packets.push_back(std::make_unique<MapItemCreatedPacket>(bomb, player->getId()));
+         _map->setItem(x, y, std::move(bomb));
       }
 
       // remove bomb key once a bomb has been dropped
-      player->setKeysPressed(player->getKeysPressed() & ~Constants::KeyBomb);
+      player.setKeysPressed(player.getKeysPressed() & ~Constants::KeyBomb);
 
-      player->setBombKeyLocked(false);
+      player.setBombKeyLocked(false);
    }
 }
 
-void Game::updateStatsPlayerKilled(Player* killer, Player* victim)
+void Game::updateStatsPlayerKilled(std::optional<std::reference_wrapper<Player>> killer, Player& victim)
 {
-   if (killer && killer != victim)
+   if (killer && &killer->get() != &victim)
    {
-      killer->increaseKills();
+      killer->get().increaseKills();
    }
 
-   if (victim)
-   {
-      victim->increaseDeaths();
-      victim->increaseSurvivalTime(getDuration() - getTimeLeft());
-   }
+   victim.increaseDeaths();
+   victim.increaseSurvivalTime(getDuration() - getTimeLeft());
 
    broadcastGameStats();
 }
 
-void Game::processPlayerWon(Player* player)
+void Game::processPlayerWon(std::optional<std::reference_wrapper<Player>> player)
 {
    if (player)
    {
-      player->increaseWins();
-      player->increaseSurvivalTime(getDuration() - getTimeLeft());
-      player->setKeysPressed(Constants::KeyDown);
+      player->get().increaseWins();
+      player->get().increaseSurvivalTime(getDuration() - getTimeLeft());
+      player->get().setKeysPressed(Constants::KeyDown);
    }
 
    broadcastGameStats();
@@ -1189,7 +1164,12 @@ void Game::processPlayerWon(Player* player)
 
 void Game::sendMessageToOwner(const std::string& message)
 {
-   sendPacket(getSocket(_creator), std::make_unique<MessagePacket>(_creator->getId(), message, true));
+   const auto creator = _players.find(static_cast<int8_t>(_creator_id));
+
+   if (creator != _players.end())
+   {
+      sendPacket(creator->second, std::make_unique<MessagePacket>(_creator_id, message, true));
+   }
 }
 
 bool Game::isGameOnlyPopulatedByBotsMessageShown() const
@@ -1227,17 +1207,17 @@ void Game::broadcastGameStats()
    std::vector<PlayerStats> overall_stats;
    std::vector<PlayerStats> round_stats;
 
-   for (Player* player : _players | std::views::values)
+   for (Player& player : playersOf(_players))
    {
-      ids.push_back(player->getId());
-      overall_stats.push_back(*player->getOverallStats());
-      round_stats.push_back(*player->getRoundStats());
+      ids.push_back(player.getId());
+      overall_stats.push_back(player.getOverallStats());
+      round_stats.push_back(player.getRoundStats());
    }
 
    _outgoing_packets.push_back(std::make_unique<GameStatsPacket>(ids, overall_stats, round_stats));
 }
 
-void Game::rotateDeadPlayerTowardsBomb(Constants::Direction detonation_direction, Player* player, int x, int y)
+void Game::rotateDeadPlayerTowardsBomb(Constants::Direction detonation_direction, Player& player, int x, int y)
 {
    // the bomb direction is our first choice
    std::vector<Constants::Direction> candidate_directions{detonation_direction};
@@ -1288,7 +1268,7 @@ void Game::rotateDeadPlayerTowardsBomb(Constants::Direction detonation_direction
       // check if the dead player will hit something
       if (check_x >= 0 && check_x < _map->getWidth() && check_y >= 0 && check_y < _map->getHeight())
       {
-         MapItem* check_item = _map->getItem(check_x, check_y);
+         const auto& check_item = _map->getItem(check_x, check_y);
 
          if (check_item && check_item->isBlocking())
          {
@@ -1327,23 +1307,23 @@ void Game::rotateDeadPlayerTowardsBomb(Constants::Direction detonation_direction
 
    if (test_direction == Constants::DirectionRight)
    {
-      player->setKeysPressed(Constants::KeyLeft);
+      player.setKeysPressed(Constants::KeyLeft);
    }
    else if (test_direction == Constants::DirectionLeft)
    {
-      player->setKeysPressed(Constants::KeyRight);
+      player.setKeysPressed(Constants::KeyRight);
    }
    else if (test_direction == Constants::DirectionUp)
    {
-      player->setKeysPressed(Constants::KeyDown);
+      player.setKeysPressed(Constants::KeyDown);
    }
    else if (test_direction == Constants::DirectionDown)
    {
-      player->setKeysPressed(Constants::KeyUp);
+      player.setKeysPressed(Constants::KeyUp);
    }
 }
 
-void Game::bombExploded(BombMapItem* bomb, bool /*unused*/)
+void Game::bombExploded(BombMapItem& bomb, bool /*unused*/)
 {
    if (getState() == Constants::GameStopped)
    {
@@ -1353,31 +1333,22 @@ void Game::bombExploded(BombMapItem* bomb, bool /*unused*/)
    std::vector<std::unique_ptr<Packet>> remove_items;
 
    // player may drop one more bomb
-   Player* player = nullptr;
-   {
-      const auto player_iterator = _players.find(bomb->getPlayerId());
-      if (player_iterator != _players.end())
-      {
-         player = player_iterator->second;
-      }
-   }
+   const auto player = findPlayer(bomb.getPlayerId());
 
    // player may already be killed :)
    if (player)
    {
-      player->setBombsDroppedCount(player->getBombsDroppedCount() - 1);
+      player->get().setBombsDroppedCount(player->get().getBombsDroppedCount() - 1);
    }
 
-   const int flame_count = bomb->getFlames();
-   const int x = bomb->getX();
-   const int y = bomb->getY();
+   const int flame_count = bomb.getFlames();
+   const int x = bomb.getX();
+   const int y = bomb.getY();
 
-   const std::vector<Constants::Direction>* directions = &_direction_check_center;
-
-   bool done_up = (bomb->getDetonationOrigin() == BombMapItem::Top);
-   bool done_down = (bomb->getDetonationOrigin() == BombMapItem::Bottom);
-   bool done_left = (bomb->getDetonationOrigin() == BombMapItem::Left);
-   bool done_right = (bomb->getDetonationOrigin() == BombMapItem::Right);
+   bool done_up = (bomb.getDetonationOrigin() == BombMapItem::Top);
+   bool done_down = (bomb.getDetonationOrigin() == BombMapItem::Bottom);
+   bool done_left = (bomb.getDetonationOrigin() == BombMapItem::Left);
+   bool done_right = (bomb.getDetonationOrigin() == BombMapItem::Right);
 
    bool check_game_over = false;
 
@@ -1388,15 +1359,14 @@ void Game::bombExploded(BombMapItem* bomb, bool /*unused*/)
    int detonation_right = flame_count;
 
    // simple stuff: if bomb covered an extra, destroy it
-   MapItem* shadowed_item = bomb->getShadowedItem();
-   if (shadowed_item)
+   if (const auto shadowed_item = bomb.getShadowedItem())
    {
       remove_items.push_back(std::make_unique<MapItemDestroyedPacket>(
-         shadowed_item, bomb->getPlayerId(), Constants::DirectionUnknown, static_cast<float>(flame_count)
+         *shadowed_item, bomb.getPlayerId(), Constants::DirectionUnknown, static_cast<float>(flame_count)
       ));
 
       shadowed_item->setCurrentlyDestroyed(true);
-      _destroyed_map_items.insert(shadowed_item);
+      markDestroyed(shadowed_item);
 
       // create appropriate game event
       _outgoing_packets.push_back(std::make_unique<GameEventPacket>(GameEventPacket::ExtraDestroyed, 1.0f, x, y));
@@ -1407,12 +1377,9 @@ void Game::bombExploded(BombMapItem* bomb, bool /*unused*/)
    {
       // center only needs one direction to be checked
       // append the others, after the center element has been processed
-      if (flame_index == 1)
-      {
-         directions = &_direction_check_all;
-      }
+      const std::vector<Constants::Direction>& directions = (flame_index == 0) ? _direction_check_center : _direction_check_all;
 
-      for (const Constants::Direction direction : *directions)
+      for (const Constants::Direction direction : directions)
       {
          bool process_direction = true;
 
@@ -1478,7 +1445,7 @@ void Game::bombExploded(BombMapItem* bomb, bool /*unused*/)
          }
 
          // check for players that are eventually killed
-         for (Player* current_player : _players | std::views::values)
+         for (Player& current_player : playersOf(_players))
          {
             /*
                i had the issue that a position of 5.0 has been communicated
@@ -1517,14 +1484,14 @@ void Game::bombExploded(BombMapItem* bomb, bool /*unused*/)
                       +-------------+
             */
 
-            const int current_player_x = static_cast<int32_t>(std::floor(current_player->getX()));
-            const int current_player_y = static_cast<int32_t>(std::floor(current_player->getY()));
+            const int current_player_x = static_cast<int32_t>(std::floor(current_player.getX()));
+            const int current_player_y = static_cast<int32_t>(std::floor(current_player.getY()));
 
             // kill player - once ;)
-            if (current_player_x == x_distance && current_player_y == y_distance && !current_player->isKilled() &&
-                !current_player->isInvincible())
+            if (current_player_x == x_distance && current_player_y == y_distance && !current_player.isKilled() &&
+                !current_player.isInvincible())
             {
-               current_player->setKilled(true);
+               current_player.setKilled(true);
 
                // rotate killed player towards the bomb that killed him
                rotateDeadPlayerTowardsBomb(direction, current_player, x_distance, y_distance);
@@ -1532,30 +1499,25 @@ void Game::bombExploded(BombMapItem* bomb, bool /*unused*/)
                // if the bomb has been originally detonated by another player, then
                // we have a different killer. the player who dropped the first bomb
                // in the detonation chain is considered "the killer".
-               Player* killer = player;
+               auto killer = player;
 
-               if (bomb->getIgniterId() != -1 && bomb->getIgniterId() != player->getId())
+               if (bomb.getIgniterId() != -1 && (!player || bomb.getIgniterId() != player->get().getId()))
                {
-                  killer = nullptr;
-                  const auto igniter_iterator = _players.find(bomb->getIgniterId());
-                  if (igniter_iterator != _players.end())
-                  {
-                     killer = igniter_iterator->second;
-                  }
+                  killer = findPlayer(bomb.getIgniterId());
                }
 
                // update stats
                updateStatsPlayerKilled(killer, current_player);
 
-               playerKilledSignal(current_player->getId());
+               playerKilledSignal(current_player.getId());
 
                // create player killed packet
                _outgoing_packets.push_back(
-                  std::make_unique<PlayerKilledPacket>(current_player->getId(), bomb->getPlayerId(), direction, bomb->getFlames())
+                  std::make_unique<PlayerKilledPacket>(current_player.getId(), bomb.getPlayerId(), direction, bomb.getFlames())
                );
 
                // show player killed message
-               broadcastMessage(std::format("{} was killed.", current_player->getNick()));
+               broadcastMessage(std::format("{} was killed.", current_player.getNick()));
 
                // check if game is over
                check_game_over = true;
@@ -1566,7 +1528,7 @@ void Game::bombExploded(BombMapItem* bomb, bool /*unused*/)
          BombKickAnimation::ignite(x_distance, y_distance);
 
          // check for mapitems that need to be removed
-         MapItem* map_item = _map->getItem(x_distance, y_distance);
+         const auto map_item = _map->getItem(x_distance, y_distance);
 
          // if a mapitem is found or the field is immune, stop the
          // detonation
@@ -1578,7 +1540,7 @@ void Game::bombExploded(BombMapItem* bomb, bool /*unused*/)
 
          // if there is a mapitem in the way
          // which is not the bomb that just exploded, then continue
-         else if (map_item && map_item != bomb)
+         else if (map_item && map_item.get() != &bomb)
          {
             stop_detonation = true;
 
@@ -1586,7 +1548,7 @@ void Game::bombExploded(BombMapItem* bomb, bool /*unused*/)
             {
                // map item was destroyed
                remove_items.push_back(
-                  std::make_unique<MapItemDestroyedPacket>(map_item, bomb->getPlayerId(), direction, static_cast<float>(flame_count))
+                  std::make_unique<MapItemDestroyedPacket>(*map_item, bomb.getPlayerId(), direction, static_cast<float>(flame_count))
                );
 
                if (map_item->getType() == MapItem::Extra)
@@ -1608,50 +1570,50 @@ void Game::bombExploded(BombMapItem* bomb, bool /*unused*/)
                //    while in order to block the other bombs.
                map_item->setCurrentlyDestroyed(true);
 
-               _destroyed_map_items.insert(map_item);
+               markDestroyed(map_item);
             }
 
             // initiate surrounding bombs
             if (map_item->getType() == MapItem::Bomb && !map_item->isCurrentlyDestroyed())
             {
                // neighboured bombs explode from another bomb's explosion
-               auto* neighbour_bomb = dynamic_cast<BombMapItem*>(map_item);
+               auto& neighbour_bomb = static_cast<BombMapItem&>(*map_item);
 
                // origin: left
-               if (neighbour_bomb->getX() > map_item->getX())
+               if (neighbour_bomb.getX() > map_item->getX())
                {
-                  neighbour_bomb->setDetonationOrigin(BombMapItem::Left);
+                  neighbour_bomb.setDetonationOrigin(BombMapItem::Left);
                }
 
                // origin: right
-               if (neighbour_bomb->getX() < map_item->getX())
+               if (neighbour_bomb.getX() < map_item->getX())
                {
-                  neighbour_bomb->setDetonationOrigin(BombMapItem::Right);
+                  neighbour_bomb.setDetonationOrigin(BombMapItem::Right);
                }
 
                // origin: top
-               if (neighbour_bomb->getY() > map_item->getY())
+               if (neighbour_bomb.getY() > map_item->getY())
                {
-                  neighbour_bomb->setDetonationOrigin(BombMapItem::Top);
+                  neighbour_bomb.setDetonationOrigin(BombMapItem::Top);
                }
 
                // origin: bottom
-               if (neighbour_bomb->getY() < map_item->getY())
+               if (neighbour_bomb.getY() < map_item->getY())
                {
-                  neighbour_bomb->setDetonationOrigin(BombMapItem::Bottom);
+                  neighbour_bomb.setDetonationOrigin(BombMapItem::Bottom);
                }
 
                // trigger recursive explosion
-               if (neighbour_bomb->getInterval() > SERVER_BOMB_NEIGHBOUR_DELAY)
+               if (neighbour_bomb.getInterval() > SERVER_BOMB_NEIGHBOUR_DELAY)
                {
                   // the id of the player who ignited another bomb
                   // with his own one is inherited here; this is done
                   // in order to compute a proper score for the kills.
-                  neighbour_bomb->setIgniterId(bomb->getPlayerId());
+                  neighbour_bomb.setIgniterId(bomb.getPlayerId());
 
                   // reduce timer interval in order to make the bomb
                   // explode pretty soon
-                  neighbour_bomb->setInterval(SERVER_BOMB_NEIGHBOUR_DELAY);
+                  neighbour_bomb.setInterval(SERVER_BOMB_NEIGHBOUR_DELAY);
                }
             }
          }
@@ -1720,29 +1682,29 @@ void Game::bombExploded(BombMapItem* bomb, bool /*unused*/)
       detonation_up = y;
    }
 
-   // a destroyed item may currently be some other, still-kicked bomb's shadowed item (the item
-   // it's temporarily covering on the grid) - that raw reference has to be invalidated before
-   // the item is deleted
+   // a destroyed item may currently be some other bomb's shadowed item (the item it's
+   // covering on the grid) - the bomb lets go of it with the destruction
    for (int grid_x = 0; grid_x < _map->getWidth(); grid_x++)
    {
       for (int grid_y = 0; grid_y < _map->getHeight(); grid_y++)
       {
-         MapItem* grid_item = _map->getItem(grid_x, grid_y);
+         const auto& grid_item = _map->getItem(grid_x, grid_y);
 
          if (grid_item && grid_item->getType() == MapItem::Bomb)
          {
-            auto* other_bomb = dynamic_cast<BombMapItem*>(grid_item);
+            auto& other_bomb = static_cast<BombMapItem&>(*grid_item);
 
-            if (other_bomb && _destroyed_map_items.contains(other_bomb->getShadowedItem()))
+            if (other_bomb.getShadowedItem() &&
+                std::ranges::find(_destroyed_map_items, other_bomb.getShadowedItem()) != _destroyed_map_items.end())
             {
-               other_bomb->setShadowedItem(nullptr);
+               other_bomb.setShadowedItem(nullptr);
             }
          }
       }
    }
 
    // cleanup map when all explosions are finished
-   for (MapItem* destroyed_item : _destroyed_map_items)
+   for (const auto& destroyed_item : _destroyed_map_items)
    {
       _map->setItem(destroyed_item->getX(), destroyed_item->getY(), nullptr);
 
@@ -1750,27 +1712,18 @@ void Game::bombExploded(BombMapItem* bomb, bool /*unused*/)
       {
          makeFieldImmune(destroyed_item->getX(), destroyed_item->getY());
 
-         auto* stone = dynamic_cast<StoneMapItem*>(destroyed_item);
-         std::unique_ptr<ExtraMapItem> extra = stone->releaseExtraMapItem();
+         std::shared_ptr<ExtraMapItem> extra = static_cast<StoneMapItem&>(*destroyed_item).releaseExtraMapItem();
 
          if (extra)
          {
-            // owned by the map from here on
-            ExtraMapItem* released_extra = extra.release();
-
-            _map->setItem(destroyed_item->getX(), destroyed_item->getY(), released_extra);
-
             // send mapitem
-            _outgoing_packets.push_back(std::make_unique<ExtraMapItemCreatedPacket>(released_extra));
+            _outgoing_packets.push_back(std::make_unique<ExtraMapItemCreatedPacket>(*extra));
 
-            released_extra->initializeStartTime();
+            extra->initializeStartTime();
+
+            _map->setItem(destroyed_item->getX(), destroyed_item->getY(), std::move(extra));
          }
       }
-   }
-
-   for (MapItem* destroyed_item : _destroyed_map_items)
-   {
-      delete destroyed_item;
    }
 
    _destroyed_map_items.clear();
@@ -1802,13 +1755,14 @@ void Game::bombExploded(BombMapItem* bomb, bool /*unused*/)
    // remove bombmapitem
    _outgoing_packets.push_back(std::make_unique<MapItemRemovedPacket>(bomb));
 
-   // remove bomb from the map
-   _map->setItem(bomb->getX(), bomb->getY(), nullptr);
-
    // this runs synchronously from inside bomb's own explodedSignal dispatch - destroying it here
-   // would destroy the object while one of its own methods is still on the call stack. Defer to
-   // the next tick instead, same pattern as BombKickAnimation::explodeDelayed().
-   Timer::singleShot(0, [bomb]() { delete bomb; });
+   // would destroy the object while one of its own methods is still on the call stack. Keep it
+   // until the next tick instead, same pattern as BombMapItem::explodeDelayed().
+   _exploded_bombs.push_back(bomb.shared_from_this());
+   singleShotWhileAlive(0, [this]() { _exploded_bombs.clear(); });
+
+   // remove bomb from the map
+   _map->setItem(bomb.getX(), bomb.getY(), nullptr);
 
    // then the "item destroyed" packets
    std::ranges::move(remove_items, std::back_inserter(_outgoing_packets));
@@ -1817,19 +1771,19 @@ void Game::bombExploded(BombMapItem* bomb, bool /*unused*/)
 bool Game::isGamePopulatedByBots() const
 {
    return std::ranges::none_of(
-      _players | std::views::values, [](const Player* current_player) { return !current_player->isBot() && !current_player->isKilled(); }
+      playersOf(_players), [](const Player& current_player) { return !current_player.isBot() && !current_player.isKilled(); }
    );
 }
 
 void Game::updateGameoverCondition()
 {
    int alive_player_count = 0;
-   Player* potential_winner = nullptr;
+   std::optional<std::reference_wrapper<Player>> potential_winner;
 
    // check for players that are eventually killed
-   for (Player* current_player : _players | std::views::values)
+   for (Player& current_player : playersOf(_players))
    {
-      if (!current_player->isKilled())
+      if (!current_player.isKilled())
       {
          potential_winner = current_player;
          alive_player_count++;
@@ -1852,9 +1806,9 @@ void Game::updateGameoverCondition()
 
 void Game::resetRoundStats()
 {
-   for (Player* player : _players | std::views::values)
+   for (Player& player : playersOf(_players))
    {
-      player->getRoundStats()->reset();
+      player.getRoundStats().reset();
    }
 }
 
@@ -2001,24 +1955,25 @@ bool Game::isSynchronizationActive() const
 void Game::synchronize()
 {
    // check is all players already sent their "sync" flag
-   const std::vector<Player*> players = getPlayers();
-   std::vector<Player*> critical_players;
+   std::vector<std::reference_wrapper<Connection>> critical_connections;
    int bot_count = 0;
 
-   for (Player* player : players)
+   for (Connection& connection : _players | std::views::values)
    {
-      if (player->isBot())
+      if (connection.getPlayer().isBot())
       {
          bot_count++;
       }
 
-      if (!player->isLoadingSynchronized())
+      if (!connection.getPlayer().isLoadingSynchronized())
       {
-         critical_players.push_back(player);
+         critical_connections.push_back(connection);
       }
    }
 
-   if (critical_players.empty())
+   const int players_count = getPlayerCount();
+
+   if (critical_connections.empty())
    {
       setSynchronizationActive(false);
       prepareGame();
@@ -2033,17 +1988,16 @@ void Game::synchronize()
       setSynchronizationActive(false);
 
       // time has elapsed, kick those who died trying
-      for (Player* player : critical_players)
+      for (Connection& connection : critical_connections)
       {
-         qDebug("Game::synchronize: time to kick '%s' out of the game", player->getNick().c_str());
+         qDebug("Game::synchronize: time to kick '%s' out of the game", connection.getPlayer().getNick().c_str());
 
-         NET_StreamSocket* socket = getSocket(player);
-         forceLeaveGameSignal(socket);
+         forceLeaveGameSignal(connection);
 
-         sendPacket(socket, std::make_unique<ErrorPacket>(Constants::ErrorSyncTimeout, "sync aborted.;your pc is too slow."));
+         sendPacket(connection, std::make_unique<ErrorPacket>(Constants::ErrorSyncTimeout, "sync aborted.;your pc is too slow."));
       }
 
-      const int players_left_count = static_cast<int>(players.size()) - static_cast<int>(critical_players.size());
+      const int players_left_count = players_count - static_cast<int>(critical_connections.size());
       const int human_players_left_count = players_left_count - bot_count;
 
       // let the others play (if they're more than 2 guys and not only bots)
@@ -2060,14 +2014,10 @@ void Game::synchronize()
    }
 }
 
-void Game::sendPacket(NET_StreamSocket* socket, std::unique_ptr<Packet> packet)
+void Game::sendPacket(Connection& connection, std::unique_ptr<Packet> packet)
 {
    packet->serialize();
-
-   if (socket)
-   {
-      NET_WriteToStreamSocket(socket, packet->constData(), static_cast<int>(packet->size()));
-   }
+   connection.write(*packet);
 }
 
 void Game::sendBroadcastPackets()
@@ -2084,14 +2034,9 @@ void Game::sendBroadcastPackets()
       packet->serialize();
    }
 
-   for (const auto& [socket, socket_player] : _player_sockets)
+   for (Connection& connection : _players | std::views::values)
    {
-      if (!socket)
-      {
-         continue;
-      }
-
-      const bool synced = socket_player->isLoadingSynchronized();
+      const bool synced = connection.getPlayer().isLoadingSynchronized();
 
       // write outgoing packets to socket
       for (const auto& packet : _outgoing_packets)
@@ -2100,7 +2045,7 @@ void Game::sendBroadcastPackets()
 
          if (synced || packet_type == Packet::JOINGAMERESPONSE || packet_type == Packet::MESSAGE)
          {
-            NET_WriteToStreamSocket(socket, packet->constData(), static_cast<int>(packet->size()));
+            connection.write(*packet);
          }
       }
    }
@@ -2108,42 +2053,48 @@ void Game::sendBroadcastPackets()
    _outgoing_packets.clear();
 }
 
-Player* Game::findPlayer(NET_StreamSocket* socket) const
+std::optional<std::reference_wrapper<Player>> Game::findPlayer(int id) const
 {
-   const auto player_iterator = _player_sockets.find(socket);
-   return player_iterator != _player_sockets.end() ? player_iterator->second : nullptr;
+   const auto player_iterator = _players.find(static_cast<int8_t>(id));
+
+   if (player_iterator == _players.end())
+   {
+      return std::nullopt;
+   }
+
+   return player_iterator->second.get().getPlayer();
 }
 
-void Game::processPacket(NET_StreamSocket* tcp_socket, Packet* packet)
+void Game::processPacket(Connection& connection, const Packet& packet)
 {
-   switch (packet->getType())
+   switch (packet.getType())
    {
       case Packet::MESSAGE:
       {
-         auto* sender_packet = dynamic_cast<MessagePacket*>(packet);
+         const auto& sender_packet = static_cast<const MessagePacket&>(packet);
 
          // during the game we don't care if any of the players is currently
          // typing something. this is just relevant for the lounge
-         const bool broadcast_allowed = (_running && sender_packet->isTypingFinished()) || !_running;
+         const bool broadcast_allowed = (_running && sender_packet.isTypingFinished()) || !_running;
 
-         Player* sender = findPlayer(tcp_socket);
+         const Player& sender = connection.getPlayer();
 
-         if (broadcast_allowed && sender)
+         if (broadcast_allowed)
          {
-            const int sender_id = sender->getId();
+            const int sender_id = sender.getId();
 
-            for (const auto& [current_socket, current_player] : _player_sockets)
+            for (Connection& current_connection : _players | std::views::values)
             {
                // send message to all players unless it's private
-               if (sender_packet->getReceiverId() == -1 || sender_packet->getReceiverId() == current_player->getId())
+               if (sender_packet.getReceiverId() == -1 || sender_packet.getReceiverId() == current_connection.getPlayer().getId())
                {
                   sendPacket(
-                     current_socket,
+                     current_connection,
                      std::make_unique<MessagePacket>(
                         sender_id,
-                        std::format("{}: {}", sender->getNick(), StringUtils::trim(sender_packet->getMessage())),
-                        sender_packet->isTypingFinished(),
-                        sender_packet->getReceiverId()
+                        std::format("{}: {}", sender.getNick(), StringUtils::trim(sender_packet.getMessage())),
+                        sender_packet.isTypingFinished(),
+                        sender_packet.getReceiverId()
                      )
                   );
                }
@@ -2155,17 +2106,17 @@ void Game::processPacket(NET_StreamSocket* tcp_socket, Packet* packet)
 
       case Packet::KEY:
       {
-         auto* key_packet = dynamic_cast<KeyPacket*>(packet);
+         const auto& key_packet = static_cast<const KeyPacket&>(packet);
 
-         Player* player = findPlayer(tcp_socket);
+         Player& player = connection.getPlayer();
 
-         if (player && !player->isKilled() && getState() == Constants::GameActive)
+         if (!player.isKilled() && getState() == Constants::GameActive)
          {
             // fix up the player's inputs to not get confused in
             // any way (the player may to go to the left and to
             // the right at the same time for example)
-            int8_t keys = key_packet->getKeys();
-            const auto previous_keys = static_cast<int8_t>(player->getKeysPressed());
+            int8_t keys = key_packet.getKeys();
+            const auto previous_keys = static_cast<int8_t>(player.getKeysPressed());
 
             if ((previous_keys & Constants::KeyRight) && (keys & Constants::KeyLeft))
             {
@@ -2187,16 +2138,16 @@ void Game::processPacket(NET_StreamSocket* tcp_socket, Packet* packet)
                keys &= ~(Constants::KeyDown);
             }
 
-            if (player->isInfected())
+            if (player.isInfected())
             {
-               switch (player->getDisease()->getType())
+               switch (player.getDisease().getType())
                {
                   case Constants::SkullAutofire:
-                     player->getDisease()->applyAutofire(keys);
+                     player.getDisease().applyAutofire(keys);
                      break;
 
                   case Constants::SkullKeyboardInvert:
-                     player->getDisease()->applyKeyboardInvert(keys);
+                     player.getDisease().applyKeyboardInvert(keys);
                      break;
 
                   default:
@@ -2230,10 +2181,10 @@ void Game::processPacket(NET_StreamSocket* tcp_socket, Packet* packet)
 
             if (keys & Constants::KeyBomb)
             {
-               player->setBombKeyLocked(true);
+               player.setBombKeyLocked(true);
             }
 
-            player->setKeysPressed(keys);
+            player.setKeysPressed(keys);
          }
 
          break;
@@ -2251,14 +2202,14 @@ void Game::processPacket(NET_StreamSocket* tcp_socket, Packet* packet)
 
          if (getState() == Constants::GameActive)
          {
-            Player* player = findPlayer(tcp_socket);
+            const Player& player = connection.getPlayer();
 
-            if (player && getCreator() == player)
+            if (getCreatorId() == player.getId())
             {
                finishGame();
 
                // show player killed message
-               broadcastMessage(std::format("{} aborted the game.", player->getNick()));
+               broadcastMessage(std::format("{} aborted the game.", player.getNick()));
             }
          }
 
@@ -2311,55 +2262,54 @@ void Game::setName(const std::string& name)
    _create_game_data._name = name;
 }
 
-bool Game::joinGame(Player* player, NET_StreamSocket* player_socket, std::optional<Constants::Color> preferred_color)
+bool Game::joinGame(Connection& connection, std::optional<Constants::Color> preferred_color)
 {
+   Player& player = connection.getPlayer();
+
    if (getPlayerCount() >= getMaximumPlayerCount())
    {
       // game is full
       sendPacket(
-         player_socket, std::make_unique<JoinGameResponsePacket>(false, _game_id, player->getId(), player->getNick(), player->getColor())
+         connection, std::make_unique<JoinGameResponsePacket>(false, _game_id, player.getId(), player.getNick(), player.getColor())
       );
 
       return false;
    }
 
    // assign player color
-   player->setColor(getColorForNextPlayer(preferred_color));
+   player.setColor(getColorForNextPlayer(preferred_color));
 
    // reset player stats on join game event
-   player->resetStats();
-   player->setKilled(true);
+   player.resetStats();
+   player.setKilled(true);
 
    // send join information to all other players
-   for (Player* existing_player : _players | std::views::values)
+   for (const Player& existing_player : playersOf(_players))
    {
       sendPacket(
-         player_socket,
+         connection,
          std::make_unique<JoinGameResponsePacket>(
-            true, _game_id, existing_player->getId(), existing_player->getNick(), existing_player->getColor()
+            true, _game_id, existing_player.getId(), existing_player.getNick(), existing_player.getColor()
          )
       );
    }
 
    // insert the new player and send him his granted packet
-   _players[player->getId()] = player;
+   _players.insert_or_assign(player.getId(), std::ref(connection));
 
-   _player_sockets[player_socket] = player;
-
-   _outgoing_packets.push_back(
-      std::make_unique<JoinGameResponsePacket>(true, _game_id, player->getId(), player->getNick(), player->getColor())
+   _outgoing_packets.push_back(std::make_unique<JoinGameResponsePacket>(true, _game_id, player.getId(), player.getNick(), player.getColor())
    );
 
    return true;
 }
 
-void Game::processSpectator(NET_StreamSocket* tcp_socket)
+void Game::processSpectator(Connection& connection)
 {
    if (getState() == Constants::GameActive || getState() == Constants::GamePreparing)
    {
       if (getTimeLeft() > SERVER_MAX_REMAINING_TIME)
       {
-         _spectators.push_back(tcp_socket);
+         _spectators.push_back(connection.getPlayer().getId());
 
          singleShotWhileAlive(SERVER_SPECTATOR_DELAY, [this]() { processSpectatorMessage(); });
       }
@@ -2373,18 +2323,20 @@ void Game::processSpectatorMessage()
       return;
    }
 
-   NET_StreamSocket* tcp_socket = _spectators.front();
+   const auto spectator = _players.find(_spectators.front());
    _spectators.pop_front();
 
-   if (tcp_socket)
+   if (spectator != _players.end())
    {
+      Connection& connection = spectator->second;
+
       const int time_left = getTimeLeft();
 
       // tell player next round will start in n seconds
-      sendPacket(tcp_socket, std::make_unique<MessagePacket>(-1, "Please wait, the game is currently active.", true));
+      sendPacket(connection, std::make_unique<MessagePacket>(-1, "Please wait, the game is currently active.", true));
 
       sendPacket(
-         tcp_socket,
+         connection,
          std::make_unique<MessagePacket>(
             -1,
             (time_left == 1) ? std::string("The next game will start in about 1 second.")
@@ -2402,12 +2354,12 @@ int Game::getPositionSkipCount() const
 
 int Game::getBotCount() const
 {
-   return static_cast<int>(std::ranges::count_if(_players | std::views::values, [](const Player* player) { return player->isBot(); }));
+   return static_cast<int>(std::ranges::count_if(playersOf(_players), [](const Player& player) { return player.isBot(); }));
 }
 
-GameRound* Game::getGameRound()
+GameRound& Game::getGameRound()
 {
-   return &_game_round;
+   return _game_round;
 }
 
 void Game::increasePlayersLeftTheGameCount()
@@ -2435,25 +2387,26 @@ void Game::setStartPositionsInitialized(bool value)
    _start_positions_initialized = value;
 }
 
-void Game::removePlayer(Player* player, NET_StreamSocket* player_socket)
+void Game::removePlayer(Connection& connection)
 {
+   Player& player = connection.getPlayer();
+
    increasePlayersLeftTheGameCount();
 
-   _player_sockets.erase(player_socket);
-   _players.erase(player->getId());
+   _players.erase(player.getId());
 
-   // drop the socket from the spectator queue too, so processSpectatorMessage()'s
-   // delayed timer never fires against a socket that's since been destroyed
-   std::erase(_spectators, player_socket);
+   // drop the player from the spectator queue too, so processSpectatorMessage()'s
+   // delayed timer never fires against a connection that's since been destroyed
+   std::erase(_spectators, player.getId());
 
    // reset player stats on leave game event
-   player->resetStats();
+   player.resetStats();
 
    // also the player needs to synchronize loading
    // the next time he's joining a game
-   player->setLoadingSynchronized(false);
+   player.setLoadingSynchronized(false);
 
-   playerLeavesSignal(player->getId());
+   playerLeavesSignal(player.getId());
 }
 
 void Game::addOutgoingPacket(std::unique_ptr<Packet> packet)
@@ -2481,22 +2434,22 @@ void Game::processGameTime()
    }
 }
 
-void Game::setCreator(Player* creator)
+void Game::setCreatorId(int creator_id)
 {
-   _creator = creator;
+   _creator_id = creator_id;
 }
 
-Player* Game::getCreator() const
+int Game::getCreatorId() const
 {
-   return _creator;
+   return _creator_id;
 }
 
-std::vector<Player*> Game::getPlayers() const
+std::vector<std::reference_wrapper<Player>> Game::getPlayers() const
 {
-   std::vector<Player*> players;
+   std::vector<std::reference_wrapper<Player>> players;
    players.reserve(_players.size());
 
-   for (Player* player : _players | std::views::values)
+   for (Player& player : playersOf(_players))
    {
       players.push_back(player);
    }
@@ -2528,7 +2481,7 @@ int Game::getGamesPlayed() const
 Constants::Color Game::getColorForNextPlayer(std::optional<Constants::Color> preferred_color) const
 {
    const auto is_free = [this](Constants::Color color)
-   { return std::ranges::none_of(_players | std::views::values, [color](const Player* player) { return player->getColor() == color; }); };
+   { return std::ranges::none_of(playersOf(_players), [color](const Player& player) { return player.getColor() == color; }); };
 
    if (preferred_color && is_free(*preferred_color))
    {
@@ -2549,20 +2502,14 @@ Constants::Color Game::getColorForNextPlayer(std::optional<Constants::Color> pre
    return Constants::ColorWhite;
 }
 
-const std::map<NET_StreamSocket*, Player*>& Game::getPlayerSockets() const
+const std::map<int8_t, std::reference_wrapper<Connection>>& Game::getConnections() const
 {
-   return _player_sockets;
+   return _players;
 }
 
-NET_StreamSocket* Game::getSocket(Player* player) const
+Map& Game::getMap() const
 {
-   const auto socket_iterator = std::ranges::find_if(_player_sockets, [player](const auto& entry) { return entry.second == player; });
-   return socket_iterator != _player_sockets.end() ? socket_iterator->first : nullptr;
-}
-
-Map* Game::getMap() const
-{
-   return _map.get();
+   return *_map;
 }
 
 Constants::Dimension Game::getMapDimension() const
@@ -2612,18 +2559,14 @@ int Game::getDuration() const
    return _create_game_data._duration;
 }
 
-void Game::bombKickedAnimation(BombMapItem* item, Constants::Direction direction, float speed)
+void Game::bombKickedAnimation(const BombMapItem& item, Constants::Direction direction, float speed)
 {
-   if (item)
-   {
-      _outgoing_packets.push_back(std::make_unique<MapItemMovePacket>(item->getUniqueId(), speed, direction, item->getX(), item->getY()));
-   }
+   _outgoing_packets.push_back(std::make_unique<MapItemMovePacket>(item.getUniqueId(), speed, direction, item.getX(), item.getY()));
 }
 
 void Game::initializeExtraSpawn()
 {
    _extra_spawn = std::make_unique<ExtraSpawn>();
-   _extra_spawn->setMap(getMap());
 
    _extra_spawn->spawnSignal.connect([this]() { spawn(); });
 }
@@ -2636,9 +2579,9 @@ void Game::spawn()
       return;
    }
 
-   Map* map = getMap();
-   const int width = map->getWidth();
-   const int height = map->getHeight();
+   const Map& map = getMap();
+   const int width = map.getWidth();
+   const int height = map.getHeight();
 
    bool done = false;
 
@@ -2648,14 +2591,14 @@ void Game::spawn()
       const int y = Random::bounded(height);
 
       // there must be no item and no living player at x,y
-      if (!map->getItem(x, y))
+      if (!map.getItem(x, y))
       {
          done = std::ranges::none_of(
-            _players | std::views::values,
-            [x, y](const Player* player)
+            playersOf(_players),
+            [x, y](const Player& player)
             {
-               return !player->isKilled() && static_cast<int32_t>(std::floor(player->getX())) == x &&
-                      static_cast<int32_t>(std::floor(player->getY())) == y;
+               return !player.isKilled() && static_cast<int32_t>(std::floor(player.getX())) == x &&
+                      static_cast<int32_t>(std::floor(player.getY())) == y;
             }
          );
       }

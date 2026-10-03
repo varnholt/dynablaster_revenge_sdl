@@ -13,7 +13,7 @@ class ExtraMapItem : public MapItem
 public:
    ExtraMapItem(int32_t id, Constants::ExtraType type, int32_t x, int32_t y);
 
-   explicit ExtraMapItem(ExtraMapItemCreatedPacket* packet);
+   explicit ExtraMapItem(const ExtraMapItemCreatedPacket& packet);
 
    [[nodiscard]] Constants::ExtraType getExtraType() const;
 

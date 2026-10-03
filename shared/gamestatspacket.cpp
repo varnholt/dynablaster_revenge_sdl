@@ -2,11 +2,13 @@
 
 #include "logging.h"
 
+#include <string_view>
+
 #include <ranges>
 
 namespace
 {
-constexpr auto PACKETNAME = "GameStats";
+constexpr std::string_view PACKETNAME = "GameStats";
 }
 
 BinaryWriter& operator<<(BinaryWriter& out, const PlayerGameStats& stats)

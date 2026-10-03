@@ -10,12 +10,12 @@ MapItem::MapItem(ItemType type, int32_t appearance, bool blocking, bool destroya
    initializeBlocking();
 }
 
-MapItem::MapItem(MapItemCreatedPacket* packet)
-    : _type(packet->getItemType()),
-      _unique_id(packet->getUniqueId()),
-      _appearance(packet->getAppearance()),
-      _x(packet->getX()),
-      _y(packet->getY())
+MapItem::MapItem(const MapItemCreatedPacket& packet)
+    : _type(packet.getItemType()),
+      _unique_id(packet.getUniqueId()),
+      _appearance(packet.getAppearance()),
+      _x(packet.getX()),
+      _y(packet.getY())
 {
    initializeBlocking();
 }

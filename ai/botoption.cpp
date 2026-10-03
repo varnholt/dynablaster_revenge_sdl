@@ -27,9 +27,9 @@ void BotOption::setAction(std::unique_ptr<BotAction> action)
 /*!
    \return action
 */
-BotAction* BotOption::getAction() const
+BotAction& BotOption::getAction() const
 {
-   return _action.get();
+   return *_action;
 }
 
 /*!

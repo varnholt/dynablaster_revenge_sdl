@@ -3,7 +3,7 @@
 #include <cstdint>
 
 // server
-inline constexpr const char* SERVER_CONFIG_FILE_SERVER = "data/server.ini";
+inline constexpr char SERVER_CONFIG_FILE_SERVER[] = "data/server.ini";
 inline constexpr float SERVER_SPEED = 0.05f;
 inline constexpr int32_t SERVER_HEARTBEAT_IN_HZ = 50;
 inline constexpr int32_t SERVER_PORT = 6300;

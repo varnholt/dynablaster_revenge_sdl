@@ -2,9 +2,11 @@
 
 #include "logging.h"
 
+#include <string_view>
+
 namespace
 {
-constexpr auto PACKETNAME = "Bomb";
+constexpr std::string_view PACKETNAME = "Bomb";
 }
 
 BombPacket::BombPacket(int8_t player_id, uint8_t x, uint8_t y) : Packet(Packet::BOMB), _player_id(player_id), _x(x), _y(y)

@@ -15,17 +15,22 @@ class Map
 {
 public:
    Map(int32_t width, int32_t height);
-   virtual ~Map();
+   virtual ~Map() = default;
 
    void initialize();
    void initializeTestMap();
 
-   // non-owning observer; the object is owned by whichever code path put it there (the map's own
-   // construction, or server-side game logic moving items around, e.g. during a bomb kick)
-   [[nodiscard]] virtual MapItem* getItem(int32_t x, int32_t y) const;
+   // empty if the field is free
+   [[nodiscard]] const std::shared_ptr<MapItem>& getItem(int32_t x, int32_t y) const;
 
-   // does not delete whatever was there before (see getItem())
-   virtual void setItem(int32_t x, int32_t y, MapItem* item);
+   // replaces whatever was there before
+   void setItem(int32_t x, int32_t y, std::shared_ptr<MapItem> item);
+
+   // keeps owning an item that is temporarily off the grid (a kicked bomb on its way)
+   void addLiftedItem(std::shared_ptr<MapItem> item);
+
+   // hands a lifted item back, empty if there is none with that id
+   [[nodiscard]] std::shared_ptr<MapItem> takeLiftedItem(int32_t unique_id);
 
    // check if an extra is hidden in some stone
    [[nodiscard]] bool isHiddenExtraAvailable() const;
@@ -69,8 +74,11 @@ protected:
    int32_t _width = 0;
    int32_t _height = 0;
 
-   // flattened width * height grid; the destructor deletes whatever is still on it
-   std::vector<MapItem*> _map;
+   // flattened width * height grid
+   std::vector<std::shared_ptr<MapItem>> _map;
+
+   // items currently off the grid, see addLiftedItem()
+   std::vector<std::shared_ptr<MapItem>> _lifted_items;
 
    std::vector<Point> _start_positions;
 };

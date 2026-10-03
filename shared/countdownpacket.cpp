@@ -2,9 +2,11 @@
 
 #include "logging.h"
 
+#include <string_view>
+
 namespace
 {
-constexpr auto PACKETNAME = "Countdown";
+constexpr std::string_view PACKETNAME = "Countdown";
 }
 
 CountdownPacket::CountdownPacket(int8_t time_left) : Packet(Packet::COUNTDOWN), _time_left(time_left)

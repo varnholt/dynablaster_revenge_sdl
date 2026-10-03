@@ -37,12 +37,8 @@
 // SDL
 #include <SDL3_net/SDL_net.h>
 
-Server* Server::_instance = nullptr;
-
 Server::Server()
 {
-   _instance = this;
-
    initServerConfiguration();
 
    qDebug("Server::Server: Dynablaster Revenge Server - v%s, rev. %s", SERVER_VERSION, SERVER_REVISION);
@@ -50,7 +46,7 @@ Server::Server()
    qDebug("Server::Server: binding to port %d..", SERVER_PORT);
 
    // create server, listening on all local addresses
-   _net_server = NET_CreateServer(nullptr, SERVER_PORT, 0);
+   _net_server.reset(NET_CreateServer(nullptr, SERVER_PORT, 0));
 
    if (!_net_server)
    {
@@ -77,41 +73,14 @@ Server::~Server()
    qDebug("Server::~Server");
 
    // players first: an infected player's disease disconnects itself from its game on destruction
-   _player_sockets.clear();
+   _connections.clear();
    _games.clear();
-
-   if (_net_server)
-   {
-      NET_DestroyServer(_net_server);
-   }
-
-   if (_instance == this)
-   {
-      _instance = nullptr;
-   }
-}
-
-Server* Server::getInstance()
-{
-   if (!_instance)
-   {
-      new Server();
-   }
-
-   return _instance;
+   _removed_games.clear();
 }
 
 bool Server::isListening() const
 {
    return _net_server != nullptr;
-}
-
-NET_StreamSocket* Server::getPlayerSocket(int player_id)
-{
-   const auto socket_iterator =
-      std::ranges::find_if(_player_sockets, [player_id](const auto& entry) { return entry.second && entry.second->getId() == player_id; });
-
-   return socket_iterator != _player_sockets.end() ? socket_iterator->first : nullptr;
 }
 
 const ServerConfiguration& Server::getServerConfiguration() const
@@ -128,43 +97,51 @@ void Server::initServerConfiguration()
    _server_configuration.setBombTickTime(bomb_tick_time);
 }
 
-Player* Server::findPlayer(NET_StreamSocket* socket) const
+std::optional<std::reference_wrapper<Game>> Server::findGame(const Connection& connection) const
 {
-   const auto player_iterator = _player_sockets.find(socket);
-   return player_iterator != _player_sockets.end() ? player_iterator->second.get() : nullptr;
+   const auto mapping = _connection_games.find(connection.getId());
+
+   if (mapping == _connection_games.end())
+   {
+      return std::nullopt;
+   }
+
+   const auto game_iterator = _games.find(mapping->second);
+
+   if (game_iterator == _games.end())
+   {
+      return std::nullopt;
+   }
+
+   return *game_iterator->second;
 }
 
 void Server::acceptConnections()
 {
    while (true)
    {
-      NET_StreamSocket* socket = nullptr;
+      // C API out parameter, owned by the connection right away
+      NET_StreamSocket* accepted_socket = nullptr;
 
-      if (!NET_AcceptClient(_net_server, &socket))
+      if (!NET_AcceptClient(_net_server.get(), &accepted_socket))
       {
          qDebug("Server::acceptConnections: accept failed: %s", SDL_GetError());
          break;
       }
 
-      if (!socket)
+      if (!accepted_socket)
       {
          break;
       }
 
-      NET_Address* address = NET_GetStreamSocketAddress(socket);
+      const auto connection_id = _connection_id++;
 
-      qDebug(
-         "Server::acceptConnections: peer address: %s, socket ptr: %p",
-         address ? NET_GetAddressString(address) : "?",
-         static_cast<void*>(socket)
-      );
+      auto connection =
+         std::make_unique<Connection>(connection_id, NetStreamSocketHandle(accepted_socket, &NET_DestroyStreamSocket), _player_id++);
 
-      if (address)
-      {
-         NET_UnrefAddress(address);
-      }
+      qDebug("Server::acceptConnections: peer address: %s, connection: %d", connection->getPeerAddress().c_str(), connection_id);
 
-      _player_sockets[socket] = std::make_unique<Player>(_player_id++);
+      _connections[connection_id] = std::move(connection);
    }
 }
 
@@ -172,84 +149,67 @@ void Server::poll()
 {
    acceptConnections();
 
-   // snapshot the keys since disconnectSocket() mutates _player_sockets mid-iteration
-   std::vector<NET_StreamSocket*> sockets;
-   sockets.reserve(_player_sockets.size());
-   for (const auto& [socket, player] : _player_sockets)
+   // snapshot the ids since disconnectSocket() mutates _connections mid-iteration
+   std::vector<int32_t> connection_ids;
+   connection_ids.reserve(_connections.size());
+   for (const auto connection_id : _connections | std::views::keys)
    {
-      sockets.push_back(socket);
+      connection_ids.push_back(connection_id);
    }
 
-   for (NET_StreamSocket* socket : sockets)
+   for (const auto connection_id : connection_ids)
    {
-      readSocket(socket);
+      readSocket(connection_id);
    }
 }
 
-void Server::sendPacket(NET_StreamSocket* socket, std::unique_ptr<Packet> packet)
+void Server::sendPacket(Connection& connection, std::unique_ptr<Packet> packet)
 {
    packet->serialize();
-
-   if (socket)
-   {
-      NET_WriteToStreamSocket(socket, packet->constData(), static_cast<int>(packet->size()));
-   }
+   connection.write(*packet);
 }
 
-void Server::processStartGameRequest(NET_StreamSocket* tcp_socket, Packet* packet)
+void Server::processStartGameRequest(Connection& connection, const StartGameRequestPacket& request)
 {
-   auto* request = dynamic_cast<StartGameRequestPacket*>(packet);
-
    // TODO:
    // game needs "isRunning"
    // -> to be checked before restarting
 
-   const auto game_iterator = _games.find(request->getId());
+   const auto game_iterator = _games.find(request.getId());
 
    if (game_iterator != _games.end())
    {
-      Game* game = game_iterator->second.get();
-      Player* player = findPlayer(tcp_socket);
+      Game& game = *game_iterator->second;
 
-      if (player && player->getId() == game->getCreator()->getId())
+      if (connection.getPlayer().getId() == game.getCreatorId())
       {
-         game->startSynchronization();
+         game.startSynchronization();
       }
    }
 }
 
-void Server::processJoinGameRequest(NET_StreamSocket* tcp_socket, Packet* packet)
+void Server::processJoinGameRequest(Connection& connection, const JoinGameRequestPacket& request)
 {
-   auto* request = dynamic_cast<JoinGameRequestPacket*>(packet);
-
-   const auto game_iterator = _games.find(request->getId());
+   const auto game_iterator = _games.find(request.getId());
 
    if (game_iterator != _games.end())
    {
-      Game* game = game_iterator->second.get();
-      Player* player = findPlayer(tcp_socket);
+      Game& game = *game_iterator->second;
 
-      if (player)
+      if (game.joinGame(connection, request.getPreferredColor()))
       {
-         if (game->joinGame(player, tcp_socket, request->getPreferredColor()))
-         {
-            game->broadcastMessage(std::format("{} joined the game", player->getNick()));
+         game.broadcastMessage(std::format("{} joined the game", connection.getPlayer().getNick()));
 
-            _socket_game_mapping[tcp_socket] = game;
+         _connection_games[connection.getId()] = game.getId();
 
-            // if the game is currently running, inform the player that the
-            // game has been started
-            game->processSpectator(tcp_socket);
-         }
-      }
-      else
-      {
-         sendPacket(tcp_socket, std::make_unique<JoinGameResponsePacket>(false, game->getId(), -1, "fuck off", Constants::ColorWhite));
+         // if the game is currently running, inform the player that the
+         // game has been started
+         game.processSpectator(connection);
       }
    }
 }
 
-void Server::processPlayerSynchronize(NET_StreamSocket* tcp_socket, Packet* packet)
+void Server::processPlayerSynchronize(Connection& connection, const PlayerSynchronizePacket& request)
 {
    /*
       game level loading synchronizing workflow:
@@ -264,56 +224,43 @@ void Server::processPlayerSynchronize(NET_StreamSocket* tcp_socket, Packet* pack
       8) start game
    */
 
-   auto* request = dynamic_cast<PlayerSynchronizePacket*>(packet);
-
-   if (request->getSynchronizeProcess() == PlayerSynchronizePacket::LevelLoaded)
+   if (request.getSynchronizeProcess() == PlayerSynchronizePacket::LevelLoaded)
    {
-      const auto game_iterator = _socket_game_mapping.find(tcp_socket);
-
-      if (game_iterator != _socket_game_mapping.end())
+      if (const auto game = findGame(connection))
       {
-         Game* game = game_iterator->second;
-         Player* player = findPlayer(tcp_socket);
+         Player& player = connection.getPlayer();
 
-         if (player)
-         {
-            player->setLoadingSynchronized(true);
+         player.setLoadingSynchronized(true);
 
-            qDebug("Server::processPlayerSynchronize: game: %d player: '%s'", game->getId(), player->getNick().c_str());
-         }
+         qDebug("Server::processPlayerSynchronize: game: %d player: '%s'", game->get().getId(), player.getNick().c_str());
       }
    }
 }
 
-void Server::processLoginRequest(NET_StreamSocket* tcp_socket, Packet* packet)
+void Server::processLoginRequest(Connection& connection, const LoginRequestPacket& request)
 {
-   auto* request = dynamic_cast<LoginRequestPacket*>(packet);
-
    qDebug("Server::processLoginRequest: login request packet received");
 
-   Player* player = findPlayer(tcp_socket);
+   Player& player = connection.getPlayer();
 
-   if (player)
+   const bool was_logged_in = player.isLoggedIn();
+
+   std::string nick = request.getNick();
+   if (!was_logged_in)
    {
-      const bool was_logged_in = player->isLoggedIn();
-
-      std::string nick = request->getNick();
-      if (!was_logged_in)
-      {
-         nick = correctDuplicatePlayerName(nick);
-      }
-
-      // init player attributes
-      player->setLoggedIn(true);
-      player->setNick(nick);
-      player->setBot(request->isBot());
-
-      // send login acceptance directly back to sender
-      sendPacket(tcp_socket, std::make_unique<LoginResponsePacket>(false, player->getId(), player->getNick(), getServerConfiguration()));
+      nick = correctDuplicatePlayerName(nick);
    }
+
+   // init player attributes
+   player.setLoggedIn(true);
+   player.setNick(nick);
+   player.setBot(request.isBot());
+
+   // send login acceptance directly back to sender
+   sendPacket(connection, std::make_unique<LoginResponsePacket>(false, player.getId(), player.getNick(), getServerConfiguration()));
 }
 
-void Server::processListGamesRequest(NET_StreamSocket* tcp_socket)
+void Server::processListGamesRequest(Connection& connection)
 {
    std::vector<GameInformation> games;
 
@@ -322,44 +269,40 @@ void Server::processListGamesRequest(NET_StreamSocket* tcp_socket)
       games.push_back(game->getGameInformation());
    }
 
-   sendPacket(tcp_socket, std::make_unique<ListGamesResponsePacket>(games));
+   sendPacket(connection, std::make_unique<ListGamesResponsePacket>(games));
 }
 
-void Server::processCreateGameRequest(NET_StreamSocket* tcp_socket, Packet* packet)
+void Server::processCreateGameRequest(Connection& connection, const CreateGameRequestPacket& request)
 {
    // the server current does not support a maximum game count.
    // if this ought to be implemented, we need to return a gameinformation
    // object countaining a gameid of -1.
 
-   auto* request = dynamic_cast<CreateGameRequestPacket*>(packet);
-
    auto game_owner = std::make_unique<Game>();
-   Game* game = game_owner.get();
-   game->setCreateGameData(request->getData());
-   game->setCreator(findPlayer(tcp_socket));
-   game->getGameRound()->setCount(request->getData()._rounds);
+   Game& game = *game_owner;
+   game.setCreateGameData(request.getData());
+   game.setCreatorId(connection.getPlayer().getId());
+   game.getGameRound().setCount(request.getData()._rounds);
 
-   game->forceLeaveGameSignal.connect([this](NET_StreamSocket* socket) { processPlayerLeavesGame(socket); });
+   game.forceLeaveGameSignal.connect([this](Connection& leaving_connection) { processPlayerLeavesGame(leaving_connection); });
 
    // autocorrect duplicate game names
    correctDuplicateGameName(game);
 
-   _games[game->getId()] = std::move(game_owner);
+   _games[game.getId()] = std::move(game_owner);
 
-   game->initialize();
+   game.initialize();
 
-   sendPacket(tcp_socket, std::make_unique<CreateGameResponsePacket>(game->getGameInformation()));
+   sendPacket(connection, std::make_unique<CreateGameResponsePacket>(game.getGameInformation()));
 }
 
-void Server::processGamePacket(NET_StreamSocket* tcp_socket, Packet* packet)
+void Server::processGamePacket(Connection& connection, const Packet& packet)
 {
-   const auto game_iterator = _socket_game_mapping.find(tcp_socket);
-
-   // if the socket already joined a game, let the
+   // if the connection already joined a game, let the
    // according game instance handle the communication
-   if (game_iterator != _socket_game_mapping.end())
+   if (const auto game = findGame(connection))
    {
-      game_iterator->second->processPacket(tcp_socket, packet);
+      game->get().processPacket(connection, packet);
    }
 }
 
@@ -370,71 +313,74 @@ void Server::processGamePacket(NET_StreamSocket* tcp_socket, Packet* packet)
 
       Server
       |
-      + NET_Server*
-      + acceptConnections() => new Player()
+      + NET_Server
+      + acceptConnections() => new Connection(new Player)
                                    |
-                                   + NET_StreamSocket*
+                                   + NET_StreamSocket
       + readSocket() => while(data is available)
-                  1) read from NET_StreamSocket*
-                  2) deserialize Packet*
+                  1) read from the connection's socket
+                  2) deserialize Packet
                   3) process all server-related packets
                   4) process all game-related packets
 */
-void Server::readSocket(NET_StreamSocket* tcp_socket)
+void Server::readSocket(int32_t connection_id)
 {
-   auto& buffer = _socket_buffers[tcp_socket];
+   const auto connection_iterator = _connections.find(connection_id);
 
-   if (!buffer)
+   if (connection_iterator == _connections.end())
    {
-      buffer = std::make_unique<PacketStreamBuffer>();
+      return;
    }
+
+   Connection& connection = *connection_iterator->second;
+   PacketStreamBuffer& buffer = connection.getBuffer();
 
    std::array<char, 4096> chunk{};
    int bytes_read = 0;
 
-   while ((bytes_read = NET_ReadFromStreamSocket(tcp_socket, chunk.data(), static_cast<int>(chunk.size()))) > 0)
+   while ((bytes_read = connection.read(chunk)) > 0)
    {
-      buffer->append(chunk.data(), static_cast<size_t>(bytes_read));
+      buffer.append(std::span(chunk).first(static_cast<size_t>(bytes_read)));
    }
 
    if (bytes_read < 0)
    {
-      disconnectSocket(tcp_socket);
+      disconnectSocket(connection_id);
       return;
    }
 
    while (true)
    {
-      uint16_t block_size = _packet_sizes[tcp_socket];
+      uint16_t block_size = connection.getExpectedPacketSize();
 
       // blocksize not initialized yet
       if (block_size == 0)
       {
-         if (buffer->bytesAvailable() < sizeof(uint16_t))
+         if (buffer.bytesAvailable() < sizeof(uint16_t))
          {
             break;
          }
 
-         BinaryReader size_reader = buffer->reader();
+         BinaryReader size_reader = buffer.reader();
          size_reader >> block_size;
-         buffer->consume(size_reader.pos());
-         _packet_sizes[tcp_socket] = block_size;
+         buffer.consume(size_reader.pos());
+         connection.setExpectedPacketSize(block_size);
       }
 
       // wait for more data
-      if (buffer->bytesAvailable() < block_size)
+      if (buffer.bytesAvailable() < block_size)
       {
          break;
       }
 
       // reset expected blocksize
-      _packet_sizes[tcp_socket] = 0;
+      connection.setExpectedPacketSize(0);
 
       // block was read completely; reading is limited to it, so a packet with trailing fields
       // this server doesn't know (or one shorter than expected) can't desync the stream
-      BinaryReader in = buffer->reader(block_size);
-      auto packet = Packet::deserialize(in);
-      buffer->consume(block_size);
+      BinaryReader in = buffer.reader(block_size);
+      const auto packet = Packet::deserialize(in);
+      buffer.consume(block_size);
 
       if (packet)
       {
@@ -442,37 +388,37 @@ void Server::readSocket(NET_StreamSocket* tcp_socket)
          {
             case Packet::CREATEGAMEREQUEST:
             {
-               processCreateGameRequest(tcp_socket, packet.get());
+               processCreateGameRequest(connection, static_cast<const CreateGameRequestPacket&>(*packet));
                break;
             }
 
             case Packet::LISTGAMESREQUEST:
             {
-               processListGamesRequest(tcp_socket);
+               processListGamesRequest(connection);
                break;
             }
 
             case Packet::LEAVEGAMEREQUEST:
             {
-               processPlayerLeavesGame(tcp_socket);
+               processPlayerLeavesGame(connection);
                break;
             }
 
             case Packet::LOGINREQUEST:
             {
-               processLoginRequest(tcp_socket, packet.get());
+               processLoginRequest(connection, static_cast<const LoginRequestPacket&>(*packet));
                break;
             }
 
             case Packet::JOINGAMEREQUEST:
             {
-               processJoinGameRequest(tcp_socket, packet.get());
+               processJoinGameRequest(connection, static_cast<const JoinGameRequestPacket&>(*packet));
                break;
             }
 
             case Packet::STARTGAMEREQUEST:
             {
-               processStartGameRequest(tcp_socket, packet.get());
+               processStartGameRequest(connection, static_cast<const StartGameRequestPacket&>(*packet));
                break;
             }
 
@@ -483,7 +429,7 @@ void Server::readSocket(NET_StreamSocket* tcp_socket)
 
             case Packet::PLAYERSYNCHRONIZEPACKET:
             {
-               processPlayerSynchronize(tcp_socket, packet.get());
+               processPlayerSynchronize(connection, static_cast<const PlayerSynchronizePacket&>(*packet));
                break;
             }
 
@@ -495,104 +441,116 @@ void Server::readSocket(NET_StreamSocket* tcp_socket)
 
             default:
             {
-               processGamePacket(tcp_socket, packet.get());
+               processGamePacket(connection, *packet);
                break;
             }
          }
       }
    }
 
-   buffer->compact();
+   buffer.compact();
 }
 
-void Server::disconnectSocket(NET_StreamSocket* tcp_socket)
+void Server::disconnectSocket(int32_t connection_id)
 {
    qDebug("Server::disconnectSocket");
 
+   const auto connection_iterator = _connections.find(connection_id);
+
+   if (connection_iterator == _connections.end())
+   {
+      return;
+   }
+
    // notify other players
-   processPlayerLeavesGame(tcp_socket);
+   processPlayerLeavesGame(*connection_iterator->second);
 
-   // destroys the player and the socket's buffer
-   _player_sockets.erase(tcp_socket);
-   _socket_buffers.erase(tcp_socket);
-   _packet_sizes.erase(tcp_socket);
-
-   NET_DestroyStreamSocket(tcp_socket);
+   // destroys the player, the buffer and the socket
+   _connections.erase(connection_iterator);
 }
 
-void Server::processBroadcastLeaveGameResponse(Player* player, Game* game)
+void Server::processBroadcastLeaveGameResponse(const Player& player, Game& game)
 {
-   for (const auto& [socket, socket_player] : game->getPlayerSockets())
+   for (Connection& connection : game.getConnections() | std::views::values)
    {
       qDebug(
          "Server::processBroadcastLeaveGameResponse: "
          "informing '%s' that '%s' left",
-         socket_player->getNick().c_str(),
-         player->getNick().c_str()
+         connection.getPlayer().getNick().c_str(),
+         player.getNick().c_str()
       );
 
-      sendPacket(socket, std::make_unique<LeaveGameResponsePacket>(game->getId(), player->getId()));
+      sendPacket(connection, std::make_unique<LeaveGameResponsePacket>(game.getId(), player.getId()));
    }
 }
 
-void Server::processPlayerLeavesGame(NET_StreamSocket* tcp_socket)
+void Server::processPlayerLeavesGame(Connection& connection)
 {
-   const auto game_iterator = _socket_game_mapping.find(tcp_socket);
+   const auto game = findGame(connection);
 
    // remove player from game
-   if (game_iterator != _socket_game_mapping.end())
+   if (!game)
    {
-      Player* player = findPlayer(tcp_socket);
-      Game* game = game_iterator->second;
+      _connection_games.erase(connection.getId());
+      return;
+   }
 
-      // notify all players in the game that player left
-      processBroadcastLeaveGameResponse(player, game);
+   const Player& player = connection.getPlayer();
+   Game& left_game = *game;
 
-      // remove player from game
-      game->removePlayer(player, tcp_socket);
+   // notify all players in the game that player left
+   processBroadcastLeaveGameResponse(player, left_game);
 
-      // remove socket from socket<->game-mapping
-      _socket_game_mapping.erase(tcp_socket);
+   // remove player from game
+   left_game.removePlayer(connection);
 
-      // if game is empty, delete game
-      if (game->getPlayerCount() == 0 || game->getPlayerCount() == game->getBotCount())
+   // remove connection from connection<->game-mapping
+   _connection_games.erase(connection.getId());
+
+   // if game is empty, delete game
+   if (left_game.getPlayerCount() == 0 || left_game.getPlayerCount() == left_game.getBotCount())
+   {
+      const int game_id = left_game.getId();
+      processRemoveAllBots(game_id);
+      processRemoveGame(game_id);
+   }
+   else
+   {
+      left_game.broadcastMessage(std::format("{} left the game", player.getNick()));
+
+      if (player.getId() == left_game.getCreatorId())
       {
-         processRemoveAllBots(game->getId());
-         processRemoveGame(game->getId());
-      }
-      else
-      {
-         game->broadcastMessage(std::format("{} left the game", player->getNick()));
-
-         if (player == game->getCreator())
+         // 1) pass owner flag
+         std::vector<std::reference_wrapper<Connection>> connections;
+         for (Connection& remaining : left_game.getConnections() | std::views::values)
          {
-            // 1) pass owner flag
-            const std::vector<Player*> players = game->getPlayers();
-
-            const auto new_owner = std::ranges::find_if(players, [](Player* candidate) { return !candidate->isBot(); });
-
-            if (new_owner != players.end())
-            {
-               game->setCreator(*new_owner);
-               game->broadcastMessage(std::format("{} is the new game owner", (*new_owner)->getNick()));
-            }
-
-            // 2) notify players about new owner
-            for (Player* game_player : players)
-            {
-               processListGamesRequest(game->getSocket(game_player));
-            }
+            connections.push_back(remaining);
          }
 
-         // end game if only 1 player left
-         if (game->getPlayerCount() == 1)
+         const auto new_owner =
+            std::ranges::find_if(connections, [](const Connection& candidate) { return !candidate.getPlayer().isBot(); });
+
+         if (new_owner != connections.end())
          {
-            // it is not desired to have a game over condition while
-            // the game is not even running :)
-            if (game->getState() != Constants::GameStopped)
-            {
-               game->updateGameoverCondition();
-            }
+            left_game.setCreatorId(new_owner->get().getPlayer().getId());
+            left_game.broadcastMessage(std::format("{} is the new game owner", new_owner->get().getPlayer().getNick()));
+         }
+
+         // 2) notify players about new owner
+         for (Connection& remaining : connections)
+         {
+            processListGamesRequest(remaining);
+         }
+      }
+
+      // end game if only 1 player left
+      if (left_game.getPlayerCount() == 1)
+      {
+         // it is not desired to have a game over condition while
+         // the game is not even running :)
+         if (left_game.getState() != Constants::GameStopped)
+         {
+            left_game.updateGameoverCondition();
          }
       }
    }
@@ -604,11 +562,11 @@ void Server::processRemoveGame(int game_id)
 
    if (game_iterator != _games.end())
    {
-      Game* game = game_iterator->second.release();
+      // deferred: this may run from inside one of the game's own callbacks
+      _removed_games.push_back(std::move(game_iterator->second));
       _games.erase(game_iterator);
 
-      // deferred: this may run from inside one of the game's own callbacks
-      Timer::singleShot(0, [game]() { delete game; });
+      Timer::singleShot(0, [this]() { _removed_games.clear(); });
    }
 }
 
@@ -618,34 +576,31 @@ void Server::processRemoveAllBots(int game_id)
 
    if (game_iterator != _games.end())
    {
-      Game* game = game_iterator->second.get();
+      Game& game = *game_iterator->second;
 
-      const std::vector<Player*> players = game->getPlayers();
-      for (Player* player : players)
+      std::vector<std::reference_wrapper<Connection>> connections;
+      for (Connection& connection : game.getConnections() | std::views::values)
       {
-         const auto socket_iterator =
-            std::ranges::find_if(_player_sockets, [player](const auto& entry) { return entry.second.get() == player; });
+         connections.push_back(connection);
+      }
 
-         NET_StreamSocket* tcp_socket = socket_iterator != _player_sockets.end() ? socket_iterator->first : nullptr;
-
+      for (Connection& connection : connections)
+      {
          // remove bot from game
-         game->removePlayer(player, tcp_socket);
+         game.removePlayer(connection);
 
-         if (tcp_socket)
-         {
-            // notify bot: "you're out"
-            sendPacket(tcp_socket, std::make_unique<LeaveGameResponsePacket>(game_id, player->getId()));
+         // notify bot: "you're out"
+         sendPacket(connection, std::make_unique<LeaveGameResponsePacket>(game_id, connection.getPlayer().getId()));
 
-            // remove socket from socket<->game-mapping
-            _socket_game_mapping.erase(tcp_socket);
-         }
+         // remove connection from connection<->game-mapping
+         _connection_games.erase(connection.getId());
       }
    }
 }
 
-void Server::correctDuplicateGameName(Game* new_game)
+void Server::correctDuplicateGameName(Game& new_game)
 {
-   const std::string game_name = new_game->getName();
+   const std::string game_name = new_game.getName();
    std::string corrected_game_name = game_name;
 
    const auto is_duplicate = [this, &corrected_game_name]()
@@ -667,7 +622,7 @@ void Server::correctDuplicateGameName(Game* new_game)
 
    if (changed)
    {
-      new_game->setName(corrected_game_name);
+      new_game.setName(corrected_game_name);
    }
 }
 
@@ -678,7 +633,8 @@ std::string Server::correctDuplicatePlayerName(const std::string& nick)
    const auto is_duplicate = [this, &corrected_nick]()
    {
       return std::ranges::any_of(
-         _player_sockets | std::views::values, [&corrected_nick](const auto& player) { return corrected_nick == player->getNick(); }
+         _connections | std::views::values,
+         [&corrected_nick](const auto& connection) { return corrected_nick == connection->getPlayer().getNick(); }
       );
    };
 

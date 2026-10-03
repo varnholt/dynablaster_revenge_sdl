@@ -179,19 +179,19 @@ void GameSettings::AudioSettings::deserialize()
 
    float volume = 0.0f;
 
-   volume = value("audio/volume_music").toFloat(&ok);
+   volume = value("audio/volume_music").toFloat(ok);
 
    setVolumeMusic(ok ? volume : DEFAULT_VOLUME_MUSIC);
 
-   volume = value("audio/volume_sfx").toFloat(&ok);
+   volume = value("audio/volume_sfx").toFloat(ok);
 
    setVolumeSfx(ok ? volume : DEFAULT_VOLUME_SFX);
 
-   volume = value("audio/volume_music_default").toFloat(&ok);
+   volume = value("audio/volume_music_default").toFloat(ok);
 
    setVolumeMusicDefault(ok ? volume : DEFAULT_VOLUME_MUSIC);
 
-   volume = value("audio/volume_sfx_default").toFloat(&ok);
+   volume = value("audio/volume_sfx_default").toFloat(ok);
 
    setVolumeSfxDefault(ok ? volume : DEFAULT_VOLUME_SFX);
 
@@ -766,8 +766,8 @@ void GameSettings::ControllerSettings::deserialize()
 
    for (const auto& entry : deserialize_map)
    {
-      Constants::Key key = static_cast<Constants::Key>(SettingsValue(entry.first).toInt(&key_ok));
-      int key_val = SettingsValue(entry.second).toInt(&key_val_ok);
+      Constants::Key key = static_cast<Constants::Key>(SettingsValue(entry.first).toInt(key_ok));
+      int key_val = SettingsValue(entry.second).toInt(key_val_ok);
 
       if (key_ok && key_val_ok)
       {

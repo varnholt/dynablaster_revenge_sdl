@@ -35,7 +35,7 @@ bool GamePlayback::isRecording() const
    return _recording;
 }
 
-void GamePlayback::record(Packet*)
+void GamePlayback::record(const Packet&)
 {
 }
 void GamePlayback::playDemo()

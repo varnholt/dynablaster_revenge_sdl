@@ -13,9 +13,9 @@ void StoneMapItem::setExtraMapItem(std::unique_ptr<ExtraMapItem> item)
    _extra_map_item = std::move(item);
 }
 
-ExtraMapItem* StoneMapItem::getExtraMapItem() const
+bool StoneMapItem::hasExtraMapItem() const
 {
-   return _extra_map_item.get();
+   return _extra_map_item != nullptr;
 }
 
 std::unique_ptr<ExtraMapItem> StoneMapItem::releaseExtraMapItem()

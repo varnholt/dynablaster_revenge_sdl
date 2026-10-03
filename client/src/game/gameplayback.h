@@ -21,7 +21,7 @@ public:
    void setRecording(bool recording);
    bool isRecording() const;
 
-   void record(Packet* packet);
+   void record(const Packet& packet);
    void playDemo();
    void abort();
    void setPlayerId(int id);

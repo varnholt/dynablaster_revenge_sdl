@@ -100,6 +100,7 @@ set(DYNABLASTER_SHARED_SOURCES
     ../shared/mapcreaterequestpacket.h
     ../shared/mapitem.cpp
     ../shared/mapitem.h
+    ../shared/nethandles.h
     ../shared/mapitemcreatedpacket.cpp
     ../shared/mapitemcreatedpacket.h
     ../shared/mapitemdestroyedpacket.cpp
@@ -170,6 +171,8 @@ set(DYNABLASTER_SHARED_SOURCES
 set(DYNABLASTER_SERVER_SOURCES
     src/collisiondetection.cpp
     src/collisiondetection.h
+    src/connection.cpp
+    src/connection.h
     src/extrashakepackethandler.cpp
     src/extrashakepackethandler.h
     src/extraspawn.cpp

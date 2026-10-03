@@ -73,8 +73,8 @@ public:
    virtual void enqueue(BinaryWriter& out) = 0;
    virtual void dequeue(BinaryReader& in) = 0;
 
-   [[nodiscard]] int16_t getSize();
-   [[nodiscard]] TYPE getType();
+   [[nodiscard]] int16_t getSize() const;
+   [[nodiscard]] TYPE getType() const;
 
    // milliseconds since midnight
    [[nodiscard]] int32_t getTimestamp() const;
@@ -83,9 +83,6 @@ public:
    void setTimeStamp(int32_t time);
 
    [[nodiscard]] const std::string& getPacketName() const;
-
-   // raw byte pointer, kept for existing socket-write call sites
-   [[nodiscard]] const char* constData() const;
 
 protected:
    int16_t _packet_size = 0;

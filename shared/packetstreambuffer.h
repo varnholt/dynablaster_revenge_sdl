@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <span>
 #include <vector>
 
 #include "binaryreader.h"
@@ -13,7 +14,7 @@ class PacketStreamBuffer
 {
 public:
    // append raw bytes just read from the transport
-   void append(const char* data, size_t length);
+   void append(std::span<const char> data);
 
    // bytes not yet consumed from the stream
    [[nodiscard]] size_t bytesAvailable() const;

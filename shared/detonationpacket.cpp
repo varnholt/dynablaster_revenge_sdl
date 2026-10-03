@@ -2,9 +2,11 @@
 
 #include "logging.h"
 
+#include <string_view>
+
 namespace
 {
-constexpr auto PACKETNAME = "Detonation";
+constexpr std::string_view PACKETNAME = "Detonation";
 }
 
 DetonationPacket::DetonationPacket(

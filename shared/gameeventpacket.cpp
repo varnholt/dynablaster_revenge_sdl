@@ -2,9 +2,11 @@
 
 #include "logging.h"
 
+#include <string_view>
+
 namespace
 {
-constexpr auto PACKETNAME = "GameEvent";
+constexpr std::string_view PACKETNAME = "GameEvent";
 }
 
 GameEventPacket::GameEventPacket(GameEvent event, float intensity, int32_t x, int32_t y)

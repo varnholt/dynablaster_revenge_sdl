@@ -153,19 +153,25 @@ bool BotMap::isBombAmountConsumed(int player_id, int bomb_count) const
    \param player_id player id
    \return list of bombs by player id
 */
-std::vector<BotBombMapItem*> BotMap::getBombs(int player_id) const
+std::vector<std::reference_wrapper<BotBombMapItem>> BotMap::getBombs(int player_id) const
 {
-   std::vector<BotBombMapItem*> bombs;
+   std::vector<std::reference_wrapper<BotBombMapItem>> bombs;
 
    for (int y = 0; y < getHeight(); y++)
    {
       for (int x = 0; x < getWidth(); x++)
       {
-         auto* bomb = dynamic_cast<BotBombMapItem*>(getItem(x, y));
+         const auto& item = getItem(x, y);
 
-         if (bomb && (bomb->getPlayerId() == player_id || player_id == -1))
+         // every bomb on a bot map is a BotBombMapItem, see BotClient::processMapItemCreated()
+         if (item && item->getType() == MapItem::Bomb)
          {
-            bombs.push_back(bomb);
+            auto& bomb = static_cast<BotBombMapItem&>(*item);
+
+            if (bomb.getPlayerId() == player_id || player_id == -1)
+            {
+               bombs.push_back(bomb);
+            }
          }
       }
    }
@@ -176,7 +182,7 @@ std::vector<BotBombMapItem*> BotMap::getBombs(int player_id) const
 /*!
    \param item map item to create
 */
-void BotMap::createMapItem(MapItem* item)
+void BotMap::createMapItem(const std::shared_ptr<MapItem>& item)
 {
    setItem(item->getX(), item->getY(), item);
 }
@@ -184,13 +190,11 @@ void BotMap::createMapItem(MapItem* item)
 /*!
    \param remove_item item to remove
 */
-void BotMap::removeMapItem(MapItem* remove_item)
+void BotMap::removeMapItem(const MapItem& remove_item)
 {
-   MapItem* found_item = getItem(remove_item->getX(), remove_item->getY());
-
-   if (found_item == remove_item)
+   if (getItem(remove_item.getX(), remove_item.getY()).get() == &remove_item)
    {
-      setItem(remove_item->getX(), remove_item->getY(), nullptr);
+      setItem(remove_item.getX(), remove_item.getY(), nullptr);
    }
 }
 
@@ -297,7 +301,7 @@ void BotMap::updateReachablePositions(int x, int y, int iteration)
       // - there's nothing in the way
       const bool within_limits = (xt >= 0 && yt >= 0 && xt < getWidth() && yt < getHeight());
 
-      MapItem* item = nullptr;
+      std::shared_ptr<MapItem> item;
 
       if (within_limits)
       {
@@ -381,7 +385,7 @@ void BotMap::updateReachablePositionsRandomized(int x, int y, int iteration)
       // - there's nothing in the way
       const bool within_limits = (xt >= 0 && yt >= 0 && xt < getWidth() && yt < getHeight());
 
-      MapItem* item = nullptr;
+      std::shared_ptr<MapItem> item;
 
       if (within_limits)
       {
@@ -424,7 +428,7 @@ void BotMap::updateReachableExtras()
 
    for (const Point& p : _reachable_positions)
    {
-      MapItem* item = getItem(p.x(), p.y());
+      const auto& item = getItem(p.x(), p.y());
 
       // store extra position if appropriate
       if (item && (item->getType() == MapItem::Extra))
@@ -457,7 +461,7 @@ const std::vector<Point>& BotMap::getReachableExtras() const
 std::vector<Point> BotMap::getReachableNeighborPositions(int x, int y) const
 {
    std::vector<Point> positions;
-   MapItem* item = nullptr;
+   std::shared_ptr<MapItem> item;
 
    if (x > 0)
    {
@@ -508,7 +512,7 @@ std::vector<Point> BotMap::getReachableNeighborPositions(int x, int y) const
 std::vector<Point> BotMap::getReachableNeighborPositionsRandomized(int x, int y) const
 {
    std::vector<Point> positions;
-   MapItem* item = nullptr;
+   std::shared_ptr<MapItem> item;
 
    for (Constants::Direction direction : _directions_randomized)
    {
@@ -592,14 +596,14 @@ std::vector<int> BotMap::getStonesToBeBombedMap()
 
    const std::vector<Point> directions = {Point(0, -1), Point(0, 1), Point(-1, 0), Point(1, 0)};
 
-   for (BotBombMapItem* bomb : getBombs())
+   for (const BotBombMapItem& bomb : getBombs())
    {
-      const int x = bomb->getX();
-      const int y = bomb->getY();
+      const int x = bomb.getX();
+      const int y = bomb.getY();
 
       for (const Point& direction : directions)
       {
-         for (int i = 1; i <= bomb->getFlames(); i++)
+         for (int i = 1; i <= bomb.getFlames(); i++)
          {
             const int xi = x + i * direction.x();
             const int yi = y + i * direction.y();
@@ -607,7 +611,7 @@ std::vector<int> BotMap::getStonesToBeBombedMap()
             if (xi >= 0 && xi < width && yi >= 0 && yi < getHeight())
             {
                // we hit something
-               if (MapItem* item = getItem(xi, yi))
+               if (const auto& item = getItem(xi, yi))
                {
                   if (item->getType() == MapItem::Stone)
                   {
@@ -668,7 +672,7 @@ int BotMap::getStoneCountAroundPoint(int x, int y, int flames)
 
          if (position_x >= 0 && position_x < getWidth() && position_y >= 0 && position_y < getHeight())
          {
-            if (MapItem* item = getItem(position_x, position_y))
+            if (const auto& item = getItem(position_x, position_y))
             {
                if (item->getType() == MapItem::Stone)
                {
@@ -735,7 +739,7 @@ int BotMap::getExtraStoneCountAroundPoint(int x, int y, int flames, const std::v
 
          if (position_x >= 0 && position_x < getWidth() && position_y >= 0 && position_y < getHeight())
          {
-            if (MapItem* item = getItem(position_x, position_y))
+            if (const auto& item = getItem(position_x, position_y))
             {
                if (item->getType() == MapItem::Stone && std::ranges::find(extras, item->getUniqueId()) != extras.end())
                {
@@ -791,7 +795,7 @@ void BotMap::debugTraversedMatrix()
 */
 void BotMap::checkPosition(int x, int y, bool& hazardous, bool& abort, int distance) const
 {
-   MapItem* item = getItem(x, y);
+   const auto& item = getItem(x, y);
 
    if (item)
    {
@@ -799,9 +803,9 @@ void BotMap::checkPosition(int x, int y, bool& hazardous, bool& abort, int dista
       {
          case MapItem::Bomb:
          {
-            auto* bomb = static_cast<BombMapItem*>(item);
+            const auto& bomb = static_cast<const BombMapItem&>(*item);
 
-            if (bomb->getFlames() >= distance)
+            if (bomb.getFlames() >= distance)
             {
                hazardous = true;
                abort = true;
@@ -889,7 +893,7 @@ bool BotMap::isPositionBlocked(int x, int y) const
 {
    bool blocked = false;
 
-   if (MapItem* item = getItem(x, y))
+   if (const auto& item = getItem(x, y))
    {
       switch (item->getType())
       {
@@ -920,7 +924,7 @@ void BotMap::debugMapItems()
 
       for (int xi = 0; xi < getWidth(); xi++)
       {
-         MapItem* item = getItem(xi, yi);
+         const auto& item = getItem(xi, yi);
 
          if (item)
          {

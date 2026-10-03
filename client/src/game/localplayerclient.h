@@ -2,6 +2,7 @@
 
 #include "constants.h"
 #include "gamesignal.h"
+#include "nethandles.h"
 #include "packetstreambuffer.h"
 #include "timer.h"
 
@@ -11,8 +12,6 @@
 #include <string>
 
 class Packet;
-struct NET_Address;
-struct NET_StreamSocket;
 
 /// \brief an additional player on this machine. the server knows one player per connection, so
 /// every local player beyond the first gets its own: it logs in, joins the main client's game
@@ -43,7 +42,7 @@ private:
    void poll();
    void readData();
    bool packetAvailable();
-   void processPacket(Packet& packet);
+   void processPacket(const Packet& packet);
    void send(Packet& packet);
    void sendKeys();
    void disconnect();
@@ -59,18 +58,8 @@ private:
    uint8_t _keys = 0;
    bool _bomb_released = true;
 
-   struct AddressDeleter
-   {
-      void operator()(NET_Address* address) const;
-   };
-
-   struct SocketDeleter
-   {
-      void operator()(NET_StreamSocket* socket) const;
-   };
-
-   std::unique_ptr<NET_Address, AddressDeleter> _address;
-   std::unique_ptr<NET_StreamSocket, SocketDeleter> _socket;
+   NetAddressHandle _address{nullptr, &NET_UnrefAddress};
+   NetStreamSocketHandle _socket{nullptr, &NET_DestroyStreamSocket};
    PacketStreamBuffer _buffer;
    uint16_t _block_size = 0;
    Timer _poll_timer;

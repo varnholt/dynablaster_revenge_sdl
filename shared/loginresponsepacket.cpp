@@ -2,9 +2,11 @@
 
 #include "logging.h"
 
+#include <string_view>
+
 namespace
 {
-constexpr auto PACKETNAME = "LoginResponse";
+constexpr std::string_view PACKETNAME = "LoginResponse";
 }
 
 LoginResponsePacket::LoginResponsePacket(

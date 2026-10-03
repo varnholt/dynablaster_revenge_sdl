@@ -2,9 +2,11 @@
 
 #include "logging.h"
 
+#include <string_view>
+
 namespace
 {
-constexpr auto PACKETNAME = "PlayerKilled";
+constexpr std::string_view PACKETNAME = "PlayerKilled";
 }
 
 PlayerKilledPacket::PlayerKilledPacket(int32_t player_id, int32_t player_killed_by_id, Constants::Direction direction, float intensity)

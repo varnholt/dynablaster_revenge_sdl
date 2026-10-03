@@ -15,7 +15,7 @@
 // stdlib
 #include <memory>
 
-ExtraShakePacketHandler::ExtraShakePacketHandler()
+ExtraShakePacketHandler::ExtraShakePacketHandler(Game& game) : _game(game)
 {
    _check_timer.setInterval(SERVER_SHAKE_CHECK_INTERVAL);
    _check_timer.timeoutSignal.connect([this]() { check(); });
@@ -33,40 +33,30 @@ void ExtraShakePacketHandler::setEnabled(bool enabled)
    }
 }
 
-void ExtraShakePacketHandler::setGame(Game* game)
-{
-   _game = game;
-}
-
-Game* ExtraShakePacketHandler::getGame() const
+Game& ExtraShakePacketHandler::getGame() const
 {
    return _game;
 }
 
 void ExtraShakePacketHandler::check()
 {
-   if (getGame()->getState() != Constants::GameActive)
+   if (getGame().getState() != Constants::GameActive)
    {
       return;
    }
 
-   Map* map = getGame()->getMap();
+   const Map& map = getGame().getMap();
 
-   if (!map)
-   {
-      return;
-   }
-
-   const int width = map->getWidth();
-   const int height = map->getHeight();
+   const int width = map.getWidth();
+   const int height = map.getHeight();
 
    const int x = Random::bounded(width - 1);
    const int y = Random::bounded(height - 1);
 
-   auto* stone = dynamic_cast<StoneMapItem*>(map->getItem(x, y));
+   const auto stone = std::dynamic_pointer_cast<StoneMapItem>(map.getItem(x, y));
 
-   if (stone && stone->getExtraMapItem())
+   if (stone && stone->hasExtraMapItem())
    {
-      getGame()->addOutgoingPacket(std::make_unique<ExtraShakePacket>(stone->getUniqueId()));
+      getGame().addOutgoingPacket(std::make_unique<ExtraShakePacket>(stone->getUniqueId()));
    }
 }

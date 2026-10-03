@@ -26,11 +26,9 @@ void BotFactory::createBotClientPair()
    // - game id or command to create game
    // - start game flag or command to wait
    auto client_owner = std::make_unique<BotClient>();
-   auto bot_owner = std::make_unique<ProtoBot>();
-   BotClient* client = client_owner.get();
-   ProtoBot* bot = bot_owner.get();
-
-   bot->setPlayerInfoMap(client->getPlayerInfoMap());
+   BotClient& client = *client_owner;
+   auto bot_owner = std::make_unique<ProtoBot>(client.getPlayerInfoMap());
+   ProtoBot& bot = *bot_owner;
 
    std::vector<std::string> nicks;
 
@@ -77,46 +75,45 @@ void BotFactory::createBotClientPair()
       nick = nicks[Random::bounded(static_cast<int>(nicks.size()) - 1)];
    }
 
-   client->setBot(std::move(bot_owner));
-   client->setGameId(getGameId());
-   client->setHost(getHostname());
-   client->setNick(nick);
-   client->setAutoJoin(true);
-   client->setAutoStart(false);
-   client->initialize();
-   client->connectToServer();
+   client.setBot(std::move(bot_owner));
+   client.setGameId(getGameId());
+   client.setHost(getHostname());
+   client.setNick(nick);
+   client.setAutoJoin(true);
+   client.setAutoStart(false);
+   client.initialize();
+   client.connectToServer();
 
-   bot->startTicking();
+   bot.startTicking();
 
    //   // link client to bot and vice versa - ProtoBotInsults is never instantiated (_insults
    //   // stays null), so this never had anything to connect to.
    //   bot->getInsults()->sendMessageSignal.connect([client](const std::string& msg) { client->sendMessage(msg); });
 
-   client->updatePlayerIdSignal.connect([bot](int id) { bot->updatePlayerId(id); });
+   client.updatePlayerIdSignal.connect([&bot](int id) { bot.updatePlayerId(id); });
 
-   client->updatePlayerPositionSignal.connect([bot](int id, float x, float y, float angle) { bot->updatePlayerPosition(id, x, y, angle); });
+   client.updatePlayerPositionSignal.connect([&bot](int id, float x, float y, float angle) { bot.updatePlayerPosition(id, x, y, angle); });
 
-   client->extraShakeSignal.connect([bot](int id) { bot->extraShake(id); });
+   client.extraShakeSignal.connect([&bot](int id) { bot.extraShake(id); });
 
-   client->gameStartedSignal.connect([bot]() { bot->wakeUp(); });
+   client.gameStartedSignal.connect([&bot]() { bot.wakeUp(); });
 
    // Bot's own signals only ever connect to a BotClient, never BombermanClient.
-   bot->walkSignal.connect([client](int8_t keys_pressed) { client->walk(keys_pressed); });
-   bot->bombSignal.connect([client]() { client->bomb(); });
+   bot.walkSignal.connect([&client](int8_t keys_pressed) { client.walk(keys_pressed); });
+   bot.bombSignal.connect([&client]() { client.bomb(); });
 
-   client->markHazardousTemporarySignal.connect([bot](int x, int y, int ms, int field_count)
-                                                { bot->markHazardousTemporary(x, y, ms, field_count); });
+   client.markHazardousTemporarySignal.connect([&bot](int x, int y, int ms, int field_count)
+                                               { bot.markHazardousTemporary(x, y, ms, field_count); });
 
-   client->bombKickedSignal.connect([bot](int start_x, int start_y, Constants::Direction direction, int flames)
-                                    { bot->bombKicked(start_x, start_y, direction, flames); });
+   client.bombKickedSignal.connect([&bot](int start_x, int start_y, Constants::Direction direction, int flames)
+                                   { bot.bombKicked(start_x, start_y, direction, flames); });
 
-   bot->syncSignal.connect([client]() { client->deleteObsoleteMapItems(); });
+   bot.syncSignal.connect([&client]() { client.deleteObsoleteMapItems(); });
 
    // be notified if bot is to be removed
-   client->removeSignal.connect([this, client]() { removeBot(client); });
+   client.removeSignal.connect([this, &client]() { removeBot(client); });
 
    _clients.push_back(std::move(client_owner));
-   _bots.push_back(bot);
 }
 
 /*!
@@ -157,20 +154,27 @@ int BotFactory::getGameId() const
 void BotFactory::removeAll()
 {
    _clients.clear();
-   _bots.clear();
 }
 
-void BotFactory::removeBot(BotClient* client)
+void BotFactory::removeBot(BotClient& client)
 {
-   if (client)
-   {
-      auto client_iterator = std::ranges::find_if(_clients, [client](const auto& owned) { return owned.get() == client; });
+   auto client_iterator = std::ranges::find_if(_clients, [&client](const auto& owned) { return owned.get() == &client; });
 
-      if (client_iterator != _clients.end())
-      {
-         // deferred - this fires from inside client's own removeSignal dispatch
-         Timer::singleShot(0, [doomed = client_iterator->release()]() { delete doomed; });
-         _clients.erase(client_iterator);
-      }
+   if (client_iterator != _clients.end())
+   {
+      // deferred - this fires from inside client's own removeSignal dispatch
+      _removed_clients.push_back(std::move(*client_iterator));
+      _clients.erase(client_iterator);
+
+      Timer::singleShot(
+         0,
+         [this, lifetime = std::weak_ptr<bool>(_lifetime)]()
+         {
+            if (!lifetime.expired())
+            {
+               _removed_clients.clear();
+            }
+         }
+      );
    }
 }

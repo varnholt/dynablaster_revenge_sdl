@@ -5,7 +5,7 @@
 #include "botmap.h"
 #include "point.h"
 
-#include <memory>
+#include <cstdint>
 #include <vector>
 
 #include "astarnode.h"
@@ -25,14 +25,18 @@ public:
    //! delete all nodes
    void clearNodes();
 
-   //! get all neighbor nodes of a position
-   std::vector<AStarNode*> getNeighbors(int x, int y, bool regard_stones = false);
+   //! get the node indices of all neighbors of a position
+   std::vector<int32_t> getNeighbors(int x, int y, bool regard_stones = false) const;
 
-   //! get node at x, y
-   AStarNode* getNode(int x, int y) const;
+   //! index of the node at x, y
+   int32_t getNodeIndex(int x, int y) const;
+
+   //! get node by index
+   AStarNode& getNode(int32_t index);
+   const AStarNode& getNode(int32_t index) const;
 
    //! debug path
-   void debugPath(const std::vector<AStarNode*>& path);
+   void debugPath(const std::vector<Point>& path);
 
 protected:
    //! init map
@@ -41,11 +45,8 @@ protected:
    //! check if a point is traversable
    bool isTraversable(const Point& point, bool regard_stones) const;
 
-   //! node map, non-owning lookup into _nodes
-   std::vector<AStarNode*> _node_map;
-
-   //! list of nodes
-   std::vector<std::unique_ptr<AStarNode>> _nodes;
+   //! width * height nodes, indexed by getNodeIndex()
+   std::vector<AStarNode> _nodes;
 };
 
 #endif  // ASTARMAP_H

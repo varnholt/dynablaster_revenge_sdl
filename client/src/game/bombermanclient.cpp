@@ -54,8 +54,10 @@
 #include "timepacket.h"
 #include "tools/stream.h"
 
+#include <array>
 #include <chrono>
 #include <format>
+#include <span>
 #include <string>
 #include <thread>
 
@@ -247,13 +249,13 @@ Constants::Color BombermanClient::getColor(int player_id) const
 /*!
    \param packet packet to send
 */
-void BombermanClient::send(Packet* packet)
+void BombermanClient::send(Packet& packet)
 {
-   packet->serialize();
+   packet.serialize();
 
    if (_socket)
    {
-      NET_WriteToStreamSocket(_socket, packet->constData(), static_cast<int>(packet->size()));
+      NET_WriteToStreamSocket(_socket.get(), packet.data(), static_cast<int>(packet.size()));
    }
 }
 
@@ -280,7 +282,7 @@ const std::string& BombermanClient::getHost() const
  */
 void BombermanClient::connectToServer()
 {
-   _address = NET_ResolveHostname(getHost().c_str());
+   _address.reset(NET_ResolveHostname(getHost().c_str()));
 
    if (!_address)
    {
@@ -344,17 +346,8 @@ void BombermanClient::clientDisconnect()
 */
 void BombermanClient::disconnectFromServer()
 {
-   if (_address)
-   {
-      NET_UnrefAddress(_address);
-      _address = nullptr;
-   }
-
-   if (_socket)
-   {
-      NET_DestroyStreamSocket(_socket);
-      _socket = nullptr;
-   }
+   _address.reset();
+   _socket.reset();
 
    clientDisconnect();
 }
@@ -445,12 +438,10 @@ MapItem* BombermanClient::getMapItem(int id) const
 /*!
    \param packet packet to process
 */
-void BombermanClient::processCreateGameResponse(Packet* packet)
+void BombermanClient::processCreateGameResponse(const CreateGameResponsePacket& response)
 {
-   CreateGameResponsePacket* response = dynamic_cast<CreateGameResponsePacket*>(packet);
-
    // extract game information
-   GameInformation game_information = response->getGameInformation();
+   GameInformation game_information = response.getGameInformation();
    int game_id = game_information.getId();
    int player_id = game_information.getCreatorId();
    bool success = false;
@@ -494,22 +485,20 @@ void BombermanClient::addPlayerInfo(int id, PlayerInfo* info)
 /*!
    \param packet packet to process
 */
-void BombermanClient::processJoinGameResponse(Packet* packet)
+void BombermanClient::processJoinGameResponse(const JoinGameResponsePacket& response)
 {
-   JoinGameResponsePacket* response = dynamic_cast<JoinGameResponsePacket*>(packet);
-
-   if (response->isSuccessful())
+   if (response.isSuccessful())
    {
       PlayerInfo* info = nullptr;
 
-      int id = response->getPlayerId();
+      int id = response.getPlayerId();
 
       if (!_player_info.contains(id))
       {
          info = new PlayerInfo();
          info->setId(id);
-         info->setNick(response->getNick());
-         info->setColor(response->getColor());
+         info->setNick(response.getNick());
+         info->setColor(response.getColor());
          info->setKilled(true);
 
          addPlayerInfo(id, info);
@@ -524,13 +513,13 @@ void BombermanClient::processJoinGameResponse(Packet* packet)
 
       // ensure it was us who joined as join game responses are
       // broadcasted to all players
-      if (response->getPlayerId() == getPlayerId())
+      if (response.getPlayerId() == getPlayerId())
       {
          // store current player info
          setCurrentPlayerInfo(info);
 
          // store game id
-         setGameId(response->getGameId());
+         setGameId(response.getGameId());
 
          GameInformation* game_information = getGameInformation(getGameId());
 
@@ -561,7 +550,7 @@ void BombermanClient::processJoinGameResponse(Packet* packet)
          joinGameResponseSignal(true);
       }
    }
-   else if (response->getPlayerId() == getPlayerId())
+   else if (response.getPlayerId() == getPlayerId())
    {
       // the player which did not successfully login was me!
       HelpManager::getInstance().addMessage("", TEXT_ERROR_UNABLE_TO_JOIN, Constants::HelpSeverityError);
@@ -578,27 +567,25 @@ void BombermanClient::levelLoaded(const std::string& /*path*/)
    // emit joinGameResponse(true);
 
    PlayerSynchronizePacket packet(PlayerSynchronizePacket::LevelLoaded);
-   send(&packet);
+   send(packet);
 }
 
 //-----------------------------------------------------------------------------
 /*!
  */
-void BombermanClient::processListGameResponse(Packet* packet)
+void BombermanClient::processListGameResponse(const ListGamesResponsePacket& list)
 {
-   ListGamesResponsePacket* list = dynamic_cast<ListGamesResponsePacket*>(packet);
-
    // only update game(s) included in list
-   if (list->isUpdate())
+   if (list.isUpdate())
    {
-      for (const GameInformation& info : list->getGames())
+      for (const GameInformation& info : list.getGames())
       {
          *(getGameInformation(info.getId())) = info;
       }
    }
    else
    {
-      _games = list->getGames();
+      _games = list.getGames();
    }
 
    // qDebug("BombermanClient::data(): %d games received", _games.size());
@@ -610,11 +597,9 @@ void BombermanClient::processListGameResponse(Packet* packet)
 /*!
    \param packet packet to process
 */
-void BombermanClient::processLoginResponse(Packet* packet)
+void BombermanClient::processLoginResponse(const LoginResponsePacket& login)
 {
-   LoginResponsePacket* login = dynamic_cast<LoginResponsePacket*>(packet);
-
-   setPlayerId(login->getId());
+   setPlayerId(login.getId());
 
    if (_renaming)
    {
@@ -641,26 +626,24 @@ void BombermanClient::rename(const std::string& nick)
    setNick(nick);
    _renaming = true;
    LoginRequestPacket login(nick, false);
-   send(&login);
+   send(login);
 }
 
 //-----------------------------------------------------------------------------
 /*!
    \param packet packet to process
 */
-void BombermanClient::processPlayerKilled(Packet* packet)
+void BombermanClient::processPlayerKilled(const PlayerKilledPacket& kill)
 {
-   PlayerKilledPacket* kill = dynamic_cast<PlayerKilledPacket*>(packet);
-
    // inform game drawable about death
-   removePlayerSignal(kill->getPlayerId());
+   removePlayerSignal(kill.getPlayerId());
 
    // check if own player was killed
-   if (kill->getPlayerId() == getPlayerId())
+   if (kill.getPlayerId() == getPlayerId())
       rumbleSignal(0.5f, 2000);
 
    // update player info instance
-   PlayerInfo* killed_player = getPlayerInfo(kill->getPlayerId());
+   PlayerInfo* killed_player = getPlayerInfo(kill.getPlayerId());
    if (killed_player)
    {
       killed_player->setKilled(true);
@@ -674,19 +657,17 @@ void BombermanClient::processPlayerKilled(Packet* packet)
 /*!
    \param packet packet to process
 */
-void BombermanClient::processPlayerInfected(Packet* packet)
+void BombermanClient::processPlayerInfected(const PlayerInfectedPacket& infected_packet)
 {
-   PlayerInfectedPacket* infected_packet = dynamic_cast<PlayerInfectedPacket*>(packet);
-
-   PlayerInfo* player = getPlayerInfo(infected_packet->getPlayerId());
+   PlayerInfo* player = getPlayerInfo(infected_packet.getPlayerId());
 
    if (player)
    {
       /*
       // create guarded pointer with disease
       QPointer<PlayerDisease> disease = new PlayerDisease();
-      disease.data()->setType(infected_packet->getSkullType());
-      disease.data()->setDuration(infected_packet->getDuration());
+      disease.data()->setType(infected_packet.getSkullType());
+      disease.data()->setDuration(infected_packet.getDuration());
       disease->activate();
 
       // infect player
@@ -694,14 +675,14 @@ void BombermanClient::processPlayerInfected(Packet* packet)
       */
 
       playerInfectedSignal(
-         infected_packet->getPlayerId(),
-         infected_packet->getSkullType(),
-         infected_packet->getInfectorId(),
-         infected_packet->getExtraPosX(),
-         infected_packet->getExtraPosY()
+         infected_packet.getPlayerId(),
+         infected_packet.getSkullType(),
+         infected_packet.getInfectorId(),
+         infected_packet.getExtraPosX(),
+         infected_packet.getExtraPosY()
       );
 
-      SoundManager::getInstance().playSkullSound(infected_packet->getSkullType());
+      SoundManager::getInstance().playSkullSound(infected_packet.getSkullType());
    }
 }
 
@@ -709,36 +690,32 @@ void BombermanClient::processPlayerInfected(Packet* packet)
 /*!
    \param packet packet to process
 */
-void BombermanClient::processDetonation(Packet* packet)
+void BombermanClient::processDetonation(const DetonationPacket& det)
 {
-   DetonationPacket* det = dynamic_cast<DetonationPacket*>(packet);
-
-   // Vector pos = Vector(det->getX(), det->getY(), 0.0);
+   // Vector pos = Vector(det.getX(), det.getY(), 0.0);
    //
    // TODO: pos needs to be rotated and scaled properly
    //       right now 0,0 is closest to the listener
 
    SoundManager::getInstance().playSoundBomb();
 
-   int intense = std::max<int>(det->getUp(), det->getDown());
-   intense = std::max<int>(intense, det->getLeft());
-   intense = std::max<int>(intense, det->getRight());
+   int intense = std::max<int>(det.getUp(), det.getDown());
+   intense = std::max<int>(intense, det.getLeft());
+   intense = std::max<int>(intense, det.getRight());
 
-   detonationSignal(det->getX(), det->getY(), det->getUp(), det->getDown(), det->getLeft(), det->getRight(), static_cast<float>(intense));
+   detonationSignal(det.getX(), det.getY(), det.getUp(), det.getDown(), det.getLeft(), det.getRight(), static_cast<float>(intense));
 }
 
 //-----------------------------------------------------------------------------
 /*!
    \param packet packet to process
 */
-void BombermanClient::processError(Packet* packet)
+void BombermanClient::processError(const ErrorPacket& error_packet)
 {
-   ErrorPacket* error_packet = dynamic_cast<ErrorPacket*>(packet);
-
    // show error received from server
-   HelpManager::getInstance().addMessage("", error_packet->getErrorMessage(), Constants::HelpSeverityError);
+   HelpManager::getInstance().addMessage("", error_packet.getErrorMessage(), Constants::HelpSeverityError);
 
-   switch (error_packet->getErrorType())
+   switch (error_packet.getErrorType())
    {
       // if sync fails, the player is kicked out of the game
       case Constants::ErrorSyncTimeout:
@@ -872,23 +849,21 @@ bool BombermanClient::isHosting() const
 /*!
    \param packet packet to process
 */
-void BombermanClient::processPosition(Packet* packet)
+void BombermanClient::processPosition(const PositionPacket& pos_packet)
 {
-   PositionPacket* pos_packet = dynamic_cast<PositionPacket*>(packet);
-
-   PlayerInfo* player_info = getPlayerInfo(pos_packet->getPlayerId());
+   PlayerInfo* player_info = getPlayerInfo(pos_packet.getPlayerId());
 
    if (player_info)
    {
-      player_info->setPosition(pos_packet->getX(), pos_packet->getY(), pos_packet->getAngle());
+      player_info->setPosition(pos_packet.getX(), pos_packet.getY(), pos_packet.getAngle());
 
-      player_info->setPositionDelta(pos_packet->getDeltaX(), pos_packet->getDeltaY(), pos_packet->getAngleDelta());
+      player_info->setPositionDelta(pos_packet.getDeltaX(), pos_packet.getDeltaY(), pos_packet.getAngleDelta());
 
-      player_info->setDirections(pos_packet->getDirections());
+      player_info->setDirections(pos_packet.getDirections());
 
-      setPlayerPositionSignal(pos_packet->getPlayerId(), pos_packet->getX(), pos_packet->getY(), pos_packet->getAngle());
+      setPlayerPositionSignal(pos_packet.getPlayerId(), pos_packet.getX(), pos_packet.getY(), pos_packet.getAngle());
 
-      setPlayerSpeedSignal(pos_packet->getPlayerId(), pos_packet->getDeltaX(), pos_packet->getDeltaY(), pos_packet->getAngleDelta());
+      setPlayerSpeedSignal(pos_packet.getPlayerId(), pos_packet.getDeltaX(), pos_packet.getDeltaY(), pos_packet.getAngleDelta());
    }
 }
 
@@ -896,9 +871,9 @@ void BombermanClient::processPosition(Packet* packet)
 /*!
    \param packet packet to process
 */
-void BombermanClient::processMapItemCreated(Packet* packet)
+void BombermanClient::processMapItemCreated(const MapItemCreatedPacket& packet)
 {
-   MapItem* item = new MapItem(dynamic_cast<MapItemCreatedPacket*>(packet));
+   MapItem* item = new MapItem(packet);
    _map_items[item->getUniqueId()] = item;
    createMapItemSignal(item);
 }
@@ -907,17 +882,16 @@ void BombermanClient::processMapItemCreated(Packet* packet)
 /*!
    \param packet packet to process
 */
-void BombermanClient::processMapItemMove(Packet* packet)
+void BombermanClient::processMapItemMove(const MapItemMovePacket& move_packet)
 {
-   MapItemMovePacket* move_packet = dynamic_cast<MapItemMovePacket*>(packet);
-   MapItem* item = getMapItem(move_packet->getMapItemId());
+   MapItem* item = getMapItem(move_packet.getMapItemId());
 
    if (item)
    {
-      moveMapItemSignal(item, move_packet->getDirection(), move_packet->getSpeed(), move_packet->getNominalX(), move_packet->getNominalY());
+      moveMapItemSignal(item, move_packet.getDirection(), move_packet.getSpeed(), move_packet.getNominalX(), move_packet.getNominalY());
 
       // play kick sound
-      if (move_packet->getSpeed() > 0.0f)
+      if (move_packet.getSpeed() > 0.0f)
          SoundManager::getInstance().playSoundKick();
    }
 }
@@ -926,9 +900,9 @@ void BombermanClient::processMapItemMove(Packet* packet)
 /*!
    \param packet packet to process
 */
-void BombermanClient::processExtraMapItemCreated(Packet* packet)
+void BombermanClient::processExtraMapItemCreated(const ExtraMapItemCreatedPacket& packet)
 {
-   ExtraMapItem* extra = new ExtraMapItem(dynamic_cast<ExtraMapItemCreatedPacket*>(packet));
+   ExtraMapItem* extra = new ExtraMapItem(packet);
    _map_items[extra->getUniqueId()] = extra;
    createMapItemSignal(extra);
 
@@ -939,14 +913,12 @@ void BombermanClient::processExtraMapItemCreated(Packet* packet)
 /*!
    \param packet packet to process
 */
-void BombermanClient::processGameStats(Packet* packet)
+void BombermanClient::processGameStats(const GameStatsPacket& stats_packet)
 {
-   GameStatsPacket* stats_packet = dynamic_cast<GameStatsPacket*>(packet);
-
    // stats are copied
-   std::vector<int> ids = stats_packet->getPlayerIds();
-   std::vector<PlayerStats> overall_stats = stats_packet->getOverallStats();
-   std::vector<PlayerStats> round_stats = stats_packet->getRoundStats();
+   std::vector<int> ids = stats_packet.getPlayerIds();
+   std::vector<PlayerStats> overall_stats = stats_packet.getOverallStats();
+   std::vector<PlayerStats> round_stats = stats_packet.getRoundStats();
 
    PlayerInfo* info = nullptr;
 
@@ -984,16 +956,15 @@ void BombermanClient::processGameStats(Packet* packet)
 /*!
    \param packet packet to process
 */
-void BombermanClient::processExtraMapItemDestroyed(Packet* packet)
+void BombermanClient::processExtraMapItemDestroyed(const MapItemDestroyedPacket& remove)
 {
-   MapItemDestroyedPacket* remove = dynamic_cast<MapItemDestroyedPacket*>(packet);
-   MapItem* item = getMapItem(remove->getUniqueId());
+   MapItem* item = getMapItem(remove.getUniqueId());
 
    if (item)
    {
-      item->setDestroyDirection(remove->getDirection());
+      item->setDestroyDirection(remove.getDirection());
 
-      destroyMapItemSignal(item, remove->getIntensity());
+      destroyMapItemSignal(item, remove.getIntensity());
       _map_items.erase(item->getUniqueId());
       delete item;
    }
@@ -1003,10 +974,9 @@ void BombermanClient::processExtraMapItemDestroyed(Packet* packet)
 /*!
    \param packet packet to process
 */
-void BombermanClient::processMapItemRemoved(Packet* packet)
+void BombermanClient::processMapItemRemoved(const MapItemRemovedPacket& remove)
 {
-   MapItemRemovedPacket* remove = dynamic_cast<MapItemRemovedPacket*>(packet);
-   MapItem* item = getMapItem(remove->getUniqueId());
+   MapItem* item = getMapItem(remove.getUniqueId());
 
    if (item)
    {
@@ -1046,11 +1016,9 @@ void BombermanClient::broadcastPlayerStartPositions()
 //-----------------------------------------------------------------------------
 /*!
  */
-void BombermanClient::processStartGameResponse(Packet* packet)
+void BombermanClient::processStartGameResponse(const StartGameResponsePacket& response)
 {
-   StartGameResponsePacket* response = dynamic_cast<StartGameResponsePacket*>(packet);
-
-   qDebug("BombermanClient::data: game %d started", response->getId());
+   qDebug("BombermanClient::data: game %d started", response.getId());
 
    setIngameMessagingActive(false);
    GameStateMachine::getInstance()->setState(Constants::GameActive);
@@ -1074,17 +1042,15 @@ void BombermanClient::processStartGameResponse(Packet* packet)
 /*!
    \param packet packet to process
 */
-void BombermanClient::processStopGameResponse(Packet* packet)
+void BombermanClient::processStopGameResponse(const StopGameResponsePacket& response)
 {
-   StopGameResponsePacket* response = dynamic_cast<StopGameResponsePacket*>(packet);
-
-   qDebug("BombermanClient::data: game %d stopped, all rounds finished: %d", response->getId(), response->isFinished());
+   qDebug("BombermanClient::data: game %d stopped, all rounds finished: %d", response.getId(), response.isFinished());
 
    GameStateMachine::getInstance()->setState(Constants::GameStopped);
 
    _dead = true;
 
-   if (response->isFinished())
+   if (response.isFinished())
    {
       gameStoppedSignal();
 
@@ -1098,20 +1064,18 @@ void BombermanClient::processStopGameResponse(Packet* packet)
 /*!
    \param packet packet to process
 */
-void BombermanClient::processGameEvent(Packet* packet)
+void BombermanClient::processGameEvent(const GameEventPacket& response)
 {
-   GameEventPacket* response = dynamic_cast<GameEventPacket*>(packet);
-
-   switch (response->getGameEvent())
+   switch (response.getGameEvent())
    {
       case GameEventPacket::ExtraCollected:
       {
          SoundManager::getInstance().playSoundExtra();
 
-         extraRemovedSignal(response->getX(), response->getY(), false, response->getExtraType(), response->getPlayerId());
+         extraRemovedSignal(response.getX(), response.getY(), false, response.getExtraType(), response.getPlayerId());
 
          // rumble just a little on extra collect
-         if (response->getPlayerId() == getPlayerId())
+         if (response.getPlayerId() == getPlayerId())
             rumbleSignal(0.2f, 500);
 
          break;
@@ -1119,7 +1083,7 @@ void BombermanClient::processGameEvent(Packet* packet)
 
       case GameEventPacket::ExtraDestroyed:
       {
-         extraRemovedSignal(response->getX(), response->getY(), true, response->getExtraType(), -1);
+         extraRemovedSignal(response.getX(), response.getY(), true, response.getExtraType(), -1);
 
          break;
       }
@@ -1134,16 +1098,14 @@ void BombermanClient::processGameEvent(Packet* packet)
 /*!
    \param packet packet to process
 */
-void BombermanClient::processMessage(Packet* packet)
+void BombermanClient::processMessage(const MessagePacket& message_packet)
 {
-   MessagePacket* message_packet = dynamic_cast<MessagePacket*>(packet);
+   messageReceivedSignal(message_packet.getSenderId(), message_packet.getMessage(), message_packet.isTypingFinished());
 
-   messageReceivedSignal(message_packet->getSenderId(), message_packet->getMessage(), message_packet->isTypingFinished());
-
-   if (message_packet->isTypingFinished())
+   if (message_packet.isTypingFinished())
    {
       // omit broadcast messages
-      if (message_packet->getSenderId() != -1 && message_packet->getSenderId() != getPlayerId())
+      if (message_packet.getSenderId() != -1 && message_packet.getSenderId() != getPlayerId())
       {
          SoundManager::getInstance().playSoundMessageReceived();
       }
@@ -1154,15 +1116,13 @@ void BombermanClient::processMessage(Packet* packet)
 /*!
    \param packet packet to process
 */
-void BombermanClient::processTime(Packet* packet)
+void BombermanClient::processTime(const TimePacket& time_packet)
 {
-   TimePacket* time_packet = dynamic_cast<TimePacket*>(packet);
-
    /*
       qDebug(
          "BombermanClient::data: server time: %s, left: %d",
          qPrintable(packet->getTimestamp().toString()),
-         time_packet->getTimeLeft()
+         time_packet.getTimeLeft()
       );
    */
 
@@ -1170,7 +1130,7 @@ void BombermanClient::processTime(Packet* packet)
 
    if (game_information)
    {
-      int time_left = time_packet->getTimeLeft();
+      int time_left = time_packet.getTimeLeft();
       int duration = game_information->getDuration();
 
       if (time_left == (duration * 3 / 20))
@@ -1186,13 +1146,11 @@ void BombermanClient::processTime(Packet* packet)
 /*!
    \param packet packet to process
 */
-void BombermanClient::processCountdown(Packet* packet)
+void BombermanClient::processCountdown(const CountdownPacket& countdown_packet)
 {
    GameStateMachine::getInstance()->setState(Constants::GamePreparing);
 
-   CountdownPacket* countdown_packet = dynamic_cast<CountdownPacket*>(packet);
-
-   int time_left = countdown_packet->getTimeLeft();
+   int time_left = countdown_packet.getTimeLeft();
 
    qDebug("BombermanClient::processCountdown: left: %d", time_left);
 
@@ -1223,179 +1181,175 @@ void BombermanClient::processCountdown(Packet* packet)
 /*!
    \param packet packet to process
 */
-void BombermanClient::processPacket(Packet* packet)
+void BombermanClient::processPacket(const Packet& packet)
 {
-   if (packet)
+   switch (packet.getType())
    {
-      switch (packet->getType())
+      case Packet::COUNTDOWN:
       {
-         case Packet::COUNTDOWN:
-         {
-            processCountdown(packet);
-            break;
-         }
-
-         case Packet::CREATEGAMERESPONSE:
-         {
-            processCreateGameResponse(packet);
-            break;
-         }
-
-         case Packet::DETONATION:
-         {
-            processDetonation(packet);
-            break;
-         }
-
-         case Packet::ERROR:
-         {
-            processError(packet);
-            break;
-         }
-
-         case Packet::EXTRAMAPITEMCREATED:
-         {
-            processExtraMapItemCreated(packet);
-            break;
-         }
-
-         case Packet::GAMESTATS:
-         {
-            processGameStats(packet);
-            break;
-         }
-
-         case Packet::GAMEEVENT:
-         {
-            processGameEvent(packet);
-            break;
-         }
-
-         case Packet::JOINGAMERESPONSE:
-         {
-            processJoinGameResponse(packet);
-            break;
-         }
-
-         case Packet::KEY:
-         {
-            qWarning("BombermanClient::data(): wrong direction!");
-            break;
-         }
-
-         case Packet::LISTGAMESRESPONSE:
-         {
-            processListGameResponse(packet);
-            break;
-         }
-
-         case Packet::LOGINRESPONSE:
-         {
-            processLoginResponse(packet);
-            break;
-         }
-
-         case Packet::PLAYERINFECTEDPACKET:
-         {
-            processPlayerInfected(packet);
-            break;
-         }
-
-         case Packet::PLAYERKILLED:
-         {
-            processPlayerKilled(packet);
-            break;
-         }
-
-         case Packet::POSITION:
-         {
-            /*
-            qDebug(
-               "pos received: %s",
-               qPrintable(QTime::currentTime().toString("hh:mm:ss.zzz"))
-            );
-            */
-
-            processPosition(packet);
-            break;
-         }
-
-         case Packet::LEAVEGAMERESPONSE:
-         {
-            processLeaveGameResponse(packet);
-            break;
-         }
-
-         case Packet::MAPITEMCREATED:
-         {
-            processMapItemCreated(packet);
-            break;
-         }
-
-         case Packet::MAPITEMDESTROYED:
-         {
-            processExtraMapItemDestroyed(packet);
-            break;
-         }
-
-         case Packet::MAPITEMMOVE:
-         {
-            processMapItemMove(packet);
-            break;
-         }
-
-         case Packet::MAPITEMREMOVED:
-         {
-            processMapItemRemoved(packet);
-            break;
-         }
-
-         case Packet::MESSAGE:
-         {
-            processMessage(packet);
-            break;
-         }
-
-         case Packet::STARTGAMERESPONSE:
-         {
-            processStartGameResponse(packet);
-            break;
-         }
-
-         case Packet::STOPGAMERESPONSE:
-         {
-            processStopGameResponse(packet);
-            break;
-         }
-
-         case Packet::TIME:
-         {
-            processTime(packet);
-            break;
-         }
-
-         case Packet::EXTRASHAKE:
-         {
-            processExtraShake(packet);
-            break;
-         }
-
-         case Packet::INVALID:
-         {
-            qWarning("BombermanClient::data: Packet::INVALID received");
-            break;
-         }
-
-         default:
-            break;
+         processCountdown(static_cast<const CountdownPacket&>(packet));
+         break;
       }
 
-      // if playback is activated, record packets - ownership stays with the caller's
-      // unique_ptr<Packet> either way, record() only observes it
-      if (GamePlayback::getInstance()->isRecording())
+      case Packet::CREATEGAMERESPONSE:
       {
-         GamePlayback::getInstance()->record(packet);
+         processCreateGameResponse(static_cast<const CreateGameResponsePacket&>(packet));
+         break;
       }
+
+      case Packet::DETONATION:
+      {
+         processDetonation(static_cast<const DetonationPacket&>(packet));
+         break;
+      }
+
+      case Packet::ERROR:
+      {
+         processError(static_cast<const ErrorPacket&>(packet));
+         break;
+      }
+
+      case Packet::EXTRAMAPITEMCREATED:
+      {
+         processExtraMapItemCreated(static_cast<const ExtraMapItemCreatedPacket&>(packet));
+         break;
+      }
+
+      case Packet::GAMESTATS:
+      {
+         processGameStats(static_cast<const GameStatsPacket&>(packet));
+         break;
+      }
+
+      case Packet::GAMEEVENT:
+      {
+         processGameEvent(static_cast<const GameEventPacket&>(packet));
+         break;
+      }
+
+      case Packet::JOINGAMERESPONSE:
+      {
+         processJoinGameResponse(static_cast<const JoinGameResponsePacket&>(packet));
+         break;
+      }
+
+      case Packet::KEY:
+      {
+         qWarning("BombermanClient::data(): wrong direction!");
+         break;
+      }
+
+      case Packet::LISTGAMESRESPONSE:
+      {
+         processListGameResponse(static_cast<const ListGamesResponsePacket&>(packet));
+         break;
+      }
+
+      case Packet::LOGINRESPONSE:
+      {
+         processLoginResponse(static_cast<const LoginResponsePacket&>(packet));
+         break;
+      }
+
+      case Packet::PLAYERINFECTEDPACKET:
+      {
+         processPlayerInfected(static_cast<const PlayerInfectedPacket&>(packet));
+         break;
+      }
+
+      case Packet::PLAYERKILLED:
+      {
+         processPlayerKilled(static_cast<const PlayerKilledPacket&>(packet));
+         break;
+      }
+
+      case Packet::POSITION:
+      {
+         /*
+         qDebug(
+            "pos received: %s",
+            qPrintable(QTime::currentTime().toString("hh:mm:ss.zzz"))
+         );
+         */
+
+         processPosition(static_cast<const PositionPacket&>(packet));
+         break;
+      }
+
+      case Packet::LEAVEGAMERESPONSE:
+      {
+         processLeaveGameResponse(static_cast<const LeaveGameResponsePacket&>(packet));
+         break;
+      }
+
+      case Packet::MAPITEMCREATED:
+      {
+         processMapItemCreated(static_cast<const MapItemCreatedPacket&>(packet));
+         break;
+      }
+
+      case Packet::MAPITEMDESTROYED:
+      {
+         processExtraMapItemDestroyed(static_cast<const MapItemDestroyedPacket&>(packet));
+         break;
+      }
+
+      case Packet::MAPITEMMOVE:
+      {
+         processMapItemMove(static_cast<const MapItemMovePacket&>(packet));
+         break;
+      }
+
+      case Packet::MAPITEMREMOVED:
+      {
+         processMapItemRemoved(static_cast<const MapItemRemovedPacket&>(packet));
+         break;
+      }
+
+      case Packet::MESSAGE:
+      {
+         processMessage(static_cast<const MessagePacket&>(packet));
+         break;
+      }
+
+      case Packet::STARTGAMERESPONSE:
+      {
+         processStartGameResponse(static_cast<const StartGameResponsePacket&>(packet));
+         break;
+      }
+
+      case Packet::STOPGAMERESPONSE:
+      {
+         processStopGameResponse(static_cast<const StopGameResponsePacket&>(packet));
+         break;
+      }
+
+      case Packet::TIME:
+      {
+         processTime(static_cast<const TimePacket&>(packet));
+         break;
+      }
+
+      case Packet::EXTRASHAKE:
+      {
+         processExtraShake(static_cast<const ExtraShakePacket&>(packet));
+         break;
+      }
+
+      case Packet::INVALID:
+      {
+         qWarning("BombermanClient::data: Packet::INVALID received");
+         break;
+      }
+
+      default:
+         break;
+   }
+
+   // if playback is activated, record packets
+   if (GamePlayback::getInstance()->isRecording())
+   {
+      GamePlayback::getInstance()->record(packet);
    }
 }
 
@@ -1405,18 +1359,17 @@ void BombermanClient::processPacket(Packet* packet)
 */
 void BombermanClient::readData()
 {
-   char chunk[4096];
+   std::array<char, 4096> chunk{};
    int bytes_read;
 
-   while ((bytes_read = NET_ReadFromStreamSocket(_socket, chunk, sizeof(chunk))) > 0)
+   while ((bytes_read = NET_ReadFromStreamSocket(_socket.get(), chunk.data(), static_cast<int>(chunk.size()))) > 0)
    {
-      _buffer.append(chunk, bytes_read);
+      _buffer.append(std::span(chunk).first(static_cast<size_t>(bytes_read)));
    }
 
    if (bytes_read < 0)
    {
-      NET_DestroyStreamSocket(_socket);
-      _socket = nullptr;
+      _socket.reset();
       clientDisconnect();
       return;
    }
@@ -1428,7 +1381,10 @@ void BombermanClient::readData()
       auto packet = Packet::deserialize(in);
       _buffer.consume(in.pos());
 
-      processPacket(packet.get());
+      if (packet)
+      {
+         processPacket(*packet);
+      }
 
       _block_size = 0;
    }
@@ -1444,15 +1400,12 @@ void BombermanClient::poll()
 {
    if (_address)
    {
-      NET_Status status = NET_GetAddressStatus(_address);
+      NET_Status status = NET_GetAddressStatus(_address.get());
 
       if (status == NET_SUCCESS)
       {
-         NET_Address* address = _address;
-         _address = nullptr;
-
-         _socket = NET_CreateClient(address, 6300, 0);
-         NET_UnrefAddress(address);
+         _socket.reset(NET_CreateClient(_address.get(), 6300, 0));
+         _address.reset();
 
          if (!_socket)
          {
@@ -1462,8 +1415,7 @@ void BombermanClient::poll()
       else if (status == NET_FAILURE)
       {
          reportConnectionError(SDL_GetError());
-         NET_UnrefAddress(_address);
-         _address = nullptr;
+         _address.reset();
       }
 
       return;
@@ -1471,7 +1423,7 @@ void BombermanClient::poll()
 
    if (_socket && !isConnected())
    {
-      NET_Status status = NET_GetConnectionStatus(_socket);
+      NET_Status status = NET_GetConnectionStatus(_socket.get());
 
       if (status == NET_SUCCESS)
       {
@@ -1481,8 +1433,7 @@ void BombermanClient::poll()
       else if (status == NET_FAILURE)
       {
          reportConnectionError(SDL_GetError());
-         NET_DestroyStreamSocket(_socket);
-         _socket = nullptr;
+         _socket.reset();
       }
 
       return;
@@ -1575,27 +1526,25 @@ void BombermanClient::removePlayerInfo(int id)
 /*!
    \param packet packet to process
 */
-void BombermanClient::processLeaveGameResponse(Packet* packet)
+void BombermanClient::processLeaveGameResponse(const LeaveGameResponsePacket& leave_packet)
 {
-   LeaveGameResponsePacket* leave_packet = dynamic_cast<LeaveGameResponsePacket*>(packet);
-
    // either we left the game, so we have to clear the player info map
    // completely, or it was just one player, so the player map keeps intact
-   if (leave_packet->getPlayerId() == getPlayerId())
+   if (leave_packet.getPlayerId() == getPlayerId())
    {
       clearPlayerInfoMap();
    }
    else
    {
       // remove player from playerinfo-map
-      removePlayerInfo(leave_packet->getPlayerId());
+      removePlayerInfo(leave_packet.getPlayerId());
    }
 
    // send infomap to all instances interested in them
    playerInfoMapUpdatedSignal(&_player_info);
 
    // remove player
-   removePlayerSignal(leave_packet->getPlayerId());
+   removePlayerSignal(leave_packet.getPlayerId());
 
    // play "player left sample"
    if (!GamePlayback::getInstance()->isReplaying())
@@ -1606,11 +1555,9 @@ void BombermanClient::processLeaveGameResponse(Packet* packet)
 /*!
    \param packet packet to process
 */
-void BombermanClient::processExtraShake(Packet* packet)
+void BombermanClient::processExtraShake(const ExtraShakePacket& shake_packet)
 {
-   ExtraShakePacket* shake_packet = dynamic_cast<ExtraShakePacket*>(packet);
-
-   MapItem* item = getMapItem(shake_packet->getMapItemUniqueId());
+   MapItem* item = getMapItem(shake_packet.getMapItemUniqueId());
 
    if (item)
    {
@@ -1627,7 +1574,7 @@ void BombermanClient::sendKeysPressedPacket()
    // build keypacket
    // qDebug("BombermanClient::keyPressed: sending keypacket");
    KeyPacket kPacket(0, _keys_pressed);
-   send(&kPacket);
+   send(kPacket);
 }
 
 //-----------------------------------------------------------------------------
@@ -1836,7 +1783,7 @@ void BombermanClient::processKeyReleased(int key)
       // build keypacket
       // qDebug("BombermanClient::keyPressed: sending keypacket");
       KeyPacket kPacket(0, _keys_pressed);
-      send(&kPacket);
+      send(kPacket);
    }
 }
 
@@ -1906,7 +1853,7 @@ void BombermanClient::login(const std::string& nick)
 {
    setNick(nick);
    LoginRequestPacket login(nick, false);
-   send(&login);
+   send(login);
 }
 
 //-----------------------------------------------------------------------------
@@ -1947,7 +1894,7 @@ void BombermanClient::sendMessage(const std::string& message, bool finishedTypin
 
    MessagePacket packet(-1, message, finishedTyping, receiverId);
 
-   send(&packet);
+   send(packet);
 
    if (finishedTyping)
    {
@@ -1964,7 +1911,7 @@ void BombermanClient::listGames()
    if (isConnected() && (GameStateMachine::getInstance()->getState() != Constants::GameActive))
    {
       ListGamesRequestPacket packet;
-      send(&packet);
+      send(packet);
    }
 }
 
@@ -2015,7 +1962,7 @@ void BombermanClient::createGame(
       dimension
    );
 
-   send(&packet);
+   send(packet);
 }
 
 //-----------------------------------------------------------------------------
@@ -2024,7 +1971,7 @@ void BombermanClient::createGame(
 void BombermanClient::joinGame(int game)
 {
    JoinGameRequestPacket packet(game, _preferred_color);
-   send(&packet);
+   send(packet);
 }
 
 //-----------------------------------------------------------------------------
@@ -2045,7 +1992,7 @@ void BombermanClient::startGame(int game)
    GameStateMachine::getInstance()->setState(Constants::GamePreparing);
 
    StartGameRequestPacket packet(game);
-   send(&packet);
+   send(packet);
 }
 
 //-----------------------------------------------------------------------------
@@ -2055,7 +2002,7 @@ void BombermanClient::startGame(int game)
 void BombermanClient::stopGame(int game)
 {
    StopGameRequestPacket request(game);
-   send(&request);
+   send(request);
 }
 
 //-----------------------------------------------------------------------------
@@ -2114,7 +2061,7 @@ void BombermanClient::loginRequest(const std::string& host, const std::string& n
 void BombermanClient::leaveGameRequest()
 {
    LeaveGameRequestPacket packet(getGameId(), getPlayerId());
-   send(&packet);
+   send(packet);
 
    // the other local players leave with us
    leaveGameSignal();

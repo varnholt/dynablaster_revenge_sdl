@@ -2,9 +2,11 @@
 
 #include "logging.h"
 
+#include <string_view>
+
 namespace
 {
-constexpr auto PACKETNAME = "ExtraShake";
+constexpr std::string_view PACKETNAME = "ExtraShake";
 }
 
 ExtraShakePacket::ExtraShakePacket(int32_t unique_id) : Packet(Packet::EXTRASHAKE), _map_item_unique_id(unique_id)

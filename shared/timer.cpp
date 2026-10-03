@@ -1,5 +1,6 @@
 #include "timer.h"
 
+#include <atomic>
 #include <vector>
 
 namespace
@@ -16,12 +17,22 @@ std::vector<PendingSingleShot> _pending_single_shots;
 }  // namespace
 
 std::mutex Timer::_mutex;
-std::unordered_set<Timer*> Timer::_timers;
+std::map<uint64_t, std::reference_wrapper<Timer>> Timer::_timers;
+
+uint64_t Timer::nextId()
+{
+   static std::atomic<uint64_t> next_id = 0;
+   return next_id++;
+}
 
 Timer::~Timer()
 {
-   std::lock_guard<std::mutex> lock(_mutex);
-   _timers.erase(this);
+   // only a started timer is registered
+   if (_active)
+   {
+      std::lock_guard<std::mutex> lock(_mutex);
+      _timers.erase(_id);
+   }
 }
 
 void Timer::setInterval(int32_t milliseconds)
@@ -41,7 +52,7 @@ void Timer::start()
    _active = true;
 
    std::lock_guard<std::mutex> lock(_mutex);
-   _timers.insert(this);
+   _timers.insert_or_assign(_id, std::ref(*this));
 }
 
 void Timer::start(int32_t milliseconds)
@@ -55,7 +66,7 @@ void Timer::stop()
    _active = false;
 
    std::lock_guard<std::mutex> lock(_mutex);
-   _timers.erase(this);
+   _timers.erase(_id);
 }
 
 bool Timer::isActive() const
@@ -76,44 +87,47 @@ void Timer::update()
    const auto now = std::chrono::steady_clock::now();
    const auto calling_thread = std::this_thread::get_id();
 
-   std::vector<Timer*> due;
+   std::vector<uint64_t> due;
    {
       std::lock_guard<std::mutex> lock(_mutex);
-      for (auto* timer : _timers)
+      for (const auto& [id, timer] : _timers)
       {
-         if (timer->_owner_thread == calling_thread && now - timer->_start_time >= timer->_interval)
+         if (timer.get()._owner_thread == calling_thread && now - timer.get()._start_time >= timer.get()._interval)
          {
-            due.push_back(timer);
+            due.push_back(id);
          }
       }
    }
 
-   for (auto* timer : due)
+   for (const auto id : due)
    {
       // an earlier timeoutSignal() in this batch may have destroyed or stopped this timer,
-      // re-check membership before touching it so a stale pointer is never dereferenced
+      // re-check membership before touching it so a stale entry is never dereferenced
+      std::unique_lock<std::mutex> lock(_mutex);
+      const auto it = _timers.find(id);
+      if (it == _timers.end())
       {
-         std::lock_guard<std::mutex> lock(_mutex);
-         if (!_timers.contains(timer))
-         {
-            continue;
-         }
-
-         // advance by whole elapsed intervals rather than snapping to "now", so the long-run rate
-         // stays correct even when update() is polled irregularly.
-         if (timer->_interval.count() > 0)
-         {
-            const auto elapsed = now - timer->_start_time;
-            const auto intervals = elapsed / timer->_interval;
-            timer->_start_time += timer->_interval * intervals;
-         }
-         else
-         {
-            timer->_start_time = now;
-         }
+         continue;
       }
 
-      timer->timeoutSignal();
+      Timer& timer = it->second.get();
+
+      // advance by whole elapsed intervals rather than snapping to "now", so the long-run rate
+      // stays correct even when update() is polled irregularly.
+      if (timer._interval.count() > 0)
+      {
+         const auto elapsed = now - timer._start_time;
+         const auto intervals = elapsed / timer._interval;
+         timer._start_time += timer._interval * intervals;
+      }
+      else
+      {
+         timer._start_time = now;
+      }
+
+      lock.unlock();
+
+      timer.timeoutSignal();
    }
 
    std::vector<std::function<void()>> callbacks;

@@ -1,13 +1,12 @@
 #pragma once
 
-#include "mapitem.h"
 #include "gamesignal.h"
+#include "mapitem.h"
 #include "timer.h"
 
 #include <memory>
 
 class BombKickAnimation;
-class Map;
 
 class BombMapItem : public MapItem
 {
@@ -43,14 +42,16 @@ public:
    [[nodiscard]] bool isKicked() const;
    void setKicked(bool kicked);
 
-   void setShadowedItem(MapItem* shadowed_item);
+   // item hidden underneath the bomb, empty if none
+   void setShadowedItem(std::shared_ptr<MapItem> shadowed_item);
+   [[nodiscard]] const std::shared_ptr<MapItem>& getShadowedItem() const;
+   [[nodiscard]] std::shared_ptr<MapItem> takeShadowedItem();
 
    void setIgniterId(int8_t id);
    [[nodiscard]] int8_t getIgniterId() const;
 
-   [[nodiscard]] MapItem* getShadowedItem();
-
-   [[nodiscard]] BombKickAnimation* getBombKickAnimation() const;
+   [[nodiscard]] bool hasBombKickAnimation() const;
+   [[nodiscard]] BombKickAnimation& getBombKickAnimation() const;
 
    // takes ownership
    void setBombKickAnimation(std::unique_ptr<BombKickAnimation> animation);
@@ -61,7 +62,7 @@ public:
    // let the bomb explode now
    void stopTimer();
 
-   Signal<BombMapItem*, bool> explodedSignal;
+   Signal<BombMapItem&, bool> explodedSignal;
 
    // kick animation was started or stopped
    Signal<Constants::Direction, float> kickAnimationSignal;
@@ -82,9 +83,8 @@ protected:
    std::unique_ptr<BombKickAnimation> _animation;
    DetonationOrigin _detonation_origin = Active;
 
-   // item that may be shadowed by a kicked bomb - non-owning, the Map owns it; whoever destroys
-   // a grid item must null out any bomb's shadowed item observing it (see Game::bombExploded())
-   MapItem* _shadowed_item = nullptr;
+   // item that may be shadowed by a kicked bomb, off the grid while it is covered
+   std::shared_ptr<MapItem> _shadowed_item;
 
    static int32_t _tick_time;
 

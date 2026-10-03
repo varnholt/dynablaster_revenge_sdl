@@ -17,13 +17,14 @@
 #include "elapsedtimer.h"
 #include "gameinformation.h"
 #include "gameround.h"
-#include "packet.h"
 #include "gamesignal.h"
+#include "packet.h"
 #include "timer.h"
 
 // forward declarations
 class BombMapItem;
 class CollisionDetection;
+class Connection;
 class ExtraMapItem;
 class ExtraShakePacketHandler;
 class ExtraSpawn;
@@ -32,7 +33,7 @@ class MapItem;
 class MapItemCreatedPacket;
 class Player;
 class PlayerDisease;
-struct NET_StreamSocket;
+class PlayerInfectedPacket;
 
 class Game
 {
@@ -65,25 +66,22 @@ public:
    const std::string& getLevelName() const;
 
    //! process a packet
-   void processPacket(NET_StreamSocket* tcp_socket, Packet* packet);
+   void processPacket(Connection& connection, const Packet& packet);
 
-   //! getter for map socket <-> player
-   const std::map<NET_StreamSocket*, Player*>& getPlayerSockets() const;
-
-   //! socket of the given player, nullptr if the player is not in this game
-   NET_StreamSocket* getSocket(Player* player) const;
+   //! getter for map player id <-> connection
+   const std::map<int8_t, std::reference_wrapper<Connection>>& getConnections() const;
 
    //! setter for the game's creator
-   void setCreator(Player* creator);
+   void setCreatorId(int creator_id);
 
-   //! getter for the game's creator
-   Player* getCreator() const;
+   //! getter for the id of the game's creator
+   int getCreatorId() const;
 
    //! getter for list of players
-   std::vector<Player*> getPlayers() const;
+   std::vector<std::reference_wrapper<Player>> getPlayers() const;
 
-   //! getter for the game's map
-   Map* getMap() const;
+   //! getter for the game's map, valid once initialized
+   Map& getMap() const;
 
    //! getter for map dimension
    Constants::Dimension getMapDimension() const;
@@ -125,7 +123,7 @@ public:
    bool isSynchronizationActive() const;
 
    //! player joins a game
-   bool joinGame(Player* player, NET_StreamSocket* player_socket, std::optional<Constants::Color> preferred_color = std::nullopt);
+   bool joinGame(Connection& connection, std::optional<Constants::Color> preferred_color = std::nullopt);
 
    //! getter for position skip count
    int getPositionSkipCount() const;
@@ -133,8 +131,8 @@ public:
    //! get the actual number of bots in this game
    int getBotCount() const;
 
-   //! getter for gameround ptr
-   GameRound* getGameRound();
+   //! getter for gameround
+   GameRound& getGameRound();
 
    //! getter for time left
    int getTimeLeft();
@@ -152,7 +150,7 @@ public:
    void setGameOnlyPopulatedByBotsMessageShown(bool value);
 
    //! process spectator client
-   void processSpectator(NET_StreamSocket* tcp_socket);
+   void processSpectator(Connection& connection);
 
    //! start new game
    void startGame();
@@ -173,7 +171,7 @@ public:
    void finishGame();
 
    //! player left the game
-   void removePlayer(Player* player, NET_StreamSocket* player_socket);
+   void removePlayer(Connection& connection);
 
    //! add packet to list of outgoing packets
    void addOutgoingPacket(std::unique_ptr<Packet> packet);
@@ -185,7 +183,7 @@ public:
    Signal<int> playerLeavesSignal;
 
    //! player is forced to leave game
-   Signal<NET_StreamSocket*> forceLeaveGameSignal;
+   Signal<Connection&> forceLeaveGameSignal;
 
    //! state changed
    Signal<Constants::GameState> stateChangedSignal;
@@ -195,7 +193,7 @@ private:
    void update();
 
    //! bomb exploded (newschool, iterative detonations)
-   void bombExploded(BombMapItem* bomb, bool);
+   void bombExploded(BombMapItem& bomb, bool);
 
    //! send game time packets
    void processGameTime();
@@ -204,19 +202,19 @@ private:
    void updatePrepareGame();
 
    //! bomb kick animation triggered
-   void bombKickedAnimation(BombMapItem* item, Constants::Direction direction, float speed);
+   void bombKickedAnimation(const BombMapItem& item, Constants::Direction direction, float speed);
 
    //! send an idle packet
-   void playerIdle(int8_t directions, Player* player);
+   void playerIdle(int8_t directions, Player& player);
 
    //! move player
-   void playerMove(Player* player, float assigned_x_position, float assigned_y_position, int8_t directions);
+   void playerMove(Player& player, float assigned_x_position, float assigned_y_position, int8_t directions);
 
    //! player kicks a bomb
-   void playerKicksBomb(Player* player, MapItem* item, bool vertically_kicked, int keys_pressed);
+   void playerKicksBomb(const Player& player, MapItem& item, bool vertically_kicked, int keys_pressed);
 
    //! player disease stopped
-   void playerDiseaseStopped(PlayerDisease* disease);
+   void playerDiseaseStopped(const PlayerDisease& disease);
 
    //! send a message to the spectator that the game is currently running
    void processSpectatorMessage();
@@ -267,19 +265,19 @@ private:
    void sendBroadcastPackets();
 
    //! send single packet
-   void sendPacket(NET_StreamSocket* socket, std::unique_ptr<Packet> packet);
+   void sendPacket(Connection& connection, std::unique_ptr<Packet> packet);
 
-   //! player of the given socket, nullptr if unknown
-   Player* findPlayer(NET_StreamSocket* socket) const;
+   //! player with the given id, if in this game
+   std::optional<std::reference_wrapper<Player>> findPlayer(int id) const;
 
    //! setter for the current game state
    void setState(Constants::GameState state);
 
    //! update stats on player kill event
-   void updateStatsPlayerKilled(Player* killer, Player* victim);
+   void updateStatsPlayerKilled(std::optional<std::reference_wrapper<Player>> killer, Player& victim);
 
    //! update stats on player won event
-   void processPlayerWon(Player* player);
+   void processPlayerWon(std::optional<std::reference_wrapper<Player>> player);
 
    //! only bots left
    void processOnlyBotsLeft();
@@ -305,19 +303,23 @@ private:
    //! broadcast game information
    void broadcastGameInformation();
 
-   //! create extra skull
-   void createInfection(
-      Player* infected_player,
-      Player* infecting_player = nullptr,
-      ExtraMapItem* extra = nullptr,
-      const std::vector<Constants::SkullType>& faces = {}
-   );
+   //! player collected a skull extra
+   void infectFromExtra(Player& infected_player, const ExtraMapItem& extra);
+
+   //! infected player passes the disease on
+   void infectFromPlayer(Player& infected_player, const Player& infecting_player);
+
+   //! infect a player, returns the packet to broadcast
+   std::unique_ptr<PlayerInfectedPacket> createInfection(Player& infected_player, Constants::SkullType skull_type);
 
    //! create kick animation
-   void createKickAnimation(BombMapItem* kicked_bomb, Constants::Direction kick_direction);
+   void createKickAnimation(BombMapItem& kicked_bomb, Constants::Direction kick_direction);
 
    //! decrease immune times
    void updateImmuneTimes();
+
+   //! remember an item to remove once the explosion is processed
+   void markDestroyed(const std::shared_ptr<MapItem>& item);
 
    //! make field immune
    void makeFieldImmune(int x, int y);
@@ -338,7 +340,7 @@ private:
    void sendMessageToOwner(const std::string& message);
 
    //! do not rotate dead player into stones
-   void rotateDeadPlayerTowardsBomb(Constants::Direction detonation_direction, Player* player, int x, int y);
+   void rotateDeadPlayerTowardsBomb(Constants::Direction detonation_direction, Player& player, int x, int y);
 
    //! check if extra spawning is enabled
    bool isSpawnExtrasEnabled() const;
@@ -356,11 +358,8 @@ private:
    //! calls the update loop
    Timer _update_timer;
 
-   //! map socket <-> player
-   std::map<NET_StreamSocket*, Player*> _player_sockets;
-
-   //! map id <-> player - key order matters: start positions are assigned by ascending id
-   std::map<int8_t, Player*> _players;
+   //! map player id <-> connection - key order matters: start positions are assigned by ascending id
+   std::map<int8_t, std::reference_wrapper<Connection>> _players;
 
    //! outgoing packages
    std::deque<std::unique_ptr<Packet>> _outgoing_packets;
@@ -368,8 +367,11 @@ private:
    //! playfield
    std::unique_ptr<Map> _map;
 
-   //! map items to delete after destruction
-   std::unordered_set<MapItem*> _destroyed_map_items;
+   //! map items to remove after the explosion
+   std::vector<std::shared_ptr<MapItem>> _destroyed_map_items;
+
+   //! exploded bombs, destroyed on the next tick
+   std::vector<std::shared_ptr<MapItem>> _exploded_bombs;
 
    //! one direction to check
    std::vector<Constants::Direction> _direction_check_center{Constants::DirectionUp};
@@ -397,8 +399,8 @@ private:
    //! game time
    ElapsedTimer _game_time;
 
-   //! game owner
-   Player* _creator = nullptr;
+   //! id of the game owner
+   int _creator_id = -1;
 
    //! game state
    Constants::GameState _state = Constants::GameStopped;
@@ -412,8 +414,8 @@ private:
    //! preparation counter
    int _preparation_counter = 0;
 
-   //! idle packet map
-   std::unordered_set<Player*> _idle_packet_sent_set;
+   //! ids of players an idle packet was sent for
+   std::unordered_set<int8_t> _idle_packet_sent_set;
 
    //! skip countdown
    bool _skip_countdown = false;
@@ -457,8 +459,8 @@ private:
    //! only populated message shown flag
    bool _game_only_populated_by_bots_message_shown = false;
 
-   //! list of spectators - cleared explicitly in removePlayer() when a socket goes away
-   std::deque<NET_StreamSocket*> _spectators;
+   //! player ids of spectators - cleared explicitly in removePlayer() when a player goes away
+   std::deque<int8_t> _spectators;
 
    //! extra spawning
    std::unique_ptr<ExtraSpawn> _extra_spawn;

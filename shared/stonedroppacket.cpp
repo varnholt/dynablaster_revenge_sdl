@@ -2,9 +2,11 @@
 
 #include "logging.h"
 
+#include <string_view>
+
 namespace
 {
-constexpr auto PACKETNAME = "StoneDrop";
+constexpr std::string_view PACKETNAME = "StoneDrop";
 }
 
 StoneDropPacket::StoneDropPacket(int8_t x, int8_t y) : Packet(Packet::STONEDROP), _x(x), _y(y)

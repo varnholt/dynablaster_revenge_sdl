@@ -4,27 +4,26 @@
 #include "pathfinding.h"
 
 #include "map.h"
+#include "point.h"
 
 #include "astarmap.h"
 #include "astarnode.h"
 
+#include <cstdint>
 #include <unordered_set>
 #include <vector>
 
 class AStarPathFinding : public PathFinding
 {
 public:
-   //! setter for map
-   void setMap(AStarMap* map);
-
    //! setter for start point
    void setStart(int x, int y);
 
    //! setter for target point
    void setTarget(int x, int y);
 
-   //! find path from start to target
-   void findPath();
+   //! find path from start to target on the given map's nodes
+   void findPath(AStarMap& map);
 
    //! debug path
    void debugPath();
@@ -32,39 +31,36 @@ public:
    //! debug path in a short version
    void debugPathShort();
 
-   //! getter for path nodes
-   const std::vector<AStarNode*>& getPath() const;
+   //! getter for path positions, from the target back to the field after the start
+   const std::vector<Point>& getPath() const;
 
    //! getter for the path length
    int getPathLength() const;
 
 protected:
-   //! get best f score node in given set
-   AStarNode* getBestFValueNode(const std::unordered_set<AStarNode*>& set) const;
+   //! get index of the best f score node in given set
+   int32_t getBestFValueNode(const AStarMap& map, const std::unordered_set<int32_t>& set) const;
+
+   //! number of parent nodes added to the node's g value
+   void calcG(const AStarMap& map, AStarNode& node) const;
 
    //! build path by linking parents
-   std::vector<AStarNode*> reconstructPath(AStarNode* current_node);
+   std::vector<Point> reconstructPath(const AStarMap& map, int32_t current_node) const;
 
-   //! open set
-   std::unordered_set<AStarNode*> _open_set;
+   //! open set of node indices
+   std::unordered_set<int32_t> _open_set;
 
-   //! closed set
-   std::unordered_set<AStarNode*> _closed_set;
+   //! closed set of node indices
+   std::unordered_set<int32_t> _closed_set;
 
-   //! start node
-   AStarNode* _start_node = nullptr;
+   //! start position
+   Point _start;
 
-   //! target node
-   AStarNode* _target_node = nullptr;
-
-   //! current node
-   AStarNode* _current_node = nullptr;
-
-   //! map to work on
-   AStarMap* _node_map = nullptr;
+   //! target position
+   Point _target;
 
    //! resulting path
-   std::vector<AStarNode*> _path;
+   std::vector<Point> _path;
 };
 
 #endif  // ASTARPATHFINDING_H

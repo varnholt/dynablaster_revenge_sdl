@@ -2,9 +2,11 @@
 
 #include "logging.h"
 
+#include <string_view>
+
 namespace
 {
-constexpr auto PACKETNAME = "PlayerInfected";
+constexpr std::string_view PACKETNAME = "PlayerInfected";
 }
 
 PlayerInfectedPacket::PlayerInfectedPacket(int32_t player_id, Constants::SkullType type)
