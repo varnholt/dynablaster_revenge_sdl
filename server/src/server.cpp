@@ -314,7 +314,7 @@ void Server::processGamePacket(Connection& connection, const Packet& packet)
       Server
       |
       + NET_Server
-      + acceptConnections() => new Connection(new Player)
+      + acceptConnections() => Connection (owns its Player)
                                    |
                                    + NET_StreamSocket
       + readSocket() => while(data is available)
