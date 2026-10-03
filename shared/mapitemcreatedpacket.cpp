@@ -2,13 +2,15 @@
 
 #include "logging.h"
 
+#include <string_view>
+
 namespace
 {
-constexpr auto PACKETNAME = "MapItemCreated";
+constexpr std::string_view PACKETNAME = "MapItemCreated";
 }
 
-MapItemCreatedPacket::MapItemCreatedPacket(MapItem* item, int8_t creator)
-    : MapItemPacket(Packet::MAPITEMCREATED, item), _appearance(item->getAppearance()), _player_id(creator)
+MapItemCreatedPacket::MapItemCreatedPacket(const MapItem& item, int8_t creator)
+    : MapItemPacket(Packet::MAPITEMCREATED, item), _appearance(item.getAppearance()), _player_id(creator)
 {
    _packet_name = PACKETNAME;
 }

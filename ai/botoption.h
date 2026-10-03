@@ -20,8 +20,8 @@ public:
    //! setter for action
    void setAction(std::unique_ptr<BotAction> action);
 
-   //! getter for action
-   BotAction* getAction() const;
+   //! getter for action, the option must have one
+   BotAction& getAction() const;
 
    //! setter for combinable flag
    void setCombinable(bool combinable);

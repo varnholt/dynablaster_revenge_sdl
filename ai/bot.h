@@ -6,13 +6,15 @@
 
 // shared
 #include "constants.h"
+#include "gamesignal.h"
 #include "point.h"
 #include "serverconfiguration.h"
-#include "gamesignal.h"
 #include "timer.h"
 
 #include <deque>
+#include <functional>
 #include <memory>
+#include <optional>
 #include <vector>
 
 // forward declarations
@@ -33,14 +35,17 @@ public:
    //! destructor
    virtual ~Bot() = default;
 
-   //! setter for bot map
-   virtual void setBotMap(BotMap* bot_map);
+   //! setter for bot map, the bot takes ownership
+   virtual void setBotMap(std::unique_ptr<BotMap> bot_map);
 
-   //! setter for player info ptr
-   void setPlayerInfo(BotPlayerInfo* info);
+   //! getter for bot map, valid once set
+   BotMap& getBotMap() const;
 
-   //! getter for player info ptr
-   BotPlayerInfo* getPlayerInfo() const;
+   //! setter for player info
+   void setPlayerInfo(BotPlayerInfo& info);
+
+   //! getter for player info, valid once set
+   BotPlayerInfo& getPlayerInfo() const;
 
    //! getter for current position x
    float getX() const;
@@ -167,17 +172,17 @@ protected:
    //! bot state
    BotState _bot_state = BotState::BotStateDead;
 
-   //! bot map, owned by the BotClient
-   BotMap* _bot_map = nullptr;
+   //! bot map, empty until the bot joined a game
+   std::unique_ptr<BotMap> _bot_map;
 
-   //! player info ptr, owned by the BotClient
-   BotPlayerInfo* _player_info = nullptr;
+   //! player info, owned by the BotClient, empty until the bot joined a game
+   std::optional<std::reference_wrapper<BotPlayerInfo>> _player_info;
 
    //! bot's options
    std::vector<std::unique_ptr<BotOption>> _options;
 
-   //! bot's next action, non-owning (actions are owned by _options)
-   std::vector<BotAction*> _actions;
+   //! bot's next action (actions are owned by _options)
+   std::vector<std::reference_wrapper<BotAction>> _actions;
 
    //! x position
    float _x = 0.0f;

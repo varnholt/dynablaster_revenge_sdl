@@ -78,11 +78,11 @@ float Player::getSpeed() const
 
    if (isInfected())
    {
-      if (getDisease()->getType() == Constants::SkullSlow)
+      if (getDisease().getType() == Constants::SkullSlow)
       {
          speed = SERVER_SKULL_SPEED_MIN;
       }
-      else if (getDisease()->getType() == Constants::SkullFast)
+      else if (getDisease().getType() == Constants::SkullFast)
       {
          speed = SERVER_SKULL_SPEED_MAX;
       }
@@ -102,9 +102,9 @@ void Player::setKeysPressed(int32_t keys)
    _keys_pressed = keys;
 }
 
-PlayerRotation* Player::getPlayerRotation()
+PlayerRotation& Player::getPlayerRotation()
 {
-   return &_player_rotation;
+   return _player_rotation;
 }
 
 void Player::setNick(const std::string& nick)
@@ -128,7 +128,7 @@ int8_t Player::getBombCount() const
 
    if (isInfected())
    {
-      const Constants::SkullType skull_type = getDisease()->getType();
+      const Constants::SkullType skull_type = getDisease().getType();
 
       if (skull_type == Constants::SkullNoBomb)
       {
@@ -158,7 +158,7 @@ int8_t Player::getFlameCount() const
 
    if (isInfected())
    {
-      const Constants::SkullType skull_type = getDisease()->getType();
+      const Constants::SkullType skull_type = getDisease().getType();
 
       if (skull_type == Constants::SkullMinimumBomb)
       {
@@ -223,14 +223,14 @@ void Player::setPositionSkipCounter(int32_t count)
    _position_skipped_counter = count;
 }
 
-PlayerStats* Player::getOverallStats()
+PlayerStats& Player::getOverallStats()
 {
-   return &_overall_stats;
+   return _overall_stats;
 }
 
-PlayerStats* Player::getRoundStats()
+PlayerStats& Player::getRoundStats()
 {
-   return &_round_stats;
+   return _round_stats;
 }
 
 void Player::setColor(Constants::Color color)
@@ -281,49 +281,48 @@ bool Player::isInfected() const
 
 bool Player::isInvincible() const
 {
-   const PlayerDisease* disease = getDisease();
-   return disease && disease->getType() == Constants::SkullInvincible;
+   return isInfected() && getDisease().getType() == Constants::SkullInvincible;
 }
 
-PlayerDisease* Player::getDisease() const
+PlayerDisease& Player::getDisease() const
 {
-   return _disease.get();
+   return *_disease;
 }
 
 void Player::increaseKills()
 {
-   getOverallStats()->increaseKills();
-   getRoundStats()->increaseKills();
+   getOverallStats().increaseKills();
+   getRoundStats().increaseKills();
 }
 
 void Player::increaseDeaths()
 {
-   getOverallStats()->increaseDeaths();
-   getRoundStats()->increaseDeaths();
+   getOverallStats().increaseDeaths();
+   getRoundStats().increaseDeaths();
 }
 
 void Player::increaseWins()
 {
-   getOverallStats()->increaseWins();
-   getRoundStats()->increaseWins();
+   getOverallStats().increaseWins();
+   getRoundStats().increaseWins();
 }
 
 void Player::increaseSurvivalTime(uint32_t survival_time)
 {
-   getOverallStats()->increaseSurvivalTime(survival_time);
-   getRoundStats()->increaseSurvivalTime(survival_time);
+   getOverallStats().increaseSurvivalTime(survival_time);
+   getRoundStats().increaseSurvivalTime(survival_time);
 }
 
 void Player::increaseExtrasCollected()
 {
-   getOverallStats()->increaseExtrasCollected();
-   getRoundStats()->increaseExtrasCollected();
+   getOverallStats().increaseExtrasCollected();
+   getRoundStats().increaseExtrasCollected();
 }
 
 void Player::resetStats()
 {
-   getOverallStats()->reset();
-   getRoundStats()->reset();
+   getOverallStats().reset();
+   getRoundStats().reset();
 }
 
 void Player::increaseFlameCount()

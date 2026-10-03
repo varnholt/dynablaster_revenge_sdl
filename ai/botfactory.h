@@ -28,7 +28,7 @@ public:
 
    void removeAll();
 
-   void removeBot(BotClient* client);
+   void removeBot(BotClient& client);
 
 protected:
    //! create a bot and a client instance
@@ -43,8 +43,11 @@ protected:
    //! list of bot clients (each client owns its bot)
    std::vector<std::unique_ptr<BotClient>> _clients;
 
-   //! list of bots, non-owning
-   std::vector<Bot*> _bots;
+   //! removed bot clients, destroyed on the next tick
+   std::vector<std::unique_ptr<BotClient>> _removed_clients;
+
+   //! expires with this factory, deferred cleanups check it
+   std::shared_ptr<bool> _lifetime = std::make_shared<bool>(true);
 
    //! list of given names
    std::vector<std::string> _given_names;

@@ -37,7 +37,7 @@ public:
 
    [[nodiscard]] int8_t getId() const;
 
-   [[nodiscard]] PlayerRotation* getPlayerRotation();
+   [[nodiscard]] PlayerRotation& getPlayerRotation();
 
    void setNick(const std::string& nick);
    [[nodiscard]] const std::string& getNick() const;
@@ -63,8 +63,8 @@ public:
    [[nodiscard]] int32_t getPositionSkipCounter() const;
    void setPositionSkipCounter(int32_t count);
 
-   [[nodiscard]] PlayerStats* getOverallStats();
-   [[nodiscard]] PlayerStats* getRoundStats();
+   [[nodiscard]] PlayerStats& getOverallStats();
+   [[nodiscard]] PlayerStats& getRoundStats();
 
    void setColor(Constants::Color color);
    [[nodiscard]] Constants::Color getColor() const;
@@ -78,7 +78,8 @@ public:
    void infect(std::unique_ptr<PlayerDisease> disease);
    [[nodiscard]] bool isInfected() const;
    [[nodiscard]] bool isInvincible() const;
-   [[nodiscard]] PlayerDisease* getDisease() const;
+   // only valid while isInfected()
+   [[nodiscard]] PlayerDisease& getDisease() const;
 
    void increaseKills();
    void increaseDeaths();

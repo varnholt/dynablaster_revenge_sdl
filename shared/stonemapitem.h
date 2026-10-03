@@ -17,8 +17,7 @@ public:
    // takes ownership
    void setExtraMapItem(std::unique_ptr<ExtraMapItem> item);
 
-   // non-owning observer
-   [[nodiscard]] ExtraMapItem* getExtraMapItem() const;
+   [[nodiscard]] bool hasExtraMapItem() const;
 
    // releases ownership (e.g. when the extra is revealed and becomes its own map item), nullptr if none
    [[nodiscard]] std::unique_ptr<ExtraMapItem> releaseExtraMapItem();

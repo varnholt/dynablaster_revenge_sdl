@@ -2,9 +2,11 @@
 
 #include "logging.h"
 
+#include <string_view>
+
 namespace
 {
-constexpr auto PACKETNAME = "Message";
+constexpr std::string_view PACKETNAME = "Message";
 }
 
 MessagePacket::MessagePacket(int8_t sender_id, const std::string& message, bool finished_typing, int8_t receiver_id)

@@ -2,9 +2,11 @@
 
 #include "logging.h"
 
+#include <string_view>
+
 namespace
 {
-constexpr auto PACKETNAME = "Key";
+constexpr std::string_view PACKETNAME = "Key";
 }
 
 KeyPacket::KeyPacket() : Packet(Packet::KEY)

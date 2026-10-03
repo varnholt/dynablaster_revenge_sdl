@@ -10,17 +10,16 @@ class Game;
 class ExtraShakePacketHandler
 {
 public:
-   ExtraShakePacketHandler();
+   explicit ExtraShakePacketHandler(Game& game);
 
    void setEnabled(bool enabled);
 
-   void setGame(Game* game);
-   Game* getGame() const;
+   Game& getGame() const;
 
 protected:
    void check();
 
-   Game* _game = nullptr;
+   Game& _game;
 
    Timer _check_timer;
 };

@@ -3,6 +3,7 @@
 
 #include <array>
 #include <cstdint>
+#include <memory>
 
 // shared
 #include "constants.h"
@@ -17,40 +18,40 @@ class Player;
 class CollisionDetection
 {
 public:
+   explicit CollisionDetection(Game& game);
+
    //! process player
-   void process(Player* player);
+   void process(Player& player);
 
    //! returns true if position is blocked
-   bool isFieldBlocked(const std::array<int32_t, 2>& field, MapItem** blocking_item = nullptr);
+   bool isFieldBlocked(const std::array<int32_t, 2>& field) const;
 
    //! getter for game
-   Game* getGame() const;
-
-   //! setter for game
-   void setGame(Game* game);
+   Game& getGame() const;
 
    //! player kicks a bomb
-   Signal<Player*, MapItem*, bool, int> playerKicksBombSignal;
+   Signal<const Player&, MapItem&, bool, int> playerKicksBombSignal;
 
    //! send an idle packet
-   Signal<int8_t, Player*> playerIdleSignal;
+   Signal<int8_t, Player&> playerIdleSignal;
 
    //! move player
-   Signal<Player*, float, float, int8_t> playerMoveSignal;
+   Signal<Player&, float, float, int8_t> playerMoveSignal;
 
    //! player position was updated
    Signal<int, float, float> playerPositionChangedSignal;
 
 protected:
    //! getter for game
-   Map* getMap() const;
+   Map& getMap() const;
 
    //! prepare referenced values for current player
-   void updatePlayerDirections(Player* player, int keys_pressed, int8_t& directions, float& desired_x_position, float& desired_y_position);
+   void
+   updatePlayerDirections(const Player& player, int keys_pressed, int8_t& directions, float& desired_x_position, float& desired_y_position);
 
    //! adjust player x position
    float adjustXPosition(
-      Player* player,
+      const Player& player,
       float x_in_field,
       float desired_x_position,
       bool player_moves_horizontally,
@@ -59,7 +60,7 @@ protected:
 
    //! adjust player y position
    float adjustYPosition(
-      Player* player,
+      const Player& player,
       float y_in_field,
       float desired_y_position,
       bool player_moves_vertically,
@@ -67,14 +68,24 @@ protected:
    );
 
    //! update the player's rotation
-   bool updateRotation(Player* player, int keys_pressed, bool moved, float assigned_x_position, float assigned_y_position);
+   bool updateRotation(Player& player, int keys_pressed, bool moved, float assigned_x_position, float assigned_y_position);
 
    //! returns true if position is blocked
-   bool
-   isPositionBlocked(float x, float y, int keys_pressed, bool vertical_check, int field_x, int field_y, MapItem** blocking_item = nullptr);
+   bool isPositionBlocked(float x, float y, int keys_pressed, bool vertical_check, int field_x, int field_y) const;
+
+   //! returns true if position is blocked, blocking_item is the blocking map item if any
+   bool isPositionBlocked(
+      float x,
+      float y,
+      int keys_pressed,
+      bool vertical_check,
+      int field_x,
+      int field_y,
+      std::shared_ptr<MapItem>& blocking_item
+   ) const;
 
    //! game
-   Game* _game = nullptr;
+   Game& _game;
 };
 
 #endif  // COLLISIONDETECTION_H

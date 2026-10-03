@@ -61,12 +61,12 @@ Packet::Packet(TYPE packet_type) : _packet_type(packet_type), _timestamp(current
 {
 }
 
-int16_t Packet::getSize()
+int16_t Packet::getSize() const
 {
    return _packet_size;
 }
 
-Packet::TYPE Packet::getType()
+Packet::TYPE Packet::getType() const
 {
    return _packet_type;
 }
@@ -84,11 +84,6 @@ void Packet::setTimeStamp(int32_t time)
 const std::string& Packet::getPacketName() const
 {
    return _packet_name;
-}
-
-const char* Packet::constData() const
-{
-   return reinterpret_cast<const char*>(data());
 }
 
 void Packet::serialize()

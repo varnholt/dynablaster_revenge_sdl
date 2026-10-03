@@ -1,12 +1,11 @@
 #ifndef ASTARNODE_H
 #define ASTARNODE_H
 
+#include <cstdint>
+
 class AStarNode
 {
 public:
-   //! constructor
-   explicit AStarNode(AStarNode* parent = nullptr);
-
    //! setter for x
    void setX(int x);
 
@@ -19,11 +18,11 @@ public:
    //! getter for y
    int getY() const;
 
-   //! setter for parent node
-   void setParent(AStarNode* parent);
+   //! setter for the parent node's index in the AStarMap, -1 for none
+   void setParent(int32_t parent);
 
-   //! getter for parent node
-   AStarNode* getParent() const;
+   //! getter for the parent node's index in the AStarMap, -1 for none
+   int32_t getParent() const;
 
    //! setter for g function value
    void setG(int g);
@@ -37,21 +36,18 @@ public:
    //! getter for f function value
    int getF() const;
 
-   //! calculate number of parent nodes
-   void calcG();
-
    //! calculate heuristic value
-   void calcH(AStarNode* target);
+   void calcH(const AStarNode& target);
 
    //! calculate sum
    void calcF();
 
    //! getter for distance from this to target node
-   int getDistance(AStarNode* target);
+   int getDistance(const AStarNode& target) const;
 
 protected:
-   //! parent node
-   AStarNode* _parent = nullptr;
+   //! parent node index
+   int32_t _parent = -1;
 
    //! x position
    int _x = 0;

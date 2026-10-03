@@ -8,19 +8,18 @@ class BotMap;
 #include "botbombmapitem.h"
 #include "point.h"
 
+#include <cstdint>
+#include <functional>
 #include <unordered_set>
 #include <vector>
 
 class BombChainReaction
 {
 public:
-   using ChainList = std::vector<std::vector<BotBombMapItem*>>;
+   using ChainList = std::vector<std::vector<std::reference_wrapper<const BotBombMapItem>>>;
 
-   //! setter for bot map
-   void setBotMap(BotMap* map);
-
-   //! compute chained bombs
-   void compute();
+   //! compute chained bombs of the given map, valid while the map is unchanged
+   void compute(const BotMap& map);
 
    //! initialize list of directions
    void initDirections();
@@ -30,13 +29,10 @@ public:
 
 protected:
    //! recursion
-   void iterate(BotBombMapItem* item, std::vector<BotBombMapItem*>& items);
+   void iterate(const BotMap& map, const BotBombMapItem& item, std::vector<std::reference_wrapper<const BotBombMapItem>>& items);
 
-   //! visited items
-   std::unordered_set<BotBombMapItem*> _visited;
-
-   //! bot map
-   BotMap* _bot_map = nullptr;
+   //! unique ids of the visited items
+   std::unordered_set<int32_t> _visited;
 
    //! list of detonation chains
    ChainList _chain;

@@ -2,12 +2,14 @@
 
 #include "logging.h"
 
+#include <string_view>
+
 namespace
 {
-constexpr auto PACKETNAME = "MapItemRemoved";
+constexpr std::string_view PACKETNAME = "MapItemRemoved";
 }
 
-MapItemRemovedPacket::MapItemRemovedPacket(MapItem* item) : MapItemPacket(Packet::MAPITEMREMOVED, item)
+MapItemRemovedPacket::MapItemRemovedPacket(const MapItem& item) : MapItemPacket(Packet::MAPITEMREMOVED, item)
 {
    _packet_name = PACKETNAME;
 }

@@ -33,9 +33,9 @@ int BotPlayerInfo::getBombCount() const
 {
    int bomb_count = _bombs;
 
-   if (getDisease())
+   if (isInfected())
    {
-      Constants::SkullType skull_type = getDisease()->getType();
+      Constants::SkullType skull_type = getDisease().getType();
 
       if (skull_type == Constants::SkullNoBomb)
       {
@@ -61,9 +61,9 @@ int BotPlayerInfo::getFlameCount() const
 {
    int flame_count = _flames;
 
-   if (getDisease())
+   if (isInfected())
    {
-      Constants::SkullType skull_type = getDisease()->getType();
+      Constants::SkullType skull_type = getDisease().getType();
 
       if (skull_type == Constants::SkullMinimumBomb)
       {

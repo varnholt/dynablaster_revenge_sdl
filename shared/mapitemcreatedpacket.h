@@ -6,7 +6,7 @@ class MapItemCreatedPacket : public MapItemPacket
 {
 public:
    // write constructor
-   explicit MapItemCreatedPacket(MapItem* item, int8_t creator = -1);
+   explicit MapItemCreatedPacket(const MapItem& item, int8_t creator = -1);
 
    // read constructor
    MapItemCreatedPacket();

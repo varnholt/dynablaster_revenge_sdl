@@ -10,32 +10,42 @@
 #include "random.h"
 #include "stonemapitem.h"
 
+#include <algorithm>
 #include <cstdlib>
 #include <memory>
 #include <unordered_set>
 
-Map::Map(int32_t width, int32_t height)
-    : _width(width), _height(height), _map(static_cast<size_t>(width) * static_cast<size_t>(height), nullptr)
+Map::Map(int32_t width, int32_t height) : _width(width), _height(height), _map(static_cast<size_t>(width) * static_cast<size_t>(height))
 {
 }
 
-Map::~Map()
-{
-   // a stone's extra is owned by the stone itself
-   for (MapItem* item : _map)
-   {
-      delete item;
-   }
-}
-
-MapItem* Map::getItem(int32_t x, int32_t y) const
+const std::shared_ptr<MapItem>& Map::getItem(int32_t x, int32_t y) const
 {
    return _map[static_cast<size_t>(y) * static_cast<size_t>(_width) + static_cast<size_t>(x)];
 }
 
-void Map::setItem(int32_t x, int32_t y, MapItem* item)
+void Map::setItem(int32_t x, int32_t y, std::shared_ptr<MapItem> item)
 {
-   _map[static_cast<size_t>(y) * static_cast<size_t>(_width) + static_cast<size_t>(x)] = item;
+   _map[static_cast<size_t>(y) * static_cast<size_t>(_width) + static_cast<size_t>(x)] = std::move(item);
+}
+
+void Map::addLiftedItem(std::shared_ptr<MapItem> item)
+{
+   _lifted_items.push_back(std::move(item));
+}
+
+std::shared_ptr<MapItem> Map::takeLiftedItem(int32_t unique_id)
+{
+   const auto it = std::ranges::find_if(_lifted_items, [unique_id](const auto& item) { return item->getUniqueId() == unique_id; });
+
+   if (it == _lifted_items.end())
+   {
+      return {};
+   }
+
+   auto item = std::move(*it);
+   _lifted_items.erase(it);
+   return item;
 }
 
 bool Map::isHiddenExtraAvailable() const
@@ -51,13 +61,13 @@ bool Map::isHiddenExtraAvailable() const
 
          if (!block)
          {
-            MapItem* item = getItem(x, y);
+            const auto& item = getItem(x, y);
 
             if (item && item->getType() == MapItem::Stone)
             {
-               auto* stone = dynamic_cast<StoneMapItem*>(item);
+               const auto stone = std::dynamic_pointer_cast<StoneMapItem>(item);
 
-               if (stone && stone->getExtraMapItem())
+               if (stone && stone->hasExtraMapItem())
                {
                   available = true;
                   break;
@@ -78,7 +88,7 @@ void Map::initialize()
       {
          if (x % 2 && y % 2)
          {
-            setItem(x, y, new BlockMapItem(-1, x, y));
+            setItem(x, y, std::make_shared<BlockMapItem>(-1, x, y));
          }
       }
    }
@@ -94,10 +104,8 @@ void Map::initializeTestMap()
    {
       for (int32_t y = 0; y < _height; y++)
       {
-         MapItem* item = getItem(x, y);
-
          // if there's a free position..
-         if (!item)
+         if (!getItem(x, y))
          {
             // ..eventually place a stone
             if (Random::bounded(100) > 75)
@@ -112,7 +120,7 @@ void Map::initializeTestMap()
                       (x != player_position.x() && y + 1 != player_position.y()) &&
                       (x != player_position.x() && y - 1 != player_position.y()))
                   {
-                     setItem(x, y, new StoneMapItem(-1, x, y));
+                     setItem(x, y, std::make_shared<StoneMapItem>(-1, x, y));
                   }
                }
             }
@@ -252,10 +260,8 @@ std::unique_ptr<Map> Map::generateMap(
          const int32_t random_x = Random::bounded(width);
          const int32_t random_y = Random::bounded(height);
 
-         MapItem* item = map->getItem(random_x, random_y);
-
          // if there's a free position..
-         if (!item)
+         if (!map->getItem(random_x, random_y))
          {
             // but keep some space around the players' start positions
             bool blocks_start_position = false;
@@ -276,7 +282,7 @@ std::unique_ptr<Map> Map::generateMap(
 
             if (!blocks_start_position)
             {
-               map->setItem(random_x, random_y, new StoneMapItem(-1, random_x, random_y));
+               map->setItem(random_x, random_y, std::make_shared<StoneMapItem>(-1, random_x, random_y));
                stones_placed++;
             }
          }
@@ -290,38 +296,38 @@ std::unique_ptr<Map> Map::generateMap(
          const int32_t random_x = Random::bounded(width);
          const int32_t random_y = Random::bounded(height);
 
-         MapItem* item = map->getItem(random_x, random_y);
+         const auto& item = map->getItem(random_x, random_y);
 
          // if there's a stone that does not contain an extra yet
-         if (item && item->getType() == MapItem::Stone && !(static_cast<StoneMapItem*>(item))->getExtraMapItem())
+         if (item && item->getType() == MapItem::Stone && !static_cast<const StoneMapItem&>(*item).hasExtraMapItem())
          {
-            auto* stone = static_cast<StoneMapItem*>(item);
+            auto& stone = static_cast<StoneMapItem&>(*item);
 
             if (extra_bomb_placed < extra_bomb_count)
             {
-               stone->setExtraMapItem(std::make_unique<ExtraMapItem>(-1, Constants::ExtraBomb, random_x, random_y));
+               stone.setExtraMapItem(std::make_unique<ExtraMapItem>(-1, Constants::ExtraBomb, random_x, random_y));
                extra_bomb_placed++;
             }
             else if (extra_flame_placed < extra_flame_count)
             {
-               stone->setExtraMapItem(std::make_unique<ExtraMapItem>(-1, Constants::ExtraFlame, random_x, random_y));
+               stone.setExtraMapItem(std::make_unique<ExtraMapItem>(-1, Constants::ExtraFlame, random_x, random_y));
                extra_flame_placed++;
             }
             else if (extra_speed_up_placed < extra_speed_up_count)
             {
-               stone->setExtraMapItem(std::make_unique<ExtraMapItem>(-1, Constants::ExtraSpeedup, random_x, random_y));
+               stone.setExtraMapItem(std::make_unique<ExtraMapItem>(-1, Constants::ExtraSpeedup, random_x, random_y));
                extra_speed_up_placed++;
             }
             else if (extra_kick_placed < extra_kick_count)
             {
-               stone->setExtraMapItem(std::make_unique<ExtraMapItem>(-1, Constants::ExtraKick, random_x, random_y));
+               stone.setExtraMapItem(std::make_unique<ExtraMapItem>(-1, Constants::ExtraKick, random_x, random_y));
                extra_kick_placed++;
             }
             else if (extra_skull_placed < extra_skull_count)
             {
                auto extra = std::make_unique<ExtraMapItem>(-1, Constants::ExtraSkull, random_x, random_y);
                extra->setSkullFaces(PlayerDisease::generateSkullFaces());
-               stone->setExtraMapItem(std::move(extra));
+               stone.setExtraMapItem(std::move(extra));
                extra_skull_placed++;
             }
          }
@@ -343,11 +349,9 @@ std::vector<std::unique_ptr<MapItemCreatedPacket>> Map::getMapItemCreatedPackets
    {
       for (int32_t y = 0; y < _height; y++)
       {
-         MapItem* item = getItem(x, y);
-
-         if (item)
+         if (const auto& item = getItem(x, y))
          {
-            packets.push_back(std::make_unique<MapItemCreatedPacket>(item));
+            packets.push_back(std::make_unique<MapItemCreatedPacket>(*item));
          }
       }
    }
@@ -363,20 +367,18 @@ std::vector<std::unique_ptr<MapItemRemovedPacket>> Map::getMapItemRemovedPackets
    {
       for (int32_t y = 0; y < _height; y++)
       {
-         MapItem* item = getItem(x, y);
-
-         if (item)
+         if (const auto& item = getItem(x, y))
          {
-            packets.push_back(std::make_unique<MapItemRemovedPacket>(item));
+            packets.push_back(std::make_unique<MapItemRemovedPacket>(*item));
 
             // map items may contain shadowed items
             if (item->getType() == MapItem::Bomb)
             {
-               auto* bomb = static_cast<BombMapItem*>(item);
+               const auto& bomb = static_cast<const BombMapItem&>(*item);
 
-               if (bomb->getShadowedItem())
+               if (const auto& shadowed_item = bomb.getShadowedItem())
                {
-                  packets.push_back(std::make_unique<MapItemRemovedPacket>(bomb->getShadowedItem()));
+                  packets.push_back(std::make_unique<MapItemRemovedPacket>(*shadowed_item));
                }
             }
          }
@@ -392,11 +394,11 @@ void Map::stopBombs()
    {
       for (int32_t y = 0; y < _height; y++)
       {
-         MapItem* item = getItem(x, y);
+         const auto& item = getItem(x, y);
 
          if (item && item->getType() == MapItem::Bomb)
          {
-            static_cast<BombMapItem*>(item)->stopTimer();
+            static_cast<BombMapItem&>(*item).stopTimer();
          }
       }
    }

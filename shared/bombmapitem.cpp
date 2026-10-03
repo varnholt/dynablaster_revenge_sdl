@@ -32,7 +32,7 @@ void BombMapItem::explodeActive()
 {
    if (!_kicked)
    {
-      explodedSignal(this, false);
+      explodedSignal(*this, false);
    }
 }
 
@@ -75,13 +75,15 @@ void BombMapItem::kick()
 
 void BombMapItem::explodeDelayed()
 {
-   explodedSignal(this, false);
+   explodedSignal(*this, false);
 
-   if (isKicked())
+   if (isKicked() && _animation)
    {
       // this runs from inside the animation's own explodeSignal dispatch, so destroying it here
       // would destroy it while one of its methods is on the call stack - defer to the next tick.
+      // it has nothing left to do, so it must not move the bomb again until then.
       // shared_ptr since std::function needs a copyable target.
+      _animation->stop();
       Timer::singleShot(0, [animation = std::shared_ptr<BombKickAnimation>(std::move(_animation))]() {});
    }
 }
@@ -121,9 +123,19 @@ void BombMapItem::setKicked(bool kicked)
    _kicked = kicked;
 }
 
-void BombMapItem::setShadowedItem(MapItem* shadowed_item)
+void BombMapItem::setShadowedItem(std::shared_ptr<MapItem> shadowed_item)
 {
-   _shadowed_item = shadowed_item;
+   _shadowed_item = std::move(shadowed_item);
+}
+
+const std::shared_ptr<MapItem>& BombMapItem::getShadowedItem() const
+{
+   return _shadowed_item;
+}
+
+std::shared_ptr<MapItem> BombMapItem::takeShadowedItem()
+{
+   return std::move(_shadowed_item);
 }
 
 void BombMapItem::setIgniterId(int8_t id)
@@ -136,14 +148,14 @@ int8_t BombMapItem::getIgniterId() const
    return _igniter_id;
 }
 
-MapItem* BombMapItem::getShadowedItem()
+bool BombMapItem::hasBombKickAnimation() const
 {
-   return _shadowed_item;
+   return _animation != nullptr;
 }
 
-BombKickAnimation* BombMapItem::getBombKickAnimation() const
+BombKickAnimation& BombMapItem::getBombKickAnimation() const
 {
-   return _animation.get();
+   return *_animation;
 }
 
 void BombMapItem::setBombKickAnimation(std::unique_ptr<BombKickAnimation> animation)

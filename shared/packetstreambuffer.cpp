@@ -1,13 +1,10 @@
 #include "packetstreambuffer.h"
 
 #include <algorithm>
-#include <cstring>
 
-void PacketStreamBuffer::append(const char* data, size_t length)
+void PacketStreamBuffer::append(std::span<const char> data)
 {
-   const auto offset = _buffer.size();
-   _buffer.resize(offset + length);
-   std::memcpy(_buffer.data() + offset, data, length);
+   _buffer.insert(_buffer.end(), data.begin(), data.end());
 }
 
 size_t PacketStreamBuffer::bytesAvailable() const
@@ -17,12 +14,12 @@ size_t PacketStreamBuffer::bytesAvailable() const
 
 BinaryReader PacketStreamBuffer::reader() const
 {
-   return BinaryReader(_buffer.data() + _pos, _buffer.size() - _pos);
+   return BinaryReader(std::span(_buffer).subspan(_pos));
 }
 
 BinaryReader PacketStreamBuffer::reader(size_t bytes) const
 {
-   return BinaryReader(_buffer.data() + _pos, std::min(bytes, _buffer.size() - _pos));
+   return BinaryReader(std::span(_buffer).subspan(_pos, std::min(bytes, _buffer.size() - _pos)));
 }
 
 void PacketStreamBuffer::consume(size_t bytes)

@@ -10,7 +10,7 @@ public:
    MapItemDestroyedPacket();
 
    // write constructor
-   MapItemDestroyedPacket(MapItem* item, int32_t player_id, Constants::Direction direction, float intensity);
+   MapItemDestroyedPacket(const MapItem& item, int32_t player_id, Constants::Direction direction, float intensity);
 
    void debug() override;
    void enqueue(BinaryWriter& out) override;

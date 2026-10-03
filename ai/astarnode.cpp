@@ -3,13 +3,6 @@
 #include <cstdlib>
 
 /*!
-   \param parent parent node
-*/
-AStarNode::AStarNode(AStarNode* parent) : _parent(parent)
-{
-}
-
-/*!
    \param x x position
 */
 void AStarNode::setX(int x)
@@ -26,17 +19,17 @@ void AStarNode::setY(int y)
 }
 
 /*!
-   \param parent parent node
+   \param parent parent node index
 */
-void AStarNode::setParent(AStarNode* parent)
+void AStarNode::setParent(int32_t parent)
 {
    _parent = parent;
 }
 
 /*!
-   \return parent node
+   \return parent node index
 */
-AStarNode* AStarNode::getParent() const
+int32_t AStarNode::getParent() const
 {
    return _parent;
 }
@@ -89,31 +82,20 @@ int AStarNode::getF() const
    return _f;
 }
 
-void AStarNode::calcG()
-{
-   AStarNode* parent = _parent;
-
-   while (parent)
-   {
-      _g++;
-      parent = parent->_parent;
-   }
-}
-
 /*!
    \param target target node
    \return distance to given node
 */
-int AStarNode::getDistance(AStarNode* target)
+int AStarNode::getDistance(const AStarNode& target) const
 {
    // '+' on y (not '-') is the long-standing heuristic the bot behaviour is tuned on
-   return std::abs(_x - target->getX()) + std::abs(_y + target->getY());
+   return std::abs(_x - target.getX()) + std::abs(_y + target.getY());
 }
 
 /*!
    \param target target to calculate h to
 */
-void AStarNode::calcH(AStarNode* target)
+void AStarNode::calcH(const AStarNode& target)
 {
    _h = getDistance(target);
 }

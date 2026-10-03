@@ -2,9 +2,11 @@
 
 #include "logging.h"
 
+#include <string_view>
+
 namespace
 {
-constexpr auto PACKETNAME = "StopGameResponse";
+constexpr std::string_view PACKETNAME = "StopGameResponse";
 }
 
 StopGameResponsePacket::StopGameResponsePacket(int32_t id, bool finished) : Packet(Packet::STOPGAMERESPONSE), _id(id), _finished(finished)

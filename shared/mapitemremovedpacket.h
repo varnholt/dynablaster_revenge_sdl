@@ -8,7 +8,7 @@ class MapItemRemovedPacket : public MapItemPacket
 {
 public:
    // write constructor
-   explicit MapItemRemovedPacket(MapItem* item);
+   explicit MapItemRemovedPacket(const MapItem& item);
 
    // read constructor
    MapItemRemovedPacket();

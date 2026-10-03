@@ -2,9 +2,11 @@
 
 #include "logging.h"
 
+#include <string_view>
+
 namespace
 {
-constexpr auto PACKETNAME = "Error";
+constexpr std::string_view PACKETNAME = "Error";
 }
 
 ErrorPacket::ErrorPacket(Constants::ErrorType error_type, const std::string& message)

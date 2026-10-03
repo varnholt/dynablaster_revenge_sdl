@@ -1,6 +1,9 @@
 #include "binarywriter.h"
 
-#include <cstring>
+#include <algorithm>
+#include <array>
+#include <bit>
+#include <cstddef>
 
 BinaryWriter::BinaryWriter(std::vector<uint8_t>& buffer) : _buffer(buffer)
 {
@@ -9,9 +12,8 @@ BinaryWriter::BinaryWriter(std::vector<uint8_t>& buffer) : _buffer(buffer)
 template <typename T>
 void BinaryWriter::write(T value)
 {
-   const auto offset = _buffer.size();
-   _buffer.resize(offset + sizeof(T));
-   std::memcpy(_buffer.data() + offset, &value, sizeof(T));
+   const auto bytes = std::bit_cast<std::array<uint8_t, sizeof(T)>>(value);
+   _buffer.insert(_buffer.end(), bytes.begin(), bytes.end());
 }
 
 BinaryWriter& BinaryWriter::operator<<(int8_t value)
@@ -83,9 +85,7 @@ BinaryWriter& BinaryWriter::operator<<(bool value)
 BinaryWriter& BinaryWriter::operator<<(const std::string& value)
 {
    write(static_cast<uint32_t>(value.size()));
-   const auto offset = _buffer.size();
-   _buffer.resize(offset + value.size());
-   std::memcpy(_buffer.data() + offset, value.data(), value.size());
+   _buffer.insert(_buffer.end(), value.begin(), value.end());
    return *this;
 }
 
@@ -103,5 +103,6 @@ size_t BinaryWriter::pos() const
 
 void BinaryWriter::patchUint16(size_t offset, uint16_t value)
 {
-   std::memcpy(_buffer.data() + offset, &value, sizeof(value));
+   const auto bytes = std::bit_cast<std::array<uint8_t, sizeof(value)>>(value);
+   std::ranges::copy(bytes, _buffer.begin() + static_cast<std::ptrdiff_t>(offset));
 }

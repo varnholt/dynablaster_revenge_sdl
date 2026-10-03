@@ -2,9 +2,11 @@
 
 #include "logging.h"
 
+#include <string_view>
+
 namespace
 {
-constexpr auto PACKETNAME = "ListGameResponse";
+constexpr std::string_view PACKETNAME = "ListGameResponse";
 }
 
 ListGamesResponsePacket::ListGamesResponsePacket(const std::vector<GameInformation>& games, bool update)

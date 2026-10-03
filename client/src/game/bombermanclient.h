@@ -2,6 +2,7 @@
 #define BOMBERMANCLIENT_H
 
 // shared
+#include "nethandles.h"
 #include "packetstreambuffer.h"
 #include "gamesignal.h"
 #include "timer.h"
@@ -24,14 +25,34 @@
 
 // foward declarations
 class BotFactory;
+class CountdownPacket;
+class CreateGameResponsePacket;
+class DetonationPacket;
+class ErrorPacket;
+class ExtraMapItemCreatedPacket;
+class ExtraShakePacket;
+class GameEventPacket;
+class GameStatsPacket;
+class JoinGameResponsePacket;
+class LeaveGameResponsePacket;
+class ListGamesResponsePacket;
+class LoginResponsePacket;
 class MapItem;
+class MapItemCreatedPacket;
+class MapItemDestroyedPacket;
+class MapItemMovePacket;
+class MapItemRemovedPacket;
+class MessagePacket;
 class Packet;
+class PlayerInfectedPacket;
+class PlayerKilledPacket;
 class Playlist;
 class PositionInterpolation;
+class PositionPacket;
 class Server;
-
-struct NET_Address;
-struct NET_StreamSocket;
+class StartGameResponsePacket;
+class StopGameResponsePacket;
+class TimePacket;
 
 class BombermanClient
 {
@@ -302,7 +323,7 @@ private:
    void clientDisconnect();
 
    //! process a packet
-   void processPacket(Packet* packet);
+   void processPacket(const Packet& packet);
 
    //! demo mode is finished
    void playbackFinished();
@@ -314,32 +335,32 @@ private:
    void clearPlayerInfoMap();
 
 private:
-   void processCreateGameResponse(Packet* packet);
-   void processJoinGameResponse(Packet* packet);
-   void processListGameResponse(Packet* packet);
-   void processLoginResponse(Packet* packet);
-   void processPlayerKilled(Packet* packet);
-   void processPlayerInfected(Packet* packet);
-   void processDetonation(Packet* packet);
-   void processError(Packet* packet);
-   void processPosition(Packet* packet);
-   void processMapItemCreated(Packet* packet);
-   void processMapItemMove(Packet* packet);
-   void processExtraMapItemCreated(Packet* packet);
-   void processGameStats(Packet* packet);
-   void processExtraMapItemDestroyed(Packet* packet);
-   void processMapItemRemoved(Packet* packet);
-   void processStartGameResponse(Packet* packet);
-   void processStopGameResponse(Packet* packet);
-   void processGameEvent(Packet* packet);
-   void processMessage(Packet* packet);
-   void processTime(Packet* packet);
-   void processCountdown(Packet* packet);
-   void processLeaveGameResponse(Packet* packet);
-   void processExtraShake(Packet* packet);
+   void processCreateGameResponse(const CreateGameResponsePacket& response);
+   void processJoinGameResponse(const JoinGameResponsePacket& response);
+   void processListGameResponse(const ListGamesResponsePacket& list);
+   void processLoginResponse(const LoginResponsePacket& login);
+   void processPlayerKilled(const PlayerKilledPacket& kill);
+   void processPlayerInfected(const PlayerInfectedPacket& infected_packet);
+   void processDetonation(const DetonationPacket& det);
+   void processError(const ErrorPacket& error_packet);
+   void processPosition(const PositionPacket& pos_packet);
+   void processMapItemCreated(const MapItemCreatedPacket& packet);
+   void processMapItemMove(const MapItemMovePacket& move_packet);
+   void processExtraMapItemCreated(const ExtraMapItemCreatedPacket& packet);
+   void processGameStats(const GameStatsPacket& stats_packet);
+   void processExtraMapItemDestroyed(const MapItemDestroyedPacket& remove);
+   void processMapItemRemoved(const MapItemRemovedPacket& remove);
+   void processStartGameResponse(const StartGameResponsePacket& response);
+   void processStopGameResponse(const StopGameResponsePacket& response);
+   void processGameEvent(const GameEventPacket& response);
+   void processMessage(const MessagePacket& message_packet);
+   void processTime(const TimePacket& time_packet);
+   void processCountdown(const CountdownPacket& countdown_packet);
+   void processLeaveGameResponse(const LeaveGameResponsePacket& leave_packet);
+   void processExtraShake(const ExtraShakePacket& shake_packet);
 
    //! send a packet
-   void send(Packet* packet);
+   void send(Packet& packet);
 
    //! check for packets
    bool packetAvailable();
@@ -402,11 +423,11 @@ private:
    //! flag indicating bomb key was released
    bool _bomb_released = true;
 
-   //! stream socket to server, null unless connected or connecting
-   NET_StreamSocket* _socket = nullptr;
+   //! stream socket to server, empty unless connected or connecting
+   NetStreamSocketHandle _socket{nullptr, &NET_DestroyStreamSocket};
 
-   //! host address pending resolution, null once resolved (or if not resolving)
-   NET_Address* _address = nullptr;
+   //! host address pending resolution, empty once resolved (or if not resolving)
+   NetAddressHandle _address{nullptr, &NET_UnrefAddress};
 
    //! drives poll() once per tick
    Timer _poll_timer;

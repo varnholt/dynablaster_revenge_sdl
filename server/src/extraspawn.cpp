@@ -20,20 +20,15 @@ void ExtraSpawn::setEnabled(bool enabled)
    _enabled = enabled;
 }
 
-void ExtraSpawn::setMap(Map* map)
-{
-   _map = map;
-}
-
 void ExtraSpawn::activateSpawnTimer()
 {
    _spawn_timer.start();
 }
 
 //! start condition: once this returned true, extras are spawned all the time
-bool ExtraSpawn::isExtraAvailable() const
+bool ExtraSpawn::isExtraAvailable(const Map& map) const
 {
-   return _map->isHiddenExtraAvailable();
+   return map.isHiddenExtraAvailable();
 }
 
 bool ExtraSpawn::isSpawnTimerActive() const
@@ -41,19 +36,14 @@ bool ExtraSpawn::isSpawnTimerActive() const
    return _spawn_timer.isActive();
 }
 
-Map* ExtraSpawn::getMap() const
-{
-   return _map;
-}
-
 void ExtraSpawn::reset()
 {
    _spawn_timer.stop();
 }
 
-void ExtraSpawn::update()
+void ExtraSpawn::update(const Map& map)
 {
-   if (isEnabled() && !isSpawnTimerActive() && !isExtraAvailable())
+   if (isEnabled() && !isSpawnTimerActive() && !isExtraAvailable(map))
    {
       activateSpawnTimer();
    }

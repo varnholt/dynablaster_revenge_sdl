@@ -2,9 +2,11 @@
 
 #include "logging.h"
 
+#include <string_view>
+
 namespace
 {
-constexpr auto PACKETNAME = "PlayerSynchronize";
+constexpr std::string_view PACKETNAME = "PlayerSynchronize";
 }
 
 PlayerSynchronizePacket::PlayerSynchronizePacket() : Packet(Packet::PLAYERSYNCHRONIZEPACKET)

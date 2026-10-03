@@ -2,9 +2,11 @@
 
 #include "logging.h"
 
+#include <string_view>
+
 namespace
 {
-constexpr auto PACKETNAME = "MapItemMove";
+constexpr std::string_view PACKETNAME = "MapItemMove";
 }
 
 MapItemMovePacket::MapItemMovePacket(int32_t map_item_id, float speed, Constants::Direction direction, int32_t nominal_x, int32_t nominal_y)

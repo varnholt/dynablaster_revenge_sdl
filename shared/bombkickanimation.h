@@ -1,27 +1,26 @@
 #pragma once
 
 #include "constants.h"
-#include "point.h"
 #include "gamesignal.h"
+#include "point.h"
 #include "timer.h"
 
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <unordered_map>
 #include <vector>
 
-class BombMapItem;
 class Map;
-class MapItem;
 
 class BombKickAnimation
 {
 public:
-   BombKickAnimation();
+   explicit BombKickAnimation(Map& map);
    virtual ~BombKickAnimation();
 
-   // remove all animations
-   static void deleteAll();
+   BombKickAnimation(const BombKickAnimation&) = delete;
+   BombKickAnimation& operator=(const BombKickAnimation&) = delete;
 
    // runs right before this animation is destroyed - used by subscribers of longer-lived signals
    // to disconnect themselves, since Signal<> has no automatic disconnect-on-destroy
@@ -29,8 +28,10 @@ public:
 
    void start();
 
-   void setMap(Map* map);
-   [[nodiscard]] Map* getMap() const;
+   // stop moving for good, e.g. once the bomb exploded
+   void stop();
+
+   [[nodiscard]] Map& getMap() const;
 
    void setX(float x);
    void setY(float y);
@@ -62,10 +63,10 @@ public:
 protected:
    void updatePosition();
 
-   bool isInRange(float value1, float value2, float epsilon);
+   bool isInRange(float value1, float value2, float epsilon) const;
 
    // movement may be continued
-   bool isMoveAllowed();
+   bool isMoveAllowed() const;
 
    [[nodiscard]] float getStepSize() const;
    [[nodiscard]] Constants::Direction getDirection() const;
@@ -78,9 +79,7 @@ protected:
    void reset();
 
    // inter-bomb collisions
-   static void addAnimation(BombKickAnimation* animation);
-   static void removeAnimation(BombKickAnimation* animation);
-   bool checkCollision(BombKickAnimation* animation);
+   bool checkCollision(const BombKickAnimation& animation) const;
    [[nodiscard]] bool isColliding() const;
    void setColliding(bool colliding);
    void updateCollisions();
@@ -95,8 +94,13 @@ protected:
    float _x = 0.0f;
    float _y = 0.0f;
    bool _ready_to_explode = false;
-   Map* _map = nullptr;
-   BombMapItem* _bomb_map_item = nullptr;
+   Map& _map;
+
+   // the kicked bomb, lifted off the map while it moves (see Map::addLiftedItem())
+   int32_t _bomb_unique_id = -1;
+
+   // field the bomb was kicked from
+   Point _start_field;
 
    // player positions to collide with
    std::unordered_map<int32_t, Point> _player_positions;
@@ -104,11 +108,14 @@ protected:
    // run in the destructor, see addDestroyCallback()
    std::vector<std::function<void()>> _destroy_callbacks;
 
-   // currently active kick animations - non-owning, self-registering tracker (added in the
-   // constructor, removed in the destructor); the real owner is the BombMapItem holding it.
-   // TODO: deleteAll() deletes through these non-owning pointers, which double-deletes any
-   // animation whose owning BombMapItem (or a pending deferred-delete) outlives the call.
-   static std::vector<BombKickAnimation*> _animations;
+   [[nodiscard]] static uint64_t nextId();
+
+   // key into the registry, animations are neither copyable nor movable
+   uint64_t _id = nextId();
+
+   // currently active kick animations, in creation order - each one registers itself in the
+   // constructor and leaves in the destructor; the owner is the BombMapItem holding it
+   static std::map<uint64_t, std::reference_wrapper<BombKickAnimation>> _animations;
 
    // bomb is colliding with another bomb
    bool _colliding = false;

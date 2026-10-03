@@ -11,7 +11,7 @@ public:
    explicit MapItemPacket(Packet::TYPE type);
 
    // item is only read from, not owned by this packet
-   MapItemPacket(Packet::TYPE packet_type, MapItem* item);
+   MapItemPacket(Packet::TYPE packet_type, const MapItem& item);
 
    void debug() override;
    void enqueue(BinaryWriter& out) override;

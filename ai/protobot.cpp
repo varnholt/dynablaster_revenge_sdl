@@ -46,7 +46,7 @@ Point toField(float x, float y)
 }
 }  // namespace
 
-ProtoBot::ProtoBot()
+ProtoBot::ProtoBot(const PlayerInfoMap& player_info_map) : _player_info_map(player_info_map)
 {
    _bot_character = std::make_unique<BotCharacter>();
    _bot_character->setCharacter(
@@ -390,7 +390,7 @@ void ProtoBot::increaseIdleCounter()
 bool ProtoBot::isSafeEscapePossible()
 {
    std::vector<Point> reachable_positions_filtered =
-      reachablePositionsLeft(getXField(), getYField(), _player_info->getFlameCount(), _bot_map->getReachablePositions());
+      reachablePositionsLeft(getXField(), getYField(), getPlayerInfo().getFlameCount(), _bot_map->getReachablePositions());
 
    // optimization
    // filter list of points again by manhattan length
@@ -441,9 +441,9 @@ bool ProtoBot::isAttackPossible()
 
    bool attack_possible = false;
 
-   if (_bot_map->isBombAmountConsumed(_id, _player_info->getBombCount()))
+   if (_bot_map->isBombAmountConsumed(_id, getPlayerInfo().getBombCount()))
    {
-      bool bomb_drop_deadly = _bot_map->isBombDropDeadly(getXField(), getYField(), _player_info->getFlameCount(), _enemy_positions);
+      bool bomb_drop_deadly = _bot_map->isBombDropDeadly(getXField(), getYField(), getPlayerInfo().getFlameCount(), _enemy_positions);
 
       bool found_safe_drop_position = isSafeEscapePossible();
 
@@ -508,17 +508,17 @@ void ProtoBot::markReachableFields()
 void ProtoBot::markHazardousFields()
 {
    // don't
-   std::vector<BotBombMapItem*> bombs = _bot_map->getBombs();
+   const auto bombs = _bot_map->getBombs();
 
    int x = 0;
    int y = 0;
    int xi = 0;
    int yi = 0;
 
-   for (BotBombMapItem* bomb : bombs)
+   for (const BotBombMapItem& bomb : bombs)
    {
-      x = bomb->getX();
-      y = bomb->getY();
+      x = bomb.getX();
+      y = bomb.getY();
 
       setScore(x, y, -1);
 
@@ -535,7 +535,7 @@ void ProtoBot::markHazardousFields()
          //            );
          //         }
 
-         for (int i = 1; i <= bomb->getFlames(); i++)
+         for (int i = 1; i <= bomb.getFlames(); i++)
          {
             xi = x + i * direction.x();
             yi = y + i * direction.y();
@@ -570,32 +570,31 @@ void ProtoBot::updateRemainingBombTimes()
    // clear remaining bomb time array
    resetFieldBombTimes();
 
-   _bomb_chain_reaction->setBotMap(_bot_map);
-   _bomb_chain_reaction->compute();
+   _bomb_chain_reaction->compute(*_bot_map);
 
-   for (const std::vector<BotBombMapItem*>& connected_bombs : _bomb_chain_reaction->getDetonationChain())
+   for (const auto& connected_bombs : _bomb_chain_reaction->getDetonationChain())
    {
       int min = 0xFFFF;
 
-      for (BotBombMapItem* item : connected_bombs)
+      for (const BotBombMapItem& item : connected_bombs)
       {
-         time_diff = static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(current_time - item->getDropTime()).count());
+         time_diff = static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(current_time - item.getDropTime()).count());
          time_left = std::max(tick_time - time_diff, 0);
 
          min = std::min(min, time_left);
       }
 
       // now create a map of detonation times
-      for (BotBombMapItem* item : connected_bombs)
+      for (const BotBombMapItem& item : connected_bombs)
       {
-         x = item->getX();
-         y = item->getY();
+         x = item.getX();
+         y = item.getY();
 
          setRemainingBombTime(x, y, min);
 
          for (const Point& direction : _directions)
          {
-            for (int i = 1; i <= item->getFlames(); i++)
+            for (int i = 1; i <= item.getFlames(); i++)
             {
                xi = x + i * direction.x();
                yi = y + i * direction.y();
@@ -787,7 +786,7 @@ void ProtoBot::scoreFields()
    // bomb action. drop a bomb if there is a path to escape after dropping it
    if ((_scoring_prepare_bomb_stone && _scoring_bomb_stone_possible) || (_scoring_prepare_attack && _scoring_attack_possible))
    {
-      if (static_cast<size_t>(_player_info->getBombCount()) > _bot_map->getBombs(_id).size())
+      if (static_cast<size_t>(getPlayerInfo().getBombCount()) > _bot_map->getBombs(_id).size())
       {
          auto option = std::make_unique<BotOption>();
 
@@ -1076,9 +1075,9 @@ bool ProtoBot::updateEscapeScore()
                      // go through every field of that path and apply the enemy
                      // effect on the path length (the more enemies on the path
                      // the worse the path length).
-                     for (AStarNode* node : _path_finding.getPath())
+                     for (const Point& node : _path_finding.getPath())
                      {
-                        enemy_score = enemies[node->getX() + node->getY() * _bot_map->getWidth()];
+                        enemy_score = enemies[node.x() + node.y() * _bot_map->getWidth()];
 
                         path_length *= (enemy_score + 1);
                      }
@@ -1094,9 +1093,9 @@ bool ProtoBot::updateEscapeScore()
                         // make a copy of the computed path
                         _best_escape_path.clear();
 
-                        for (AStarNode* node : _path_finding.getPath())
+                        for (const Point& node : _path_finding.getPath())
                         {
-                           _best_escape_path.insert(_best_escape_path.begin(), Point(node->getX(), node->getY()));
+                           _best_escape_path.insert(_best_escape_path.begin(), Point(node.x(), node.y()));
                         }
 
                         // if only one field needs to be traversed this is most likely
@@ -1172,9 +1171,7 @@ bool ProtoBot::updateExtraScore()
    // procedure.
    if (_memory->isExtraPositionValid())
    {
-      MapItem* memory_extra = nullptr;
-
-      memory_extra = _bot_map->getItem(_memory->getExtraPositionX(), _memory->getExtraPositionY());
+      const auto& memory_extra = _bot_map->getItem(_memory->getExtraPositionX(), _memory->getExtraPositionY());
 
       if (memory_extra && memory_extra->getType() == MapItem::Extra)
       {
@@ -1213,16 +1210,16 @@ bool ProtoBot::updateExtraScore()
       {
          std::vector<Point> points;
 
-         std::vector<AStarNode*> path = _path_finding.getPath();
+         std::vector<Point> path = _path_finding.getPath();
 
          // there is a safe way that leads to an extra
          if (!isPathHazardous(path))
          {
             good_idea = true;
 
-            for (AStarNode* node : path)
+            for (const Point& node : path)
             {
-               points.push_back(Point(node->getX(), node->getY()));
+               points.push_back(Point(node.x(), node.y()));
             }
 
             // if the extra path is empty, assign the new path immediately;
@@ -1270,18 +1267,18 @@ bool ProtoBot::updateExtraScore()
    \param path path to examine
    \return \c true if path looks dangerous
 */
-bool ProtoBot::isPathHazardous(const std::vector<AStarNode*>& path) const
+bool ProtoBot::isPathHazardous(const std::vector<Point>& path) const
 {
-   return std::ranges::any_of(path, [this](const AStarNode* node) { return getScore(node->getX(), node->getY()) < 0; });
+   return std::ranges::any_of(path, [this](const Point& node) { return getScore(node.x(), node.y()) < 0; });
 }
 
 /*!
    \param path path to examine
    \return \c true if path looks dangerous
 */
-int ProtoBot::getHazardousFieldCount(const std::vector<AStarNode*>& path) const
+int ProtoBot::getHazardousFieldCount(const std::vector<Point>& path) const
 {
-   return static_cast<int>(std::ranges::count_if(path, [this](const AStarNode* node) { return getScore(node->getX(), node->getY()) < 0; }));
+   return static_cast<int>(std::ranges::count_if(path, [this](const Point& node) { return getScore(node.x(), node.y()) < 0; }));
 }
 
 /*!
@@ -1289,15 +1286,15 @@ int ProtoBot::getHazardousFieldCount(const std::vector<AStarNode*>& path) const
 */
 std::vector<Point> ProtoBot::getLivingEnemyPositions() const
 {
-   std::vector<BotPlayerInfo*> enemies = getEnemies();
+   const auto enemies = getEnemies();
 
    std::vector<Point> enemy_positions;
 
-   for (BotPlayerInfo* enemy : enemies)
+   for (const BotPlayerInfo& enemy : enemies)
    {
-      if (!enemy->isKilled())
+      if (!enemy.isKilled())
       {
-         enemy_positions.push_back(toField(enemy->getX(), enemy->getY()));
+         enemy_positions.push_back(toField(enemy.getX(), enemy.getY()));
       }
    }
 
@@ -1309,7 +1306,7 @@ std::vector<Point> ProtoBot::getLivingEnemyPositions() const
 */
 std::vector<Point> ProtoBot::getLivingEnemyFuturePositions() const
 {
-   std::vector<BotPlayerInfo*> enemies = getEnemies();
+   const auto enemies = getEnemies();
    std::vector<Point> enemy_positions;
 
    int x = 0;
@@ -1318,20 +1315,20 @@ std::vector<Point> ProtoBot::getLivingEnemyFuturePositions() const
    Point current;
    int8_t directions = 0;
 
-   for (BotPlayerInfo* enemy : enemies)
+   for (const BotPlayerInfo& enemy : enemies)
    {
-      if (!enemy->isKilled())
+      if (!enemy.isKilled())
       {
          // init
          x = 0;
          y = 0;
 
          // read enemy directions
-         current = toField(enemy->getX(), enemy->getY());
-         directions = enemy->getDirections();
+         current = toField(enemy.getX(), enemy.getY());
+         directions = enemy.getDirections();
 
          // apply enemy directions to current field
-         if (enemy->getDeltaX() != 0.0f)
+         if (enemy.getDeltaX() != 0.0f)
          {
             if (directions & Constants::KeyLeft)
             {
@@ -1343,7 +1340,7 @@ std::vector<Point> ProtoBot::getLivingEnemyFuturePositions() const
             }
          }
 
-         if (enemy->getDeltaY() != 0.0f)
+         if (enemy.getDeltaY() != 0.0f)
          {
             if (directions & Constants::KeyUp)
             {
@@ -1372,15 +1369,15 @@ std::vector<Point> ProtoBot::getLivingEnemyFuturePositions() const
 /*!
    \return list of enemies
 */
-std::vector<BotPlayerInfo*> ProtoBot::getEnemies() const
+std::vector<std::reference_wrapper<const BotPlayerInfo>> ProtoBot::getEnemies() const
 {
-   std::vector<BotPlayerInfo*> enemies;
+   std::vector<std::reference_wrapper<const BotPlayerInfo>> enemies;
 
-   for (const auto& [id, player] : *_player_info_map)
+   for (const auto& [id, player] : _player_info_map)
    {
       if (player->getId() != _id)
       {
-         enemies.push_back(player.get());
+         enemies.push_back(*player);
       }
    }
 
@@ -1415,7 +1412,7 @@ bool ProtoBot::updateBombStoneScore()
    if (_memory->isBombStonePositionValid())
    {
       int score = _bot_map->getStoneCountAroundPoint(
-         _memory->getBombStonePositionX(), _memory->getBombStonePositionY(), _player_info->getFlameCount()
+         _memory->getBombStonePositionX(), _memory->getBombStonePositionY(), getPlayerInfo().getFlameCount()
       );
 
       for (const Point& p : reachable_points)
@@ -1449,7 +1446,7 @@ bool ProtoBot::updateBombStoneScore()
       // memory
       for (const Point& p : reachable_points)
       {
-         int score = _bot_map->getStoneCountAroundPoint(p.x(), p.y(), _player_info->getFlameCount());
+         int score = _bot_map->getStoneCountAroundPoint(p.x(), p.y(), getPlayerInfo().getFlameCount());
 
          // "stones to be bombed" contains a value = -1 if the stone is going
          // to be bombed away by another bomb
@@ -1468,7 +1465,7 @@ bool ProtoBot::updateBombStoneScore()
             score *= _bot_map->getExtraStoneCountAroundPoint(
                   p.x(),
                   p.y(),
-                  _player_info->getFlameCount(),
+                  getPlayerInfo().getFlameCount(),
                   getExtraShakeIds()
                );
 
@@ -1504,7 +1501,7 @@ bool ProtoBot::updateBombStoneScore()
    // analyze current pos
    Point current = Point(getXField(), getYField());
 
-   int current_score = _bot_map->getStoneCountAroundPoint(current.x(), current.y(), _player_info->getFlameCount());
+   int current_score = _bot_map->getStoneCountAroundPoint(current.x(), current.y(), getPlayerInfo().getFlameCount());
 
    Weighted<Point, int> weighted_current(current, current_score);
 
@@ -1520,7 +1517,7 @@ bool ProtoBot::updateBombStoneScore()
    // going one field up or down or by going a field left or right
    //
    // start with the best point and go to the last
-   int flame_size = _player_info->getFlameCount();
+   int flame_size = getPlayerInfo().getFlameCount();
 
    Point weighted_point;
    for (const Weighted<Point, int>& weighted : weighted_points)
@@ -1607,13 +1604,13 @@ bool ProtoBot::updateBombStoneScore()
                   {
                      findPath(weighted_point.x(), weighted_point.y());
 
-                     std::vector<AStarNode*> found_path = _path_finding.getPath();
+                     std::vector<Point> found_path = _path_finding.getPath();
 
                      if (!found_path.empty())
                      {
-                        for (AStarNode* node : found_path)
+                        for (const Point& node : found_path)
                         {
-                           multiplyScore(node->getX(), node->getY(), _bot_character->getScoreForPrepareBombDrop());
+                           multiplyScore(node.x(), node.y(), _bot_character->getScoreForPrepareBombDrop());
                         }
 
                         // assign bomb drop position
@@ -1672,7 +1669,7 @@ bool ProtoBot::updateBombStoneScore()
    if (found_safe_drop_position)
    {
       int stone_count =
-         _bot_map->getStoneCountAroundPoint(getBombStonePosition().x(), getBombStonePosition().y(), _player_info->getFlameCount());
+         _bot_map->getStoneCountAroundPoint(getBombStonePosition().x(), getBombStonePosition().y(), getPlayerInfo().getFlameCount());
 
       _memory->setBombStonePosition(getBombStonePosition().x(), getBombStonePosition().y());
 
@@ -1698,7 +1695,7 @@ bool ProtoBot::updateAttackScore()
 
    bool attack = false;
 
-   if (_bot_map->isBombAmountConsumed(_id, _player_info->getBombCount()))
+   if (_bot_map->isBombAmountConsumed(_id, getPlayerInfo().getBombCount()))
    {
       // locate enemies
       _enemy_positions = getLivingEnemyPositions();
@@ -1743,9 +1740,9 @@ bool ProtoBot::updateAttackScore()
                }
                else
                {
-                  for (AStarNode* node : _path_finding.getPath())
+                  for (const Point& node : _path_finding.getPath())
                   {
-                     _best_attack_path.insert(_best_attack_path.begin(), Point(node->getX(), node->getY()));
+                     _best_attack_path.insert(_best_attack_path.begin(), Point(node.x(), node.y()));
                   }
                }
 
@@ -2004,28 +2001,26 @@ std::unique_ptr<BotWalkAction> ProtoBot::getWalkActionInstance()
 
 void ProtoBot::clearPath()
 {
-   dynamic_cast<AStarMap*>(_bot_map)->clearNodes();
+   dynamic_cast<AStarMap&>(*_bot_map).clearNodes();
 }
 
 void ProtoBot::debugPathWithMap()
 {
-   dynamic_cast<AStarMap*>(_bot_map)->debugPath(_path_finding.getPath());
+   dynamic_cast<AStarMap&>(*_bot_map).debugPath(_path_finding.getPath());
 }
 
 /*!
-   \param bot_map bot map
+   \param bot_map bot map, created by createMap()
 */
-void ProtoBot::setBotMap(BotMap* bot_map)
+void ProtoBot::setBotMap(std::unique_ptr<BotMap> bot_map)
 {
-   Bot::setBotMap(bot_map);
+   Bot::setBotMap(std::move(bot_map));
 
    // reinit fields
-   const auto size = static_cast<size_t>(bot_map->getWidth() * bot_map->getHeight());
+   const auto size = static_cast<size_t>(_bot_map->getWidth() * _bot_map->getHeight());
    _field_scores.assign(size, 0);
    _field_bomb_times.assign(size, 0);
    _hazardous_temporary.assign(size, 0);
-
-   _path_finding.setMap(dynamic_cast<AStarMap*>(_bot_map));
 }
 
 /*!
@@ -2046,14 +2041,15 @@ void ProtoBot::findPath(int target_x, int target_y)
 void ProtoBot::findPathFromTo(int start_x, int start_y, int target_x, int target_y)
 {
    // init a star map
-   dynamic_cast<AStarMap*>(_bot_map)->buildNodes();
+   auto& map = dynamic_cast<AStarMap&>(*_bot_map);
+   map.buildNodes();
 
    // init pathfinding
    _path_finding.setStart(start_x, start_y);
    _path_finding.setTarget(target_x, target_y);
 
    // find path
-   _path_finding.findPath();
+   _path_finding.findPath(map);
 
    // debug map plus map with path
    if (_debug_paths)
@@ -2073,22 +2069,6 @@ void ProtoBot::findPathFromTo(int start_x, int start_y, int target_x, int target
 std::unique_ptr<BotMap> ProtoBot::createMap(int width, int height)
 {
    return std::make_unique<AStarMap>(width, height);
-}
-
-/*!
-   \param map player info map
-*/
-void ProtoBot::setPlayerInfoMap(PlayerInfoMap* map)
-{
-   _player_info_map = map;
-}
-
-/*!
-   \return insult message handler
-*/
-ProtoBotInsults* ProtoBot::getInsults()
-{
-   return _insults.get();
 }
 
 /*!
@@ -2171,7 +2151,7 @@ bool ProtoBot::isKickPossible()
 {
    bool kick = false;
 
-   if (_player_info->isKickEnabled())
+   if (getPlayerInfo().isKickEnabled())
    {
       // int enemiesHitCount = 0;
 
@@ -2218,9 +2198,9 @@ bool ProtoBot::isNoBombInfectionActive() const
 {
    bool active = false;
 
-   if (_player_info->getDisease())
+   if (getPlayerInfo().isInfected())
    {
-      if (_player_info->getDisease()->getType() == Constants::SkullNoBomb)
+      if (getPlayerInfo().getDisease().getType() == Constants::SkullNoBomb)
       {
          active = true;
       }
@@ -2236,9 +2216,9 @@ bool ProtoBot::isInfectionActive(Constants::SkullType skull_type) const
 {
    bool active = false;
 
-   if (_player_info->getDisease())
+   if (getPlayerInfo().isInfected())
    {
-      if (_player_info->getDisease()->getType() == skull_type)
+      if (getPlayerInfo().getDisease().getType() == skull_type)
       {
          active = true;
       }
@@ -2432,7 +2412,7 @@ bool ProtoBot::isKickEscapePossible(int& x, int& y)
 {
    bool escape_possible = false;
 
-   if (_player_info->isKickEnabled())
+   if (getPlayerInfo().isKickEnabled())
    {
       // check for bombs on up, down, left and right
       if ((y - 2 >= 0) && _bot_map->getItem(x, y - 1) && _bot_map->getItem(x, y - 1)->getType() == MapItem::Bomb &&
@@ -2543,7 +2523,7 @@ bool ProtoBot::evaluateLongDistance(int& next_x_field, int& next_y_field) const
       int test_x = 0;
       int test_y = 0;
 
-      MapItem* item = nullptr;
+      std::shared_ptr<MapItem> item;
       MapItem::ItemType type = MapItem::Unknown;
 
       for (int y = 0; y < diameter; y++)
@@ -2765,7 +2745,7 @@ void ProtoBot::bombKicked(int start_x, int start_y, Constants::Direction directi
    int xi_previous = 0;
    int yi_previous = 0;
    int i = 1;
-   MapItem* item = nullptr;
+   std::shared_ptr<MapItem> item;
 
    // compute kick end position
    while (!hit_something)
@@ -2815,7 +2795,7 @@ void ProtoBot::bombKicked(int start_x, int start_y, Constants::Direction directi
          }
          else
          {
-            for (const auto& [id, player] : *_player_info_map)
+            for (const auto& [id, player] : _player_info_map)
             {
                if (!player->isKilled())
                {
@@ -2894,18 +2874,18 @@ bool ProtoBot::updateLeastHazardousField()
             {
                findPath(best.x(), best.y());
 
-               std::vector<AStarNode*> path = _path_finding.getPath();
+               std::vector<Point> path = _path_finding.getPath();
 
                if (!path.empty())
                {
                   found_something = true;
 
-                  for (AStarNode* node : path)
+                  for (const Point& node : path)
                   {
-                     if (node->getX() != _x_field && node->getY() != _y_field)
+                     if (node.x() != _x_field && node.y() != _y_field)
                      {
                         // make the bot choose the better field
-                        setScore(node->getX(), node->getY(), 2);
+                        setScore(node.x(), node.y(), 2);
                      }
                   }
                }
@@ -2935,7 +2915,7 @@ std::vector<Point> ProtoBot::analyzeDeadEnd(int x, int y, Point& end, int recurs
    int reachable_neighbours = 4;
    Point opening_direction1;
    Point opening_direction2;
-   MapItem* item = nullptr;
+   std::shared_ptr<MapItem> item;
    int xi = 0;
    int yi = 0;
 
@@ -3125,12 +3105,12 @@ bool ProtoBot::evaluateDeadEndSituation(int x, int y)
    {
       // check if there's an enemy in the area around opening
       Point opening = points.back();
-      std::vector<BotPlayerInfo*> enemies = getEnemies();
-      for (BotPlayerInfo* enemy : enemies)
+      const auto enemies = getEnemies();
+      for (const BotPlayerInfo& enemy : enemies)
       {
-         if (!enemy->isKilled())
+         if (!enemy.isKilled())
          {
-            Point e = toField(enemy->getX(), enemy->getY());
+            Point e = toField(enemy.getX(), enemy.getY());
 
             // yup. an enemy is around.
             if ((e - opening).manhattanLength() < 2)
@@ -3160,16 +3140,16 @@ void ProtoBot::markHazardousDeadEnds()
    {
       // check if there's an enemy in the area around opening
       Point opening = points.back();
-      std::vector<BotPlayerInfo*> enemies = getEnemies();
+      const auto enemies = getEnemies();
 
       // the dead end is small (just 1 or 2 fields)
       if (points.size() <= 3)
       {
-         for (BotPlayerInfo* enemy : enemies)
+         for (const BotPlayerInfo& enemy : enemies)
          {
-            if (!enemy->isKilled())
+            if (!enemy.isKilled())
             {
-               Point e = toField(enemy->getX(), enemy->getY());
+               Point e = toField(enemy.getX(), enemy.getY());
 
                // yup. an enemy is around.
                if ((e - opening).manhattanLength() < 2)

@@ -6,20 +6,12 @@
 #include <string>
 
 /*!
-   \param map astar map to process
-*/
-void AStarPathFinding::setMap(AStarMap* map)
-{
-   _node_map = map;
-}
-
-/*!
    \param x start x position
    \param y start y position
 */
 void AStarPathFinding::setStart(int x, int y)
 {
-   _start_node = _node_map->getNode(x, y);
+   _start = Point(x, y);
 }
 
 /*!
@@ -28,10 +20,13 @@ void AStarPathFinding::setStart(int x, int y)
 */
 void AStarPathFinding::setTarget(int x, int y)
 {
-   _target_node = _node_map->getNode(x, y);
+   _target = Point(x, y);
 }
 
-void AStarPathFinding::findPath()
+/*!
+   \param map astar map to process, its nodes must be built
+*/
+void AStarPathFinding::findPath(AStarMap& map)
 {
    // init
    int test_g_score = 0;
@@ -42,59 +37,62 @@ void AStarPathFinding::findPath()
    _open_set.clear();
    _closed_set.clear();
 
+   const AStarNode& target_node = map.getNode(map.getNodeIndex(_target.x(), _target.y()));
+
    // add starting node to open list
-   if (_start_node)
-   {
-      _open_set.insert(_start_node);
-   }
+   _open_set.insert(map.getNodeIndex(_start.x(), _start.y()));
 
    while (!_open_set.empty())
    {
       // consider the best node in the open list (the node with the lowest f value)
       // the node in openset having the lowest f_score[] value;
-      _current_node = getBestFValueNode(_open_set);
+      const int32_t current_index = getBestFValueNode(map, _open_set);
+      AStarNode& current_node = map.getNode(current_index);
 
       // this node is the goal
-      if (_current_node->getX() == _target_node->getX() && _current_node->getY() == _target_node->getY())
+      if (current_node.getX() == target_node.getX() && current_node.getY() == target_node.getY())
       {
          // then we're done
          _open_set.clear();
-         _path = reconstructPath(_current_node);
+         _path = reconstructPath(map, current_index);
       }
       else
       {
          // remove current from openset
-         _open_set.erase(_current_node);
+         _open_set.erase(current_index);
 
          // add current to closedset
-         _closed_set.insert(_current_node);
+         _closed_set.insert(current_index);
 
          // for (each neighbor) // i.e. up, down, left, right
-         for (AStarNode* neighbor : _node_map->getNeighbors(_current_node->getX(), _current_node->getY(), true))
+         for (const int32_t neighbor_index : map.getNeighbors(current_node.getX(), current_node.getY(), true))
          {
-            if (!_closed_set.contains(neighbor))
+            if (!_closed_set.contains(neighbor_index))
             {
-               test_better = false;
-               _current_node->calcG();
-               test_g_score = _current_node->getG() + _current_node->getDistance(_target_node);
+               AStarNode& neighbor = map.getNode(neighbor_index);
 
-               if (!_open_set.contains(neighbor))
+               test_better = false;
+
+               calcG(map, current_node);
+               test_g_score = current_node.getG() + current_node.getDistance(target_node);
+
+               if (!_open_set.contains(neighbor_index))
                {
-                  _open_set.insert(neighbor);
-                  neighbor->calcH(_target_node);
+                  _open_set.insert(neighbor_index);
+                  neighbor.calcH(target_node);
                   test_better = true;
                }
                else
                {
-                  neighbor->calcG();
-                  test_better = (test_g_score < neighbor->getG());
+                  calcG(map, neighbor);
+                  test_better = (test_g_score < neighbor.getG());
                }
 
                if (test_better)
                {
-                  neighbor->setParent(_current_node);
-                  neighbor->setG(test_g_score);
-                  neighbor->calcF();
+                  neighbor.setParent(current_index);
+                  neighbor.setG(test_g_score);
+                  neighbor.calcF();
                }
             }
          }
@@ -103,38 +101,55 @@ void AStarPathFinding::findPath()
 }
 
 /*!
-   \param current_node node to start from
-    eturn all parent nodes
+   \param map map holding the nodes
+   \param node node to add the number of its parent nodes to
 */
-std::vector<AStarNode*> AStarPathFinding::reconstructPath(AStarNode* current_node)
+void AStarPathFinding::calcG(const AStarMap& map, AStarNode& node) const
 {
-   std::vector<AStarNode*> path;
+   int32_t parent = node.getParent();
 
-   while (current_node && current_node->getParent())
+   while (parent != -1)
    {
-      path.push_back(current_node);
-      current_node = current_node->getParent();
+      node.setG(node.getG() + 1);
+      parent = map.getNode(parent).getParent();
+   }
+}
+
+/*!
+   \param map map holding the nodes
+   \param current_node index of the node to start from
+   \return all parent nodes
+*/
+std::vector<Point> AStarPathFinding::reconstructPath(const AStarMap& map, int32_t current_node) const
+{
+   std::vector<Point> path;
+
+   while (current_node != -1 && map.getNode(current_node).getParent() != -1)
+   {
+      const AStarNode& node = map.getNode(current_node);
+      path.push_back(Point(node.getX(), node.getY()));
+      current_node = node.getParent();
    }
 
    return path;
 }
 
 /*!
-   \param set set to scan
-    eturn node with best f value
+   \param map map holding the nodes
+   \param set set of node indices to scan
+   \return index of the node with the best f value
 */
-AStarNode* AStarPathFinding::getBestFValueNode(const std::unordered_set<AStarNode*>& set) const
+int32_t AStarPathFinding::getBestFValueNode(const AStarMap& map, const std::unordered_set<int32_t>& set) const
 {
-   AStarNode* best = nullptr;
-
+   int32_t best = -1;
    int f_min = std::numeric_limits<int>::max();
 
-   for (AStarNode* candidate : set)
+   for (const int32_t candidate : set)
    {
-      if (candidate->getF() < f_min)
+      if (map.getNode(candidate).getF() < f_min)
       {
          best = candidate;
-         f_min = best->getF();
+         f_min = map.getNode(best).getF();
       }
    }
 
@@ -144,9 +159,10 @@ AStarNode* AStarPathFinding::getBestFValueNode(const std::unordered_set<AStarNod
 void AStarPathFinding::debugPath()
 {
    int i = 0;
-   for (AStarNode* node : _path)
+
+   for (const Point& node : _path)
    {
-      std::printf("%d: (%d, %d)\n", i, node->getX(), node->getY());
+      std::printf("%d: (%d, %d)\n", i, node.x(), node.y());
       i++;
    }
 }
@@ -155,9 +171,9 @@ void AStarPathFinding::debugPathShort()
 {
    std::string path_string;
 
-   for (AStarNode* node : _path)
+   for (const Point& node : _path)
    {
-      path_string += std::format("=> ({}; {}) ", node->getX(), node->getY());
+      path_string += std::format("=> ({}; {}) ", node.x(), node.y());
    }
 
    if (!path_string.empty())
@@ -171,15 +187,15 @@ void AStarPathFinding::debugPathShort()
 }
 
 /*!
-    eturn computed path
+   \return computed path
 */
-const std::vector<AStarNode*>& AStarPathFinding::getPath() const
+const std::vector<Point>& AStarPathFinding::getPath() const
 {
    return _path;
 }
 
 /*!
-    eturn computed path length
+   \return computed path length
 */
 int AStarPathFinding::getPathLength() const
 {

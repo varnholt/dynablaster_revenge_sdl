@@ -15,6 +15,7 @@
 #include "astarpathfinding.h"
 
 #include <deque>
+#include <functional>
 #include <map>
 #include <memory>
 #include <vector>
@@ -31,8 +32,8 @@ class ProtoBot : public Bot
 public:
    using PlayerInfoMap = std::map<int, std::unique_ptr<BotPlayerInfo>>;
 
-   //! constructor
-   ProtoBot();
+   //! constructor, the player info map is owned by the BotClient
+   explicit ProtoBot(const PlayerInfoMap& player_info_map);
 
    //! destructor
    ~ProtoBot() override;
@@ -41,16 +42,10 @@ public:
    void debugPathWithMap();
 
    //! setter for botmap
-   void setBotMap(BotMap* bot_map) override;
+   void setBotMap(std::unique_ptr<BotMap> bot_map) override;
 
    //! create a map
    std::unique_ptr<BotMap> createMap(int width, int height) override;
-
-   //! setter for player info map
-   void setPlayerInfoMap(PlayerInfoMap* map);
-
-   //! getter for protobot insult message handler
-   ProtoBotInsults* getInsults();
 
    //! getter for extra shake ids
    const std::vector<int>& getExtraShakeIds() const;
@@ -229,10 +224,10 @@ protected:
    void resetHazardousTemporary();
 
    //! check if a path is dangerous
-   bool isPathHazardous(const std::vector<AStarNode*>& path) const;
+   bool isPathHazardous(const std::vector<Point>& path) const;
 
    //! get the number of hazardous fields per path
-   int getHazardousFieldCount(const std::vector<AStarNode*>& path) const;
+   int getHazardousFieldCount(const std::vector<Point>& path) const;
 
    //! player is currently unable to drop bombs
    bool isNoBombInfectionActive() const;
@@ -247,7 +242,7 @@ protected:
    std::vector<Point> getLivingEnemyFuturePositions() const;
 
    //! get a list of enemies
-   std::vector<BotPlayerInfo*> getEnemies() const;
+   std::vector<std::reference_wrapper<const BotPlayerInfo>> getEnemies() const;
 
    //! check if a bomb drop is safe for ourself
    std::vector<Point> reachablePositionsLeft(int x, int y, int flames, const std::vector<Point>& reachable_positions) const;
@@ -356,7 +351,7 @@ protected:
    std::unique_ptr<BotCharacter> _bot_character;
 
    //! player info map, owned by the BotClient
-   PlayerInfoMap* _player_info_map = nullptr;
+   const PlayerInfoMap& _player_info_map;
 
    //! protobot insults
    std::unique_ptr<ProtoBotInsults> _insults;

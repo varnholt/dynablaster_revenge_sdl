@@ -1,11 +1,13 @@
 #include "mapitempacket.h"
 
 #include "logging.h"
+
+#include <string_view>
 #include "mapitem.h"
 
 namespace
 {
-constexpr auto PACKETNAME = "MapItem";
+constexpr std::string_view PACKETNAME = "MapItem";
 }
 
 MapItemPacket::MapItemPacket(Packet::TYPE type) : Packet(type)
@@ -13,8 +15,8 @@ MapItemPacket::MapItemPacket(Packet::TYPE type) : Packet(type)
    _packet_name = PACKETNAME;
 }
 
-MapItemPacket::MapItemPacket(Packet::TYPE packet_type, MapItem* item)
-    : Packet(packet_type), _x(item->getX()), _y(item->getY()), _unique_id(item->getUniqueId()), _item_type(item->getType())
+MapItemPacket::MapItemPacket(Packet::TYPE packet_type, const MapItem& item)
+    : Packet(packet_type), _x(item.getX()), _y(item.getY()), _unique_id(item.getUniqueId()), _item_type(item.getType())
 {
    _packet_name = PACKETNAME;
 }

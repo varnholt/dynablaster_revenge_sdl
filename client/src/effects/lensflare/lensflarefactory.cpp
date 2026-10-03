@@ -35,7 +35,7 @@ LensFlareFactory::LensFlareFactory()
       config.max_length = settings.value(group + "/maxlength").toFloat();
       config.lower_limit = settings.value(group + "/lowerlimit").toFloat();
       config.angle = settings.value(group + "/angle").toFloat();
-      config.invert_offset = settings.value(group + "/invert").toFloat(&config.inverted);
+      config.invert_offset = settings.value(group + "/invert").toFloat(config.inverted);
       config.sun_is_2d = settings.value(group + "/2d", false).toBool();
 
       _lens_flares[group] = std::make_unique<LensFlare>(config);

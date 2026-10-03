@@ -2,9 +2,11 @@
 
 #include "logging.h"
 
+#include <string_view>
+
 namespace
 {
-constexpr auto PACKETNAME = "PlayerModified";
+constexpr std::string_view PACKETNAME = "PlayerModified";
 }
 
 PlayerModifiedPacket::PlayerModifiedPacket(Constants::Color color) : Packet(Packet::PLAYERMODIFIED), _color(color)

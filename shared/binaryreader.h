@@ -15,7 +15,6 @@
 class BinaryReader
 {
 public:
-   BinaryReader(const uint8_t* data, size_t size);
    explicit BinaryReader(std::span<const uint8_t> buffer);
    explicit BinaryReader(const std::vector<uint8_t>& buffer);
 
@@ -59,8 +58,7 @@ private:
    template <typename T>
    T read();
 
-   const uint8_t* _data = nullptr;
-   size_t _size = 0;
+   std::span<const uint8_t> _data;
    size_t _pos = 0;
    bool _ok = true;
 };

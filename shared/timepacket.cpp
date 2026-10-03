@@ -2,9 +2,11 @@
 
 #include "logging.h"
 
+#include <string_view>
+
 namespace
 {
-constexpr auto PACKETNAME = "Time";
+constexpr std::string_view PACKETNAME = "Time";
 }
 
 TimePacket::TimePacket(int32_t time_left) : Packet(Packet::TIME), _time_left(time_left)

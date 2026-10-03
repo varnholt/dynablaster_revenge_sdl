@@ -51,7 +51,8 @@ public:
 
    void infect(std::unique_ptr<PlayerDisease> disease);
    [[nodiscard]] bool isInfected() const;
-   [[nodiscard]] PlayerDisease* getDisease() const;
+   // only valid while isInfected()
+   [[nodiscard]] PlayerDisease& getDisease() const;
 
    [[nodiscard]] int8_t getDirections() const;
    void setDirections(int8_t directions);

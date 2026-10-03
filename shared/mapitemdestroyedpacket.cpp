@@ -2,12 +2,14 @@
 
 #include "logging.h"
 
+#include <string_view>
+
 namespace
 {
-constexpr auto PACKETNAME = "MapItemDestroyed";
+constexpr std::string_view PACKETNAME = "MapItemDestroyed";
 }
 
-MapItemDestroyedPacket::MapItemDestroyedPacket(MapItem* item, int32_t player_id, Constants::Direction direction, float intensity)
+MapItemDestroyedPacket::MapItemDestroyedPacket(const MapItem& item, int32_t player_id, Constants::Direction direction, float intensity)
     : MapItemPacket(Packet::MAPITEMDESTROYED, item), _player_id(player_id), _direction(direction), _intensity(intensity)
 {
    _packet_name = PACKETNAME;

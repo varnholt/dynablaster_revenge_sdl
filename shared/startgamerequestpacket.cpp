@@ -2,9 +2,11 @@
 
 #include "logging.h"
 
+#include <string_view>
+
 namespace
 {
-constexpr auto PACKETNAME = "StartGameRequest";
+constexpr std::string_view PACKETNAME = "StartGameRequest";
 }
 
 StartGameRequestPacket::StartGameRequestPacket(int32_t id) : Packet(Packet::STARTGAMEREQUEST), _id(id)
