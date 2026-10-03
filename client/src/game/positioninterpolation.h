@@ -6,6 +6,7 @@
 #include "framework/frametimer.h"
 #include "gamesignal.h"
 
+#include <cstdint>
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -29,8 +30,8 @@ public:
    //! emit player position
    Signal<int, float, float, float> setPlayerPositionSignal;
 
-   //! emit map item position
-   Signal<MapItem*, float, float, float> setMapItemPositionSignal;
+   //! emit map item position, by unique id
+   Signal<int32_t, float, float, float> setMapItemPositionSignal;
 
    //! emit player speed
    Signal<int, float, float, float> setPlayerSpeedSignal;
@@ -39,10 +40,10 @@ public:
    Signal<> bounceSignal;
 
    //! a mapitem starts movement (bomb is kicked)
-   void moveMapItem(MapItem* item, Constants::Direction dir, float speed, int nominal_x, int nominal_y);
+   void moveMapItem(const MapItem& item, Constants::Direction dir, float speed, int nominal_x, int nominal_y);
 
    //! a mapitem is removed (bomb exploded)
-   void removeMapItem(MapItem* item);
+   void removeMapItem(const MapItem& item);
 
    //! enabled/disable timers
    void gameStateChanged();
@@ -63,11 +64,19 @@ protected:
    //! update timer
    FrameTimer _timer;
 
-   //! list of animated mapitems
-   std::vector<MapItem*> _map_items;
+   //! an animated mapitem at the map position it was created at
+   struct AnimatedItem
+   {
+      int32_t _id = 0;
+      int32_t _x = 0;
+      int32_t _y = 0;
+   };
 
-   //! map mapitem <-> mapitemanimation
-   std::unordered_map<MapItem*, std::unique_ptr<MapItemAnimation>> _map_item_animations;
+   //! list of animated mapitems
+   std::vector<AnimatedItem> _map_items;
+
+   //! map mapitem id <-> mapitemanimation
+   std::unordered_map<int32_t, std::unique_ptr<MapItemAnimation>> _map_item_animations;
 };
 
 #endif  // POSITIONINTERPOLATION_H

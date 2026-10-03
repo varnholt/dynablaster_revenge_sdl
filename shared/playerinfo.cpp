@@ -105,12 +105,22 @@ PlayerStats& PlayerInfo::getOverallStats()
    return _overall_stats;
 }
 
+const PlayerStats& PlayerInfo::getOverallStats() const
+{
+   return _overall_stats;
+}
+
 void PlayerInfo::setRoundStats(const PlayerStats& stats)
 {
    _round_stats = stats;
 }
 
 PlayerStats& PlayerInfo::getRoundStats()
+{
+   return _round_stats;
+}
+
+const PlayerStats& PlayerInfo::getRoundStats() const
 {
    return _round_stats;
 }

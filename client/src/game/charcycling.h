@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <string_view>
 
 /// \brief cycles through the characters a controller can type into a line edit
 class CharCycling
@@ -19,6 +20,6 @@ public:
    std::string modify(const std::string& input, int32_t cursor) const;
 
 private:
-   static constexpr const char* _chars = " ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890.:_-";
+   static constexpr std::string_view _chars = " ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890.:_-";
    int32_t _char_index = 0;
 };

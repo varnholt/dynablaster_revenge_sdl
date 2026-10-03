@@ -18,7 +18,7 @@ class PSDLayer;
 class CountdownDrawable : public Drawable
 {
 public:
-   CountdownDrawable(RenderDevice* dev);
+   explicit CountdownDrawable(RenderDevice& dev);
    ~CountdownDrawable() override;
 
    void initializeGL() override;

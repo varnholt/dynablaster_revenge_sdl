@@ -23,7 +23,7 @@ public:
 
    void clear();
 
-   void add(Material* player_material);
+   void add(Material& player_material);
 
    void animate(float delta);
    void render();

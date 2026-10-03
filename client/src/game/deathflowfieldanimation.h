@@ -16,7 +16,7 @@ public:
    ~DeathFlowFieldAnimation();
 
    // initialize flowfield from 2d rendering
-   void initialize(FrameBuffer* src, const Vector& min, const Vector& max);
+   void initialize(FrameBuffer& src, const Vector& min, const Vector& max);
    void initializePositions(uint32_t depth_map, const Vector& min, const Vector& max);
    void initializeParams(uint32_t depth_map, const Vector& min, const Vector& max);
 

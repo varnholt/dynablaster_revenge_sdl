@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <vector>
 
@@ -18,8 +19,8 @@ public:
 
    void clear();
 
-   void add(Material* player_material);
-   void remove(Material* player_material);
+   void add(Material& player_material);
+   void remove(const Material& player_material);
 
    void animate(float delta);
    void render();
@@ -28,7 +29,7 @@ private:
    struct Flow
    {
       std::unique_ptr<InfectedFlowFieldAnimation> animation;
-      Material* material;
+      std::reference_wrapper<Material> material;
    };
 
    std::vector<Flow> _flow_animations;

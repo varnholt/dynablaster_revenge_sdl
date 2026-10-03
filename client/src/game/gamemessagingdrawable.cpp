@@ -22,6 +22,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
+#include <memory>
+#include <optional>
 
 #define LINEEDIT_SAY "lineedit_say"
 #define LINEEDIT_SAY_Y 1057
@@ -41,12 +44,12 @@
 #define CURSOR_UPDATE_TIME 0.5f
 #define MESSAGE_FIELD_WIDTH 80
 
-GameMessagingDrawable::GameMessagingDrawable(RenderDevice* dev) : Drawable(*dev)
+GameMessagingDrawable::GameMessagingDrawable(RenderDevice& dev) : Drawable(dev)
 {
    _filename = "data/game/messaging_bar.psd";
 
-   BombermanClient::getInstance()->gameStartedSignal.connect([this]() { disableIngameMessaging(); });
-   GameStateMachine::getInstance()->stateChangedSignal.connect([this]() { gameStateChanged(); });
+   BombermanClient::getInstance().gameStartedSignal.connect([this]() { disableIngameMessaging(); });
+   GameStateMachine::getInstance().stateChangedSignal.connect([this]() { gameStateChanged(); });
 }
 
 GameMessagingDrawable::~GameMessagingDrawable() = default;
@@ -86,17 +89,15 @@ void GameMessagingDrawable::messageReceived(int /*sender_id*/, const std::string
 
          for (const std::string& line : processed_lines)
          {
-            _font->setColor(1.0f, 1.0f, 1.0f, 1.0f);
-            _font->buildVertices(FONT_SCALE_MESSAGE, line.c_str(), MESSAGE_OFFSET_X, MESSAGE_OFFSET_Y - MESSAGE_STACK_OFFSET);
+            _font->get().setColor(1.0f, 1.0f, 1.0f, 1.0f);
+            _font->get().buildVertices(FONT_SCALE_MESSAGE, line, MESSAGE_OFFSET_X, MESSAGE_OFFSET_Y - MESSAGE_STACK_OFFSET);
 
-            AnimatedGameMessage* message = new AnimatedGameMessage();
-            message->setMessage(line);
-            message->setVertices(_font->getVertices());
-            message->initialize();
+            AnimatedGameMessage& message = **_messages.insert(_messages.begin(), std::make_unique<AnimatedGameMessage>());
+            message.setMessage(line);
+            message.setVertices(_font->get().getVertices());
+            message.initialize();
 
-            _messages.insert(_messages.begin(), message);
-
-            message->expiredSignal.connect([this, message]() { popMessage(message); });
+            message.expiredSignal.connect([this, &message]() { popMessage(message); });
          }
       }
    }
@@ -109,7 +110,7 @@ void GameMessagingDrawable::clearMessage()
 
 void GameMessagingDrawable::keyPressEvent(const KeyEvent& event)
 {
-   if (GameStateMachine::getInstance()->getState() == Constants::GameActive)
+   if (GameStateMachine::getInstance().getState() == Constants::GameActive)
    {
       if (event.key() == SDLK_RETURN || event.key() == SDLK_KP_ENTER)
       {
@@ -120,7 +121,7 @@ void GameMessagingDrawable::keyPressEvent(const KeyEvent& event)
          {
             if (!_message.empty())
             {
-               BombermanClient::getInstance()->sendMessage(_message, true);
+               BombermanClient::getInstance().sendMessage(_message, true);
                clearMessage();
             }
          }
@@ -217,20 +218,20 @@ void GameMessagingDrawable::updateMessageVertices()
    int i0 = std::max(_cursor_position - MESSAGE_FIELD_WIDTH, 0);
    const std::string visible_text = _message.substr(std::min(static_cast<size_t>(i0), _message.size()), MESSAGE_FIELD_WIDTH);
 
-   _font->setColor(1.0f, 1.0f, 1.0f, 1.0f);
-   _font->buildVertices(FONT_SCALE_MESSAGE, visible_text.c_str(), _line_edit_say_layer->getLeft(), LINEEDIT_SAY_Y);
+   _font->get().setColor(1.0f, 1.0f, 1.0f, 1.0f);
+   _font->get().buildVertices(FONT_SCALE_MESSAGE, visible_text, _line_edit_say_layer->get().getLeft(), LINEEDIT_SAY_Y);
 
-   _message_vertices = _font->getVertices();
+   _message_vertices = _font->get().getVertices();
 }
 
 void GameMessagingDrawable::buildNickVertices()
 {
-   PlayerInfo* player_info = BombermanClient::getInstance()->getCurrentPlayerInfo();
+   const auto player_info = BombermanClient::getInstance().getCurrentPlayerInfo();
    if (player_info)
    {
-      _font->setColor(1.0f, 1.0f, 1.0f, 1.0f);
-      _font->buildVertices(FONT_SCALE_NICK, player_info->getNick().c_str(), 0, 0);
-      _nick_vertices = _font->getVertices();
+      _font->get().setColor(1.0f, 1.0f, 1.0f, 1.0f);
+      _font->get().buildVertices(FONT_SCALE_NICK, player_info->get().getNick(), 0, 0);
+      _nick_vertices = _font->get().getVertices();
    }
    else
    {
@@ -238,15 +239,16 @@ void GameMessagingDrawable::buildNickVertices()
    }
 }
 
-void GameMessagingDrawable::popMessage(AnimatedGameMessage* message)
+void GameMessagingDrawable::popMessage(const AnimatedGameMessage& message)
 {
-   auto it = std::find(_messages.begin(), _messages.end(), message);
+   auto it = std::ranges::find_if(_messages, [&message](const auto& candidate) { return candidate.get() == &message; });
    if (it != _messages.end())
    {
+      _expired_messages.push_back(std::move(*it));
       _messages.erase(it);
    }
 
-   Timer::singleShot(0, [message]() { delete message; });
+   Timer::singleShot(0, [this]() { _expired_messages.clear(); });
 }
 
 void GameMessagingDrawable::disableIngameMessaging()
@@ -256,21 +258,21 @@ void GameMessagingDrawable::disableIngameMessaging()
 
 void GameMessagingDrawable::gameStateChanged()
 {
-   if (GameStateMachine::getInstance()->getState() == Constants::GameStopped)
+   if (GameStateMachine::getInstance().getState() == Constants::GameStopped)
    {
       disableIngameMessaging();
    }
-   else if (GameStateMachine::getInstance()->getState() == Constants::GameActive)
+   else if (GameStateMachine::getInstance().getState() == Constants::GameActive)
    {
       // copy buffer from client to textedit
-      _message = BombermanClient::getInstance()->getMessage();
+      _message = BombermanClient::getInstance().getMessage();
       updateMessageVertices();
    }
 }
 
 void GameMessagingDrawable::initializeGL()
 {
-   _font = &FontPool::Instance().get("default")->get();
+   _font = FontPool::Instance().get("default").value();
 
    initializeLayers();
 }
@@ -327,18 +329,18 @@ void GameMessagingDrawable::drawText(bool draw_user_input)
 
       if (isActive() && draw_user_input)
       {
-         _font->setColor(col, col, col, 1.0f);
-         _font->draw(_message_vertices, Matrix::position(x, y + ty, 0.0f));
+         _font->get().setColor(col, col, col, 1.0f);
+         _font->get().draw(_message_vertices, Matrix::position(x, y + ty, 0.0f));
       }
 
       for (int i = 0; i < _messages.size(); i++)
       {
-         AnimatedGameMessage* message = _messages.at(i);
+         const AnimatedGameMessage& message = *_messages.at(i);
 
          ty -= MESSAGE_OFFSET_DIFF;
 
-         _font->setColor(col, col, col, 1.0f - (i * 0.08f));
-         _font->draw(message->getVertices(), Matrix::position(x, y + ty, 0.0f));
+         _font->get().setColor(col, col, col, 1.0f - (i * 0.08f));
+         _font->get().draw(message.getVertices(), Matrix::position(x, y + ty, 0.0f));
       }
    }
 }
@@ -378,9 +380,9 @@ bool GameMessagingDrawable::drawMessageOverlay()
 
    if (!getMessage().empty())
    {
-      _font->setColor(1.0f, 1.0f, 1.0f, 1.0f);
-      _font->draw(
-         _message_vertices, Matrix::position(static_cast<float>(_player_name_layer->getLeft()), offset + LABEL_PLAYER_OFFSET_Y, 0.0f)
+      _font->get().setColor(1.0f, 1.0f, 1.0f, 1.0f);
+      _font->get().draw(
+         _message_vertices, Matrix::position(static_cast<float>(_player_name_layer->get().getLeft()), offset + LABEL_PLAYER_OFFSET_Y, 0.0f)
       );
    }
 
@@ -413,10 +415,7 @@ void GameMessagingDrawable::initializeLayers()
 
    for (auto& layer : _psd.getLayers())
    {
-      auto owned_layer = std::make_unique<PSDLayer>(layer);
-      PSDLayer* render_layer = owned_layer.get();
-
-      _psd_layers.push_back(std::move(owned_layer));
+      PSDLayer& render_layer = *_psd_layers.emplace_back(std::make_unique<PSDLayer>(layer));
 
       if (layer.getName() == std::string(LINEEDIT_SAY))
       {
@@ -477,7 +476,7 @@ void GameMessagingDrawable::drawCursor()
    float top = 0.0f;
    float bottom = 0.0f;
 
-   _font->getCursor(FONT_SCALE_MESSAGE, getCursorPosition(), left, right, top, bottom);
+   _font->get().getCursor(FONT_SCALE_MESSAGE, getCursorPosition(), left, right, top, bottom);
 
    if (_cursor_texture == 0)
    {
@@ -508,8 +507,8 @@ void GameMessagingDrawable::drawCursor()
    glBindBuffer(GL_ARRAY_BUFFER, _cursor_vertex_buffer);
    glEnableVertexAttribArray(0);
    glEnableVertexAttribArray(1);
-   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 5, (GLvoid*)0);
-   glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 5, (GLvoid*)(sizeof(float) * 3));
+   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 5, nullptr);
+   glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 5, reinterpret_cast<const GLvoid*>(sizeof(float) * 3));
 
    glDrawArrays(GL_TRIANGLES, 0, 6);
 

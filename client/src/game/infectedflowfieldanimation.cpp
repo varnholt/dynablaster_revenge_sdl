@@ -3,6 +3,10 @@
 #include "framework/framebuffer.h"
 #include "framework/gldevice.h"
 
+#include <algorithm>
+#include <array>
+#include <span>
+
 namespace
 {
 constexpr int PARTICLE_GRID_WIDTH = 64;
@@ -12,19 +16,15 @@ constexpr float DISSOLVE_TIME = 300.0f;
 
 GLuint g_quad_vertex_buffer = 0;
 
-void drawQuad(const float* verts, int floats_per_vertex)
+void drawQuad(std::span<const float> verts, int floats_per_vertex)
 {
    const int order[6] = {0, 1, 2, 0, 2, 3};
-   float buffer[6 * 4];
+   std::array<float, 6 * 4> buffer{};
 
    for (int i = 0; i < 6; i++)
    {
-      const float* src = verts + order[i] * floats_per_vertex;
-      float* dst = buffer + i * floats_per_vertex;
-      for (int c = 0; c < floats_per_vertex; c++)
-      {
-         dst[c] = src[c];
-      }
+      const auto src = verts.subspan(static_cast<size_t>(order[i] * floats_per_vertex), static_cast<size_t>(floats_per_vertex));
+      std::ranges::copy(src, buffer.begin() + i * floats_per_vertex);
    }
 
    if (g_quad_vertex_buffer == 0)
@@ -33,15 +33,17 @@ void drawQuad(const float* verts, int floats_per_vertex)
    }
 
    glBindBuffer(GL_ARRAY_BUFFER, g_quad_vertex_buffer);
-   glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * floats_per_vertex, buffer, GL_DYNAMIC_DRAW);
+   glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * floats_per_vertex, buffer.data(), GL_DYNAMIC_DRAW);
 
    glEnableVertexAttribArray(0);
-   glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * floats_per_vertex, (GLvoid*)0);
+   glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * floats_per_vertex, nullptr);
 
    if (floats_per_vertex > 2)
    {
       glEnableVertexAttribArray(1);
-      glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * floats_per_vertex, (GLvoid*)(sizeof(float) * 2));
+      glVertexAttribPointer(
+         1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * floats_per_vertex, reinterpret_cast<const GLvoid*>(sizeof(float) * 2)
+      );
    }
 
    glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -318,11 +320,11 @@ void InfectedFlowFieldAnimation::draw()
 
    glBindBuffer(GL_ARRAY_BUFFER, _vertex_pos_buffer);
    glEnableVertexAttribArray(0);
-   glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, sizeof(Vector4), (GLvoid*)0);
+   glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, sizeof(Vector4), nullptr);
 
    glBindBuffer(GL_ARRAY_BUFFER, _vertex_color_buffer);
    glEnableVertexAttribArray(1);
-   glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(Vector4), (GLvoid*)0);
+   glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(Vector4), nullptr);
 
    glDrawArrays(GL_POINTS, 0, _width * _height);
 

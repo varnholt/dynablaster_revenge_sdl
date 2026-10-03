@@ -1,7 +1,7 @@
 #include "invisibleplayereffect.h"
 
-#include "framework/globaltime.h"
 #include "framebuffer.h"
+#include "framework/globaltime.h"
 #include "gldevice.h"
 #include "materials/invisibilitymaterial.h"
 #include "nodes/mesh.h"
@@ -30,72 +30,87 @@ InvisiblePlayerEffect::~InvisiblePlayerEffect()
    }
 }
 
-void InvisiblePlayerEffect::setPlayerScene(SceneGraph* players)
+void InvisiblePlayerEffect::setPlayerScene(std::optional<std::reference_wrapper<SceneGraph>> players)
 {
    _scene = players;
 }
 
-InvisibilityMaterial* InvisiblePlayerEffect::getMaterial() const
+std::optional<std::reference_wrapper<InvisibilityMaterial>> InvisiblePlayerEffect::getMaterial() const
 {
    if (!_scene)
    {
-      return nullptr;
+      return std::nullopt;
    }
 
-   return dynamic_cast<InvisibilityMaterial*>(&_scene->getMaterial(INVISIBILITY_MATERIAL_INDEX));
+   if (auto* material = dynamic_cast<InvisibilityMaterial*>(&_scene->get().getMaterial(INVISIBILITY_MATERIAL_INDEX)))
+   {
+      return *material;
+   }
+
+   return std::nullopt;
 }
 
-void InvisiblePlayerEffect::addPlayer(PlayerItem* player)
+void InvisiblePlayerEffect::addPlayer(const PlayerItem& player)
 {
-   if (_start_times.contains(player))
+   if (_players.contains(player.getID()))
    {
       return;
    }
 
-   auto* material = getMaterial();
+   const auto material = getMaterial();
    if (!material)
    {
       return;
    }
 
-   _start_times[player] = GlobalTime::Instance().getTime();
-   material->addMesh(*player->getMesh());
+   _players.emplace(player.getID(), InvisiblePlayer{player.getMesh(), GlobalTime::Instance().getTime()});
+   material->get().addMesh(player.getMesh());
 }
 
-void InvisiblePlayerEffect::removePlayer(PlayerItem* player)
+void InvisiblePlayerEffect::removePlayer(const PlayerItem& player)
 {
-   if (!_start_times.erase(player))
+   removePlayer(player.getID());
+}
+
+void InvisiblePlayerEffect::removePlayer(int32_t id)
+{
+   const auto it = _players.find(id);
+   if (it == _players.end())
    {
       return;
    }
 
-   player->getMesh()->setRenderParameter(1, 0.0f);
+   Mesh& mesh = it->second._mesh;
+   _players.erase(it);
 
-   if (auto* material = getMaterial())
+   mesh.setRenderParameter(1, 0.0f);
+
+   if (const auto material = getMaterial())
    {
-      material->removeMesh(*player->getMesh());
+      material->get().removeMesh(mesh);
    }
 }
 
 void InvisiblePlayerEffect::removeAllPlayers()
 {
-   while (!_start_times.empty())
+   while (!_players.empty())
    {
-      removePlayer(_start_times.begin()->first);
+      removePlayer(_players.begin()->first);
    }
 }
 
 void InvisiblePlayerEffect::update(float global_time)
 {
-   for (auto it = _start_times.begin(); it != _start_times.end();)
+   for (auto it = _players.begin(); it != _players.end();)
    {
-      auto* player = it->first;
-      const float elapsed = global_time - it->second;
+      const int32_t id = it->first;
+      Mesh& mesh = it->second._mesh;
+      const float elapsed = global_time - it->second._start_time;
 
       if (elapsed >= TIME_DURATION)
       {
          ++it;
-         removePlayer(player);
+         removePlayer(id);
          continue;
       }
 
@@ -109,19 +124,19 @@ void InvisiblePlayerEffect::update(float global_time)
          param = PARAM_MAX - (elapsed - TIME_FADE_OUT_START);
       }
 
-      player->getMesh()->setRenderParameter(1, -param);
+      mesh.setRenderParameter(1, -param);
       ++it;
    }
 }
 
 void InvisiblePlayerEffect::captureBackground()
 {
-   if (_start_times.empty())
+   if (_players.empty())
    {
       return;
    }
 
-   auto* material = getMaterial();
+   const auto material = getMaterial();
    if (!material)
    {
       return;
@@ -141,5 +156,5 @@ void InvisiblePlayerEffect::captureBackground()
    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-   material->setTexture(_background_texture);
+   material->get().setTexture(_background_texture);
 }

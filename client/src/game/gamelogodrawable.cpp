@@ -27,7 +27,7 @@
 #define FADE_IN_LENGTH 80.0f
 #define FADE_OUT_LENGTH 80.0f
 
-GameLogoDrawable::GameLogoDrawable(RenderDevice* dev, bool visible) : SphereFragmentsDrawable(*dev, visible)
+GameLogoDrawable::GameLogoDrawable(RenderDevice& dev, bool visible) : SphereFragmentsDrawable(dev, visible)
 {
    _filename = "data/logo/logo.psd";
 }
@@ -52,9 +52,9 @@ void GameLogoDrawable::paintGL()
 
       initOrthoGlParameters();
 
-      _layer_dynablaster->render(20.0f * std::cos(_time * 0.03f), 30.0f + 15.0f * std::sin(_time * 0.04f), _alpha);
+      _layer_dynablaster->get().render(20.0f * std::cos(_time * 0.03f), 30.0f + 15.0f * std::sin(_time * 0.04f), _alpha);
 
-      _layer_revenge->render(30.0f * std::cos(_time * 0.03f), 30.0f + 25.0f * std::sin(_time * 0.04f), _alpha);
+      _layer_revenge->get().render(30.0f * std::cos(_time * 0.03f), 30.0f + 25.0f * std::sin(_time * 0.04f), _alpha);
 
       initPointSpriteGlParameters();
       drawSparks();
@@ -241,8 +241,7 @@ void GameLogoDrawable::initializeLayers()
    // per this port's own scope rule).
    for (auto& psd_layer : _psd.getLayers())
    {
-      auto owned_layer = std::make_unique<PSDLayer>(psd_layer);
-      PSDLayer* layer = owned_layer.get();
+      PSDLayer& layer = *_layers.emplace_back(std::make_unique<PSDLayer>(psd_layer));
 
       if (psd_layer.getName() == LAYER_DYNABLASTER)
       {
@@ -252,8 +251,6 @@ void GameLogoDrawable::initializeLayers()
       {
          _layer_revenge = layer;
       }
-
-      _layers.push_back(std::move(owned_layer));
    }
 }
 

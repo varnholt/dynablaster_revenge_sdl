@@ -11,7 +11,9 @@
 #include <string>
 
 #include <cstdint>
+#include <functional>
 #include <memory>
+#include <optional>
 #include <vector>
 
 class BitmapFont;
@@ -20,7 +22,7 @@ class PSDLayer;
 class GameMessagingDrawable : public Drawable
 {
 public:
-   GameMessagingDrawable(RenderDevice* dev);
+   explicit GameMessagingDrawable(RenderDevice& dev);
    ~GameMessagingDrawable() override;
 
    void updateMessageVertices();
@@ -38,7 +40,7 @@ public:
    void messageReceived(int sender_id, const std::string& message, bool typing_finished);
 
 protected:
-   void popMessage(AnimatedGameMessage* message);
+   void popMessage(const AnimatedGameMessage& message);
    void disableIngameMessaging();
    void gameStateChanged();
 
@@ -73,11 +75,13 @@ protected:
    PSD _psd;
    std::string _filename;
    std::vector<std::unique_ptr<PSDLayer>> _psd_layers;
-   PSDLayer* _line_edit_say_layer = nullptr;
-   PSDLayer* _player_name_layer = nullptr;
+   std::optional<std::reference_wrapper<PSDLayer>> _line_edit_say_layer;
+   std::optional<std::reference_wrapper<PSDLayer>> _player_name_layer;
 
-   std::vector<AnimatedGameMessage*> _messages;
-   BitmapFont* _font = nullptr;
+   std::vector<std::unique_ptr<AnimatedGameMessage>> _messages;
+   //! expired messages die on the next tick, their own expiredSignal is still running
+   std::vector<std::unique_ptr<AnimatedGameMessage>> _expired_messages;
+   std::optional<std::reference_wrapper<BitmapFont>> _font;
 
    std::string _message;
    std::vector<Vertex> _message_vertices;

@@ -7,6 +7,7 @@
 #include "math/vector.h"
 #include "render/texturepool.h"
 
+#include <array>
 #include <utility>
 #include <vector>
 
@@ -77,15 +78,14 @@ void GameLogoPointSprite::draw()
       const float point_size = _glow_values[i];
       const Vector& p = _positions[i];
 
-      const float bl[5] = {p.x - point_size, p.y - point_size, p.z, 0.0f, 0.0f};
-      const float br[5] = {p.x + point_size, p.y - point_size, p.z, 1.0f, 0.0f};
-      const float tr[5] = {p.x + point_size, p.y + point_size, p.z, 1.0f, 1.0f};
-      const float tl[5] = {p.x - point_size, p.y + point_size, p.z, 0.0f, 1.0f};
+      const std::array<float, 5> bl = {p.x - point_size, p.y - point_size, p.z, 0.0f, 0.0f};
+      const std::array<float, 5> br = {p.x + point_size, p.y - point_size, p.z, 1.0f, 0.0f};
+      const std::array<float, 5> tr = {p.x + point_size, p.y + point_size, p.z, 1.0f, 1.0f};
+      const std::array<float, 5> tl = {p.x - point_size, p.y + point_size, p.z, 0.0f, 1.0f};
 
-      const float* quad[6] = {bl, br, tr, bl, tr, tl};
-      for (int v = 0; v < 6; v++)
+      for (const auto& corner : {bl, br, tr, bl, tr, tl})
       {
-         verts.insert(verts.end(), quad[v], quad[v] + 5);
+         verts.insert(verts.end(), corner.begin(), corner.end());
       }
    }
 
@@ -94,8 +94,8 @@ void GameLogoPointSprite::draw()
 
    glEnableVertexAttribArray(0);
    glEnableVertexAttribArray(1);
-   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 5, (GLvoid*)0);
-   glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 5, (GLvoid*)(sizeof(float) * 3));
+   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 5, nullptr);
+   glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 5, reinterpret_cast<const GLvoid*>(sizeof(float) * 3));
 
    glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(_positions.size() * 6));
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include "math/vector.h"
 
 class Material;
@@ -8,15 +9,14 @@ class Material;
 class PlayerInvincibleInstance
 {
 public:
-   PlayerInvincibleInstance();
+   explicit PlayerInvincibleInstance(Material& material);
    ~PlayerInvincibleInstance();
 
    bool update(float dt);
    void remove();
    void setRemove(bool remove);
 
-   void setMaterial(Material* mat);
-   Material* getMaterial() const;
+   Material& getMaterial() const;
 
    int width() const;
    int height() const;
@@ -36,7 +36,7 @@ public:
    float getFade() const;
 
 private:
-   Material* _material = nullptr;
+   std::reference_wrapper<Material> _material;
    int _width = 256;
    int _height = 256;
    uint32_t _texture[2];

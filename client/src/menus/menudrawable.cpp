@@ -9,7 +9,7 @@
 #include "framework/gldevice.h"
 #include "math/matrix.h"
 
-MenuDrawable::MenuDrawable(RenderDevice* device) : Drawable(*device), _menu(std::make_unique<Menu>())
+MenuDrawable::MenuDrawable(RenderDevice& device) : Drawable(device), _menu(std::make_unique<Menu>())
 {
 }
 

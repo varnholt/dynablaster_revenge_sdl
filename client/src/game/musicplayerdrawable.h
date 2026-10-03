@@ -4,7 +4,9 @@
 #include "framework/frametimer.h"
 #include "image/psd.h"
 
+#include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -14,7 +16,7 @@ class PSDLayer;
 class MusicPlayerDrawable : public Drawable
 {
 public:
-   MusicPlayerDrawable(RenderDevice*);
+   explicit MusicPlayerDrawable(RenderDevice& device);
    ~MusicPlayerDrawable() override;
 
    void initializeGL() override;
@@ -41,7 +43,7 @@ private:
    std::vector<std::unique_ptr<PSDLayer>> _psd_layers;
    std::string _filename;
 
-   BitmapFont* _font = nullptr;
+   std::optional<std::reference_wrapper<BitmapFont>> _font;
 
    std::string _artist;
    std::string _album;

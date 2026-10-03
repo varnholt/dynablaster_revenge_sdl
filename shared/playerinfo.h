@@ -42,9 +42,11 @@ public:
 
    void setOverallStats(const PlayerStats& stats);
    [[nodiscard]] PlayerStats& getOverallStats();
+   [[nodiscard]] const PlayerStats& getOverallStats() const;
 
    void setRoundStats(const PlayerStats& stats);
    [[nodiscard]] PlayerStats& getRoundStats();
+   [[nodiscard]] const PlayerStats& getRoundStats() const;
 
    void setKilled(bool killed);
    [[nodiscard]] bool isKilled() const;

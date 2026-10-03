@@ -3,7 +3,7 @@
 #include "framework/framebuffer.h"
 #include "framework/gldevice.h"
 
-PlayerInvincibleInstance::PlayerInvincibleInstance()
+PlayerInvincibleInstance::PlayerInvincibleInstance(Material& material) : _material(material)
 {
    for (int i = 0; i < 2; i++)
    {
@@ -86,12 +86,7 @@ bool PlayerInvincibleInstance::update(float dt)
    return true;
 }
 
-void PlayerInvincibleInstance::setMaterial(Material* mat)
-{
-   _material = mat;
-}
-
-Material* PlayerInvincibleInstance::getMaterial() const
+Material& PlayerInvincibleInstance::getMaterial() const
 {
    return _material;
 }

@@ -2,7 +2,9 @@
 
 #include "drawable.h"
 
+#include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -14,7 +16,7 @@ class PSDLayer;
 class RoundsDrawable : public Drawable
 {
 public:
-   RoundsDrawable(RenderDevice* dev);
+   explicit RoundsDrawable(RenderDevice& dev);
    ~RoundsDrawable() override;
 
    void initializeGL() override;
@@ -32,13 +34,13 @@ protected:
    PSD _psd;
    std::vector<std::unique_ptr<PSDLayer>> _psd_layers;
 
-   PSDLayer* _layer_round = nullptr;
-   PSDLayer* _layer_round_final = nullptr;
-   PSDLayer* _layer_round1 = nullptr;
-   PSDLayer* _layer_round2 = nullptr;
-   PSDLayer* _layer_round3 = nullptr;
-   PSDLayer* _layer_round4 = nullptr;
-   PSDLayer* _layer_round5 = nullptr;
+   std::optional<std::reference_wrapper<PSDLayer>> _layer_round;
+   std::optional<std::reference_wrapper<PSDLayer>> _layer_round_final;
+   std::optional<std::reference_wrapper<PSDLayer>> _layer_round1;
+   std::optional<std::reference_wrapper<PSDLayer>> _layer_round2;
+   std::optional<std::reference_wrapper<PSDLayer>> _layer_round3;
+   std::optional<std::reference_wrapper<PSDLayer>> _layer_round4;
+   std::optional<std::reference_wrapper<PSDLayer>> _layer_round5;
 
    std::string _filename;
 

@@ -13,7 +13,10 @@
 #include "render/geometry.h"
 #include "render/texturepool.h"
 
+#include <algorithm>
+#include <array>
 #include <cmath>
+#include <span>
 
 namespace
 {
@@ -26,20 +29,16 @@ void clearTransparent()
 
 // draws a quad (as 2 triangles) with an explicit position component count (2 for NDC-space
 // blur-pass quads, 3 for the world-space displace-pass quad) plus an optional uv pair.
-void drawQuad(const float* verts, int pos_components, int uv_components)
+void drawQuad(std::span<const float> verts, int pos_components, int uv_components)
 {
    const int floats_per_vertex = pos_components + uv_components;
    const int order[6] = {0, 1, 2, 0, 2, 3};
-   float buffer[6 * 5];
+   std::array<float, 6 * 5> buffer{};
 
    for (int i = 0; i < 6; i++)
    {
-      const float* src = verts + order[i] * floats_per_vertex;
-      float* dst = buffer + i * floats_per_vertex;
-      for (int c = 0; c < floats_per_vertex; c++)
-      {
-         dst[c] = src[c];
-      }
+      const auto src = verts.subspan(static_cast<size_t>(order[i] * floats_per_vertex), static_cast<size_t>(floats_per_vertex));
+      std::ranges::copy(src, buffer.begin() + i * floats_per_vertex);
    }
 
    static uint32_t quad_vertex_buffer = 0;
@@ -49,16 +48,21 @@ void drawQuad(const float* verts, int pos_components, int uv_components)
    }
 
    glBindBuffer(GL_ARRAY_BUFFER, quad_vertex_buffer);
-   glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * floats_per_vertex, buffer, GL_DYNAMIC_DRAW);
+   glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * floats_per_vertex, buffer.data(), GL_DYNAMIC_DRAW);
 
    glEnableVertexAttribArray(0);
-   glVertexAttribPointer(0, pos_components, GL_FLOAT, GL_FALSE, sizeof(float) * floats_per_vertex, (GLvoid*)0);
+   glVertexAttribPointer(0, pos_components, GL_FLOAT, GL_FALSE, sizeof(float) * floats_per_vertex, nullptr);
 
    if (uv_components > 0)
    {
       glEnableVertexAttribArray(1);
       glVertexAttribPointer(
-         1, uv_components, GL_FLOAT, GL_FALSE, sizeof(float) * floats_per_vertex, (GLvoid*)(sizeof(float) * pos_components)
+         1,
+         uv_components,
+         GL_FLOAT,
+         GL_FALSE,
+         sizeof(float) * floats_per_vertex,
+         reinterpret_cast<const GLvoid*>(sizeof(float) * pos_components)
       );
    }
 
@@ -75,7 +79,7 @@ void drawQuad(const float* verts, int pos_components, int uv_components)
 
 // perspective-corrected back-projection of a 2d screen rect into 3d world space, using a
 // reference triangle placed in front of the player as the known world<->screen correspondence.
-void backProject(Vector* dst, const Vector& min2d, const Vector& max2d, const Matrix& obj_mat, const Matrix& proj_mat)
+void backProject(std::span<Vector, 4> dst, const Vector& min2d, const Vector& max2d, const Matrix& obj_mat, const Matrix& proj_mat)
 {
    struct Vertex
    {
@@ -129,19 +133,19 @@ void backProject(Vector* dst, const Vector& min2d, const Vector& max2d, const Ma
       }
    }
 
-   Vertex* v1 = &vtx[min_vtx];
+   const Vertex& v1 = vtx[min_vtx];
    min_vtx++;
    if (min_vtx > 2)
    {
       min_vtx = 0;
    }
-   Vertex* v2 = &vtx[min_vtx];
-   float inv_height = 1.0f / (v2->y - v1->y);
-   float left_dx = (v2->x - v1->x) * inv_height;
-   float left_dz = (v2->z - v1->z) * inv_height;
-   float left_du = (v2->u - v1->u) * inv_height;
-   float left_dv = (v2->v - v1->v) * inv_height;
-   float left_dw = (v2->w - v1->w) * inv_height;
+   const Vertex& v2 = vtx[min_vtx];
+   float inv_height = 1.0f / (v2.y - v1.y);
+   float left_dx = (v2.x - v1.x) * inv_height;
+   float left_dz = (v2.z - v1.z) * inv_height;
+   float left_du = (v2.u - v1.u) * inv_height;
+   float left_dv = (v2.v - v1.v) * inv_height;
+   float left_dw = (v2.w - v1.w) * inv_height;
 
    Vector rect2d[4];
    rect2d[0] = Vector(min2d.x, min2d.y);
@@ -151,13 +155,13 @@ void backProject(Vector* dst, const Vector& min2d, const Vector& max2d, const Ma
 
    for (int i = 0; i < 4; i++)
    {
-      float dx = rect2d[i].x - v1->x;
-      float dy = rect2d[i].y - v1->y;
+      float dx = rect2d[i].x - v1.x;
+      float dy = rect2d[i].y - v1.y;
 
-      float u = v1->u + dy * left_du - dy * left_dx * deltau + dx * deltau;
-      float v = v1->v + dy * left_dv - dy * left_dx * deltav + dx * deltav;
-      float w = v1->w + dy * left_dw - dy * left_dx * deltaw + dx * deltaw;
-      float z = v1->z + dy * left_dz - dy * left_dx * deltaz + dx * deltaz;
+      float u = v1.u + dy * left_du - dy * left_dx * deltau + dx * deltau;
+      float v = v1.v + dy * left_dv - dy * left_dx * deltav + dx * deltav;
+      float w = v1.w + dy * left_dw - dy * left_dx * deltaw + dx * deltaw;
+      float z = v1.z + dy * left_dz - dy * left_dx * deltaz + dx * deltaz;
 
       float t = 1.0f / z;
 
@@ -235,44 +239,36 @@ void PlayerInvincibleEffect::clear()
    _players.clear();
 }
 
-void PlayerInvincibleEffect::add(Material* material)
+std::vector<std::unique_ptr<PlayerInvincibleInstance>>::iterator PlayerInvincibleEffect::find(const Material& player_material)
 {
-   if (!material)
-   {
-      return;
-   }
+   return std::ranges::find_if(_players, [&player_material](const auto& player) { return &player->getMaterial() == &player_material; });
+}
 
-   auto it = _players.find(material);
+void PlayerInvincibleEffect::add(Material& material)
+{
+   auto it = find(material);
    if (it == _players.end())
    {
-      auto player = std::make_unique<PlayerInvincibleInstance>();
-      player->setMaterial(material);
-      _players[material] = std::move(player);
+      _players.push_back(std::make_unique<PlayerInvincibleInstance>(material));
    }
    else
    {
-      it->second->setRemove(false);
+      (*it)->setRemove(false);
    }
 }
 
-void PlayerInvincibleEffect::remove(Material* player_material)
+void PlayerInvincibleEffect::remove(const Material& player_material)
 {
-   auto it = _players.find(player_material);
+   auto it = find(player_material);
    if (it != _players.end())
    {
-      it->second->remove();
+      (*it)->remove();
    }
 }
 
-void PlayerInvincibleEffect::setMaterialFade(PlayerInvincibleInstance* player, float fade)
+void PlayerInvincibleEffect::setMaterialFade(PlayerInvincibleInstance& player, float fade)
 {
-   Material* mat = player->getMaterial();
-   if (!mat)
-   {
-      return;
-   }
-
-   const auto geo = mat->getGeometry(0);
+   const auto geo = player.getMaterial().getGeometry(0);
    if (!geo)
    {
       return;
@@ -285,9 +281,9 @@ void PlayerInvincibleEffect::animate(float dt)
 {
    for (auto it = _players.begin(); it != _players.end();)
    {
-      PlayerInvincibleInstance* player = it->second.get();
+      PlayerInvincibleInstance& player = **it;
 
-      if (!player->update(dt))
+      if (!player.update(dt))
       {
          setMaterialFade(player, 0.0f);
          it = _players.erase(it);
@@ -299,56 +295,53 @@ void PlayerInvincibleEffect::animate(float dt)
    }
 }
 
-void PlayerInvincibleEffect::blurPlayers(FrameBuffer* temp, const Matrix& proj)
+void PlayerInvincibleEffect::blurPlayers(FrameBuffer& temp, const Matrix& proj)
 {
    FrameBuffer::push();
 
-   for (auto& [material, player] : _players)
+   for (const auto& player_instance : _players)
    {
-      Material* mat = player->getMaterial();
-      if (!mat)
-      {
-         continue;
-      }
+      PlayerInvincibleInstance& player = *player_instance;
+      Material& mat = player.getMaterial();
 
       Vector min2d(0.0f, 0.0f, 0.0f);
       Vector max2d(0.0f, 0.0f, 0.0f);
 
-      mat->getBoundingRect(min2d, max2d, proj);
+      mat.getBoundingRect(min2d, max2d, proj);
 
-      float bx = _radius * 2.0f / temp->width();
-      float by = _radius * 2.0f / temp->height();
+      float bx = _radius * 2.0f / temp.width();
+      float by = _radius * 2.0f / temp.height();
       min2d.x -= bx;
       min2d.y -= by;
       max2d.x += bx;
       max2d.y += by;
 
-      player->setRect(min2d, max2d);
-      player->setCenter(mat->getCenter2d(proj));
+      player.setRect(min2d, max2d);
+      player.setCenter(mat.getCenter2d(proj));
 
       min2d.x = (min2d.x + 1.0f) * 0.5f;
       min2d.y = (min2d.y + 1.0f) * 0.5f;
       max2d.x = (max2d.x + 1.0f) * 0.5f;
       max2d.y = (max2d.y + 1.0f) * 0.5f;
 
-      temp->bind();
+      temp.bind();
       clearTransparent();
-      setMaterialFade(player.get(), player->getFade());
-      mat->renderDiffuse();
-      temp->unbind();
+      setMaterialFade(player, player.getFade());
+      mat.renderDiffuse();
+      temp.unbind();
 
       // horizontal blur - temp framebuffer into the player's own ping-pong texture 0
-      player->bind(0);
+      player.bind(0);
       clearTransparent();
       activeDevice().setShader(_blur_h_shader);
-      glBindTexture(GL_TEXTURE_2D, temp->texture());
+      glBindTexture(GL_TEXTURE_2D, temp.texture());
       activeDevice().bindSampler(_blur_h_texture, 0);
-      activeDevice().setParameter(_blur_h_texel_offset, Vector2(1.0f / temp->width()));
+      activeDevice().setParameter(_blur_h_texel_offset, Vector2(1.0f / temp.width()));
       activeDevice().setParameter(_blur_h_radius, _radius);
       activeDevice().setParameter(_blur_h_kernel, _kernel);
 
-      float x = (max2d.x - min2d.x) * 2.0f * temp->width() / player->width();
-      float y = (max2d.y - min2d.y) * 2.0f * temp->height() / player->height();
+      float x = (max2d.x - min2d.x) * 2.0f * temp.width() / player.width();
+      float y = (max2d.y - min2d.y) * 2.0f * temp.height() / player.height();
 
       const float quad_h[4 * 4] = {
          -1.0f,
@@ -370,14 +363,14 @@ void PlayerInvincibleEffect::blurPlayers(FrameBuffer* temp, const Matrix& proj)
       };
       drawQuad(quad_h, 2, 2);
 
-      player->unbind();
+      player.unbind();
 
       // vertical blur - texture 0 into texture 1
-      player->bind(1);
+      player.bind(1);
       clearTransparent();
       activeDevice().setShader(_blur_v_shader);
-      glBindTexture(GL_TEXTURE_2D, player->texture(0));
-      activeDevice().setParameter(_blur_v_texel_offset, Vector2(0.0f, 1.0f / player->height()));
+      glBindTexture(GL_TEXTURE_2D, player.texture(0));
+      activeDevice().setParameter(_blur_v_texel_offset, Vector2(0.0f, 1.0f / player.height()));
       activeDevice().setParameter(_blur_v_radius, _radius);
       activeDevice().setParameter(_blur_v_kernel, _kernel);
 
@@ -401,7 +394,7 @@ void PlayerInvincibleEffect::blurPlayers(FrameBuffer* temp, const Matrix& proj)
       };
       drawQuad(quad_v, 2, 2);
 
-      player->unbind();
+      player.unbind();
 
       activeDevice().setShader(0);
    }
@@ -432,7 +425,7 @@ void PlayerInvincibleEffect::render()
       _scratch_buffer->setResolution(width, height);
    }
 
-   blurPlayers(_scratch_buffer.get(), proj);
+   blurPlayers(*_scratch_buffer, proj);
 
    glDepthMask(GL_FALSE);
    glEnable(GL_BLEND);
@@ -450,15 +443,11 @@ void PlayerInvincibleEffect::render()
    glActiveTexture(GL_TEXTURE0);
    activeDevice().bindSampler(_displace_texture1, 0);
 
-   for (auto& [material, player] : _players)
+   for (const auto& player_instance : _players)
    {
-      Material* mat = player->getMaterial();
-      if (!mat)
-      {
-         continue;
-      }
+      PlayerInvincibleInstance& player = *player_instance;
 
-      const auto geo = mat->getGeometry(0);
+      const auto geo = player.getMaterial().getGeometry(0);
       if (!geo)
       {
          continue;
@@ -466,14 +455,14 @@ void PlayerInvincibleEffect::render()
 
       const Matrix& tm = geo->get().getTransform();
 
-      Vector min2d = player->min2d();
-      Vector max2d = player->max2d();
+      Vector min2d = player.min2d();
+      Vector max2d = player.max2d();
 
       activeDevice().setParameter(_displace_texel_offset, Vector2(_scratch_buffer->width() / 1920.0f, _scratch_buffer->height() / 1080.0f));
 
       activeDevice().setParameter(
          _displace_source_rect,
-         Vector4(min2d.x, min2d.y, 0.5f * _scratch_buffer->width() / player->width(), 0.5f * _scratch_buffer->height() / player->height())
+         Vector4(min2d.x, min2d.y, 0.5f * _scratch_buffer->width() / player.width(), 0.5f * _scratch_buffer->height() / player.height())
       );
 
       activeDevice().setParameter(
@@ -486,13 +475,13 @@ void PlayerInvincibleEffect::render()
          )
       );
 
-      activeDevice().setParameter(_displace_fade, player->getFade());
-      activeDevice().setParameter(_display_center, player->getCenter());
+      activeDevice().setParameter(_displace_fade, player.getFade());
+      activeDevice().setParameter(_display_center, player.getCenter());
 
-      Vector pos[4];
+      std::array<Vector, 4> pos;
       backProject(pos, min2d, max2d, tm, proj);
 
-      glBindTexture(GL_TEXTURE_2D, player->texture(1));
+      glBindTexture(GL_TEXTURE_2D, player.texture(1));
 
       const float quad[4 * 3] = {
          pos[0].x,

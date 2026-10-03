@@ -1,20 +1,10 @@
 #include "gamestatemachine.h"
 
-GameStateMachine* GameStateMachine::s_instance = nullptr;
+#include "tools/singleton.h"
 
-GameStateMachine::GameStateMachine()
+GameStateMachine& GameStateMachine::getInstance()
 {
-   s_instance = this;
-}
-
-GameStateMachine* GameStateMachine::getInstance()
-{
-   if (!s_instance)
-   {
-      s_instance = new GameStateMachine();
-   }
-
-   return s_instance;
+   return Singleton<GameStateMachine>::Instance();
 }
 
 void GameStateMachine::setState(Constants::GameState next_state)

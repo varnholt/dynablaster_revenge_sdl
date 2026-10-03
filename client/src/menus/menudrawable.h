@@ -18,7 +18,7 @@ class FrameBuffer;
 class MenuDrawable : public Drawable
 {
 public:
-   MenuDrawable(RenderDevice*);
+   explicit MenuDrawable(RenderDevice& device);
    ~MenuDrawable() override;
 
    Menu& getMenu();

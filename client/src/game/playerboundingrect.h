@@ -4,20 +4,19 @@
 // base
 #include "tools/rect.h"
 
-// forward declarations
-class PlayerItem;
+#include <cstdint>
 
 class PlayerBoundingRect : public Rect
 {
 public:
    PlayerBoundingRect();
 
-   void setPlayerItem(PlayerItem* item);
+   void setPlayerId(int32_t id);
 
-   PlayerItem* getPlayerItem() const;
+   int32_t getPlayerId() const;
 
 protected:
-   PlayerItem* _player_item = nullptr;
+   int32_t _player_id = -1;
 };
 
 #endif  // PLAYERBOUNDINGRECT_H

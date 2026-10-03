@@ -8,8 +8,6 @@
 #include <cstdint>
 #include "math/vector.h"
 
-class MapItem;
-
 class FuseParticleSystem
 {
 public:
@@ -17,14 +15,14 @@ public:
    ~FuseParticleSystem();
 
    //! start emitting sparks for a newly placed bomb
-   void addEmitter(MapItem* item, const Vector& origin);
+   void addEmitter(int32_t item_id, const Vector& origin);
 
    //! update a bomb's current position (sparks catch up gradually; a large jump - a kicked bomb -
    //! burns the current sparks down quickly instead of dragging them across the map)
-   void setEmitterPosition(MapItem* item, const Vector& origin);
+   void setEmitterPosition(int32_t item_id, const Vector& origin);
 
    //! bomb detonated/removed - existing sparks finish their current arc instead of respawning
-   void removeEmitter(MapItem* item);
+   void removeEmitter(int32_t item_id);
 
    void animate(float dt);
    void render();
@@ -55,7 +53,8 @@ private:
 
    void resetParticle(Particle& particle, const Vector& origin);
 
-   std::unordered_map<MapItem*, Emitter> _emitters;
+   // by map item id
+   std::unordered_map<int32_t, Emitter> _emitters;
 
    std::vector<float> _upload_buffer;
    uint32_t _vertex_buffer = 0;

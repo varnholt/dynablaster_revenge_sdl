@@ -3,9 +3,10 @@
 #include "math/vector.h"
 #include "render/texture.h"
 
+#include <array>
 #include <cstdint>
 #include <memory>
-#include <unordered_map>
+#include <vector>
 
 class Material;
 class Matrix;
@@ -21,16 +22,17 @@ public:
    void clear();
    void setRadius(float radius);
 
-   void add(Material* player_material);
-   void remove(Material* player_material);
+   void add(Material& player_material);
+   void remove(const Material& player_material);
    void animate(float dt);
    void render();
 
 private:
-   void blurPlayers(FrameBuffer* dst, const Matrix& proj);
-   void setMaterialFade(PlayerInvincibleInstance* player, float fade);
+   void blurPlayers(FrameBuffer& dst, const Matrix& proj);
+   void setMaterialFade(PlayerInvincibleInstance& player, float fade);
+   std::vector<std::unique_ptr<PlayerInvincibleInstance>>::iterator find(const Material& player_material);
 
-   std::unordered_map<Material*, std::unique_ptr<PlayerInvincibleInstance>> _players;
+   std::vector<std::unique_ptr<PlayerInvincibleInstance>> _players;
    Texture _displacement_texture;
    float _radius = 0.0f;
    float _kernel[32];

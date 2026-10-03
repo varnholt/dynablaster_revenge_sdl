@@ -208,11 +208,21 @@ void StarTalersFactory::Burst::render(int field_param, int color_param, int time
    glEnableVertexAttribArray(3);
    glEnableVertexAttribArray(4);
 
-   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(StarTalersVertex), (GLvoid*)offsetof(StarTalersVertex, position));
-   glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(StarTalersVertex), (GLvoid*)offsetof(StarTalersVertex, normal));
-   glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(StarTalersVertex), (GLvoid*)offsetof(StarTalersVertex, u));
-   glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(StarTalersVertex), (GLvoid*)offsetof(StarTalersVertex, direction));
-   glVertexAttribPointer(4, 2, GL_FLOAT, GL_FALSE, sizeof(StarTalersVertex), (GLvoid*)offsetof(StarTalersVertex, speed));
+   glVertexAttribPointer(
+      0, 3, GL_FLOAT, GL_FALSE, sizeof(StarTalersVertex), reinterpret_cast<const GLvoid*>(offsetof(StarTalersVertex, position))
+   );
+   glVertexAttribPointer(
+      1, 3, GL_FLOAT, GL_FALSE, sizeof(StarTalersVertex), reinterpret_cast<const GLvoid*>(offsetof(StarTalersVertex, normal))
+   );
+   glVertexAttribPointer(
+      2, 2, GL_FLOAT, GL_FALSE, sizeof(StarTalersVertex), reinterpret_cast<const GLvoid*>(offsetof(StarTalersVertex, u))
+   );
+   glVertexAttribPointer(
+      3, 3, GL_FLOAT, GL_FALSE, sizeof(StarTalersVertex), reinterpret_cast<const GLvoid*>(offsetof(StarTalersVertex, direction))
+   );
+   glVertexAttribPointer(
+      4, 2, GL_FLOAT, GL_FALSE, sizeof(StarTalersVertex), reinterpret_cast<const GLvoid*>(offsetof(StarTalersVertex, speed))
+   );
 
    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _index_buffer);
    glDrawElements(GL_TRIANGLES, _index_count, GL_UNSIGNED_SHORT, 0);

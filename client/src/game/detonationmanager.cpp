@@ -254,8 +254,8 @@ void DetonationManager::drawBox(float x, float y, float z, float left, float rig
    glBindBuffer(GL_ARRAY_BUFFER, _box_vertex_buffer);
    glEnableVertexAttribArray(0);
    glEnableVertexAttribArray(1);
-   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 6, (GLvoid*)0);
-   glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 6, (GLvoid*)(sizeof(float) * 3));
+   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 6, nullptr);
+   glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 6, reinterpret_cast<const GLvoid*>(sizeof(float) * 3));
 
    glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(vertices.size() / 6));
 
@@ -263,20 +263,20 @@ void DetonationManager::drawBox(float x, float y, float z, float left, float rig
    glDisableVertexAttribArray(1);
 }
 
-void DetonationManager::drawExplosion(Detonation* det, float time)
+void DetonationManager::drawExplosion(const Detonation& det, float time)
 {
    auto& dev = static_cast<GLDevice&>(activeDevice());
 
-   time = det->elapsed(time);
+   time = det.elapsed(time);
    dev.setParameter(_param_time, time);
 
-   float x = static_cast<float>(det->getX());
-   float y = static_cast<float>(det->getY());
+   float x = static_cast<float>(det.getX());
+   float y = static_cast<float>(det.getY());
 
-   float top = static_cast<float>(det->getUp());
-   float bottom = static_cast<float>(det->getDown());
-   float left = static_cast<float>(det->getLeft());
-   float right = static_cast<float>(det->getRight());
+   float top = static_cast<float>(det.getUp());
+   float bottom = static_cast<float>(det.getDown());
+   float left = static_cast<float>(det.getLeft());
+   float right = static_cast<float>(det.getRight());
 
    dev.setParameter(_param_top, top);
    dev.setParameter(_param_bottom, bottom);
@@ -338,7 +338,7 @@ void DetonationManager::render()
 
    for (const auto& det : _detonations)
    {
-      drawExplosion(det.get(), _time);
+      drawExplosion(*det, _time);
    }
 
    dev.setShader(0);

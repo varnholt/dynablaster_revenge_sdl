@@ -9,6 +9,9 @@
 #include "render/texture.h"
 #include "weighted.h"
 
+#include <array>
+#include <functional>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -19,7 +22,6 @@
 class BitmapFont;
 class BlurFilter;
 class FrameBuffer;
-class GameInformation;
 class Mesh;
 class MotionMixer;
 class PlayerMaterial;
@@ -30,7 +32,7 @@ class SceneGraph;
 class GameWinDrawable : public Drawable
 {
 public:
-   GameWinDrawable(RenderDevice* dev, bool visible = false);
+   explicit GameWinDrawable(RenderDevice& dev, bool visible = false);
    ~GameWinDrawable() override;
 
    void initializeGL() override;
@@ -70,7 +72,7 @@ private:
    float getRadius() const;
 
    void hideLayers();
-   int computeScore(PlayerInfo* info) const;
+   int computeScore(const PlayerInfo& info) const;
 
    void initializeWinnerScene();
    void initializePlayerMaterial();
@@ -86,10 +88,10 @@ private:
    Constants::Color _color_enum = Constants::ColorWhite;
    std::string _winner_name;
 
-   BitmapFont* _large_font = nullptr;
-   BitmapFont* _default_font = nullptr;
+   std::optional<std::reference_wrapper<BitmapFont>> _large_font;
+   std::optional<std::reference_wrapper<BitmapFont>> _default_font;
 
-   SceneGraph* _scene = nullptr;
+   std::unique_ptr<SceneGraph> _scene;
 
    float _render_time = 0.0f;
    float _time = 0.0f;
@@ -109,22 +111,30 @@ private:
    std::unique_ptr<FrameBuffer> _scene_fb;
    uint32_t _snapshot_texture = 0;
 
-   GameInformation* _game_information = nullptr;
-   std::vector<Weighted<PlayerInfo*, int>> _player_scores;
+   //! what the results show of a player
+   struct PlayerScore
+   {
+      std::string _nick;
+      Constants::Color _color = Constants::ColorWhite;
+      int _score = 0;
+   };
+
+   std::vector<Weighted<PlayerScore, int>> _player_scores;
    float _player_scores_animated[10];
 
-   PlayerItem* _player_item = nullptr;
-   Mesh* _player_mesh = nullptr;
-   PlayerMaterial* _player_material = nullptr;
+   //! owns the winner's mesh and material, the player item animates the mesh
+   std::unique_ptr<PlayerItem> _player_item;
+   std::optional<std::reference_wrapper<PlayerMaterial>> _player_material;
    Texture _player_textures[10];
 
    std::string _filename;
    PSD _psd;
    std::vector<std::unique_ptr<PSDLayer>> _psd_layers;
 
-   PSDLayer* _ranks[10];
-   PSDLayer* _icons[10];
-   PSDLayer* _names[10];
-   PSDLayer* _points[10];
-   PSDLayer* _bars[10];
+   // indices into _psd_layers
+   std::array<size_t, 10> _ranks{};
+   std::array<size_t, 10> _icons{};
+   std::array<size_t, 10> _names{};
+   std::array<size_t, 10> _points{};
+   std::array<size_t, 10> _bars{};
 };

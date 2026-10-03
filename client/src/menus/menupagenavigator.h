@@ -75,7 +75,7 @@ private:
 
    //! mirrors GameMenuInterfaceLounge::playerInfoMapUpdated() - repopulates the lounge's player
    //! rows (nick/wins/rank/owner-icon) whenever the player set changes (join/leave/bot added).
-   void onPlayerInfoMapUpdated(const std::map<int, PlayerInfo*>& player_info);
+   void onPlayerInfoMapUpdated(const std::map<int, PlayerInfo>& player_info);
 
    //! mirrors GameMenuInterfaceOptions::applyVolumeMusic()/applyVolumeSfx() - forwards a dragged
    //! slider's value straight to SoundManager (live volume change, not yet persisted).
@@ -160,7 +160,7 @@ private:
 
    //! mirrors GameMenuInterfaceLounge::playerInfoMapUpdated() - the actual row-population logic,
    //! called both on the live signal and once on first reaching LOUNGE.
-   void updateLoungePlayerList(const std::map<int, PlayerInfo*>& player_info);
+   void updateLoungePlayerList(const std::map<int, PlayerInfo>& player_info);
 
    //! mirrors GameMenuInterfaceLounge::addLoungeMessage() - word-wraps and appends one chat line
    //! (already formatted as "nick: text" by the server) to the lounge's message table.

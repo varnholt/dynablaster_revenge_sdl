@@ -18,6 +18,7 @@
 #include "tools/datapaths.h"
 
 #include <cmath>
+#include <string_view>
 
 namespace
 {
@@ -26,10 +27,10 @@ constexpr float FADE_IN_TIME = 2000.0f;
 constexpr float FADE_IDLE_TIME = 5000.0f;
 constexpr float FADE_OUT_TIME = 2000.0f;
 
-constexpr const char* LAYER_TRACK_LINE_1 = "track_name_line_1";
-constexpr const char* LAYER_TRACK_LINE_2 = "track_name_line_2";
-constexpr const char* LAYER_ARTIST = "artist_name";
-constexpr const char* LAYER_ALBUM = "album_name";
+constexpr std::string_view LAYER_TRACK_LINE_1 = "track_name_line_1";
+constexpr std::string_view LAYER_TRACK_LINE_2 = "track_name_line_2";
+constexpr std::string_view LAYER_ARTIST = "artist_name";
+constexpr std::string_view LAYER_ALBUM = "album_name";
 
 constexpr float MENU_Y_FACTOR_INGAME = 0.865f;
 constexpr float MENU_Y_FACTOR_MENUS = 0.865f;
@@ -44,7 +45,7 @@ constexpr int TRACK_LINE_2_CORRECTION_OFFSET_X = 0;
 constexpr int TRACK_LINE_2_CORRECTION_OFFSET_Y = 2;
 }  // namespace
 
-MusicPlayerDrawable::MusicPlayerDrawable(RenderDevice* dev) : Drawable(*dev)
+MusicPlayerDrawable::MusicPlayerDrawable(RenderDevice& device) : Drawable(device)
 {
    _filename = "data/musicplayer/player.psd";
 }
@@ -57,7 +58,7 @@ void MusicPlayerDrawable::initializeGL()
 
    initializeLayers();
 
-   _font = &FontPool::Instance().get("default")->get();
+   _font = FontPool::Instance().get("default").value();
 
    DataPaths::remove("data/musicplayer");
 }
@@ -146,34 +147,34 @@ void MusicPlayerDrawable::paintGL()
       }
    }
 
-   _font->setColor(1.0f, 1.0f, 1.0f, 0.75f);
-   _font->buildVertices(
+   _font->get().setColor(1.0f, 1.0f, 1.0f, 0.75f);
+   _font->get().buildVertices(
       0.12f, _artist.c_str(), (float)_font_offset_artist_x - x_offset, (float)_font_offset_artist_y * y_factor + _font_offset_artist_height
    );
-   _font->draw();
+   _font->get().draw();
 
-   _font->setColor(1.0f, 1.0f, 1.0f, 0.5f);
-   _font->buildVertices(
+   _font->get().setColor(1.0f, 1.0f, 1.0f, 0.5f);
+   _font->get().buildVertices(
       0.1f, _album.c_str(), (float)_font_offset_album_x - x_offset, (float)_font_offset_album_y * y_factor + _font_offset_album_height
    );
-   _font->draw();
+   _font->get().draw();
 
-   _font->setColor(1.0f, 1.0f, 1.0f, 1.0f);
-   _font->buildVertices(
+   _font->get().setColor(1.0f, 1.0f, 1.0f, 1.0f);
+   _font->get().buildVertices(
       0.1f,
       _track_line1.c_str(),
       (float)_font_offset_track_line1_x - x_offset,
       (float)_font_offset_track_line1_y * y_factor + _font_offset_track_line1_height
    );
-   _font->draw();
+   _font->get().draw();
 
-   _font->buildVertices(
+   _font->get().buildVertices(
       0.1f,
       _track_line2.c_str(),
       (float)_font_offset_track_line2_x - x_offset,
       (float)_font_offset_track_line2_y * y_factor + _font_offset_track_line2_height
    );
-   _font->draw();
+   _font->get().draw();
 
    cleanupGlParameters();
 }

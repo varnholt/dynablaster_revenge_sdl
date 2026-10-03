@@ -15,7 +15,10 @@
 #include "framework/gldevice.h"
 #include "math/vector2.h"
 
+#include <algorithm>
+#include <array>
 #include <cmath>
+#include <span>
 
 // the number of particles actually used depends on the number of "empty" pixels which is typically 1/2.
 #define PARTICLE_COUNT 8000
@@ -30,32 +33,32 @@ namespace
 // deletion can force an implicit GPU sync point on some drivers).
 GLuint g_quad_vertex_buffer = 0;
 
-void drawQuad(const float* verts, int floats_per_vertex)
+void drawQuad(std::span<const float> verts, int floats_per_vertex)
 {
    const int order[6] = {0, 1, 2, 0, 2, 3};
-   float buffer[6 * 4];  // up to 4 floats/vertex (pos.xy + uv.xy), 6 verts
+   std::array<float, 6 * 4> buffer{};  // up to 4 floats/vertex (pos.xy + uv.xy), 6 verts
 
    for (int i = 0; i < 6; i++)
    {
-      const float* src = verts + order[i] * floats_per_vertex;
-      float* dst = buffer + i * floats_per_vertex;
-      for (int c = 0; c < floats_per_vertex; c++)
-         dst[c] = src[c];
+      const auto src = verts.subspan(static_cast<size_t>(order[i] * floats_per_vertex), static_cast<size_t>(floats_per_vertex));
+      std::ranges::copy(src, buffer.begin() + i * floats_per_vertex);
    }
 
    if (g_quad_vertex_buffer == 0)
       glGenBuffers(1, &g_quad_vertex_buffer);
 
    glBindBuffer(GL_ARRAY_BUFFER, g_quad_vertex_buffer);
-   glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * floats_per_vertex, buffer, GL_DYNAMIC_DRAW);
+   glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * floats_per_vertex, buffer.data(), GL_DYNAMIC_DRAW);
 
    glEnableVertexAttribArray(0);
-   glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * floats_per_vertex, (GLvoid*)0);
+   glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * floats_per_vertex, nullptr);
 
    if (floats_per_vertex > 2)
    {
       glEnableVertexAttribArray(1);
-      glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * floats_per_vertex, (GLvoid*)(sizeof(float) * 2));
+      glVertexAttribPointer(
+         1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * floats_per_vertex, reinterpret_cast<const GLvoid*>(sizeof(float) * 2)
+      );
    }
 
    glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -122,11 +125,11 @@ bool DeathFlowFieldAnimation::isElapsed() const
    return _elapsed > DISSOLVE_TIME;
 }
 
-void DeathFlowFieldAnimation::initialize(FrameBuffer* src, const Vector& min, const Vector& max)
+void DeathFlowFieldAnimation::initialize(FrameBuffer& src, const Vector& min, const Vector& max)
 {
    // get 2d bounding rect (in pixels)
-   int screen_width = src->width();
-   int screen_height = src->height();
+   int screen_width = src.width();
+   int screen_height = src.height();
 
    int x0 = (int)std::floor((min.x + 1.0f) * 0.5f * screen_width);
    int y0 = (int)std::floor((min.y + 1.0f) * 0.5f * screen_height);
@@ -196,7 +199,11 @@ void DeathFlowFieldAnimation::initialize(FrameBuffer* src, const Vector& min, co
    const GLsizeiptr uv_buffer_size = (GLsizeiptr)_width * _height * sizeof(Vector2);
    glBufferData(GL_ARRAY_BUFFER, uv_buffer_size, 0, GL_DYNAMIC_DRAW);
    // WebGL2 rejects GL_MAP_WRITE_BIT alone (needs an INVALIDATE flag), valid on native GLES3 too.
-   Vector2* dst2 = (Vector2*)glMapBufferRange(GL_ARRAY_BUFFER, 0, uv_buffer_size, GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
+   const std::span<Vector2> uvs(
+      static_cast<Vector2*>(glMapBufferRange(GL_ARRAY_BUFFER, 0, uv_buffer_size, GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT)),
+      static_cast<size_t>(_width) * _height
+   );
+   auto uv = uvs.begin();
    float dx = 1.0f / _width;
    for (int y = 0; y < _height; y++)
    {
@@ -204,9 +211,9 @@ void DeathFlowFieldAnimation::initialize(FrameBuffer* src, const Vector& min, co
       float fy = (float)y / _height;
       for (int x = 0; x < _width; x++)
       {
-         dst2->x = fx;
-         dst2->y = fy;
-         dst2++;
+         uv->x = fx;
+         uv->y = fy;
+         ++uv;
          fx += dx;
       }
    }
@@ -337,11 +344,11 @@ void DeathFlowFieldAnimation::draw()
 
    glBindBuffer(GL_ARRAY_BUFFER, _vertex_pos_buffer);
    glEnableVertexAttribArray(0);
-   glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, sizeof(Vector4), (GLvoid*)0);
+   glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, sizeof(Vector4), nullptr);
 
    glBindBuffer(GL_ARRAY_BUFFER, _vertex_uv_buffer);
    glEnableVertexAttribArray(1);
-   glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vector2), (GLvoid*)0);
+   glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vector2), nullptr);
 
    glDrawArrays(GL_POINTS, 0, _width * _height);
 

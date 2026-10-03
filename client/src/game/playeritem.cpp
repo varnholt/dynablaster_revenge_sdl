@@ -3,7 +3,8 @@
 #include "math/matrix.h"
 #include "nodes/mesh.h"
 
-PlayerItem::PlayerItem(int id, const std::string& nick, Constants::Color color) : _id(id), _color(color), _nick(nick), _pos(0, 0, 0)
+PlayerItem::PlayerItem(int id, const std::string& nick, Constants::Color color, Mesh& mesh)
+    : _id(id), _color(color), _nick(nick), _mesh(mesh), _pos(0, 0, 0)
 {
 }
 
@@ -14,13 +15,13 @@ PlayerItem::~PlayerItem()
 void PlayerItem::kill()
 {
    _killed = true;
-   _mesh->setFrame(0.0f);
+   _mesh.get().setFrame(0.0f);
 }
 
 void PlayerItem::win()
 {
    _win = true;
-   _mesh->setFrame(0.0f);
+   _mesh.get().setFrame(0.0f);
 }
 
 bool PlayerItem::isWinner() const
@@ -53,22 +54,17 @@ const std::string& PlayerItem::getNick() const
    return _nick;
 }
 
-void PlayerItem::setMaterial(Material* mat)
+void PlayerItem::setMaterial(Material& mat)
 {
    _material = mat;
 }
 
-Material* PlayerItem::getMaterial() const
+Material& PlayerItem::getMaterial() const
 {
-   return _material;
+   return _material.value();
 }
 
-void PlayerItem::setMesh(Mesh* mesh)
-{
-   _mesh = mesh;
-}
-
-Mesh* PlayerItem::getMesh() const
+Mesh& PlayerItem::getMesh() const
 {
    return _mesh;
 }
@@ -95,8 +91,8 @@ void PlayerItem::update()
    Matrix pos = Matrix::position(_pos.x, _pos.y, 0.0f);
    Matrix mat = Matrix::rotateZ(_rot);
    Matrix scale = Matrix::scale(3.0f, 3.0f, 3.0f);  //= Matrix::scale(0.03f, 0.03f, 0.03f);
-   _mesh->setUserTransformable(true);
-   _mesh->setTransform(mat * scale * pos);
+   _mesh.get().setUserTransformable(true);
+   _mesh.get().setTransform(mat * scale * pos);
 }
 
 void PlayerItem::setSpeed(float speed)
@@ -136,8 +132,7 @@ void PlayerItem::animate(float /*time*/, float delta)
    else
       _flash = 0.0f;
 
-   if (_mesh)
-      _mesh->setRenderParameter(0, _flash);
+   _mesh.get().setRenderParameter(0, _flash);
 
    if (_speed > 0.0f || _killed || _win)
    {
@@ -150,11 +145,11 @@ void PlayerItem::animate(float /*time*/, float delta)
             _stand_blend = 0.0f;
       }
 
-      float frame = _mesh->getFrame() + (_speed + 1.0f) * 100.0 * delta;
+      float frame = _mesh.get().getFrame() + (_speed + 1.0f) * 100.0 * delta;
       if (!_killed && !_win)
          while (frame > 4000.0)
             frame -= 4000.0;
-      _mesh->setFrame(frame);
+      _mesh.get().setFrame(frame);
    }
    else
    {
@@ -166,16 +161,16 @@ void PlayerItem::animate(float /*time*/, float delta)
          {
             // nearest pose to "stand", start with left or right foot
             if (_left_foot)
-               _mesh->setFrame(833.0);
+               _mesh.get().setFrame(833.0);
             else
-               _mesh->setFrame(4000 - 833.0);
+               _mesh.get().setFrame(4000 - 833.0);
             _left_foot = !_left_foot;
             _stand_blend = 1.0f;
          }
       }
    }
 
-   const auto mixer = _mesh->getMotionMixer();
+   const auto mixer = _mesh.get().getMotionMixer();
    if (mixer)
    {
       if (_killed)

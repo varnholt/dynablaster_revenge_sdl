@@ -10,7 +10,9 @@
 #include "image/psd.h"
 #include "math/vector.h"
 
+#include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -38,7 +40,7 @@ public:
    };
 
    //! constructor
-   GameLogoDrawable(RenderDevice* dev, bool visible = false);
+   explicit GameLogoDrawable(RenderDevice& dev, bool visible = false);
 
    //! destructor
    ~GameLogoDrawable() override;
@@ -103,10 +105,10 @@ protected:
    std::string _filename;
 
    //! font texture
-   PSDLayer* _layer_dynablaster = nullptr;
+   std::optional<std::reference_wrapper<PSDLayer>> _layer_dynablaster;
 
    //! font texture
-   PSDLayer* _layer_revenge = nullptr;
+   std::optional<std::reference_wrapper<PSDLayer>> _layer_revenge;
 
    //! all layers
    std::vector<std::unique_ptr<PSDLayer>> _layers;

@@ -13,6 +13,7 @@
 #include <cmath>
 #include <cstdint>
 #include <numbers>
+#include <string>
 
 namespace
 {
@@ -41,7 +42,7 @@ float nowMs()
    return GlobalTime::Instance().getTime() * 1000.0f;
 }
 
-uint32_t loadTexture(const char* name, int32_t flags)
+uint32_t loadTexture(const std::string& name, int32_t flags)
 {
    Image image;
    image.load(name);
@@ -156,7 +157,7 @@ void ExtraAnimations::renderDestroyed()
             {ring.x - scale, ring.y + scale, z, 0.0f, 1.0f},
          }}
       );
-      drawTriangles(vertices.data(), static_cast<int32_t>(vertices.size() / FLOATS_PER_VERTEX));
+      drawTriangles(vertices);
    }
 
    activeDevice().pop();
@@ -230,22 +231,24 @@ void ExtraAnimations::renderReveals(float dt)
       side(0.75f, 1.0f, b0, b0, b0, b1, t0, t1, t0, t0);  // left
       side(0.25f, 0.5f, b1, b0, b1, b1, t1, t1, t1, t0);  // right
 
-      drawTriangles(vertices.data(), static_cast<int32_t>(vertices.size() / FLOATS_PER_VERTEX));
+      drawTriangles(vertices);
    }
 
    activeDevice().pop();
    activeDevice().setCulling(true);
 }
 
-void ExtraAnimations::drawTriangles(const float* vertices, int32_t vertex_count)
+void ExtraAnimations::drawTriangles(std::span<const float> vertices)
 {
+   const auto vertex_count = static_cast<int32_t>(vertices.size() / FLOATS_PER_VERTEX);
+
    glBindBuffer(GL_ARRAY_BUFFER, _vertex_buffer);
-   glBufferData(GL_ARRAY_BUFFER, sizeof(float) * FLOATS_PER_VERTEX * vertex_count, vertices, GL_DYNAMIC_DRAW);
+   glBufferData(GL_ARRAY_BUFFER, sizeof(float) * FLOATS_PER_VERTEX * vertex_count, vertices.data(), GL_DYNAMIC_DRAW);
 
    glEnableVertexAttribArray(0);
    glEnableVertexAttribArray(1);
-   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * FLOATS_PER_VERTEX, (GLvoid*)0);
-   glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * FLOATS_PER_VERTEX, (GLvoid*)(sizeof(float) * 3));
+   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * FLOATS_PER_VERTEX, nullptr);
+   glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * FLOATS_PER_VERTEX, reinterpret_cast<const GLvoid*>(sizeof(float) * 3));
 
    glDrawArrays(GL_TRIANGLES, 0, vertex_count);
 
