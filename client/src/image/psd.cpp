@@ -1,13 +1,13 @@
 #include "psd.h"
 
-#include "tools/filestream.h"
+#include "tools/datapaths.h"
 
 #include <algorithm>
 #include <array>
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
 #include <ranges>
-#include <sstream>
 
 // https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/
 
@@ -577,16 +577,12 @@ void PSD::load(std::istream& stream)
 
 bool PSD::load(const std::string& filename)
 {
-   FileStream file;
-   if (!file.open(filename.c_str()))
+   std::ifstream file = DataPaths::open(filename);
+   if (!file.is_open())
    {
       return false;
    }
 
-   std::string data(static_cast<size_t>(file.size()), '\0');
-   file.getData(data.data(), static_cast<int32_t>(data.size()));
-
-   std::istringstream stream(std::move(data));
-   load(stream);
-   return !stream.fail();
+   load(file);
+   return !file.fail();
 }

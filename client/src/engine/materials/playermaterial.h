@@ -17,9 +17,9 @@ public:
       const char* ambient_occlusion_map = nullptr
    );
 
-   void exportOBJ(Stream* stream, int32_t& index_offset) override;
+   void exportOBJ(Stream& stream, int32_t& index_offset) override;
 
-   void load(Stream* stream) override;
+   void load(Stream& stream) override;
    void renderDiffuse() override;
 
    void setColorMap(const Texture& color_map);

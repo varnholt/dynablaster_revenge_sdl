@@ -15,8 +15,8 @@ public:
    const Item& value() const;
    void setValue(const Item& value);
 
-   void load(Stream* stream) override;
-   void write(Stream* stream) override;
+   void load(Stream& stream) override;
+   void write(Stream& stream) override;
 
 protected:
    Item _value{};
@@ -40,15 +40,15 @@ void Key<Item>::setValue(const Item& value)
 }
 
 template <class Item>
-void Key<Item>::load(Stream* stream)
+void Key<Item>::load(Stream& stream)
 {
    KeyBase::load(stream);
-   _value << *stream;
+   _value << stream;
 }
 
 template <class Item>
-void Key<Item>::write(Stream* stream)
+void Key<Item>::write(Stream& stream)
 {
    KeyBase::write(stream);
-   _value >> *stream;
+   _value >> stream;
 }

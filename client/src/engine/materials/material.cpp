@@ -4,6 +4,7 @@
 #include <array>
 #include <cstdio>
 #include <format>
+#include <span>
 #include <string>
 #include "gldevice.h"
 #include "image/image.h"
@@ -23,14 +24,9 @@ namespace
 {
 int32_t dummy_counter = 1;
 
-std::string toStdString(const String& text)
+void writeText(Stream& stream, const std::string& text)
 {
-   return text.isEmpty() ? std::string() : std::string(text.data());
-}
-
-void writeText(Stream* stream, std::string text)
-{
-   stream->writeData(text.data(), static_cast<int32_t>(text.size()));
+   stream.writeData(std::as_bytes(std::span(text)));
 }
 }  // namespace
 
@@ -94,9 +90,9 @@ int32_t Material::size() const
    return static_cast<int32_t>(_buffers.size());
 }
 
-void Material::addTexture(Texture& texture, const char* filename, int32_t flags)
+void Material::addTexture(Texture& texture, const std::string& filename, int32_t flags)
 {
-   addTexture(texture, std::make_unique<Image>(filename), flags);
+   addTexture(texture, std::make_unique<Image>(filename.c_str()), flags);
 }
 
 void Material::addTexture(Texture& texture, std::unique_ptr<Image> image, int32_t flags)
@@ -118,7 +114,7 @@ void Material::prepare()
    {
       PendingTexture pending = std::move(_texture_queue.back());
       _texture_queue.pop_back();
-      *pending.texture = TexturePool::Instance()->getTexture(pending.image.get(), pending.flags);
+      *pending.texture = TexturePool::Instance().getTexture(*pending.image, pending.flags);
    }
 }
 
@@ -232,39 +228,39 @@ bool Material::getCulling()
    return (_flags & 1) == 0;
 }
 
-void Material::load(Stream* stream)
+void Material::load(Stream& stream)
 {
-   const int32_t buffers = stream->getInt();
+   const int32_t buffers = stream.getInt();
    _buffers.clear();
    _buffers.reserve(buffers);
    _ambient.load(stream);
    _diffuse.load(stream);
    _specular.load(stream);
-   _shininess = stream->getFloat();
-   _strength = stream->getFloat();
-   _self_illumination = stream->getFloat();
-   _ior = stream->getFloat();
-   _opacity = stream->getFloat();
-   _flags = stream->getInt();
+   _shininess = stream.getFloat();
+   _strength = stream.getFloat();
+   _self_illumination = stream.getFloat();
+   _ior = stream.getFloat();
+   _opacity = stream.getFloat();
+   _flags = stream.getInt();
 
-   const int32_t map_count = stream->getInt();
+   const int32_t map_count = stream.getInt();
    _slots.clear();
    _slots.reserve(map_count);
    for (int32_t i = 0; i < map_count; i++)
    {
       _slots.push_back(std::make_unique<TextureSlot>(stream));
-      stream->skip(72);
+      stream.skip(72);
    }
 }
 
-void Material::write(Stream* stream)
+void Material::write(Stream& stream)
 {
    Chunk chunk(stream, _id, name());
 
    chunk.writeInt(size());
-   _ambient.write(&chunk);
-   _diffuse.write(&chunk);
-   _specular.write(&chunk);
+   _ambient.write(chunk);
+   _diffuse.write(chunk);
+   _specular.write(chunk);
    chunk.writeFloat(_shininess);
    chunk.writeFloat(_strength);
    chunk.writeFloat(_self_illumination);
@@ -275,7 +271,7 @@ void Material::write(Stream* stream)
    chunk.writeInt(static_cast<int32_t>(_slots.size()));
    for (const auto& slot : _slots)
    {
-      slot->write(&chunk);
+      slot->write(chunk);
    }
 }
 
@@ -328,8 +324,8 @@ void Material::renderDiffuse()
 }
 
 void Material::exportGeo(
-   Stream* stream,
-   const String& name,
+   Stream& stream,
+   const std::string& name,
    const Matrix& transform,
    Vector* vertices,
    Vector* normals,
@@ -341,9 +337,9 @@ void Material::exportGeo(
 )
 {
    // write object info comment
-   if (!name.isEmpty())
+   if (!name.empty())
    {
-      writeText(stream, std::format("# object: {}\n", toStdString(name)));
+      writeText(stream, std::format("# object: {}\n", name));
    }
    else
    {
@@ -354,7 +350,7 @@ void Material::exportGeo(
    writeText(stream, std::format("# triangles: {}\n", index_count / 3));
 
    // write vertices
-   stream->writeChar('\n');
+   stream.writeChar('\n');
    for (int32_t i = 0; i < vertex_count; i++)
    {
       const Vector v = transform * vertices[i];
@@ -362,7 +358,7 @@ void Material::exportGeo(
    }
 
    // write normals
-   stream->writeChar('\n');
+   stream.writeChar('\n');
    for (int32_t i = 0; i < vertex_count; i++)
    {
       const Vector& n = normals[i];
@@ -370,7 +366,7 @@ void Material::exportGeo(
    }
 
    // write uv channel
-   stream->writeChar('\n');
+   stream.writeChar('\n');
    for (int32_t i = 0; i < vertex_count; i++)
    {
       if (texcoords)
@@ -384,8 +380,8 @@ void Material::exportGeo(
    }
 
    // write triangles - indices start with 1 (not 0)
-   stream->writeChar('\n');
-   writeText(stream, std::format("g {} \n", toStdString(name)));
+   stream.writeChar('\n');
+   writeText(stream, std::format("g {} \n", name));
    writeText(stream, "s off \n");
    for (int32_t i = 0; i < index_count; i += 3)
    {
@@ -402,11 +398,11 @@ void Material::exportGeo(
          writeText(stream, std::format("f {0}/{0}/{0} {1}/{1}/{1} {2}/{2}/{2}\n", f1, f2, f3));
       }
    }
-   stream->writeChar('\n');
-   stream->writeChar('\n');
+   stream.writeChar('\n');
+   stream.writeChar('\n');
 }
 
-void Material::exportOBJ(Stream* stream, int32_t& index_offset)
+void Material::exportOBJ(Stream& stream, int32_t& index_offset)
 {
    for (const Buffer& buffer : _buffers)
    {

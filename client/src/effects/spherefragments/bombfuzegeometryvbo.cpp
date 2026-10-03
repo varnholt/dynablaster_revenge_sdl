@@ -16,7 +16,7 @@ void BombFuzeGeometryVbo::initialize()
 {
    GeometryVbo::initialize();
 
-   _texture = TexturePool::Instance()->getTexture("fuze");
+   _texture = TexturePool::Instance().getTexture("fuze");
 
    _shader = activeDevice->loadShader("socketlight-vert.glsl", "socketlight-frag.glsl");
    _fresnel = activeDevice->getParameterIndex("fresnelFactor");

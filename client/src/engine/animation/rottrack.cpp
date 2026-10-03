@@ -9,7 +9,7 @@ void RotTrack::add(int32_t time, const Quat& rotation)
    addKey(RotKey(time, rotation));
 }
 
-void RotTrack::load(Stream* stream)
+void RotTrack::load(Stream& stream)
 {
    Track<RotKey>::load(stream);
 
@@ -27,7 +27,7 @@ void RotTrack::load(Stream* stream)
    }
 }
 
-void RotTrack::write(Stream* stream)
+void RotTrack::write(Stream& stream)
 {
    // TODO: write keys as deltas again
    Track<RotKey>::write(stream);

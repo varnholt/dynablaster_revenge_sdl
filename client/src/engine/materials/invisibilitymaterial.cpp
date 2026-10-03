@@ -29,7 +29,7 @@ void InvisibilityMaterial::init()
    _param_bones = activeDevice->getParameterIndex("bones");
 }
 
-void InvisibilityMaterial::load(Stream* stream)
+void InvisibilityMaterial::load(Stream& stream)
 {
    Material::load(stream);
 }

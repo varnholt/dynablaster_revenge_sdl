@@ -3,12 +3,12 @@
 #include "framework/renderdevice.h"
 #include "image/image.h"
 
-Texture TexturePool::getTexture(Image* image, int32_t flags)
+Texture TexturePool::getTexture(const Image& image, int32_t flags)
 {
-   const uint32_t texture_id = Material::uploadMap(*image, flags);
+   const uint32_t texture_id = Material::uploadMap(image, flags);
 
    // keep track of consumed memory
-   const int32_t size = image->getWidth() * image->getHeight();
+   const int32_t size = image.getWidth() * image.getHeight();
    _memory += size * 4;
    if (flags & MipMap)  // approx. mipmaps
    {
@@ -18,30 +18,26 @@ Texture TexturePool::getTexture(Image* image, int32_t flags)
    return Texture(texture_id);
 }
 
-Texture TexturePool::getTexture(const char* filename, int32_t flags)
+Texture TexturePool::getTexture(const std::string& filename, int32_t flags)
 {
-   if (!filename)
-   {
-      return Texture();
-   }
-
    const auto iterator = _pool.find(filename);
    if (iterator != _pool.end())
    {
       return iterator->second;
    }
 
-   Image image(filename);
-   Texture texture = getTexture(&image, flags);
-   _pool[std::string(filename)] = texture;
+   const Image image(filename.c_str());
+   Texture texture = getTexture(image, flags);
+   _pool[filename] = texture;
    return texture;
 }
 
 void TexturePool::update()
 {
-   while (_removal.size() > 0)
+   while (!_removal.empty())
    {
-      const uint32_t texture_id = _removal.takeLast();
+      const uint32_t texture_id = _removal.back();
+      _removal.pop_back();
       activeDevice->deleteTexture(texture_id);
    }
 }
@@ -73,7 +69,7 @@ void TexturePool::remove(const Texture& texture)
 
    if (found || texture.getRefCount() == 1)
    {
-      _removal.add(texture.getTexture());
+      _removal.push_back(texture.getTexture());
    }
 
    _block = false;

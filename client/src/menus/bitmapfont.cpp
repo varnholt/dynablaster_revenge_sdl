@@ -47,10 +47,10 @@ BitmapFont::BitmapFont(
    _param_thickness = activeDevice->getParameterIndex("threshold");
    _param_sample_offset = activeDevice->getParameterIndex("sampleOffset");
 
-   Image* image = ImagePool::Instance()->getImage(filename);
-   _texture = TexturePool::Instance()->getTexture(image, TexturePool::Linear | TexturePool::Clamp);
-   _scale_u = 1.0f / image->getWidth();
-   _scale_v = 1.0f / image->getHeight();
+   const Image& image = ImagePool::Instance().getImage(filename);
+   _texture = TexturePool::Instance().getTexture(image, TexturePool::Linear | TexturePool::Clamp);
+   _scale_u = 1.0f / image.getWidth();
+   _scale_v = 1.0f / image.getHeight();
 }
 
 bool BitmapFont::isCharAvailable(char c) const
@@ -141,10 +141,10 @@ float BitmapFont::buildVertices(float size, const char* text, float x, float y, 
       const float y_top = y - (param->baseline) * size;
       const float y_bottom = y - (param->baseline + param->height) * size;
 
-      _vertices.add(Vertex(x_left, y_top, param->x * _scale_u, (param->y + param->height) * _scale_v));
-      _vertices.add(Vertex(x_right, y_top, (param->x + param->width) * _scale_u, (param->y + param->height) * _scale_v));
-      _vertices.add(Vertex(x_right, y_bottom, (param->x + param->width) * _scale_u, param->y * _scale_v));
-      _vertices.add(Vertex(x_left, y_bottom, param->x * _scale_u, param->y * _scale_v));
+      _vertices.push_back(Vertex(x_left, y_top, param->x * _scale_u, (param->y + param->height) * _scale_v));
+      _vertices.push_back(Vertex(x_right, y_top, (param->x + param->width) * _scale_u, (param->y + param->height) * _scale_v));
+      _vertices.push_back(Vertex(x_right, y_bottom, (param->x + param->width) * _scale_u, param->y * _scale_v));
+      _vertices.push_back(Vertex(x_left, y_bottom, param->x * _scale_u, param->y * _scale_v));
 
       x += (param->space + _spacing) * size;
    }
@@ -152,7 +152,7 @@ float BitmapFont::buildVertices(float size, const char* text, float x, float y, 
    return x;
 }
 
-const Array<Vertex>& BitmapFont::getVertices() const
+const std::vector<Vertex>& BitmapFont::getVertices() const
 {
    return _vertices;
 }
@@ -162,9 +162,9 @@ void BitmapFont::draw()
    draw(_vertices);
 }
 
-void BitmapFont::draw(const Array<Vertex>& vertices, const Matrix& transform)
+void BitmapFont::draw(const std::vector<Vertex>& vertices, const Matrix& transform)
 {
-   const int quad_count = vertices.size() / 4;
+   const int quad_count = static_cast<int>(vertices.size()) / 4;
    if (quad_count <= 0)
    {
       return;
@@ -244,7 +244,8 @@ void BitmapFont::getCursor(float size, int cursor_position, float& left, float& 
    size *= _size;
    cursor_position *= 4;
 
-   if (_vertices.size() < 4)
+   const int vertex_count = static_cast<int>(_vertices.size());
+   if (vertex_count < 4)
    {
       // empty string
       const Parameter* param = getCharParameter('M');
@@ -254,11 +255,11 @@ void BitmapFont::getCursor(float size, int cursor_position, float& left, float& 
       top = _base_column - (param->baseline) * size;
       bottom = _baseline - (param->baseline + param->height) * size;
    }
-   else if (cursor_position >= _vertices.size())
+   else if (cursor_position >= vertex_count)
    {
       // cursor at end of text
       const Parameter* param = getCharParameter('M');
-      cursor_position = _vertices.size() - 4;
+      cursor_position = vertex_count - 4;
 
       left = _vertices[cursor_position + 1].x - (_radius * size * 2) + _spacing * size;
       right = left + param->space * size + _radius * size * 2;

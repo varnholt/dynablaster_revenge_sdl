@@ -80,8 +80,8 @@ protected:
    BitmapFont* _font = nullptr;
 
    std::string _message;
-   Array<Vertex> _message_vertices;
-   Array<Vertex> _nick_vertices;
+   std::vector<Vertex> _message_vertices;
+   std::vector<Vertex> _nick_vertices;
 
    bool _active = false;
    FrameTimer _activation_time;

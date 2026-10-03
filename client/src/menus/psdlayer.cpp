@@ -26,7 +26,7 @@ PSDLayer::PSDLayer(PSD::Layer& layer, float z, bool unwrap) : _layer(&layer), _o
       image->copy(0, 0, source, true);
    }
 
-   _texture = TexturePool::Instance()->getTexture(image.get(), TexturePool::Trilinear | TexturePool::Clamp);
+   _texture = TexturePool::Instance().getTexture(*image, TexturePool::Trilinear | TexturePool::Clamp);
 
    image.reset();
 

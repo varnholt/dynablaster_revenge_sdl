@@ -130,7 +130,7 @@ void LevelSpace::loadData()
       _extra_skull = new ExtraMapping(_scene.get(), "extra_skull");
    }
 
-   TexturePool::Instance()->update();
+   TexturePool::Instance().update();
 
    if (!isAborted())
    {

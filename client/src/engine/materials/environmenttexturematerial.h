@@ -20,7 +20,7 @@ public:
 
    void updateGeometry(VertexBuffer* vertex_buffer);
    void update(float frame, Node** node_list, const Matrix& camera) override;
-   void load(Stream* stream) override;
+   void load(Stream& stream) override;
    void addGeometry(Geometry* geometry) override;
    void renderDiffuse() override;
 

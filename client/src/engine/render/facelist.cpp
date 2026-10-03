@@ -1,23 +1,23 @@
 #include "facelist.h"
 #include "tools/stream.h"
 
-void FaceList::load(Stream* stream)
+void loadFaceList(Stream& stream, std::vector<uint16_t>& indices)
 {
-   _count = _size = stream->getInt();
-   _data = new uint16_t[_size];
+   const int32_t size = stream.getInt();
+   indices.resize(static_cast<size_t>(size));
 
-   for (int32_t i = 0; i < _size; i++)
+   for (auto& index : indices)
    {
-      _data[i] = static_cast<uint16_t>(stream->getWord());
+      index = static_cast<uint16_t>(stream.getWord());
    }
 }
 
-void FaceList::write(Stream* stream)
+void writeFaceList(Stream& stream, const std::vector<uint16_t>& indices)
 {
-   stream->writeInt(_count);
+   stream.writeInt(static_cast<int32_t>(indices.size()));
 
-   for (int32_t i = 0; i < _size; i++)
+   for (const auto index : indices)
    {
-      stream->writeWord(_data[i]);
+      stream.writeWord(index);
    }
 }

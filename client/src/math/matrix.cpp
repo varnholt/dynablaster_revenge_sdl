@@ -119,44 +119,44 @@ Matrix::Matrix(const Quat& rotation)
    ww = 1.0f;
 }
 
-void Matrix::load(Stream* stream)
+void Matrix::load(Stream& stream)
 {
-   xx = stream->getFloat();
-   yx = stream->getFloat();
-   zx = stream->getFloat();
-   wx = stream->getFloat();
-   xy = stream->getFloat();
-   yy = stream->getFloat();
-   zy = stream->getFloat();
-   wy = stream->getFloat();
-   xz = stream->getFloat();
-   yz = stream->getFloat();
-   zz = stream->getFloat();
-   wz = stream->getFloat();
-   xw = stream->getFloat();
-   yw = stream->getFloat();
-   zw = stream->getFloat();
-   ww = stream->getFloat();
+   xx = stream.getFloat();
+   yx = stream.getFloat();
+   zx = stream.getFloat();
+   wx = stream.getFloat();
+   xy = stream.getFloat();
+   yy = stream.getFloat();
+   zy = stream.getFloat();
+   wy = stream.getFloat();
+   xz = stream.getFloat();
+   yz = stream.getFloat();
+   zz = stream.getFloat();
+   wz = stream.getFloat();
+   xw = stream.getFloat();
+   yw = stream.getFloat();
+   zw = stream.getFloat();
+   ww = stream.getFloat();
 }
 
-void Matrix::write(Stream* stream)
+void Matrix::write(Stream& stream)
 {
-   stream->writeFloat(xx);
-   stream->writeFloat(yx);
-   stream->writeFloat(zx);
-   stream->writeFloat(wx);
-   stream->writeFloat(xy);
-   stream->writeFloat(yy);
-   stream->writeFloat(zy);
-   stream->writeFloat(wy);
-   stream->writeFloat(xz);
-   stream->writeFloat(yz);
-   stream->writeFloat(zz);
-   stream->writeFloat(wz);
-   stream->writeFloat(xw);
-   stream->writeFloat(yw);
-   stream->writeFloat(zw);
-   stream->writeFloat(ww);
+   stream.writeFloat(xx);
+   stream.writeFloat(yx);
+   stream.writeFloat(zx);
+   stream.writeFloat(wx);
+   stream.writeFloat(xy);
+   stream.writeFloat(yy);
+   stream.writeFloat(zy);
+   stream.writeFloat(wy);
+   stream.writeFloat(xz);
+   stream.writeFloat(yz);
+   stream.writeFloat(zz);
+   stream.writeFloat(wz);
+   stream.writeFloat(xw);
+   stream.writeFloat(yw);
+   stream.writeFloat(zw);
+   stream.writeFloat(ww);
 }
 
 Matrix Matrix::frustum(float left, float right, float bottom, float top, float near_z, float far_z)

@@ -1,11 +1,11 @@
 #pragma once
 
-#include "render/texture.h"
 #include "math/matrix.h"
-#include "tools/array.h"
+#include "render/texture.h"
 #include "vertex.h"
 
 #include <cstdint>
+#include <vector>
 
 /// \brief signed-distance-field bitmap font; tinted via setColor() and a uniform on the shared
 /// fontoutlines shader.
@@ -44,8 +44,8 @@ public:
    void getOutlineColor(float& r, float& g, float& b, float& a);
    void setColor(float r, float g, float b, float a);
    float buildVertices(float size, const char* text, float x, float y, float center_width = -1.0f, float center_height = -1.0f);
-   const Array<Vertex>& getVertices() const;
-   void draw(const Array<Vertex>& vertices, const Matrix& transform = Matrix());
+   const std::vector<Vertex>& getVertices() const;
+   void draw(const std::vector<Vertex>& vertices, const Matrix& transform = Matrix());
    void draw();
    uint32_t getTexture();
 
@@ -87,7 +87,7 @@ private:
 
    float _baseline = 0.0f;
    float _base_column = 0.0f;
-   mutable Array<Vertex> _vertices;
+   mutable std::vector<Vertex> _vertices;
 
    // dynamically re-uploaded each draw() call (text changes every frame) - lazily created
    uint32_t _vertex_buffer = 0;

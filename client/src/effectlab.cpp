@@ -8,7 +8,7 @@
 #include "framework/timerhandler.h"
 #include "gldevice.h"
 #include "menus/gamefonts.h"
-#include "tools/filestream.h"
+#include "tools/datapaths.h"
 
 #include "constants.h"
 #include "game/bombermanclient.h"
@@ -123,10 +123,10 @@ int runEffectLab(const std::string& effect, const std::string& out_dir, const st
       return 1;
    }
 
-   FileStream::addPath("data/shaders");
-   FileStream::addPath("data/textures");
-   FileStream::addPath("data/game");
-   FileStream::addPath("data/logo");
+   DataPaths::add("data/shaders");
+   DataPaths::add("data/textures");
+   DataPaths::add("data/game");
+   DataPaths::add("data/logo");
 
    GLDevice device;
    device.init();
@@ -182,7 +182,7 @@ int runEffectLab(const std::string& effect, const std::string& out_dir, const st
       }
 
       global_time.setFrame(frame);
-      TimerHandler::Instance()->update();
+      TimerHandler::Instance().update();
 
       if (frame == TRIGGER_FRAME)
       {

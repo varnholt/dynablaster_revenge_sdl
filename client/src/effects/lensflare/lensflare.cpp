@@ -83,7 +83,7 @@ Vector2 rotate(const Vector2& p, float angle)
 
 LensFlare::LensFlare(const Config& config) : _config(config)
 {
-   _texture = TexturePool::Instance()->getTexture((FLARE_DIRECTORY + config.texture).c_str());
+   _texture = TexturePool::Instance().getTexture(FLARE_DIRECTORY + config.texture);
    createBuffers(readGhostStrip(FLARE_DIRECTORY + config.ghosts));
 }
 

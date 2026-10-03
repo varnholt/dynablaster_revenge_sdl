@@ -19,7 +19,7 @@ void Outlining::init()
    _param_color = activeDevice->getParameterIndex("u_color");
 }
 
-void Outlining::load(Stream*)
+void Outlining::load(Stream&)
 {
 }
 

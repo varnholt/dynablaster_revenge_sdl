@@ -19,7 +19,7 @@ TextureMaterial::TextureMaterial(SceneGraph* scene, const char* texture_map) : M
    addTexture(_color_map, texture_map);
 }
 
-void TextureMaterial::load(Stream* stream)
+void TextureMaterial::load(Stream& stream)
 {
    Material::load(stream);
 

@@ -89,7 +89,7 @@ Node* Node::getChild(int32_t index) const
    return nullptr;
 }
 
-Node* Node::getChild(const String& name) const
+Node* Node::getChild(const std::string& name) const
 {
    const auto child = std::ranges::find_if(_children, [&name](const Node* node) { return node->name() == name; });
    return (child != _children.end()) ? *child : nullptr;
@@ -151,7 +151,7 @@ int32_t Node::getDepth() const
    return depth;
 }
 
-void Node::load(Stream*)
+void Node::load(Stream&)
 {
 }
 
@@ -165,7 +165,7 @@ const Matrix& Node::getTransform() const
    return _transform;
 }
 
-void Node::write(Stream*)
+void Node::write(Stream&)
 {
 }
 

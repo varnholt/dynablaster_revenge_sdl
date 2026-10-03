@@ -44,7 +44,7 @@ void PlayerMaterialBase::getBoundingRect(Vector& min, Vector& max, const Matrix&
       const Matrix matrix = mesh->getTransform() * projection;
 
       // get bounding box
-      const Array<Vector> vertices = geometry->getSkinVertices();
+      const std::vector<Vector> vertices = geometry->getSkinVertices();
       const int32_t vertex_count = geometry->getVertexCount();
       for (int32_t i = 0; i < vertex_count; i++)
       {
@@ -104,8 +104,7 @@ std::vector<std::unique_ptr<PlayerMaterialBase::Cluster>> PlayerMaterialBase::cr
 {
    std::vector<std::unique_ptr<Cluster>> clusters;
 
-   FaceList faces;
-   faces.copy(geometry->getIndicesList());
+   std::vector<uint16_t> faces = geometry->getIndicesList();
 
    // original data set is
    // bone 1: [vertex1, w1], [vertex2, w2], ...
@@ -121,18 +120,17 @@ std::vector<std::unique_ptr<PlayerMaterialBase::Cluster>> PlayerMaterialBase::cr
    for (int32_t b = 0; b < geometry->getBoneCount(); b++)
    {
       const Bone& bone = geometry->getBone(b);
-      const Weight* weights = bone.weights();
       bone_usage[b] = bone.count();
-      for (int32_t v = 0; v < bone.count(); v++)
+      for (const Weight& weight : bone.weights())
       {
-         const int32_t vertex = weights[v].id();
+         const int32_t vertex = weight.id();
          vertex_bones[vertex].push_back(bone.id());
-         vertex_weights[vertex].push_back(weights[v].weight());
+         vertex_weights[vertex].push_back(weight.weight());
       }
    }
 
    std::unique_ptr<Cluster> cluster;
-   while (faces.size() > 0)
+   while (!faces.empty())
    {
       if (!cluster)
       {
@@ -144,7 +142,7 @@ std::vector<std::unique_ptr<PlayerMaterialBase::Cluster>> PlayerMaterialBase::cr
       int32_t best_new = 100;  // minimize number of new bones
       int32_t best_triangle = -1;
       int32_t best_use = 10000;
-      for (int32_t i = 0; i < faces.size(); i += 3)
+      for (int32_t i = 0; i < static_cast<int32_t>(faces.size()); i += 3)
       {
          int32_t current_match = 0;
          int32_t current_new = 0;
@@ -186,7 +184,7 @@ std::vector<std::unique_ptr<PlayerMaterialBase::Cluster>> PlayerMaterialBase::cr
             cluster->mergeBones(vertex_bones[vertex], bone_usage);
 
             cluster->addVertexIndex(vertex);
-            faces.erase(best_triangle);  // index "best_triangle+1" becomes "best_triangle"
+            faces.erase(faces.begin() + best_triangle);  // index "best_triangle+1" becomes "best_triangle"
          }
       }
       else

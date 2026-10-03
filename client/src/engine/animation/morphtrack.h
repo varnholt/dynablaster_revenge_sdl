@@ -6,12 +6,15 @@
 #include "morphkey.h"
 #include "track.h"
 
+#include <cstdint>
+#include <vector>
+
 class MorphTrack : public Track<MorphKey>
 {
 public:
    MorphTrack();
 
-   void get(List<Vector>& vertices, List<Vector>& normals, float time);
+   void get(std::vector<Vector>& vertices, std::vector<Vector>& normals, float time);
 
-   void calculateNormals(const Array<uint16_t>& indices);
+   void calculateNormals(const std::vector<uint16_t>& indices);
 };

@@ -7,6 +7,7 @@
 #include "math/vector.h"
 #include "render/texturepool.h"
 
+#include <utility>
 #include <vector>
 
 // static
@@ -14,8 +15,8 @@ Texture GameLogoPointSprite::sTexture;
 uint32_t GameLogoPointSprite::sShader = 0;
 int GameLogoPointSprite::sTextureParam = -1;
 uint32_t GameLogoPointSprite::sVertexBuffer = 0;
-Array<Vector> GameLogoPointSprite::_positions;
-Array<float> GameLogoPointSprite::_glow_values;
+std::vector<Vector> GameLogoPointSprite::_positions;
+std::vector<float> GameLogoPointSprite::_glow_values;
 
 //-----------------------------------------------------------------------------
 /*!
@@ -29,8 +30,8 @@ GameLogoPointSprite::GameLogoPointSprite()
  */
 void GameLogoPointSprite::initialize()
 {
-   TexturePool* pool = TexturePool::Instance();
-   sTexture = pool->getTexture("pointsprite");
+   TexturePool& pool = TexturePool::Instance();
+   sTexture = pool.getTexture("pointsprite");
 
    sShader = activeDevice->loadShader("pointsprite-vert.glsl", "pointsprite-frag.glsl");
    sTextureParam = activeDevice->getParameterIndex("texturemap");
@@ -41,10 +42,10 @@ void GameLogoPointSprite::initialize()
 //-----------------------------------------------------------------------------
 /*!
  */
-void GameLogoPointSprite::setPointSprites(const Array<Vector>& v, const Array<float>& glow_values)
+void GameLogoPointSprite::setPointSprites(std::vector<Vector> v, std::vector<float> glow_values)
 {
-   _positions = v;
-   _glow_values = glow_values;
+   _positions = std::move(v);
+   _glow_values = std::move(glow_values);
 }
 
 //-----------------------------------------------------------------------------
@@ -52,7 +53,7 @@ void GameLogoPointSprite::setPointSprites(const Array<Vector>& v, const Array<fl
  */
 void GameLogoPointSprite::draw()
 {
-   if (_positions.size() == 0)
+   if (_positions.empty())
       return;
 
    // bind point sprite texture and shader
@@ -71,7 +72,7 @@ void GameLogoPointSprite::draw()
    std::vector<float> verts;
    verts.reserve(_positions.size() * 6 * 5);
 
-   for (int i = 0; i < _positions.size(); i++)
+   for (size_t i = 0; i < _positions.size(); i++)
    {
       const float point_size = _glow_values[i];
       const Vector& p = _positions[i];
@@ -96,7 +97,7 @@ void GameLogoPointSprite::draw()
    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 5, (GLvoid*)0);
    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 5, (GLvoid*)(sizeof(float) * 3));
 
-   glDrawArrays(GL_TRIANGLES, 0, _positions.size() * 6);
+   glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(_positions.size() * 6));
 
    glDisableVertexAttribArray(0);
    glDisableVertexAttribArray(1);

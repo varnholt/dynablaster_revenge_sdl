@@ -43,7 +43,7 @@ void DestructionMaterial::init()
    _param_shadow_camera = activeDevice->getParameterIndex("shadowCamera");
 }
 
-void DestructionMaterial::load(Stream* stream)
+void DestructionMaterial::load(Stream& stream)
 {
    Material::load(stream);
 

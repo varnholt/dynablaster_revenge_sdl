@@ -69,7 +69,7 @@ void ShadowBillboard::init()
    activeDevice->unlockIndexBuffer(_indices);
 }
 
-void ShadowBillboard::load(Stream* stream)
+void ShadowBillboard::load(Stream& stream)
 {
    Material::load(stream);
 

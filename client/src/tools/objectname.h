@@ -1,21 +1,23 @@
 #pragma once
 
-#include "string.h"
+#include <string>
+
+class Stream;
 
 class ObjectName
 {
 public:
    ObjectName() = default;
    ObjectName(const ObjectName& other) = default;
-   ObjectName(const String& name);
+   ObjectName(const std::string& name);
    virtual ~ObjectName() = default;
 
-   const String& name() const;
-   void setName(const String& name);
+   const std::string& name() const;
+   void setName(const std::string& name);
 
-   void load(Stream* stream);
-   void write(Stream* stream);
+   void load(Stream& stream);
+   void write(Stream& stream);
 
 protected:
-   String _name;
+   std::string _name;
 };

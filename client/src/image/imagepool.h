@@ -12,12 +12,8 @@ class ImagePool : public Singleton<ImagePool>
 {
 public:
    ImagePool() = default;
-   ~ImagePool() override;
 
-   Image* getImage(const char* filename, int32_t flags = 0);
-
-   // releases ownership of "image" without deleting it (called by Image::discard())
-   void remove(Image* image);
+   Image& getImage(const std::string& filename, int32_t flags = 0);
 
 private:
    std::unordered_map<std::string, std::unique_ptr<Image>> _pool;

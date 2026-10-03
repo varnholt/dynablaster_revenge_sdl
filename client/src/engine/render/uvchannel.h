@@ -1,28 +1,30 @@
 #pragma once
 
-#include "tools/list.h"
 #include "tools/stream.h"
+#include "tools/streamable.h"
 #include "uv.h"
 
 #include <cstdint>
+#include <span>
+#include <vector>
 
 class UVChannel : public Streamable
 {
 public:
    UVChannel() = default;
-   UVChannel(int32_t id, UV* uv, int32_t size);
+   UVChannel(int32_t id, std::span<const UV> uv);
    virtual ~UVChannel() = default;
 
-   void load(Stream* stream) override;
-   void write(Stream* stream) override;
-   void copy(const UVChannel& other);
-   const List<UV>& getUV() const;
+   void load(Stream& stream) override;
+   void write(Stream& stream) override;
+   const std::vector<UV>& getUV() const;
+   std::vector<UV>& getUV();
 
    int32_t id() const;
 
-   UV* data() const;
+   UV* data();
 
 private:
    int32_t _id = -1;
-   List<UV> _uv;
+   std::vector<UV> _uv;
 };

@@ -30,7 +30,7 @@ void ScaleTrack::add(int32_t time, const Scale& scale)
    addKey(ScaleKey(time, scale));
 }
 
-void ScaleTrack::load(Stream* stream)
+void ScaleTrack::load(Stream& stream)
 {
    Track<ScaleKey>::load(stream);
 
@@ -49,7 +49,7 @@ void ScaleTrack::load(Stream* stream)
    }
 }
 
-void ScaleTrack::write(Stream* stream)
+void ScaleTrack::write(Stream& stream)
 {
    // TODO: write orientations as deltas again
    Track<ScaleKey>::write(stream);

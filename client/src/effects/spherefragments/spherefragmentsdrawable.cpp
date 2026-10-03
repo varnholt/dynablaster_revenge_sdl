@@ -1,6 +1,7 @@
 #include "spherefragmentsdrawable.h"
 
 // engine
+#include <string>
 #include "framework/framebuffer.h"
 #include "gldevice.h"
 #include "math/matrix.h"
@@ -10,8 +11,7 @@
 #include "nodes/node.h"
 #include "nodes/scenegraph.h"
 #include "render/geometry.h"
-#include "tools/filestream.h"
-#include "tools/string.h"
+#include "tools/datapaths.h"
 
 // spherefragments
 #include "blendquad.h"
@@ -50,10 +50,10 @@ SphereFragmentsDrawable::~SphereFragmentsDrawable() = default;
 
 void SphereFragmentsDrawable::initializeGL()
 {
-   FileStream::addPath("data/shaders");
-   FileStream::addPath("data/effects/spherefragments/shaders");
-   FileStream::addPath("data/effects/spherefragments/meshes");
-   FileStream::addPath("data/effects/spherefragments/images");
+   DataPaths::add("data/shaders");
+   DataPaths::add("data/effects/spherefragments/shaders");
+   DataPaths::add("data/effects/spherefragments/meshes");
+   DataPaths::add("data/effects/spherefragments/images");
 
    _alpha_duplicate = std::make_unique<DuplicateAlpha>();
    _blend_quad = std::make_unique<BlendQuad>();
@@ -90,7 +90,7 @@ void SphereFragmentsDrawable::initializeGL()
 
    _fragment_container = std::make_unique<SphereFragmentContainer>(_scene_graph_earth.get());
 
-   FileStream::removePath("data/effects/spherefragments/images");
+   DataPaths::remove("data/effects/spherefragments/images");
 }
 
 void SphereFragmentsDrawable::projectionSetup()
@@ -210,16 +210,16 @@ void SphereFragmentsDrawable::removeFragments()
    for (int32_t i = 0; i < _scene_graph_bomb->getChildCount(); i++)
    {
       Node* node = _scene_graph_bomb->getChild(i);
-      String name = node->name();
-      const int32_t index = name.indexOf("_");
-      if (index < 0)
+      const std::string& name = node->name();
+
+      // a trailing '_' does not separate a fragment name
+      const auto index = name.find('_');
+      if (index == std::string::npos || index + 1 == name.size())
       {
          continue;
       }
 
-      name = name.mid(0, index);
-
-      Node* fragment = _scene_graph_earth->getChild(name);
+      Node* fragment = _scene_graph_earth->getChild(name.substr(0, index));
       if (fragment && fragment->id() == Node::idMesh)
       {
          static_cast<Mesh*>(fragment)->setVisible(false);

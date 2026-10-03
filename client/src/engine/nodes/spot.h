@@ -9,8 +9,8 @@ class Spot : public Light
 {
 public:
    Spot(Node* parent = nullptr);
-   void load(Stream* stream) override;
-   void write(Stream* stream) override;
+   void load(Stream& stream) override;
+   void write(Stream& stream) override;
 
 private:
    int32_t _shape = 0;

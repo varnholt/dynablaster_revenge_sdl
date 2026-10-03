@@ -54,9 +54,9 @@ struct AuraVertex
 
 SpaceBackground::SpaceBackground()
 {
-   _star_field_texture = TexturePool::Instance()->getTexture("starfield");
-   _earth_texture = TexturePool::Instance()->getTexture("earth_color");
-   _earth_normal_texture = TexturePool::Instance()->getTexture("earth_normal");
+   _star_field_texture = TexturePool::Instance().getTexture("starfield");
+   _earth_texture = TexturePool::Instance().getTexture("earth_color");
+   _earth_normal_texture = TexturePool::Instance().getTexture("earth_normal");
 
    _earth_shader = activeDevice->loadShader("earth-vert.glsl", "earth-frag.glsl");
    _light_param = activeDevice->getParameterIndex("osLightPos");

@@ -4,7 +4,7 @@
 #include "nodes/dummy.h"
 #include "nodes/mesh.h"
 #include "nodes/scenegraph.h"
-#include "tools/filestream.h"
+#include "tools/datapaths.h"
 
 #include <array>
 #include <numbers>
@@ -38,11 +38,11 @@ void Level::load()
 {
    const std::string level_path = "data/" + path();
 
-   FileStream::addPath(level_path.c_str());
+   DataPaths::add(level_path.c_str());
 
    loadData();
 
-   FileStream::removePath(level_path.c_str());
+   DataPaths::remove(level_path.c_str());
 }
 
 void Level::loadData()
@@ -197,7 +197,7 @@ SceneGraph* Level::getPlayers() const
    return _players.get();
 }
 
-const Array<Node*>& Level::getDestructions() const
+const std::vector<Node*>& Level::getDestructions() const
 {
    return _destruct_anim;
 }
@@ -291,6 +291,6 @@ void Level::loadDestructions(Camera* shadow_camera)
          }
       }
 
-      _destruct_anim.add(node);
+      _destruct_anim.push_back(node);
    }
 }

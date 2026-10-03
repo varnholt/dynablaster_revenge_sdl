@@ -28,8 +28,8 @@ public:
    void operator<<(Stream& stream);  // stream operator
    void operator>>(Stream& stream);  // stream operator
 
-   void load(Stream* stream);
-   void write(Stream* stream);
+   void load(Stream& stream);
+   void write(Stream& stream);
 
    static Quat slerp(const Quat& q1, const Quat& q2, float t);
 };

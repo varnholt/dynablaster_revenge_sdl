@@ -23,7 +23,7 @@ void SphereGeometryVbo::initialize()
 {
    GeometryVbo::initialize();
 
-   _texture = TexturePool::Instance()->getTexture("bomb");
+   _texture = TexturePool::Instance().getTexture("bomb");
 
    // the spherefragments shader directory takes precedence over the generic one of the same name
    _shader = activeDevice->loadShader("simplelight-vert.glsl", "simplelight-frag.glsl");

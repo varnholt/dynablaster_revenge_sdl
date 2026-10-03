@@ -30,7 +30,7 @@ void DisplacementMaterial::init()
    _param_time = activeDevice->getParameterIndex("time");
 }
 
-void DisplacementMaterial::load(Stream* stream)
+void DisplacementMaterial::load(Stream& stream)
 {
    Material::load(stream);
 

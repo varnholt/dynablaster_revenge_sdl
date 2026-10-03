@@ -34,7 +34,7 @@ struct RibbonVertex
 
 RibbonAnimationFactory::RibbonAnimationFactory()
 {
-   _texture = TexturePool::Instance()->getTexture("data/effects/ribbons/images/ribbon");
+   _texture = TexturePool::Instance().getTexture("data/effects/ribbons/images/ribbon");
 
    _shader = activeDevice->loadShader("ribbon-vert.glsl", "ribbon-frag.glsl");
    _time_param = activeDevice->getParameterIndex("time");

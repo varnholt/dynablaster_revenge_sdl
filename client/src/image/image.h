@@ -1,23 +1,18 @@
 #pragma once
 
 #include <cstdint>
+#include <memory>
+#include <string>
+#include <vector>
 
-#include "tools/referenced.h"
-#include "tools/string.h"
-
-// 32bit argb image; copies share the pixel buffer (see Referenced)
-class Image : public Referenced
+// 32bit argb image; copies share the pixel buffer
+class Image
 {
 public:
    Image() = default;
-   Image(const char* filename);
+   explicit Image(const char* filename);
    Image(int32_t x, int32_t y);
-   Image(const Image& image);
-   ~Image() override;
 
-   const Image& operator=(const Image& image);
-
-   void discard();
    void clear(uint32_t argb);
 
    void save(const char* filename);
@@ -35,14 +30,13 @@ public:
    uint32_t getPixel(float u, float v) const;
    void buildNormalMap(int32_t z);
    void buildDeltaMap();
-   const String& path() const;
-   const String& filename() const;
+   const std::string& path() const;
+   const std::string& filename() const;
 
 private:
-   // new[]-allocated, shared by all copies, deleted by the last one
-   uint32_t* _data = nullptr;
+   std::shared_ptr<std::vector<uint32_t>> _pixels;
    int32_t _width = 0;
    int32_t _height = 0;
-   String _path;
-   String _filename;
+   std::string _path;
+   std::string _filename;
 };

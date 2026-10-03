@@ -8,7 +8,8 @@
 
 #include "materials/material.h"
 #include "materials/materialfactory.h"
-#include "tools/filestream.h"
+#include "tools/datapaths.h"
+#include "tools/stream.h"
 
 #include "gldevice.h"
 
@@ -16,6 +17,7 @@
 #include <cmath>
 #include <cstdio>
 #include <format>
+#include <fstream>
 #include <string>
 
 namespace
@@ -39,9 +41,10 @@ SceneGraph::~SceneGraph()
       delete material;
    }
 
-   while (_nodes.size() > 0)
+   while (!_nodes.empty())
    {
-      Node* node = _nodes.takeLast();
+      Node* node = _nodes.back();
+      _nodes.pop_back();
       delete node;
    }
 }
@@ -91,7 +94,7 @@ void SceneGraph::setNodeStartIndex(int32_t index)
    _node_start_index = index;
 }
 
-const Array<Node*>& SceneGraph::nodeList() const
+const std::vector<Node*>& SceneGraph::nodeList() const
 {
    return _nodes;
 }
@@ -105,38 +108,30 @@ int32_t SceneGraph::getLastFrame() const
 // get number of nodes
 int32_t SceneGraph::size()
 {
-   return _nodes.size();
+   return static_cast<int32_t>(_nodes.size());
 }
 
 void SceneGraph::addNode(Node* node)
 {
-   _nodes.add(node);
+   _nodes.push_back(node);
 }
 
 void SceneGraph::removeNode(Node* node)
 {
-   _nodes.remove(node);
+   std::erase(_nodes, node);
 }
 
 // get node by index
 Node* SceneGraph::getNode(int32_t index)
 {
-   return _nodes.get(index);
+   return _nodes[index];
 }
 
 // get node by name
-Node* SceneGraph::getNode(const String& name)
+Node* SceneGraph::getNode(const std::string& name)
 {
-   const int32_t count = _nodes.size();
-   for (int32_t i = 0; i < count; i++)
-   {
-      Node* node = _nodes.get(i);
-      if (node->name() == name)
-      {
-         return node;
-      }
-   }
-   return nullptr;
+   const auto node = std::ranges::find_if(_nodes, [&name](const Node* candidate) { return candidate->name() == name; });
+   return (node != _nodes.end()) ? *node : nullptr;
 }
 
 // get current camera node
@@ -155,7 +150,7 @@ void SceneGraph::setCamera(Node* camera)
    _camera = static_cast<Camera*>(camera);
 }
 
-int32_t SceneGraph::loadHeader(Stream* stream)
+int32_t SceneGraph::loadHeader(Stream& stream)
 {
    _instance = this;
 
@@ -165,8 +160,8 @@ int32_t SceneGraph::loadHeader(Stream* stream)
       return 0;
    }
 
-   String comment;
-   comment.load(stream);
+   // comment is not used
+   stream.getPrefixedString();
    _animation_begin = chunk.getInt();
    _animation_end = chunk.getInt();
 
@@ -178,19 +173,18 @@ int32_t SceneGraph::loadHeader(Stream* stream)
    return 1;
 }
 
-void SceneGraph::writeHeader(Stream* stream)
+void SceneGraph::writeHeader(Stream& stream)
 {
    Chunk chunk(stream, header_chunk_id, "Header");
 
-   String comment = "Hfr";
-   comment.write(&chunk);
+   chunk.writePrefixedString("Hfr");
    chunk.writeInt(_animation_begin);
    chunk.writeInt(_animation_end);
 
-   chunk.writeInt(_nodes.size());
+   chunk.writeInt(size());
 }
 
-void SceneGraph::loadMaterials(Stream* stream, MaterialFactory* materials)
+void SceneGraph::loadMaterials(Stream& stream, MaterialFactory* materials)
 {
    Chunk material_chunk(stream);
 
@@ -202,13 +196,14 @@ void SceneGraph::loadMaterials(Stream* stream, MaterialFactory* materials)
    {
       for (int32_t i = 0; i < count; i++)
       {
-         Chunk chunk(&material_chunk);
+         Stream& material_stream = material_chunk;
+         Chunk chunk(material_stream);
 
          Material* material = materials->createMaterial(this, chunk.id());
 
          if (material)
          {
-            material->load(&chunk);
+            material->load(chunk);
             material->setName(chunk.name());
          }
 
@@ -219,7 +214,7 @@ void SceneGraph::loadMaterials(Stream* stream, MaterialFactory* materials)
    material_chunk.skip();
 }
 
-void SceneGraph::writeMaterials(Stream* stream)
+void SceneGraph::writeMaterials(Stream& stream)
 {
    Chunk chunk(stream, 1000, "Materials");
 
@@ -227,7 +222,7 @@ void SceneGraph::writeMaterials(Stream* stream)
 
    for (Material* material : _materials)
    {
-      material->write(&chunk);
+      material->write(chunk);
    }
 }
 
@@ -259,7 +254,7 @@ void SceneGraph::linkMaterials(Mesh* mesh)
    }
 }
 
-void SceneGraph::loadNode(Stream* stream, Node* parent)
+void SceneGraph::loadNode(Stream& stream, Node* parent)
 {
    for (;;)
    {
@@ -320,11 +315,11 @@ void SceneGraph::loadNode(Stream* stream, Node* parent)
    }
 }
 
-void SceneGraph::writeNode(Stream* stream, Node* parent)
+void SceneGraph::writeNode(Stream& stream, Node* parent)
 {
    {
       Chunk chunk(stream, parent->id(), parent->name());
-      parent->write(&chunk);
+      parent->write(chunk);
    }
 
    for (int32_t i = 0; i < parent->getChildCount(); i++)
@@ -332,12 +327,13 @@ void SceneGraph::writeNode(Stream* stream, Node* parent)
       writeNode(stream, parent->getChild(i));
    }
 
-   stream->writeInt(terminator_chunk_id);
+   stream.writeInt(terminator_chunk_id);
 }
 
-int32_t SceneGraph::load(const String& name, MaterialFactory* materials, Node* parent)
+int32_t SceneGraph::load(const std::string& name, MaterialFactory* materials, Node* parent)
 {
-   FileStream stream;
+   std::ifstream file = DataPaths::open(name);
+   Stream stream(file);
 
    _instance = this;
    if (!parent)
@@ -345,26 +341,26 @@ int32_t SceneGraph::load(const String& name, MaterialFactory* materials, Node* p
       parent = this;
    }
 
-   if (!stream.open(name))
+   if (!file.is_open())
    {
       return 0;
    }
-   if (!loadHeader(&stream))
+   if (!loadHeader(stream))
    {
       return 0;
    }
 
-   const int32_t count = _nodes.size();
+   const int32_t count = size();
 
    setName(name);
 
-   loadMaterials(&stream, materials);
+   loadMaterials(stream, materials);
 
-   setNodeStartIndex(_nodes.size());
-   loadNode(&stream, parent);
+   setNodeStartIndex(size());
+   loadNode(stream, parent);
 
    // find skeleton root nodes for all meshes
-   for (int32_t i = count; i < _nodes.size(); i++)
+   for (int32_t i = count; i < size(); i++)
    {
       Node* node = _nodes[i];
       if (node->id() == idMesh)
@@ -402,7 +398,7 @@ int32_t SceneGraph::load(const String& name, MaterialFactory* materials, Node* p
    }
 
    // initial transformation of all loaded nodes
-   for (int32_t i = count; i < _nodes.size(); i++)
+   for (int32_t i = count; i < size(); i++)
    {
       _nodes[i]->transform(0.0f);
    }
@@ -412,34 +408,35 @@ int32_t SceneGraph::load(const String& name, MaterialFactory* materials, Node* p
    return 1;
 }
 
-void SceneGraph::write(const String& name)
+void SceneGraph::write(const std::string& name)
 {
-   FileStream stream;
+   std::ofstream file(name, std::ios::binary);
+   Stream stream(file);
 
    _instance = this;
 
-   if (!stream.open(name, true))
+   if (!file.is_open())
    {
       return;
    }
 
-   writeHeader(&stream);
+   writeHeader(stream);
 
-   writeMaterials(&stream);
+   writeMaterials(stream);
 
    for (int32_t i = 0; i < getChildCount(); i++)
    {
-      writeNode(&stream, getChild(i));
+      writeNode(stream, getChild(i));
    }
 
    stream.writeInt(terminator_chunk_id);
-   stream.close();
+   file.close();
 }
 
 //! export scenegraph to obj
-void SceneGraph::exportOBJ(const String& name)
+void SceneGraph::exportOBJ(const std::string& name)
 {
-   std::FILE* file = std::fopen(name.data(), "wb");
+   std::FILE* file = std::fopen(name.c_str(), "wb");
    if (!file)
    {
       return;
@@ -454,7 +451,7 @@ void SceneGraph::exportOBJ(const String& name)
       if (node && node->id() == Node::idMesh)
       {
          Mesh* mesh = static_cast<Mesh*>(node);
-         const std::string node_name = node->name().isEmpty() ? std::string() : std::string(node->name().data());
+         const std::string& node_name = node->name();
          const int32_t part_count = mesh->getPartCount();
          for (int32_t part = 0; part < part_count; part++)
          {
@@ -532,7 +529,7 @@ void SceneGraph::exportOBJ(const String& name)
    std::fclose(file);
 }
 
-void SceneGraph::exportOBJ(float /*frame*/, Stream* stream, int32_t& vertex_num)
+void SceneGraph::exportOBJ(float /*frame*/, Stream& stream, int32_t& vertex_num)
 {
    // render() needs to be called first!
    const int32_t count = getMaterialCount();
@@ -582,7 +579,7 @@ void SceneGraph::prepare()
 void SceneGraph::render(float frame, const Matrix& shake)
 {
    // call "transform" all nodes
-   for (int32_t i = 0; i < _nodes.size(); i++)
+   for (int32_t i = 0; i < size(); i++)
    {
       Node* node = _nodes[i];
       if (node)

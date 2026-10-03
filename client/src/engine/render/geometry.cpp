@@ -4,7 +4,6 @@
 #include "nodes/mesh.h"
 #include "nodes/node.h"
 #include "nodes/scenegraph.h"
-#include "tools/profiling.h"
 #include "uv.h"
 
 #include <algorithm>
@@ -21,41 +20,19 @@ Geometry::Geometry(Node* parent) : _id(_current_geometry_id++), _parent(parent)
 {
 }
 
-Geometry::Geometry(const Geometry* geometry)
-    : Referenced(*geometry),
-      _id(geometry->getID()),
-      _parent(geometry->getParent()),
-      _visible(geometry->isVisible()),
-      _material_id(-1),
-      _vertex_map(geometry->_vertex_map)
-{
-   _indices = geometry->getIndicesList();
-   _vertices = geometry->getVertexList();
-   _colors = geometry->getColorList();
-   _normals = geometry->getNormalList();
-   _uv_channels = geometry->getUVList();
-   _bones = geometry->getBoneList();
-   _edges = geometry->getEdgeList();
-}
-
 void Geometry::copy(const Geometry& geometry)
 {
-   _indices.copy(geometry.getIndicesList());
-   _vertices.copy(geometry.getVertexList());
-   _colors.copy(geometry.getColorList());
-   _normals.copy(geometry.getNormalList());
-
-   const List<UVChannel>& uv_channels = geometry.getUVList();
-   _uv_channels.init(uv_channels.size());
-   for (int32_t i = 0; i < uv_channels.size(); i++)
-   {
-      UVChannel channel;
-      channel.copy(uv_channels[i]);
-      _uv_channels.add(channel);
-   }
-
-   _bones.copy(geometry.getBoneList());
-   _edges.copy(geometry.getEdgeList());
+   const Data& source = *geometry._data;
+   auto data = std::make_shared<Data>();
+   data->indices = source.indices;
+   data->vertices = source.vertices;
+   data->colors = source.colors;
+   data->normals = source.normals;
+   data->uv_channels = source.uv_channels;
+   data->bones = source.bones;
+   data->morph_track = std::move(_data->morph_track);
+   data->edges = source.edges;
+   _data = std::move(data);
 
    _vertex_map.clear();
 }
@@ -77,23 +54,22 @@ void Geometry::setVisible(bool visible)
 
 bool Geometry::isMorphing() const
 {
-   return (_morph_track.size() > 0);
+   return (_data->morph_track.size() > 0);
 }
 
 void Geometry::setMorphFrame(float frame)
 {
-   if (_morph_track.size() > 0)
+   if (_data->morph_track.size() > 0)
    {
-      _morph_track.get(_vertices, _normals, frame);
+      _data->morph_track.get(_data->vertices, _data->normals, frame);
    }
 }
 
 void Geometry::calcBoundingBox(Vector& min, Vector& max)
 {
-   min = max = _vertices[0];
-   for (int32_t i = 0; i < _vertices.size(); i++)
+   min = max = _data->vertices[0];
+   for (const Vector& v : _data->vertices)
    {
-      const Vector& v = _vertices[i];
       max.maximum(v);
       min.minimum(v);
    }
@@ -102,22 +78,19 @@ void Geometry::calcBoundingBox(Vector& min, Vector& max)
 void Geometry::createQuad(float x, float y)
 {
    static constexpr std::array<uint16_t, 6> indices = {0, 2, 1, 0, 3, 2};
-   static std::array<UV, 4> uvs = {UV(0.0f, 1.0f), UV(1.0f, 1.0f), UV(1.0f, 0.0f), UV(0.0f, 0.0f)};
+   static const std::array<UV, 4> uvs = {UV(0.0f, 1.0f), UV(1.0f, 1.0f), UV(1.0f, 0.0f), UV(0.0f, 0.0f)};
    const std::array<Vector, 4> vertices = {Vector(0.0f, 0.0f, 0.0f), Vector(x, 0.0f, 0.0f), Vector(x, y, 0.0f), Vector(0.0f, y, 0.0f)};
 
-   for (const auto index : indices)
-   {
-      _indices.add(index);
-   }
+   _data->indices.insert(_data->indices.end(), indices.begin(), indices.end());
 
    for (const auto& vertex : vertices)
    {
-      _vertices.add(vertex);
-      _normals.add(Vector(0.0f, 0.0f, 1.0f));
-      _colors.add(Vector(1.0f, 1.0f, 1.0f));
+      _data->vertices.push_back(vertex);
+      _data->normals.emplace_back(0.0f, 0.0f, 1.0f);
+      _data->colors.emplace_back(1.0f, 1.0f, 1.0f);
    }
 
-   _uv_channels.add(UVChannel(1, uvs.data(), static_cast<int32_t>(uvs.size())));
+   _data->uv_channels.emplace_back(1, uvs);
 
    _vertex_map = {0, 1, 2, 3};
 }
@@ -145,14 +118,11 @@ void Geometry::createCube(float scale)
       Vector(1.0f, 1.0f, 1.0f)
    };
 
-   for (const auto index : triangles)
-   {
-      _indices.add(index);
-   }
+   _data->indices.insert(_data->indices.end(), triangles.begin(), triangles.end());
 
    for (const auto& vertex : vertices)
    {
-      _vertices.add(vertex * scale);
+      _data->vertices.push_back(vertex * scale);
    }
 
    _vertex_map = {0, 1, 2, 3, 4, 5, 6, 7};
@@ -163,250 +133,50 @@ const int32_t* Geometry::getVertexMap() const
    return _vertex_map.empty() ? nullptr : _vertex_map.data();
 }
 
-const FaceList& Geometry::getIndicesList() const
+const std::vector<uint16_t>& Geometry::getIndicesList() const
 {
-   return _indices;
+   return _data->indices;
 }
 
-const List<Vector>& Geometry::getVertexList() const
+const std::vector<Vector>& Geometry::getVertexList() const
 {
-   return _vertices;
+   return _data->vertices;
 }
 
-const List<Vector>& Geometry::getColorList() const
+const std::vector<Vector>& Geometry::getColorList() const
 {
-   return _colors;
+   return _data->colors;
 }
 
-const List<Vector>& Geometry::getNormalList() const
+const std::vector<Vector>& Geometry::getNormalList() const
 {
-   return _normals;
+   return _data->normals;
 }
 
-const List<UVChannel>& Geometry::getUVList() const
+const std::vector<UVChannel>& Geometry::getUVList() const
 {
-   return _uv_channels;
+   return _data->uv_channels;
 }
 
-const List<Bone>& Geometry::getBoneList() const
+const std::vector<Bone>& Geometry::getBoneList() const
 {
-   return _bones;
+   return _data->bones;
 }
 
-const Array<Edge>& Geometry::getEdgeList() const
+std::vector<Bone>& Geometry::getBoneList()
 {
-   return _edges;
+   return _data->bones;
 }
 
-int32_t Geometry::createEdges()
+const std::vector<Edge>& Geometry::getEdgeList() const
 {
-   std::array<uint16_t, 3> edge{};                      // matching edge-vertices
-   const int32_t triangle_count = _indices.size() / 3;  // 3 indices per triangle
-   const int32_t vertex_count = _vertices.size();
-   const int32_t* vertex_map = _vertex_map.data();
-
-   double time = getCpuTick();
-
-   int32_t unique_vertex_count = 0;
-   for (int32_t i = 0; i < vertex_count; i++)
-   {
-      unique_vertex_count = std::max(unique_vertex_count, vertex_map[i]);
-   }
-   unique_vertex_count++;
-
-   // polygon normals
-   std::vector<Vector> normals(triangle_count);
-   const uint16_t* poly = _indices.data();
-   for (int32_t i = 0; i < triangle_count; i++)
-   {
-      const Vector& v1 = _vertices[*poly++];
-      const Vector& v2 = _vertices[*poly++];
-      const Vector& v3 = _vertices[*poly++];
-      normals[i] = (v2 - v1) % (v3 - v1);
-      normals[i].normalize();
-   }
-
-   // for each vertex: list of connected faces
-   std::vector<IndexList> vertex_connected_faces(unique_vertex_count);
-   poly = _indices.data();
-   for (int32_t i = 0; i < triangle_count; i++)
-   {
-      for (int32_t j = 0; j < 3; j++)
-      {
-         vertex_connected_faces[vertex_map[*poly++]].add(i);
-      }
-   }
-
-   // for each face: list of connected faces
-   std::vector<IndexList> face_connected_faces(triangle_count);
-   poly = _indices.data();
-   for (int32_t i = 0; i < triangle_count; i++)
-   {
-      IndexList& face_list = face_connected_faces[i];
-      for (int32_t j = 0; j < 3; j++)
-      {
-         // faces connected to current vertex j of this triangle
-         face_list.merge(vertex_connected_faces[vertex_map[*poly++]]);
-      }
-   }
-
-   // for each vertex: list of connected vertices, thus building an edge
-   std::vector<IndexList> vertex_connections(unique_vertex_count);
-
-   _edges.init(triangle_count * 3);  // maximum number of edges is 3 per triangle
-   poly = _indices.data();
-   for (int32_t i = 0; i < triangle_count; i++, poly += 3)
-   {
-      const int32_t va1 = poly[0];
-      const int32_t va2 = poly[1];
-      const int32_t va3 = poly[2];
-
-      const int32_t p1 = vertex_map[va1];
-      const int32_t p2 = vertex_map[va2];
-      const int32_t p3 = vertex_map[va3];
-
-      const IndexList& face_list = face_connected_faces[i];
-      for (int32_t j = 0; j < face_list.size(); j++)
-      {
-         const int32_t face_id = face_list.get(j);
-         const uint16_t* test = _indices.data() + face_id * 3;
-         int32_t count = 0;
-
-         const int32_t vb1 = test[0];
-         const int32_t vb2 = test[1];
-         const int32_t vb3 = test[2];
-
-         if (vertex_map[vb1] == p1 || vertex_map[vb2] == p1 || vertex_map[vb3] == p1)
-         {
-            edge[count++] = static_cast<uint16_t>(va1);
-         }
-         if (vertex_map[vb1] == p2 || vertex_map[vb2] == p2 || vertex_map[vb3] == p2)
-         {
-            edge[count++] = static_cast<uint16_t>(va2);
-         }
-         if (vertex_map[vb1] == p3 || vertex_map[vb2] == p3 || vertex_map[vb3] == p3)
-         {
-            edge[count++] = static_cast<uint16_t>(va3);
-         }
-
-         if (count != 2)
-         {
-            continue;
-         }
-
-         if ((edge[0] == va1 && edge[1] == va3) || (edge[0] == va2 && edge[1] == va1) || (edge[0] == va3 && edge[1] == va2))
-         {
-            const uint16_t t = edge[2];
-            edge[2] = edge[0];
-            edge[0] = edge[1];
-            edge[1] = t;
-         }
-
-         const int32_t e0 = vertex_map[edge[0]];
-         const int32_t e1 = vertex_map[edge[1]];
-
-         // skip if already connected
-         if (vertex_connections[e0].find(e1) || vertex_connections[e1].find(e0))
-         {
-            continue;
-         }
-
-         vertex_connections[e0].add(e1);
-         vertex_connections[e1].add(e0);
-
-         // compare assigned normals
-         int32_t n1 = 0;
-         int32_t n2 = 0;
-         for (int32_t k = 0; k < 3; k++)
-         {
-            const int32_t index = test[k];
-            if (e0 == vertex_map[index])
-            {
-               n1 = index;
-            }
-            if (e1 == vertex_map[index])
-            {
-               n2 = index;
-            }
-         }
-
-         int32_t flags = 1;
-         if ((_normals[n1] == _normals[edge[0]]) && (_normals[n2] == _normals[edge[1]]))
-         {
-            flags = 0;
-         }
-
-         // get "unused" vertex from each triangle
-         int32_t vc = -1;
-         if (e0 != vertex_map[va1] && e1 != vertex_map[va1])
-         {
-            vc = va1;
-         }
-         if (e0 != vertex_map[va2] && e1 != vertex_map[va2])
-         {
-            vc = va2;
-         }
-         if (e0 != vertex_map[va3] && e1 != vertex_map[va3])
-         {
-            vc = va3;
-         }
-
-         int32_t vd = -1;
-         if (e0 != vertex_map[vb1] && e1 != vertex_map[vb1])
-         {
-            vd = vb1;
-         }
-         if (e0 != vertex_map[vb2] && e1 != vertex_map[vb2])
-         {
-            vd = vb2;
-         }
-         if (e0 != vertex_map[vb3] && e1 != vertex_map[vb3])
-         {
-            vd = vb3;
-         }
-
-         if (vc != -1 && vd != -1)
-         {
-            Edge e;
-            e.i1 = edge[0];
-            e.i2 = edge[1];
-            e.i3 = static_cast<uint16_t>(vc);
-            e.i4 = static_cast<uint16_t>(vd);
-            e.f1 = i;
-            e.f2 = face_id;
-            e.flags = flags;
-            _edges.add(e);
-         }
-      }
-   }
-
-   int32_t unconnected = 0;
-   poly = _indices.data();
-   for (int32_t i = 0; i < triangle_count; i++, poly += 3)
-   {
-      const std::array<int32_t, 5> index = {poly[0], poly[1], poly[2], poly[0], poly[1]};
-
-      for (int32_t j = 0; j < 3; j++)
-      {
-         const int32_t m1 = vertex_map[index[j]];
-         const int32_t m2 = vertex_map[index[j + 1]];
-         if (!vertex_connections[m1].find(m2) && !vertex_connections[m2].find(m1))
-         {
-            vertex_connections[m1].add(m2);
-            vertex_connections[m2].add(m1);
-            unconnected++;
-         }
-      }
-   }
-
-   time = getCpuTick() - time;
-
-   return _edges.size();
+   return _data->edges;
 }
 
-void Geometry::load(Stream* stream)
+void Geometry::load(Stream& stream)
 {
    Chunk chunk(stream);
+   Data& data = *_data;
 
    SceneGraph* scene = SceneGraph::instance();
    _material_id = chunk.getInt();
@@ -415,41 +185,42 @@ void Geometry::load(Stream* stream)
       _material_id += scene->getMaterialStartIndex();
    }
 
-   _vertices << chunk;
-   _normals << chunk;
+   loadList(chunk, data.vertices);
+   loadList(chunk, data.normals);
 
-   if (_normals.size() == 0)
+   if (data.normals.empty())
    {
       calcNormals();
    }
 
-   _colors << chunk;
-   _uv_channels << chunk;
-   _indices << chunk;
-   _bones << chunk;
+   loadList(chunk, data.colors);
+   loadList(chunk, data.uv_channels);
+   loadFaceList(chunk, data.indices);
+   loadList(chunk, data.bones);
 
    const int32_t rest = chunk.dataLeft();
    if (rest > 4)
    {
-      _morph_track << chunk;
-      _morph_track.calculateNormals(_indices);
+      data.morph_track << chunk;
+      data.morph_track.calculateNormals(data.indices);
    }
 
    chunk.skip();
 }
 
-void Geometry::write(Stream* stream)
+void Geometry::write(Stream& stream)
 {
    Chunk chunk(stream, 100, "Geometry");
+   Data& data = *_data;
 
    chunk.writeInt(_material_id);
 
-   _vertices >> chunk;
-   _normals >> chunk;
-   _colors >> chunk;
-   _uv_channels >> chunk;
-   _indices >> chunk;
-   _bones >> chunk;
+   writeList(chunk, data.vertices);
+   writeList(chunk, data.normals);
+   writeList(chunk, data.colors);
+   writeList(chunk, data.uv_channels);
+   writeFaceList(chunk, data.indices);
+   writeList(chunk, data.bones);
 }
 
 const Matrix& Geometry::getTransform() const
@@ -478,50 +249,48 @@ void Geometry::setParent(Node* node)
 
 int32_t Geometry::getIndexCount() const
 {
-   return _indices.size();
+   return static_cast<int32_t>(_data->indices.size());
 }
 
 uint16_t* Geometry::getIndices() const
 {
-   return _indices.data();
+   return _data->indices.empty() ? nullptr : _data->indices.data();
 }
 
 int32_t Geometry::getEdgeCount() const
 {
-   return _edges.size();
+   return static_cast<int32_t>(_data->edges.size());
 }
 
 Edge* Geometry::getEdges() const
 {
-   return _edges.data();
+   return _data->edges.empty() ? nullptr : _data->edges.data();
 }
 
 int32_t Geometry::getVertexCount() const
 {
-   return _vertices.size();
+   return static_cast<int32_t>(_data->vertices.size());
 }
 
 Vector* Geometry::getVertices() const
 {
-   return _vertices.data();
+   return _data->vertices.empty() ? nullptr : _data->vertices.data();
 }
 
 Vector* Geometry::getNormals() const
 {
-   return _normals.data();
+   return _data->normals.empty() ? nullptr : _data->normals.data();
 }
 
 Vector* Geometry::getColors() const
 {
-   return _colors.data();
+   return _data->colors.empty() ? nullptr : _data->colors.data();
 }
 
 UV* Geometry::getUV(int32_t channel) const
 {
-   const int32_t count = _uv_channels.size();
-   for (int32_t i = 0; i < count; i++)
+   for (UVChannel& uv_channel : _data->uv_channels)
    {
-      const UVChannel& uv_channel = _uv_channels[i];
       if (uv_channel.id() == channel)
       {
          return uv_channel.data();
@@ -532,78 +301,75 @@ UV* Geometry::getUV(int32_t channel) const
 
 int32_t Geometry::getBoneCount() const
 {
-   return _bones.size();
+   return static_cast<int32_t>(_data->bones.size());
 }
 
 Bone* Geometry::getBones() const
 {
-   return _bones.data();
+   return _data->bones.empty() ? nullptr : _data->bones.data();
 }
 
 const Bone& Geometry::getBone(int32_t index) const
 {
-   return _bones[index];
+   return _data->bones[index];
 }
 
 void Geometry::calcNormals()
 {
-   _normals.init(_vertices.size());
+   Data& data = *_data;
+   data.normals.assign(data.vertices.size(), Vector(0.0f, 0.0f, 0.0f));
 
-   for (int32_t i = 0; i < _vertices.size(); i++)
+   for (size_t i = 0; i + 2 < data.indices.size(); i += 3)
    {
-      _normals.add(Vector(0.0f, 0.0f, 0.0f));
-   }
+      const uint16_t i1 = data.indices[i];
+      const uint16_t i2 = data.indices[i + 1];
+      const uint16_t i3 = data.indices[i + 2];
 
-   const uint16_t* index = _indices.data();
-
-   for (int32_t i = 0; i < _indices.size(); i += 3)
-   {
-      const uint16_t i1 = *index++;
-      const uint16_t i2 = *index++;
-      const uint16_t i3 = *index++;
-
-      const Vector& v1 = _vertices[i1];
-      const Vector& v2 = _vertices[i2];
-      const Vector& v3 = _vertices[i3];
+      const Vector& v1 = data.vertices[i1];
+      const Vector& v2 = data.vertices[i2];
+      const Vector& v3 = data.vertices[i3];
 
       const Vector normal = (v2 - v1) % (v3 - v1);
 
-      _normals[i1] += normal;
-      _normals[i2] += normal;
-      _normals[i3] += normal;
+      data.normals[i1] += normal;
+      data.normals[i2] += normal;
+      data.normals[i3] += normal;
    }
 
-   for (int32_t i = 0; i < _normals.size(); i++)
+   for (Vector& normal : data.normals)
    {
-      _normals[i].normalize();
+      normal.normalize();
    }
 }
 
 void Geometry::createBoxMapping(bool, const Vector& min, const Vector& max, const Matrix& transform, const Matrix& gizmo)
 {
-   UV* uv = getUV(1);
+   const std::vector<uint16_t>& indices = _data->indices;
+   const auto channel = std::ranges::find_if(_data->uv_channels, [](const UVChannel& uv_channel) { return uv_channel.id() == 1; });
+   std::vector<UV>& uv = channel->getUV();
 
-   std::vector<Vector> vertices(_vertices.size());
-   for (int32_t i = 0; i < _vertices.size(); i++)
+   std::vector<Vector> vertices;
+   vertices.reserve(_data->vertices.size());
+   for (const Vector& vertex : _data->vertices)
    {
-      vertices[i] = gizmo * (transform * _vertices[i]);
+      vertices.push_back(gizmo * (transform * vertex));
    }
 
    constexpr float su = 1.0f / 3.0f;
    constexpr float sv = 1.0f / 4.0f;
 
-   for (int32_t i = 0; i < _indices.size(); i += 3)
+   for (size_t i = 0; i + 2 < indices.size(); i += 3)
    {
-      const Vector& v1 = vertices[_indices[i]];
-      const Vector& v2 = vertices[_indices[i + 1]];
-      const Vector& v3 = vertices[_indices[i + 2]];
+      const Vector& v1 = vertices[indices[i]];
+      const Vector& v2 = vertices[indices[i + 1]];
+      const Vector& v3 = vertices[indices[i + 2]];
 
       const Vector face_normal = (v2 - v1) % (v3 - v1);
       const int32_t axis = face_normal.absMaxIndex();
 
-      for (int32_t j = 0; j < 3; j++)
+      for (size_t j = 0; j < 3; j++)
       {
-         const int32_t index = _indices[i + j];
+         const int32_t index = indices[i + j];
          const Vector& vertex = vertices[index];
 
          switch (axis)
@@ -666,34 +432,25 @@ void Geometry::createBoxMapping(bool, const Vector& min, const Vector& max, cons
    }
 }
 
-Array<Vector> Geometry::getSkinVertices() const
+std::vector<Vector> Geometry::getSkinVertices() const
 {
    auto* mesh = static_cast<Mesh*>(_parent);
    MotionMixer* mixer = mesh->getMotionMixer();
 
-   const int32_t vertex_count = getVertexCount();
-   Array<Vector> result(vertex_count);
+   const std::vector<Vector>& vertices = _data->vertices;
+   std::vector<Vector> skinned(vertices.size(), Vector(0.0f, 0.0f, 0.0f));
 
-   const Vector* vertices = getVertices();
-   Vector* skinned = result.data();
-   std::ranges::fill(std::span(skinned, static_cast<size_t>(vertex_count)), Vector(0.0f, 0.0f, 0.0f));
-
-   for (int32_t b = 0; b < getBoneCount(); b++)
+   for (const Bone& bone : _data->bones)
    {
-      const Bone& bone = getBone(b);
-
       Node* node = mixer->getNode(bone.id());
       const Matrix& bone_matrix = node->getTransform();
 
-      const Weight* weights = bone.weights();
-      for (int32_t v = 0; v < bone.count(); v++)
+      for (const Weight& weight : bone.weights())
       {
-         const int32_t index = weights[v].id();
-         const float factor = weights[v].weight();
-
-         skinned[index] += (bone_matrix * vertices[index]) * factor;
+         const int32_t index = weight.id();
+         skinned[index] += (bone_matrix * vertices[index]) * weight.weight();
       }
    }
 
-   return result;
+   return skinned;
 }

@@ -2,7 +2,6 @@
 
 #include "image/psd.h"
 #include "render/texture.h"
-#include "tools/array.h"
 
 #include <cstdint>
 

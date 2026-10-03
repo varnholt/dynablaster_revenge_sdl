@@ -10,7 +10,7 @@ class InvisibilityMaterial : public PlayerMaterialBase
 public:
    InvisibilityMaterial(SceneGraph* scene);
 
-   void load(Stream* stream) override;
+   void load(Stream& stream) override;
    void renderDiffuse() override;
 
    void setTexture(uint32_t texture);

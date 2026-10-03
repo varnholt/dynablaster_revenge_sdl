@@ -50,181 +50,175 @@ int Clipper::getClipFlags(const Vertex& vertex) const
    return clip;
 }
 
-Array<Vertex> Clipper::clipLeft(const Array<Vertex>& vertices)
+std::vector<Vertex> Clipper::clipLeft(const std::vector<Vertex>& vertices)
 {
-   Array<Vertex> result;
-   const int size = vertices.size();
-
-   if (size <= 0)
+   std::vector<Vertex> result;
+   if (vertices.empty())
    {
       return result;
    }
 
-   int c1 = getClipFlags(vertices[size - 1]) & Left;
-   const Vertex* v1 = &vertices[size - 1];
+   size_t previous = vertices.size() - 1;
+   int c1 = getClipFlags(vertices[previous]) & Left;
 
-   for (int i = 0; i < size; i++)
+   for (size_t i = 0; i < vertices.size(); i++)
    {
       const int c2 = getClipFlags(vertices[i]) & Left;
-      const Vertex* v2 = &vertices[i];
+      const Vertex& v1 = vertices[previous];
+      const Vertex& v2 = vertices[i];
 
       if (!c1)
       {
-         result.add(*v1);
+         result.push_back(v1);
       }
 
       if (c1 != c2)
       {
          // v1.x + (v2.x - v1.x)*t = _left
-         const float t = (_left - v1->x) / (v2->x - v1->x);
-         result.add(*v1 + (*v2 - *v1) * t);
+         const float t = (_left - v1.x) / (v2.x - v1.x);
+         result.push_back(v1 + (v2 - v1) * t);
       }
 
-      v1 = v2;
+      previous = i;
       c1 = c2;
    }
 
    return result;
 }
 
-Array<Vertex> Clipper::clipRight(const Array<Vertex>& vertices)
+std::vector<Vertex> Clipper::clipRight(const std::vector<Vertex>& vertices)
 {
-   Array<Vertex> result;
-   const int size = vertices.size();
-
-   if (size <= 0)
+   std::vector<Vertex> result;
+   if (vertices.empty())
    {
       return result;
    }
 
-   int c1 = getClipFlags(vertices[size - 1]) & Right;
-   const Vertex* v1 = &vertices[size - 1];
+   size_t previous = vertices.size() - 1;
+   int c1 = getClipFlags(vertices[previous]) & Right;
 
-   for (int i = 0; i < size; i++)
+   for (size_t i = 0; i < vertices.size(); i++)
    {
       const int c2 = getClipFlags(vertices[i]) & Right;
-      const Vertex* v2 = &vertices[i];
+      const Vertex& v1 = vertices[previous];
+      const Vertex& v2 = vertices[i];
 
       if (!c1)
       {
-         result.add(*v1);
+         result.push_back(v1);
       }
 
       if (c1 != c2)
       {
          // v1.x + (v2.x - v1.x)*t = _right
-         const float t = (_right - v1->x) / (v2->x - v1->x);
-         result.add(*v1 + (*v2 - *v1) * t);
+         const float t = (_right - v1.x) / (v2.x - v1.x);
+         result.push_back(v1 + (v2 - v1) * t);
       }
 
-      v1 = v2;
+      previous = i;
       c1 = c2;
    }
 
    return result;
 }
 
-Array<Vertex> Clipper::clipTop(const Array<Vertex>& vertices)
+std::vector<Vertex> Clipper::clipTop(const std::vector<Vertex>& vertices)
 {
-   Array<Vertex> result;
-   const int size = vertices.size();
-
-   if (size <= 0)
+   std::vector<Vertex> result;
+   if (vertices.empty())
    {
       return result;
    }
 
-   int c1 = getClipFlags(vertices[size - 1]) & Top;
-   const Vertex* v1 = &vertices[size - 1];
+   size_t previous = vertices.size() - 1;
+   int c1 = getClipFlags(vertices[previous]) & Top;
 
-   for (int i = 0; i < size; i++)
+   for (size_t i = 0; i < vertices.size(); i++)
    {
       const int c2 = getClipFlags(vertices[i]) & Top;
-      const Vertex* v2 = &vertices[i];
+      const Vertex& v1 = vertices[previous];
+      const Vertex& v2 = vertices[i];
 
       if (!c1)
       {
-         result.add(*v1);
+         result.push_back(v1);
       }
 
       if (c1 != c2)
       {
          // v1.y + (v2.y - v1.y)*t = _top
-         const float t = (_top - v1->y) / (v2->y - v1->y);
-         result.add(*v1 + (*v2 - *v1) * t);
+         const float t = (_top - v1.y) / (v2.y - v1.y);
+         result.push_back(v1 + (v2 - v1) * t);
       }
 
-      v1 = v2;
+      previous = i;
       c1 = c2;
    }
 
    return result;
 }
 
-Array<Vertex> Clipper::clipBottom(const Array<Vertex>& vertices)
+std::vector<Vertex> Clipper::clipBottom(const std::vector<Vertex>& vertices)
 {
-   Array<Vertex> result;
-   const int size = vertices.size();
-
-   if (size <= 0)
+   std::vector<Vertex> result;
+   if (vertices.empty())
    {
       return result;
    }
 
-   int c1 = getClipFlags(vertices[size - 1]) & Bottom;
-   const Vertex* v1 = &vertices[size - 1];
+   size_t previous = vertices.size() - 1;
+   int c1 = getClipFlags(vertices[previous]) & Bottom;
 
-   for (int i = 0; i < size; i++)
+   for (size_t i = 0; i < vertices.size(); i++)
    {
       const int c2 = getClipFlags(vertices[i]) & Bottom;
-      const Vertex* v2 = &vertices[i];
+      const Vertex& v1 = vertices[previous];
+      const Vertex& v2 = vertices[i];
 
       if (!c1)
       {
-         result.add(*v1);
+         result.push_back(v1);
       }
 
       if (c1 != c2)
       {
          // v1.y + (v2.y - v1.y)*t = _bottom
-         const float t = (_bottom - v1->y) / (v2->y - v1->y);
-         result.add(*v1 + (*v2 - *v1) * t);
+         const float t = (_bottom - v1.y) / (v2.y - v1.y);
+         result.push_back(v1 + (v2 - v1) * t);
       }
 
-      v1 = v2;
+      previous = i;
       c1 = c2;
    }
 
    return result;
 }
 
-Array<Vertex> Clipper::clip(const Array<Vertex>& vertices)
+std::vector<Vertex> Clipper::clip(const std::vector<Vertex>& vertices)
 {
-   Array<Vertex> left = clipLeft(vertices);
-   Array<Vertex> right = clipRight(left);
-   Array<Vertex> top = clipTop(right);
+   std::vector<Vertex> left = clipLeft(vertices);
+   std::vector<Vertex> right = clipRight(left);
+   std::vector<Vertex> top = clipTop(right);
    return clipBottom(top);
 }
 
-bool Clipper::visible(const Array<Vertex>& vertices) const
+bool Clipper::visible(const std::vector<Vertex>& vertices) const
 {
    int flags = -1;
-   const int size = vertices.size();
-   for (int i = 0; i < size; i++)
+   for (const Vertex& vertex : vertices)
    {
-      flags &= getClipFlags(vertices[i]);
+      flags &= getClipFlags(vertex);
    }
    return flags == 0;
 }
 
-bool Clipper::enable(const Array<Vertex>& vertices)
+bool Clipper::enable(const std::vector<Vertex>& vertices)
 {
    int all_flags = 0;
    int any_flags = Left | Right | Top | Bottom;
-   const int size = vertices.size();
-   for (int i = 0; i < size; i++)
+   for (const Vertex& vertex : vertices)
    {
-      const int flag = getClipFlags(vertices[i]);
+      const int flag = getClipFlags(vertex);
       all_flags |= flag;
       any_flags &= flag;
    }

@@ -12,6 +12,6 @@ class Dummy : public Node
 {
 public:
    Dummy(Node* parent = nullptr);
-   void load(Stream* stream) override;
-   void write(Stream* stream) override;
+   void load(Stream& stream) override;
+   void write(Stream& stream) override;
 };

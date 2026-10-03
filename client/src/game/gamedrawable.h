@@ -9,7 +9,6 @@
 #include <vector>
 
 // tools
-#include "tools/array.h"
 #include "tools/map2d.h"
 
 // game
@@ -170,7 +169,7 @@ private:
    SceneGraph* _playfield = nullptr;
    SceneGraph* _level_scene_graph = nullptr;
    SceneGraph* _players = nullptr;
-   Array<Node*> _destruct_anim;
+   std::vector<Node*> _destruct_anim;
    std::unique_ptr<DetonationManager> _detonations;
    std::unique_ptr<PlayerDeathEffect> _player_death_effect;
    std::unique_ptr<PlayerInfectedEffect> _player_infected_effect;
@@ -216,7 +215,7 @@ private:
    std::string _level_path;
    float _playfield_scale_x = 1.0;
    float _playfield_scale_y = 1.0;
-   Map2d<MapItem> _map;
+   Map2d<MapItem*> _map;
 
    float _camera_anim = 0.0f;
    float _camera_zoom = 1.0f;

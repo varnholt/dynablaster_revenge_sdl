@@ -38,7 +38,7 @@ void EnvironmentAmbientDiffuseMaterial::init()
    _param_camera = activeDevice->getParameterIndex("camera");
 }
 
-void EnvironmentAmbientDiffuseMaterial::load(Stream* stream)
+void EnvironmentAmbientDiffuseMaterial::load(Stream& stream)
 {
    Material::load(stream);
 

@@ -150,7 +150,7 @@ public:
    //! appends a layer on top of all others; invalidates references to existing layers
    void addLayer(Layer layer);
 
-   //! resolves the filename against the FileStream search paths
+   //! resolves the filename against the DataPaths search paths
    bool load(const std::string& filename);
    void load(std::istream& stream);
 

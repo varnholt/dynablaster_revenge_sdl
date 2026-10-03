@@ -44,7 +44,7 @@ void PlayerMaterial::init()
    _param_fade = activeDevice->getParameterIndex("fade");
 }
 
-void PlayerMaterial::load(Stream* stream)
+void PlayerMaterial::load(Stream& stream)
 {
    Material::load(stream);
 
@@ -178,7 +178,7 @@ void PlayerMaterial::setColorMap(const Texture& color_map)
    _color_map = color_map;
 }
 
-void PlayerMaterial::exportOBJ(Stream* stream, int32_t& index_offset)
+void PlayerMaterial::exportOBJ(Stream& stream, int32_t& index_offset)
 {
    for (const Buffer& buffer : _buffers)
    {
@@ -189,7 +189,7 @@ void PlayerMaterial::exportOBJ(Stream* stream, int32_t& index_offset)
          continue;
       }
 
-      Array<Vector> vertices = geometry->getSkinVertices();
+      std::vector<Vector> vertices = geometry->getSkinVertices();
 
       exportGeo(
          stream,

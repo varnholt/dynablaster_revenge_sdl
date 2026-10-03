@@ -42,7 +42,7 @@ SnowAnimation::~SnowAnimation()
 
 void SnowAnimation::initialize()
 {
-   _texture = TexturePool::Instance()->getTexture("data/game/snowflake");
+   _texture = TexturePool::Instance().getTexture("data/game/snowflake");
    _shader = activeDevice->loadShader("snow-vert.glsl", "snow-frag.glsl");
    _texture_param = activeDevice->getParameterIndex("texturemap");
    _size_factor_param = activeDevice->getParameterIndex("sizeFactor");

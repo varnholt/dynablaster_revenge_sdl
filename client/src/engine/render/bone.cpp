@@ -1,22 +1,9 @@
 #include "bone.h"
 #include "../nodes/scenegraph.h"
+#include "tools/stream.h"
 
 #include <array>
 #include <cstdio>
-
-Bone::Bone(const Bone& bone, Array<int32_t>* remap) : _id(bone.id()), _init_transform(bone.transform())
-{
-   const List<Weight>& weights = bone.weightList();
-   for (int32_t w = 0; w < weights.size(); w++)
-   {
-      const Weight& weight = weights[w];
-      const Array<int32_t>& list = remap[weight.id()];
-      for (int32_t i = 0; i < list.size(); i++)
-      {
-         _weights.add(Weight(list[i], weight.weight()));
-      }
-   }
-}
 
 int32_t Bone::id() const
 {
@@ -30,7 +17,7 @@ void Bone::setId(int32_t id)
 
 int32_t Bone::count() const
 {
-   return _weights.size();
+   return static_cast<int32_t>(_weights.size());
 }
 
 const Matrix& Bone::transform() const
@@ -38,28 +25,27 @@ const Matrix& Bone::transform() const
    return _init_transform;
 }
 
-Weight* Bone::weights() const
-{
-   return _weights.data();
-}
-
-const List<Weight>& Bone::weightList() const
+std::span<const Weight> Bone::weights() const
 {
    return _weights;
 }
 
-void Bone::load(Stream* stream)
+const std::vector<Weight>& Bone::weightList() const
 {
-   _id = stream->getInt();
+   return _weights;
+}
+
+void Bone::load(Stream& stream)
+{
+   _id = stream.getInt();
    _init_transform.load(stream);
-   _weights.load(stream);
+   loadList(stream, _weights);
 
    constexpr int32_t max_vertices = 10000;
    std::array<int32_t, max_vertices> weights_per_vertex{};
 
-   for (int32_t i = 0; i < _weights.size(); i++)
+   for (const Weight& weight : _weights)
    {
-      const Weight& weight = _weights[i];
       if (weight.id() < max_vertices)
       {
          weights_per_vertex[weight.id()]++;
@@ -81,10 +67,10 @@ void Bone::load(Stream* stream)
    }
 }
 
-void Bone::write(Stream* stream)
+void Bone::write(Stream& stream)
 {
-   stream->writeInt(_id);
+   stream.writeInt(_id);
    _init_transform.write(stream);
 
-   _weights.write(stream);
+   writeList(stream, _weights);
 }

@@ -14,6 +14,6 @@ public:
 
    void add(int32_t time, const Quat& rotation);
 
-   void load(Stream* stream) override;
-   void write(Stream* stream) override;
+   void load(Stream& stream) override;
+   void write(Stream& stream) override;
 };

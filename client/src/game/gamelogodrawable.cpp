@@ -11,6 +11,8 @@
 
 // cmath
 #include <cmath>
+#include <utility>
+#include <vector>
 // the real page-name string MenuDrawable's pageChangedSignal carries for the actual
 // main menu page (client/src/menus/gamemenudefines.h's MAINMENU - that header itself isn't
 // ported, it's all networking/gameplay action-name constants unrelated to rendering).
@@ -97,18 +99,18 @@ void GameLogoDrawable::drawSparks()
 {
    bool visible = true;
 
-   Array<Vector> positions;
-   Array<float> glow;
+   std::vector<Vector> positions;
+   std::vector<float> glow;
 
    if (!_spark_times_initialized)
    {
-      for (int i = 0; i < _sparks.size(); i++)
+      for (int i = 0; i < static_cast<int>(_sparks.size()); i++)
          _sparks[i]._start_time = _time + frand(100.0f);
 
       _spark_times_initialized = true;
    }
 
-   for (int i = 0; i < _sparks.size(); i++)
+   for (int i = 0; i < static_cast<int>(_sparks.size()); i++)
    {
       if (_sparks[i]._start_time <= _time)
       {
@@ -145,15 +147,15 @@ void GameLogoDrawable::drawSparks()
 
          if (visible)
          {
-            positions.add(pos);
-            glow.add(_sparks[i]._intensity * intensity);
+            positions.push_back(pos);
+            glow.push_back(_sparks[i]._intensity * intensity);
          }
       }
    }
 
    if (visible)
    {
-      GameLogoPointSprite::setPointSprites(positions, glow);
+      GameLogoPointSprite::setPointSprites(std::move(positions), std::move(glow));
 
       GameLogoPointSprite::draw();
    }
@@ -288,6 +290,6 @@ void GameLogoDrawable::initializeSparks()
    {
       Spark spark;
       initSpark(spark);
-      _sparks.add(spark);
+      _sparks.push_back(spark);
    }
 }

@@ -170,7 +170,7 @@ void backProject(Vector* dst, const Vector& min2d, const Vector& max2d, const Ma
 
 PlayerInvincibleEffect::PlayerInvincibleEffect()
 {
-   _displacement_texture = TexturePool::Instance()->getTexture("data/game/displace");
+   _displacement_texture = TexturePool::Instance().getTexture("data/game/displace");
 
    setRadius(10.0f);
 

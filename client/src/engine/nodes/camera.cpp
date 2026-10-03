@@ -5,33 +5,33 @@ Camera::Camera(Node* parent) : Node(Node::idCamera, parent)
 {
 }
 
-void Camera::load(Stream* stream)
+void Camera::load(Stream& stream)
 {
    Node::load(stream);
 
    // read tracks
    Chunk animation(stream);
-   _fov_track.load(&animation);
-   _position_track.load(&animation);
-   _rotation_track.load(&animation);
-   _scale_track.load(&animation);
-   _visibility_track.load(&animation);
-   _flip_track.load(&animation);
+   _fov_track.load(animation);
+   _position_track.load(animation);
+   _rotation_track.load(animation);
+   _scale_track.load(animation);
+   _visibility_track.load(animation);
+   _flip_track.load(animation);
    animation.skip();
 }
 
-void Camera::write(Stream* stream)
+void Camera::write(Stream& stream)
 {
    Node::write(stream);
 
    // write tracks
    Chunk animation(stream, 2000, "Animation");
-   _fov_track.write(&animation);
-   _position_track.write(&animation);
-   _rotation_track.write(&animation);
-   _scale_track.write(&animation);
-   _visibility_track.write(&animation);
-   _flip_track.write(&animation);
+   _fov_track.write(animation);
+   _position_track.write(animation);
+   _rotation_track.write(animation);
+   _scale_track.write(animation);
+   _visibility_track.write(animation);
+   _flip_track.write(animation);
 }
 
 void Camera::transform(float time)

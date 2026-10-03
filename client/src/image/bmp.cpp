@@ -1,8 +1,9 @@
 #include "bmp.h"
 
 #include <array>
+#include <fstream>
 
-#include "tools/filestream.h"
+#include "tools/stream.h"
 
 namespace
 {
@@ -43,14 +44,14 @@ static_assert(sizeof(BMPFileHeader) == 14);
 
 int32_t saveBmp(char* filename, uint32_t* data, int32_t width, int32_t height)
 {
-   FileStream stream;
-   stream.open(filename, true);
+   std::ofstream file(filename, std::ios::binary);
+   Stream stream(file);
 
    BMPFileHeader head;
-   stream.writeData(&head, sizeof(BMPFileHeader));
+   stream.writeRaw(head);
 
    BMPInfoHeader info(width, height);
-   stream.writeData(&info, sizeof(BMPInfoHeader));
+   stream.writeRaw(info);
 
    const int32_t padding = (4 - width * 3) & 3;
 
@@ -76,7 +77,7 @@ int32_t saveBmp(char* filename, uint32_t* data, int32_t width, int32_t height)
       }
    }
 
-   stream.close();
+   file.close();
 
    return 1;
 }

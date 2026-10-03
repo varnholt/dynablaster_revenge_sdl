@@ -19,7 +19,7 @@ public:
    EnvironmentAmbientMaterial(SceneGraph* scene, const char* ambient_map, const char* specular_map);
 
    void update(float frame, Node** node_list, const Matrix& camera) override;
-   void load(Stream* stream) override;
+   void load(Stream& stream) override;
    void addGeometry(Geometry* geometry) override;
    void renderDiffuse() override;
 

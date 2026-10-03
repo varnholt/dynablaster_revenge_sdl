@@ -26,7 +26,7 @@ void EnvironmentMaterial::init()
    _param_camera = activeDevice->getParameterIndex("camera");
 }
 
-void EnvironmentMaterial::load(Stream* stream)
+void EnvironmentMaterial::load(Stream& stream)
 {
    Material::load(stream);
    addTexture(_specular_map, getTextureSlot(0)->name(), 1 | 2 | 4);

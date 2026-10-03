@@ -10,8 +10,8 @@ public:
    Weight() = default;
    Weight(int32_t id, float weight);
 
-   void load(Stream* stream);
-   void write(Stream* stream);
+   void load(Stream& stream);
+   void write(Stream& stream);
    void operator<<(Stream& stream);
    void operator>>(Stream& stream);
 

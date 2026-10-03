@@ -17,7 +17,7 @@ void BombSocketGeometryVbo::initialize()
 {
    GeometryVbo::initialize();
 
-   _texture = TexturePool::Instance()->getTexture("metal_fire");
+   _texture = TexturePool::Instance().getTexture("metal_fire");
 
    _shader = activeDevice->loadShader("socketlight-vert.glsl", "socketlight-frag.glsl");
    _fresnel = activeDevice->getParameterIndex("fresnelFactor");

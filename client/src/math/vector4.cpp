@@ -16,7 +16,7 @@ Vector4::Vector4(float x, float y, float z, float w) : x(x), y(y), z(z), w(w)
 
 Vector4::Vector4(Stream& stream)
 {
-   load(&stream);
+   load(stream);
 }
 
 void Vector4::set(float px, float py, float pz, float pw)
@@ -98,28 +98,28 @@ void Vector4::operator-=(const Vector4& other)
 
 void Vector4::operator<<(Stream& stream)
 {
-   load(&stream);
+   load(stream);
 }
 
 void Vector4::operator>>(Stream& stream)
 {
-   write(&stream);
+   write(stream);
 }
 
-void Vector4::load(Stream* stream)
+void Vector4::load(Stream& stream)
 {
-   x = stream->getFloat();
-   y = stream->getFloat();
-   z = stream->getFloat();
-   w = stream->getFloat();
+   x = stream.getFloat();
+   y = stream.getFloat();
+   z = stream.getFloat();
+   w = stream.getFloat();
 }
 
-void Vector4::write(Stream* stream)
+void Vector4::write(Stream& stream)
 {
-   stream->writeFloat(x);
-   stream->writeFloat(y);
-   stream->writeFloat(z);
-   stream->writeFloat(w);
+   stream.writeFloat(x);
+   stream.writeFloat(y);
+   stream.writeFloat(z);
+   stream.writeFloat(w);
 }
 
 float* Vector4::data() const

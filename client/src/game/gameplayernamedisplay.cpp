@@ -100,10 +100,10 @@ void GamePlayerNameDisplay::start()
 
 void GamePlayerNameDisplay::initialize()
 {
-   _font = FontPool::Instance()->get("outlined");
+   _font = &FontPool::Instance().get("outlined")->get();
 
-   TexturePool* pool = TexturePool::Instance();
-   _arrow_texture = pool->getTexture("data/game/arrow");
+   TexturePool& pool = TexturePool::Instance();
+   _arrow_texture = pool.getTexture("data/game/arrow");
 
    _arrow_shader = activeDevice->loadShader("texalpha-vert.glsl", "texalpha-frag.glsl");
    _arrow_param_texture = activeDevice->getParameterIndex("tex");

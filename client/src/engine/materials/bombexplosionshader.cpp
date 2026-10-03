@@ -30,7 +30,7 @@ void BombExplosionShader::init()
    _param_camera = activeDevice->getParameterIndex("camera");
 }
 
-void BombExplosionShader::load(Stream* stream)
+void BombExplosionShader::load(Stream& stream)
 {
    Material::load(stream);
 }

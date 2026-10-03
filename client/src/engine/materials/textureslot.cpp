@@ -1,12 +1,12 @@
 #include "textureslot.h"
 #include "tools/stream.h"
 
-TextureSlot::TextureSlot(Stream* stream)
+TextureSlot::TextureSlot(Stream& stream)
 {
    load(stream);
 }
 
-void TextureSlot::load(Stream* stream)
+void TextureSlot::load(Stream& stream)
 {
    // amount and channel are not stored in the file
    _amount = 1.0f;
@@ -14,7 +14,7 @@ void TextureSlot::load(Stream* stream)
    ObjectName::load(stream);
 }
 
-void TextureSlot::write(Stream* stream)
+void TextureSlot::write(Stream& stream)
 {
    ObjectName::write(stream);
 }

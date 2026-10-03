@@ -83,8 +83,8 @@ public:
    float* data() const;
 
    void print() const;
-   void load(Stream* stream);
-   void write(Stream* stream);
+   void load(Stream& stream);
+   void write(Stream& stream);
 
    // The remaining trio (polarDecompose/affineDecompose/spectralDecompose) implements Ken
    // Shoemake's published matrix-decomposition algorithm ("Polar Matrix Decomposition", Graphics

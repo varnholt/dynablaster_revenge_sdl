@@ -6,7 +6,7 @@
 #include "gldevice.h"
 #include "postproduction/blurfilter.h"
 
-#include "tools/filestream.h"
+#include "tools/datapaths.h"
 
 #include "bombermanclient.h"
 #include "gamesettings.h"
@@ -86,10 +86,10 @@ GameWinDrawable::~GameWinDrawable()
 
 void GameWinDrawable::initializeGL()
 {
-   FileStream::addPath("data/cup");
+   DataPaths::add("data/cup");
 
-   _large_font = FontPool::Instance()->get("large");
-   _default_font = FontPool::Instance()->get("large-outlined");
+   _large_font = &FontPool::Instance().get("large")->get();
+   _default_font = &FontPool::Instance().get("large-outlined")->get();
 
    _scene = new SceneGraph();
    CupMaterialFactory factory;
@@ -102,7 +102,7 @@ void GameWinDrawable::initializeGL()
 
    _scene->render();
 
-   FileStream::removePath("data/cup");
+   DataPaths::remove("data/cup");
 
    _blur = std::make_unique<BlurFilter>();
    _blur->init();
@@ -698,19 +698,19 @@ void GameWinDrawable::initializePlayerMaterial()
    delete _player_material;
    _player_material = nullptr;
 
-   FileStream::addPath("data/winner");
+   DataPaths::add("data/winner");
 
    const auto material_texture_name = std::format("player_{}", static_cast<int>(Constants::ColorCyan));
    _player_material = new PlayerMaterial(_scene, material_texture_name.c_str(), "diffuse_level", "specular_level", "player-ao");
 
-   TexturePool* pool = TexturePool::Instance();
+   TexturePool& pool = TexturePool::Instance();
    for (int i = 0; i < 10; i++)
    {
       const auto texture_name = std::format("player_{}", i + 1);
-      _player_textures[i] = pool->getTexture(texture_name.c_str());
+      _player_textures[i] = pool.getTexture(texture_name);
    }
 
-   FileStream::removePath("data/winner");
+   DataPaths::remove("data/winner");
 }
 
 void GameWinDrawable::updateWinAnimation(float time, float dt)

@@ -2,14 +2,13 @@
 
 #include <cstdint>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "math/vector.h"
 #include "render/texture.h"
 #include "render/vertexbufferpool.h"
-#include "tools/array.h"
 #include "tools/objectname.h"
-#include "tools/string.h"
 
 class Stream;
 class Node;
@@ -52,10 +51,10 @@ public:
    virtual void init() = 0;
    virtual void begin();
    virtual void end() = 0;
-   virtual void exportOBJ(Stream* stream, int32_t& index_offset);
+   virtual void exportOBJ(Stream& stream, int32_t& index_offset);
    virtual void exportGeo(
-      Stream* stream,
-      const String& name,
+      Stream& stream,
+      const std::string& name,
       const Matrix& transform,
       Vector* vertices,
       Vector* normals,
@@ -68,8 +67,8 @@ public:
    virtual void addGeometry(Geometry* geometry) = 0;
    Geometry* getGeometry(int32_t index) const;
 
-   virtual void load(Stream* stream);
-   virtual void write(Stream* stream);
+   virtual void load(Stream& stream);
+   virtual void write(Stream& stream);
 
    virtual void getBoundingRect(Vector& min, Vector& max, const Matrix& projection);
    virtual Vector getCenter2d(const Matrix& projection) const;
@@ -86,7 +85,7 @@ public:
 
    // takes ownership of the image, it is deleted once the texture is uploaded
    void addTexture(Texture& texture, std::unique_ptr<Image> image, int32_t flags = 1 | 2 | 4);
-   void addTexture(Texture& texture, const char* filename, int32_t flags = 1 | 2 | 4);
+   void addTexture(Texture& texture, const std::string& filename, int32_t flags = 1 | 2 | 4);
 
    virtual void update(float frame, Node** node_list, const Matrix& camera);
    virtual void renderDiffuse();

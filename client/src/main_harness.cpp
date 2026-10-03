@@ -12,7 +12,7 @@
 
 #include "gldevice.h"
 
-#include "tools/filestream.h"
+#include "tools/datapaths.h"
 
 #include "demofactory.h"
 #include "effectlab.h"
@@ -250,13 +250,13 @@ int main(int argc, char** argv)
    }
 
    // shaders (loaded by GLDevice::loadShader) and textures (loaded by Image via loadtga) are
-   // both plain FileStream reads, resolved against these search paths rather than a hardcoded
+   // both plain file reads, resolved against these search paths rather than a hardcoded
    // prefix on every call site.
-   FileStream::addPath("data/shaders");
-   FileStream::addPath("data/textures");
-   FileStream::addPath("data/game");
-   FileStream::addPath("data/level-castle");
-   FileStream::addPath("data/logo");  // GameLogoPointSprite's "pointsprite" texture
+   DataPaths::add("data/shaders");
+   DataPaths::add("data/textures");
+   DataPaths::add("data/game");
+   DataPaths::add("data/level-castle");
+   DataPaths::add("data/logo");  // GameLogoPointSprite's "pointsprite" texture
 
    // constructing a RenderDevice sets the global activeDevice pointer (see renderdevice.cpp) -
    // every Material/VertexBuffer/etc call below goes through this.
