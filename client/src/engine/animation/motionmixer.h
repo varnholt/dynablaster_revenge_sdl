@@ -1,7 +1,9 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 #include "math/matrix.h"
@@ -21,11 +23,11 @@ public:
 
    static void cleanup();
    static int32_t addAnimation(const std::string& name);
-   static Mesh* getMesh(const std::string& name);
+   static std::optional<std::reference_wrapper<Mesh>> getMesh(const std::string& name);
 
    void setAnimation(int32_t anim1, int32_t anim2, float weight1, int32_t anim3, float weight2);
    void animate(float frame);
-   Node* getNode(int32_t index) const;
+   Node& getNode(int32_t index) const;
 
 private:
    static std::unique_ptr<SceneGraph> _reference_animation;

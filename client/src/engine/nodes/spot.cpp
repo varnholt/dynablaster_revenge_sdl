@@ -1,7 +1,7 @@
 #include "spot.h"
 #include "tools/stream.h"
 
-Spot::Spot(Node* parent) : Light(Node::idSpot, parent)
+Spot::Spot() : Light(Node::idSpot)
 {
 }
 

@@ -72,10 +72,10 @@ StarTalersFactory::Burst::Burst(const Vector& field_position, const Vector& colo
    int vertex_count = STAR_COUNT * 12;
    _index_count = STAR_COUNT * 18;
 
-   _vertex_buffer = activeDevice->createVertexBuffer(vertex_count * static_cast<int>(sizeof(StarTalersVertex)));
-   _index_buffer = activeDevice->createIndexBuffer(_index_count * static_cast<int>(sizeof(uint16_t)));
+   _vertex_buffer = activeDevice().createVertexBuffer(vertex_count * static_cast<int>(sizeof(StarTalersVertex)));
+   _index_buffer = activeDevice().createIndexBuffer(_index_count * static_cast<int>(sizeof(uint16_t)));
 
-   auto* vtx = static_cast<StarTalersVertex*>(activeDevice->lockVertexBuffer(_vertex_buffer));
+   const std::span<StarTalersVertex> vtx = activeDevice().lockVertexBuffer<StarTalersVertex>(_vertex_buffer);
 
    const float scale = 0.5f;
    int index = 0;
@@ -141,9 +141,9 @@ StarTalersFactory::Burst::Burst(const Vector& field_position, const Vector& colo
       index++;
    }
 
-   activeDevice->unlockVertexBuffer(_vertex_buffer);
+   activeDevice().unlockVertexBuffer(_vertex_buffer);
 
-   auto* idx = static_cast<uint16_t*>(activeDevice->lockIndexBuffer(_index_buffer));
+   const std::span<uint16_t> idx = activeDevice().lockIndexBuffer<uint16_t>(_index_buffer);
 
    index = 0;
    for (int i = 0; i < _index_count; i += 18)
@@ -175,13 +175,13 @@ StarTalersFactory::Burst::Burst(const Vector& field_position, const Vector& colo
       index += 12;
    }
 
-   activeDevice->unlockIndexBuffer(_index_buffer);
+   activeDevice().unlockIndexBuffer(_index_buffer);
 }
 
 StarTalersFactory::Burst::~Burst()
 {
-   activeDevice->deleteBuffer(_vertex_buffer);
-   activeDevice->deleteBuffer(_index_buffer);
+   activeDevice().deleteBuffer(_vertex_buffer);
+   activeDevice().deleteBuffer(_index_buffer);
 }
 
 bool StarTalersFactory::Burst::isElapsed() const
@@ -196,9 +196,9 @@ void StarTalersFactory::Burst::update(float dt)
 
 void StarTalersFactory::Burst::render(int field_param, int color_param, int time_param)
 {
-   activeDevice->setParameter(time_param, _time);
-   activeDevice->setParameter(field_param, _field_position);
-   activeDevice->setParameter(color_param, _color);
+   activeDevice().setParameter(time_param, _time);
+   activeDevice().setParameter(field_param, _field_position);
+   activeDevice().setParameter(color_param, _color);
 
    glBindBuffer(GL_ARRAY_BUFFER, _vertex_buffer);
 
@@ -237,7 +237,7 @@ StarTalersFactory::~StarTalersFactory()
 {
    if (_texture_id)
    {
-      activeDevice->deleteTexture(_texture_id);
+      activeDevice().deleteTexture(_texture_id);
    }
 }
 
@@ -245,14 +245,14 @@ void StarTalersFactory::initialize()
 {
    Image image;
    image.load("data/effects/startalers/startalers_particles");
-   _texture_id = activeDevice->createTexture(image.getData(), image.getWidth(), image.getHeight());
+   _texture_id = activeDevice().createTexture(image.getData(), image.getWidth(), image.getHeight());
 
-   _shader = activeDevice->loadShader("startalers-vert.glsl", "startalers-frag.glsl");
-   _field_param = activeDevice->getParameterIndex("field");
-   _color_param = activeDevice->getParameterIndex("color");
-   _time_param = activeDevice->getParameterIndex("time");
-   _camera_param = activeDevice->getParameterIndex("camera");
-   _texture_param = activeDevice->getParameterIndex("texturemap");
+   _shader = activeDevice().loadShader("startalers-vert.glsl", "startalers-frag.glsl");
+   _field_param = activeDevice().getParameterIndex("field");
+   _color_param = activeDevice().getParameterIndex("color");
+   _time_param = activeDevice().getParameterIndex("time");
+   _camera_param = activeDevice().getParameterIndex("camera");
+   _texture_param = activeDevice().getParameterIndex("texturemap");
 }
 
 const Vector& StarTalersFactory::getColor(Constants::ExtraType extra) const
@@ -305,25 +305,25 @@ void StarTalersFactory::render()
    glEnable(GL_BLEND);
    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-   activeDevice->setShader(_shader);
+   activeDevice().setShader(_shader);
 
-   Vector camera = static_cast<GLDevice*>(activeDevice)->getProjectionMatrix().z();
-   activeDevice->setParameter(_camera_param, camera);
+   Vector camera = static_cast<GLDevice&>(activeDevice()).getProjectionMatrix().z();
+   activeDevice().setParameter(_camera_param, camera);
 
    glActiveTexture(GL_TEXTURE0);
    glBindTexture(GL_TEXTURE_2D, _texture_id);
-   activeDevice->bindSampler(_texture_param, 0);
+   activeDevice().bindSampler(_texture_param, 0);
 
-   activeDevice->push(Matrix());
+   activeDevice().push(Matrix());
 
    for (auto& burst : _bursts)
    {
       burst->render(_field_param, _color_param, _time_param);
    }
 
-   activeDevice->pop();
+   activeDevice().pop();
 
-   activeDevice->setShader(0);
+   activeDevice().setShader(0);
 
    glDepthMask(GL_TRUE);
    glEnable(GL_CULL_FACE);

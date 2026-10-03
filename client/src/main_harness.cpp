@@ -153,7 +153,7 @@ void dumpLayerPixels(const Image& image)
    }
 
    // scan row 0 for the first non-zero-alpha pixel and print its color.
-   const uint32_t* row0 = image.getScanline(0);
+   const std::span<const uint32_t> row0 = image.getScanline(0);
    for (int32_t x = 0; x < w; x++)
    {
       const uint32_t px = row0[x];
@@ -168,17 +168,17 @@ void dumpLayerPixels(const Image& image)
    const auto has_alpha = [](uint32_t px) { return ((px >> 24) & 0xff) > 0; };
 
    // count how many pixels in row 0 have non-zero alpha, for density context.
-   const auto non_zero = std::count_if(row0, row0 + w, has_alpha);
+   const auto non_zero = std::ranges::count_if(row0, has_alpha);
    SDL_Log("  row0 non-zero-alpha pixel count: %d / %d", static_cast<int32_t>(non_zero), w);
 
    // row 0 might just be a sparse top margin - check density + an example color at
    // several more representative rows across the image.
    for (const int32_t check_y : {100, 300, 540, 800, 1000})
    {
-      const uint32_t* row = image.getScanline(check_y);
-      const auto count = std::count_if(row, row + w, has_alpha);
-      const uint32_t* example = std::find_if(row, row + w, has_alpha);
-      const uint32_t example_pixel = (example != row + w) ? *example : 0;
+      const std::span<const uint32_t> row = image.getScanline(check_y);
+      const auto count = std::ranges::count_if(row, has_alpha);
+      const auto example = std::ranges::find_if(row, has_alpha);
+      const uint32_t example_pixel = (example != row.end()) ? *example : 0;
       SDL_Log(
          "  row %d: non-zero count=%d/%d example a=%d r=%d g=%d b=%d",
          check_y,
@@ -291,7 +291,7 @@ int main(int argc, char** argv)
 
    if (logo3d_mode)
    {
-      logo3d = std::make_unique<SphereFragmentsDrawable>(&device);
+      logo3d = std::make_unique<SphereFragmentsDrawable>(device);
       logo3d->initializeGL();
       logo3d->setVisible(true);
    }
@@ -400,7 +400,7 @@ int main(int argc, char** argv)
    }
    else
    {
-      const int32_t loaded = scene.load("level.hjb", &factory, nullptr);
+      const int32_t loaded = scene.load("level.hjb", factory);
       SDL_Log("scene.load(\"level.hjb\") -> %d, materials=%d", loaded, scene.getMaterialCount());
    }
 
@@ -524,7 +524,7 @@ int main(int argc, char** argv)
                {
                   int x = static_cast<int>(event.motion.x);
                   int y = static_cast<int>(event.motion.y);
-                  device.convertFromViewPort(&x, &y, 1920, 1080);
+                  device.convertFromViewPort(x, y, 1920, 1080);
                   menu_drawable->mouseMoveEvent(x, y);
                   if (menu_cursor)
                   {
@@ -536,7 +536,7 @@ int main(int argc, char** argv)
                {
                   int x = static_cast<int>(event.button.x);
                   int y = static_cast<int>(event.button.y);
-                  device.convertFromViewPort(&x, &y, 1920, 1080);
+                  device.convertFromViewPort(x, y, 1920, 1080);
                   menu_drawable->mousePressEvent(x, y);
                   if (menu_cursor)
                   {

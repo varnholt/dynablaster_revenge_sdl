@@ -122,9 +122,14 @@ void Vector4::write(Stream& stream)
    stream.writeFloat(w);
 }
 
-float* Vector4::data() const
+std::span<const float, 4> Vector4::values() const
 {
-   return (float*)&x;
+   return std::span<const float, 4>(&x, 4);
+}
+
+std::span<float, 4> Vector4::values()
+{
+   return std::span<float, 4>(&x, 4);
 }
 
 unsigned int Vector4::rgba() const

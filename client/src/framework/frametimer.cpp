@@ -7,7 +7,7 @@ FrameTimer::FrameTimer(const FrameTimer& other)
 {
    if (_started)
    {
-      TimerHandler::Instance().addTimer(this);
+      TimerHandler::Instance().addTimer(*this);
    }
 }
 
@@ -15,7 +15,7 @@ FrameTimer::~FrameTimer()
 {
    if (_started)
    {
-      TimerHandler::Instance().removeTimer(this);
+      TimerHandler::Instance().removeTimer(*this);
    }
 }
 
@@ -29,7 +29,7 @@ FrameTimer& FrameTimer::operator=(const FrameTimer& other)
       _interval = other._interval;
       if (_started)
       {
-         TimerHandler::Instance().addTimer(this);
+         TimerHandler::Instance().addTimer(*this);
       }
    }
    return *this;
@@ -38,7 +38,7 @@ FrameTimer& FrameTimer::operator=(const FrameTimer& other)
 FrameTimer FrameTimer::currentTime()
 {
    FrameTimer time;
-   time._start_time = GlobalTime::Instance()->getTime();
+   time._start_time = GlobalTime::Instance().getTime();
    return time;
 }
 
@@ -76,11 +76,11 @@ float FrameTimer::interval() const
 
 void FrameTimer::start()
 {
-   _start_time = GlobalTime::Instance()->getTime();
+   _start_time = GlobalTime::Instance().getTime();
    if (!_started)
    {
       _started = true;
-      TimerHandler::Instance().addTimer(this);
+      TimerHandler::Instance().addTimer(*this);
    }
 }
 
@@ -100,7 +100,7 @@ void FrameTimer::stop()
    if (_started)
    {
       _started = false;
-      TimerHandler::Instance().removeTimer(this);
+      TimerHandler::Instance().removeTimer(*this);
    }
 }
 
@@ -108,7 +108,7 @@ float FrameTimer::elapsed() const
 {
    if (_started)
    {
-      const float current_time = GlobalTime::Instance()->getTime();
+      const float current_time = GlobalTime::Instance().getTime();
       return (current_time - _start_time) * 1000.0f;
    }
    return 0.0f;
@@ -118,7 +118,7 @@ bool FrameTimer::update()
 {
    if (_started && _interval > 0.0f)
    {
-      const float current_time = GlobalTime::Instance()->getTime();
+      const float current_time = GlobalTime::Instance().getTime();
       if (current_time >= _start_time + _interval)
       {
          timeoutSignal();

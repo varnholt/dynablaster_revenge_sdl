@@ -58,14 +58,14 @@ SpaceBackground::SpaceBackground()
    _earth_texture = TexturePool::Instance().getTexture("earth_color");
    _earth_normal_texture = TexturePool::Instance().getTexture("earth_normal");
 
-   _earth_shader = activeDevice->loadShader("earth-vert.glsl", "earth-frag.glsl");
-   _light_param = activeDevice->getParameterIndex("osLightPos");
-   _camera_param = activeDevice->getParameterIndex("osCameraPos");
-   _cloud_move_param = activeDevice->getParameterIndex("moveCloud");
-   _texture_map_param = activeDevice->getParameterIndex("texturemap");
-   _normal_map_param = activeDevice->getParameterIndex("normalmap");
+   _earth_shader = activeDevice().loadShader("earth-vert.glsl", "earth-frag.glsl");
+   _light_param = activeDevice().getParameterIndex("osLightPos");
+   _camera_param = activeDevice().getParameterIndex("osCameraPos");
+   _cloud_move_param = activeDevice().getParameterIndex("moveCloud");
+   _texture_map_param = activeDevice().getParameterIndex("texturemap");
+   _normal_map_param = activeDevice().getParameterIndex("normalmap");
 
-   _aura_shader = activeDevice->loadShader("earthaura-vert.glsl", "earthaura-frag.glsl");
+   _aura_shader = activeDevice().loadShader("earthaura-vert.glsl", "earthaura-frag.glsl");
 
    initEarth();
    initAura();
@@ -177,18 +177,18 @@ void SpaceBackground::animate(float dt)
 
 void SpaceBackground::draw()
 {
-   auto* device = static_cast<GLDevice*>(activeDevice);
-   device->clear();
+   auto& device = static_cast<GLDevice&>(activeDevice());
+   device.clear();
 
    glDepthMask(GL_FALSE);
    glDisable(GL_DEPTH_TEST);
 
-   device->pushProjection();
+   device.pushProjection();
 
    drawStarField();
 
    // camera in front of the earth; the view translation lives in the projection like the scene camera
-   device->setProjectionMatrix(
+   device.setProjectionMatrix(
       Matrix::position(-_camera.x, -_camera.y, -_camera.z) *
       Matrix::frustum(-FRUSTUM_SCALE, FRUSTUM_SCALE, -ASPECT_Y * FRUSTUM_SCALE, ASPECT_Y * FRUSTUM_SCALE, 0.1f, 10.0f)
    );
@@ -196,7 +196,7 @@ void SpaceBackground::draw()
    drawEarth();
    drawAura();
 
-   device->popProjection();
+   device.popProjection();
 
    glDepthMask(GL_TRUE);
    glEnable(GL_DEPTH_TEST);
@@ -204,10 +204,10 @@ void SpaceBackground::draw()
 
 void SpaceBackground::drawStarField()
 {
-   auto* device = static_cast<GLDevice*>(activeDevice);
-   device->setProjectionMatrix(Matrix());
+   auto& device = static_cast<GLDevice&>(activeDevice());
+   device.setProjectionMatrix(Matrix());
 
-   const float offset = GlobalTime::Instance()->getTime() * 0.002f;
+   const float offset = GlobalTime::Instance().getTime() * 0.002f;
    const std::array<float, 30> vertices = {
       -1.0f, -1.0f, 0.0f, offset + 0.0f, 0.0f, 1.0f, -1.0f, 0.0f, offset + 2.0f, 0.0f, 1.0f,  1.0f, 0.0f, offset + 2.0f, 1.0f,
       -1.0f, -1.0f, 0.0f, offset + 0.0f, 0.0f, 1.0f, 1.0f,  0.0f, offset + 2.0f, 1.0f, -1.0f, 1.0f, 0.0f, offset + 0.0f, 1.0f,
@@ -215,9 +215,9 @@ void SpaceBackground::drawStarField()
 
    glDisable(GL_BLEND);
 
-   device->setShader(getDefaultMenuShader());
-   device->setParameter(getDefaultMenuShaderAlphaParam(), 1.0f);
-   device->push(Matrix());
+   device.setShader(getDefaultMenuShader());
+   device.setParameter(getDefaultMenuShaderAlphaParam(), 1.0f);
+   device.push(Matrix());
 
    glActiveTexture(GL_TEXTURE0);
    glBindTexture(GL_TEXTURE_2D, _star_field_texture.getTexture());
@@ -233,8 +233,8 @@ void SpaceBackground::drawStarField()
    glDisableVertexAttribArray(1);
    glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-   device->pop();
-   device->setShader(0);
+   device.pop();
+   device.setShader(0);
 }
 
 void SpaceBackground::drawEarth()
@@ -244,20 +244,20 @@ void SpaceBackground::drawEarth()
    const Matrix model = Matrix::rotateX(radians(-20.0f)) * Matrix::rotateY(radians(_earth_rotation));
    const Matrix inverse_model = model.invert();
 
-   activeDevice->setShader(_earth_shader);
-   activeDevice->push(model);
+   activeDevice().setShader(_earth_shader);
+   activeDevice().push(model);
 
-   activeDevice->setParameter(_light_param, inverse_model * Vector(20.0f, -20.0f, -1.0f));
-   activeDevice->setParameter(_camera_param, inverse_model * _camera);
-   activeDevice->setParameter(_cloud_move_param, Vector(GlobalTime::Instance()->getTime() * 0.001f, 0.0f, 0.0f));
+   activeDevice().setParameter(_light_param, inverse_model * Vector(20.0f, -20.0f, -1.0f));
+   activeDevice().setParameter(_camera_param, inverse_model * _camera);
+   activeDevice().setParameter(_cloud_move_param, Vector(GlobalTime::Instance().getTime() * 0.001f, 0.0f, 0.0f));
 
    glActiveTexture(GL_TEXTURE0);
    glBindTexture(GL_TEXTURE_2D, _earth_texture.getTexture());
-   activeDevice->bindSampler(_texture_map_param, 0);
+   activeDevice().bindSampler(_texture_map_param, 0);
 
    glActiveTexture(GL_TEXTURE1);
    glBindTexture(GL_TEXTURE_2D, _earth_normal_texture.getTexture());
-   activeDevice->bindSampler(_normal_map_param, 1);
+   activeDevice().bindSampler(_normal_map_param, 1);
 
    glBindBuffer(GL_ARRAY_BUFFER, _earth_vertex_buffer);
    glEnableVertexAttribArray(0);
@@ -280,8 +280,8 @@ void SpaceBackground::drawEarth()
    glBindTexture(GL_TEXTURE_2D, 0);
    glActiveTexture(GL_TEXTURE0);
 
-   activeDevice->pop();
-   activeDevice->setShader(0);
+   activeDevice().pop();
+   activeDevice().setShader(0);
 }
 
 void SpaceBackground::drawAura()
@@ -292,8 +292,8 @@ void SpaceBackground::drawAura()
    glEnable(GL_BLEND);
    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
-   activeDevice->setShader(_aura_shader);
-   activeDevice->push(model);
+   activeDevice().setShader(_aura_shader);
+   activeDevice().push(model);
 
    glBindBuffer(GL_ARRAY_BUFFER, _aura_vertex_buffer);
    glEnableVertexAttribArray(0);
@@ -305,8 +305,8 @@ void SpaceBackground::drawAura()
    glDisableVertexAttribArray(1);
    glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-   activeDevice->pop();
-   activeDevice->setShader(0);
+   activeDevice().pop();
+   activeDevice().setShader(0);
 
    glDisable(GL_BLEND);
    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);

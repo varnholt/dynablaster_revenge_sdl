@@ -4,8 +4,11 @@
 #include "../gles3.h"
 #include "renderdevice.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <map>
+#include <span>
+#include <string>
 
 // GLES3 render device. The matrices are computed on the CPU and uploaded as the uniforms
 // "u_modelView", "u_projection", "u_normalMatrix" and "u_modelViewProjection" to whichever of those
@@ -17,8 +20,8 @@ public:
 
    void resize(int32_t x, int32_t y) override;
    void setViewPort(int32_t x, int32_t y, int32_t width, int32_t height) override;
-   void getViewPort(int32_t* x, int32_t* y, int32_t* width, int32_t* height) override;
-   void convertFromViewPort(int32_t* x, int32_t* y, int32_t target_width, int32_t target_height) override;
+   ViewPort getViewPort() const override;
+   void convertFromViewPort(int32_t& x, int32_t& y, int32_t target_width, int32_t target_height) override;
    void clear() override;
 
    // clears with an explicit color (e.g. alpha=0 for offscreen buffers blended later),
@@ -55,33 +58,30 @@ public:
 
    uint32_t createVertexBuffer(int32_t size, bool dynamic = false) override;
    void allocateVertexBuffer(uint32_t buffer, int32_t size, bool dynamic = false) override;
-   void* lockVertexBuffer(uint32_t handle, int32_t size = 0) override;
+   std::span<std::byte> mapVertexBuffer(uint32_t handle, int32_t size = 0) override;
    void unlockVertexBuffer(uint32_t buffer) override;
 
    uint32_t createIndexBuffer(int32_t size, bool dynamic = false) override;
    void allocateIndexBuffer(uint32_t buffer, int32_t size, bool dynamic = false) override;
-   void* lockIndexBuffer(uint32_t handle, int32_t size = 0) override;
+   std::span<std::byte> mapIndexBuffer(uint32_t handle, int32_t size = 0) override;
    void unlockIndexBuffer(uint32_t buffer) override;
    void setCulling(bool state) override;
    void setMaterial(const Vector& ambient, const Vector& diffuse, const Vector& specular, float shine) override;
 
-   void drawLine(Vector* vertices) override;
-
-   uint32_t createTexture(void* data, int32_t x, int32_t y, int32_t flags = 3) override;
+   uint32_t createTexture(std::span<const uint32_t> data, int32_t x, int32_t y, int32_t flags = 3) override;
    void deleteTexture(uint32_t texture_id) override;
-   void updateTexture(void* data, int32_t x, int32_t y, int32_t flags) override;
+   void updateTexture(std::span<const uint32_t> data, int32_t x, int32_t y, int32_t flags) override;
 
-   uint32_t uploadTexture1D(void* data, int32_t x, int32_t flags = 0) override;
-   uint32_t loadShader(const char* vertex_name, const char* fragment_name) override;
+   uint32_t loadShader(const std::string& vertex_name, const std::string& fragment_name) override;
    void setShader(uint32_t shader) override;
-   int32_t getParameterIndex(const char* name) override;
+   int32_t getParameterIndex(const std::string& name) override;
    void bindSampler(int32_t position, int32_t unit) override;
-   void setParameter(int32_t position, float* data, int32_t size) override;
+   void setParameter(int32_t position, std::span<const float> data) override;
    void setParameter(int32_t position, const Vector& vector) override;
    void setParameter(int32_t position, const Vector2& vector) override;
    void setParameter(int32_t position, const Vector4& vector) override;
    void setParameter(int32_t position, const Matrix& matrix) override;
-   void setParameter(int32_t position, const Matrix* matrix, int32_t count) override;
+   void setParameter(int32_t position, std::span<const Matrix> matrices) override;
    void setParameter(int32_t position, float value) override;
 
    uint32_t createBuffer() override;

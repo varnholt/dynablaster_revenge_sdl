@@ -5,6 +5,7 @@
 #include <array>
 #include <cstdint>
 #include <istream>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -70,7 +71,7 @@ public:
          void init(int16_t id, int32_t width, int32_t height);
          void loadRLE(int32_t width, int32_t height, std::istream& stream);
          void loadRaw(int32_t width, int32_t height, std::istream& stream);
-         const uint8_t* getScanline(int32_t y) const;
+         std::span<const uint8_t> getScanline(int32_t y) const;
          int16_t getID() const;
 
       private:

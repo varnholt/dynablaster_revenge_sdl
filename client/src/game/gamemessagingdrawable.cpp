@@ -41,7 +41,7 @@
 #define CURSOR_UPDATE_TIME 0.5f
 #define MESSAGE_FIELD_WIDTH 80
 
-GameMessagingDrawable::GameMessagingDrawable(RenderDevice* dev) : Drawable(dev)
+GameMessagingDrawable::GameMessagingDrawable(RenderDevice* dev) : Drawable(*dev)
 {
    _filename = "data/game/messaging_bar.psd";
 
@@ -278,7 +278,7 @@ void GameMessagingDrawable::initializeGL()
 void GameMessagingDrawable::initGlParameters()
 {
    Matrix ortho = Matrix::ortho(0.0f, 1920, 1080, 0.0f, -1.0f, 1.0f);
-   static_cast<GLDevice*>(activeDevice)->setProjectionMatrix(ortho);
+   static_cast<GLDevice&>(activeDevice()).setProjectionMatrix(ortho);
 
    glEnable(GL_BLEND);
    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -286,7 +286,7 @@ void GameMessagingDrawable::initGlParameters()
    glDisable(GL_DEPTH_TEST);
    glDepthMask(GL_FALSE);
 
-   activeDevice->setShader(0);
+   activeDevice().setShader(0);
 }
 
 void GameMessagingDrawable::cleanupGlParameters()
@@ -470,7 +470,7 @@ void GameMessagingDrawable::drawCursor()
 {
    // see MenuPageTextEditItem::drawCursor()'s own doc comment - same lazily-created 1x1 white
    // texture + dynamic quad replacement for the legacy untextured glColor4ub'd quad.
-   float alpha = 0.25f + std::fmod(GlobalTime::Instance()->getTime(), 0.5f);
+   float alpha = 0.25f + std::fmod(GlobalTime::Instance().getTime(), 0.5f);
 
    float left = 0.0f;
    float right = 0.0f;
@@ -481,8 +481,8 @@ void GameMessagingDrawable::drawCursor()
 
    if (_cursor_texture == 0)
    {
-      uint32_t white = 0xFFFFFFFF;
-      _cursor_texture = activeDevice->createTexture(&white, 1, 1, 0);
+      const std::array<uint32_t, 1> white = {0xFFFFFFFF};
+      _cursor_texture = activeDevice().createTexture(white, 1, 1, 0);
    }
 
    glBindTexture(GL_TEXTURE_2D, _cursor_texture);
@@ -495,16 +495,15 @@ void GameMessagingDrawable::drawCursor()
    };
 
    if (_cursor_vertex_buffer == 0)
-      _cursor_vertex_buffer = activeDevice->createVertexBuffer(sizeof(quad), true);
+      _cursor_vertex_buffer = activeDevice().createVertexBuffer(sizeof(quad), true);
    else
-      activeDevice->allocateVertexBuffer(_cursor_vertex_buffer, sizeof(quad), true);
+      activeDevice().allocateVertexBuffer(_cursor_vertex_buffer, sizeof(quad), true);
 
-   void* dst = activeDevice->lockVertexBuffer(_cursor_vertex_buffer, sizeof(quad));
-   std::memcpy(dst, quad, sizeof(quad));
-   activeDevice->unlockVertexBuffer(_cursor_vertex_buffer);
+   std::ranges::copy(quad, activeDevice().lockVertexBuffer<float>(_cursor_vertex_buffer, sizeof(quad)).begin());
+   activeDevice().unlockVertexBuffer(_cursor_vertex_buffer);
 
-   activeDevice->push(Matrix());
-   activeDevice->setParameter(activeDevice->getParameterIndex("alpha"), (128.0f / 255.0f) * alpha);
+   activeDevice().push(Matrix());
+   activeDevice().setParameter(activeDevice().getParameterIndex("alpha"), (128.0f / 255.0f) * alpha);
 
    glBindBuffer(GL_ARRAY_BUFFER, _cursor_vertex_buffer);
    glEnableVertexAttribArray(0);
@@ -517,7 +516,7 @@ void GameMessagingDrawable::drawCursor()
    glDisableVertexAttribArray(0);
    glDisableVertexAttribArray(1);
 
-   activeDevice->pop();
+   activeDevice().pop();
 
    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }

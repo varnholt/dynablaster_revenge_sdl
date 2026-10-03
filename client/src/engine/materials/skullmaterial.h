@@ -18,19 +18,18 @@ public:
       UV uv;
    };
 
-   SkullMaterial(SceneGraph* scene);
+   SkullMaterial();
    SkullMaterial(
-      SceneGraph* scene,
-      const char* color_map,
-      const char* diffuse_map,
-      const char* specular_map,
-      const char* shadow_map,
-      Camera* shadow_camera
+      const std::string& color_map,
+      const std::string& diffuse_map,
+      const std::string& specular_map,
+      const std::string& shadow_map,
+      Camera& shadow_camera
    );
 
-   void update(float frame, Node** node_list, const Matrix& camera) override;
+   void update(float frame, const Matrix& camera) override;
    void load(Stream& stream) override;
-   void addGeometry(Geometry* geometry) override;
+   void addGeometry(Geometry& geometry) override;
    void renderDiffuse() override;
 
 private:
@@ -52,6 +51,6 @@ private:
    int32_t _param_shadow_camera = 0;
    int32_t _param_offset = 0;
 
-   Camera* _shadow_camera = nullptr;
+   std::optional<std::reference_wrapper<Camera>> _shadow_camera;
    Matrix _camera;
 };

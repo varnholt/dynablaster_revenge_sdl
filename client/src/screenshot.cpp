@@ -3,8 +3,10 @@
 #include "gles3.h"
 
 #include <SDL3/SDL.h>
+#include <algorithm>
+#include <cstddef>
 #include <cstdint>
-#include <cstring>
+#include <span>
 #include <vector>
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -22,9 +24,8 @@ bool saveScreenshot(const std::string& path, int width, int height)
    const size_t row_bytes = static_cast<size_t>(width) * 4;
    for (int row = 0; row < height; ++row)
    {
-      const uint8_t* source = pixels.data() + row_bytes * row;
-      uint8_t* destination = flipped.data() + row_bytes * (height - 1 - row);
-      std::memcpy(destination, source, row_bytes);
+      const std::span<const uint8_t> source = std::span(pixels).subspan(row_bytes * row, row_bytes);
+      std::ranges::copy(source, flipped.begin() + static_cast<std::ptrdiff_t>(row_bytes * (height - 1 - row)));
    }
 
    const int ok = stbi_write_png(path.c_str(), width, height, 4, flipped.data(), static_cast<int>(row_bytes));

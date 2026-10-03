@@ -114,7 +114,6 @@ private:
    float _player_scores_animated[10];
 
    PlayerItem* _player_item = nullptr;
-   MotionMixer* _motion_mixer = nullptr;
    Mesh* _player_mesh = nullptr;
    PlayerMaterial* _player_material = nullptr;
    Texture _player_textures[10];

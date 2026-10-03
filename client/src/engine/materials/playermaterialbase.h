@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <memory>
 #include <vector>
@@ -32,20 +33,20 @@ public:
       Vector position;
       Vector normal;
       UV uv;
-      float weight[max_cluster_bones];  // C array: written through a volatile mapped-buffer pointer
+      std::array<float, max_cluster_bones> weight;
    };
    static_assert(sizeof(Vertex) == sizeof(Vector) * 2 + sizeof(UV) + sizeof(float) * max_cluster_bones);
 
-   PlayerMaterialBase(SceneGraph* scene, int32_t id);
+   PlayerMaterialBase(int32_t id);
 
-   void update(float frame, Node** node_list, const Matrix& camera) override;
-   void addGeometry(Geometry* geometry) override;
+   void update(float frame, const Matrix& camera) override;
+   void addGeometry(Geometry& geometry) override;
 
    void getBoundingRect(Vector& min, Vector& max, const Matrix& projection) override;
    Vector getCenter2d(const Matrix& projection) const override;
 
 private:
-   std::vector<std::unique_ptr<Cluster>> createSkinClusters(Geometry* geometry, int32_t limit);
+   std::vector<std::unique_ptr<Cluster>> createSkinClusters(const Geometry& geometry, int32_t limit);
 
 protected:
    // shared by all player materials: every player uses the same skinned mesh

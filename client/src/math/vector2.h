@@ -20,10 +20,6 @@ public:
    Vector2(float x, float y = 0.0f);
    Vector2(Stream& stream);
 
-   operator const float*() const
-   {
-      return &x;
-   }  // cast to float*
    Vector2 operator+(const Vector2& other) const;  // add two vectors
    void operator+=(const Vector2& other);          // add another vector
    Vector2 operator-(const Vector2& other) const;  // subtract two vectors
@@ -34,7 +30,8 @@ public:
    void operator*=(const float scalar);            // multiply by scalar
 
    void set(float x = 0.0f, float y = 0.0f);  // set components
-   float* data() const;                       // get float[2] pointer to components
+   std::span<const float, 2> values() const;  // components as float[2]
+   std::span<float, 2> values();
    Vector2 linear(const Vector2& other, float interpolation_factor) const;
 
    void operator<<(Stream& stream);  // stream operator

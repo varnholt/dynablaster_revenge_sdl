@@ -17,7 +17,7 @@ void MushroomAnimation::start()
       _active = true;
    }
 
-   const float time = GlobalTime::Instance()->getTime();
+   const float time = GlobalTime::Instance().getTime();
    _time = time;
    _start_time = time;
    _aborted = false;
@@ -30,7 +30,7 @@ void MushroomAnimation::abort()
 
 void MushroomAnimation::update()
 {
-   const float time = GlobalTime::Instance()->getTime();
+   const float time = GlobalTime::Instance().getTime();
    const float dt = time - _time;
    _time = time;
 

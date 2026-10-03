@@ -1,6 +1,6 @@
 #include "drawable.h"
 
-Drawable::Drawable(RenderDevice* device, bool visible) : _device(device), _visible(visible)
+Drawable::Drawable(RenderDevice& device, bool visible) : _device(device), _visible(visible)
 {
 }
 

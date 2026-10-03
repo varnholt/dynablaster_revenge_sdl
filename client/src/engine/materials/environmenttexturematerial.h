@@ -15,13 +15,13 @@ public:
       UV uv;
    };
 
-   EnvironmentTextureMaterial(SceneGraph* scene);
-   EnvironmentTextureMaterial(SceneGraph* scene, const char* color_map, const char* environment_map, const char* specular_map);
+   EnvironmentTextureMaterial();
+   EnvironmentTextureMaterial(const std::string& color_map, const std::string& environment_map, const std::string& specular_map);
 
-   void updateGeometry(VertexBuffer* vertex_buffer);
-   void update(float frame, Node** node_list, const Matrix& camera) override;
+   void updateGeometry(const VertexBuffer& vertex_buffer, const Geometry& geometry);
+   void update(float frame, const Matrix& camera) override;
    void load(Stream& stream) override;
-   void addGeometry(Geometry* geometry) override;
+   void addGeometry(Geometry& geometry) override;
    void renderDiffuse() override;
 
 private:

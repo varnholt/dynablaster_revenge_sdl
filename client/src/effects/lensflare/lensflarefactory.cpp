@@ -16,11 +16,11 @@ constexpr float ASPECT_Y = 9.0f / 16.0f;
 
 LensFlareFactory::LensFlareFactory()
 {
-   _shader = activeDevice->loadShader("lensflare-vert.glsl", "lensflare-frag.glsl");
-   _time_param = activeDevice->getParameterIndex("time");
-   _sun_param = activeDevice->getParameterIndex("sun");
-   _length_param = activeDevice->getParameterIndex("normalizedlength");
-   _texture_param = activeDevice->getParameterIndex("texturemap");
+   _shader = activeDevice().loadShader("lensflare-vert.glsl", "lensflare-frag.glsl");
+   _time_param = activeDevice().getParameterIndex("time");
+   _sun_param = activeDevice().getParameterIndex("sun");
+   _length_param = activeDevice().getParameterIndex("normalizedlength");
+   _texture_param = activeDevice().getParameterIndex("texturemap");
 
    Settings settings("data/effects/lensflare/flares/flares.ini");
 
@@ -46,23 +46,22 @@ LensFlareFactory::~LensFlareFactory() = default;
 
 bool LensFlareFactory::activate(const std::string& key)
 {
-   const auto flare = _lens_flares.find(key);
-   _active = (flare != _lens_flares.end()) ? flare->second.get() : nullptr;
-   return _active != nullptr;
+   _active = _lens_flares.find(key);
+   return _active != _lens_flares.end();
 }
 
 void LensFlareFactory::draw()
 {
-   if (!_active)
+   if (_active == _lens_flares.end())
    {
       return;
    }
 
-   auto* device = static_cast<GLDevice*>(activeDevice);
+   auto& device = static_cast<GLDevice&>(activeDevice());
 
    // sun position on screen, from the scene camera (the view lives in the projection matrix)
-   const Matrix projection = device->getProjectionMatrix();
-   const auto& config = _active->getConfig();
+   const Matrix projection = device.getProjectionMatrix();
+   const auto& config = _active->second->getConfig();
    const Vector4 projected = projection * Vector4(config.sun_3d.x, config.sun_3d.y, config.sun_3d.z);
 
    Vector2 sun_2d(projected.x / projected.w, (projected.y / projected.w) * ASPECT_Y);
@@ -71,29 +70,29 @@ void LensFlareFactory::draw()
       sun_2d = Vector2(config.sun_3d.x + projection.xw * 0.1f + 0.5f, config.sun_3d.y * ASPECT_Y);
    }
 
-   device->pushProjection();
-   device->setProjectionMatrix(Matrix::ortho(-1.0f, 1.0f, -ASPECT_Y, ASPECT_Y, -10.0f, 10.0f));
+   device.pushProjection();
+   device.setProjectionMatrix(Matrix::ortho(-1.0f, 1.0f, -ASPECT_Y, ASPECT_Y, -10.0f, 10.0f));
 
-   device->setCulling(false);
+   device.setCulling(false);
    glDisable(GL_DEPTH_TEST);
    glDepthMask(GL_FALSE);
    glEnable(GL_BLEND);
    glBlendFunc(GL_ONE, GL_ONE);
 
-   device->setShader(_shader);
-   device->push(Matrix());
-   device->bindSampler(_texture_param, 0);
+   device.setShader(_shader);
+   device.push(Matrix());
+   device.bindSampler(_texture_param, 0);
 
-   _active->draw(sun_2d, _time_param, _sun_param, _length_param);
+   _active->second->draw(sun_2d, _time_param, _sun_param, _length_param);
 
-   device->pop();
-   device->setShader(0);
+   device.pop();
+   device.setShader(0);
 
-   device->setCulling(true);
+   device.setCulling(true);
    glEnable(GL_DEPTH_TEST);
    glDepthMask(GL_TRUE);
    glDisable(GL_BLEND);
    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-   device->popProjection();
+   device.popProjection();
 }

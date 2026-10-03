@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include "../render/renderbuffer.h"
 #include "../render/uv.h"
 #include "material.h"
 #include "math/matrix.h"
@@ -15,12 +14,12 @@ public:
       UV uv;
    };
 
-   DisplacementMaterial(SceneGraph* scene);
-   DisplacementMaterial(SceneGraph* scene, const char* map, const char* diffuse_map);
+   DisplacementMaterial();
+   DisplacementMaterial(const std::string& map, const std::string& diffuse_map);
    void load(Stream& stream) override;
-   void addGeometry(Geometry* geometry) override;
+   void addGeometry(Geometry& geometry) override;
    void renderDiffuse() override;
-   void update(float frame, Node** node_list, const Matrix& camera) override;
+   void update(float frame, const Matrix& camera) override;
 
 private:
    void begin() override;

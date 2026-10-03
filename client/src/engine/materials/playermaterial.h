@@ -8,13 +8,12 @@
 class PlayerMaterial : public PlayerMaterialBase
 {
 public:
-   PlayerMaterial(SceneGraph* scene);
+   PlayerMaterial();
    PlayerMaterial(
-      SceneGraph* scene,
-      const char* color_map,
-      const char* environment_map,
-      const char* specular_map,
-      const char* ambient_occlusion_map = nullptr
+      const std::string& color_map,
+      const std::string& environment_map,
+      const std::string& specular_map,
+      const std::string& ambient_occlusion_map
    );
 
    void exportOBJ(Stream& stream, int32_t& index_offset) override;

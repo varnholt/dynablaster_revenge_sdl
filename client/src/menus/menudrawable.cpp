@@ -9,7 +9,7 @@
 #include "framework/gldevice.h"
 #include "math/matrix.h"
 
-MenuDrawable::MenuDrawable(RenderDevice* device) : Drawable(device), _menu(std::make_unique<Menu>())
+MenuDrawable::MenuDrawable(RenderDevice* device) : Drawable(*device), _menu(std::make_unique<Menu>())
 {
 }
 
@@ -37,7 +37,7 @@ void MenuDrawable::initGlParameters()
    {
       const Matrix ortho = Matrix::ortho(0.0f, page->get().getWidth(), page->get().getHeight(), 0.0f, -1.0f, 1.0f);
 
-      static_cast<GLDevice&>(*activeDevice).setProjectionMatrix(ortho);
+      static_cast<GLDevice&>(activeDevice()).setProjectionMatrix(ortho);
    }
 
    glDisable(GL_DEPTH_TEST);
@@ -75,7 +75,7 @@ void MenuDrawable::drawMenuContents()
       // the blit pass below leaves an identity projection behind, so re-establish the page-space
       // ortho projection for every page, not just once before the loop
       const Matrix page_ortho = Matrix::ortho(0.0f, page->getWidth(), page->getHeight(), 0.0f, -1.0f, 1.0f);
-      static_cast<GLDevice&>(*activeDevice).setProjectionMatrix(page_ortho);
+      static_cast<GLDevice&>(activeDevice()).setProjectionMatrix(page_ortho);
 
       if (!_frame_buffer)
       {
@@ -91,7 +91,7 @@ void MenuDrawable::drawMenuContents()
       _frame_buffer->bind();
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-      activeDevice->setShader(_shader);
+      activeDevice().setShader(_shader);
 
       background.render();
       page->render();
@@ -108,15 +108,15 @@ void MenuDrawable::drawMenuContents()
       // blit the composited page through the texalphaignore shader: the FBO's alpha is blend
       // residue and must be replaced, not multiplied. Shader and projection must be set before
       // push(), which uploads the combined MVP immediately.
-      activeDevice->setShader(getFramebufferBlitShader());
-      static_cast<GLDevice&>(*activeDevice).setProjectionMatrix(Matrix());
-      activeDevice->push(Matrix());
-      activeDevice->setParameter(getFramebufferBlitShaderAlphaParam(), _alpha);
+      activeDevice().setShader(getFramebufferBlitShader());
+      static_cast<GLDevice&>(activeDevice()).setProjectionMatrix(Matrix());
+      activeDevice().push(Matrix());
+      activeDevice().setParameter(getFramebufferBlitShaderAlphaParam(), _alpha);
 
       _frame_buffer->draw(page_alpha);
 
-      activeDevice->pop();
-      activeDevice->setShader(0);
+      activeDevice().pop();
+      activeDevice().setShader(0);
    }
 
    cleanupGlParameters();

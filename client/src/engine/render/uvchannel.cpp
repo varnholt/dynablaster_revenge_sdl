@@ -10,11 +10,6 @@ int32_t UVChannel::id() const
    return _id;
 }
 
-UV* UVChannel::data()
-{
-   return _uv.empty() ? nullptr : _uv.data();
-}
-
 const std::vector<UV>& UVChannel::getUV() const
 {
    return _uv;

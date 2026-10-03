@@ -1,15 +1,14 @@
 #pragma once
 
 #include <cstdint>
+#include <memory>
 #include "material.h"
-
-class SceneGraph;
 
 class MaterialFactory
 {
 public:
    virtual ~MaterialFactory() = default;
 
-   // the created material registers itself with (and is owned by) the given scene
-   virtual Material* createMaterial(SceneGraph* scene, int32_t material_id) const = 0;
+   // nullptr for material ids the factory does not handle
+   virtual std::unique_ptr<Material> createMaterial(int32_t material_id) const = 0;
 };

@@ -2,6 +2,8 @@
 
 #include <SDL3/SDL.h>
 
+#include <string>
+
 PFNGLVIEWPORTPROC glViewport;
 PFNGLCLEARCOLORPROC glClearColor;
 PFNGLCLEARPROC glClear;
@@ -91,9 +93,9 @@ PFNGLGETINTEGERVPROC glGetIntegerv;
 namespace
 {
 template <typename T>
-bool load(T& fn, const char* name)
+bool load(T& fn, const std::string& name)
 {
-   fn = reinterpret_cast<T>(SDL_GL_GetProcAddress(name));
+   fn = reinterpret_cast<T>(SDL_GL_GetProcAddress(name.c_str()));
    return fn != nullptr;
 }
 }  // namespace

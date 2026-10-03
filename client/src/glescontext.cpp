@@ -41,8 +41,8 @@ bool GlesContext::init(const std::string& title, int width, int height)
    const SDL_WindowFlags flags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE;
 #endif
 
-   _window = SDL_CreateWindow(title.c_str(), width, height, flags);
-   if (_window == nullptr)
+   _window.reset(SDL_CreateWindow(title.c_str(), width, height, flags));
+   if (!_window)
    {
       SDL_Log("SDL_CreateWindow failed: %s", SDL_GetError());
       return false;
@@ -50,10 +50,10 @@ bool GlesContext::init(const std::string& title, int width, int height)
 
    // windows' focus-stealing prevention can leave a window launched from a console without input
    // focus, so claim it explicitly
-   SDL_RaiseWindow(_window);
+   SDL_RaiseWindow(_window.get());
 
-   _context = SDL_GL_CreateContext(_window);
-   if (_context == nullptr)
+   _context.reset(SDL_GL_CreateContext(_window.get()));
+   if (!_context)
    {
       SDL_Log("SDL_GL_CreateContext failed: %s", SDL_GetError());
       return false;
@@ -75,7 +75,7 @@ bool GlesContext::init(const std::string& title, int width, int height)
 
 void GlesContext::swap() const
 {
-   SDL_GL_SwapWindow(_window);
+   SDL_GL_SwapWindow(_window.get());
 }
 
 void GlesContext::updateSize()
@@ -90,20 +90,13 @@ void GlesContext::updateSize()
       return;
    }
 #endif
-   SDL_GetWindowSizeInPixels(_window, &_width, &_height);
+   SDL_GetWindowSizeInPixels(_window.get(), &_width, &_height);
 }
 
 GlesContext::~GlesContext()
 {
-   if (_context != nullptr)
-   {
-      SDL_GL_DestroyContext(_context);
-   }
-
-   if (_window != nullptr)
-   {
-      SDL_DestroyWindow(_window);
-   }
+   _context.reset();
+   _window.reset();
 
    SDL_Quit();
 }

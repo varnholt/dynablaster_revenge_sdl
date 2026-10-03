@@ -3,49 +3,49 @@
 #include "image/image.h"
 #include "nodes/mesh.h"
 #include "render/geometry.h"
-#include "render/renderbuffer.h"
 #include "render/texturepool.h"
 #include "render/uv.h"
 #include "render/vertexbuffer.h"
 #include "textureslot.h"
 #include "tools/stream.h"
 
-ExtraMapping::ExtraMapping(SceneGraph* scene) : Material(scene, -3)
+ExtraMapping::ExtraMapping() : Material(-3)
 {
 }
 
-ExtraMapping::ExtraMapping(SceneGraph* scene, const char* map) : Material(scene, -3)
+ExtraMapping::ExtraMapping(const std::string& map) : Material(-3)
 {
    addTexture(_color_map, map);
 }
 
 void ExtraMapping::init()
 {
-   _shader = activeDevice->loadShader("texturemapping-vert.glsl", "texturemapping-frag.glsl");
+   _shader = activeDevice().loadShader("texturemapping-vert.glsl", "texturemapping-frag.glsl");
 
-   _param_texture = activeDevice->getParameterIndex("texturemap");
+   _param_texture = activeDevice().getParameterIndex("texturemap");
 }
 
 void ExtraMapping::load(Stream& stream)
 {
    Material::load(stream);
 
-   addTexture(_color_map, getTextureSlot(0)->name());
+   addTexture(_color_map, getTextureSlot(0).name());
 }
 
-void ExtraMapping::addGeometry(Geometry* geometry)
+void ExtraMapping::addGeometry(Geometry& geometry)
 {
-   VertexBuffer* vertex_buffer = _pool->get(geometry);
-   if (!vertex_buffer)
+   std::optional<std::reference_wrapper<VertexBuffer>> pooled = _pool->get(geometry);
+   if (!pooled)
    {
-      vertex_buffer = _pool->add(geometry);
+      VertexBuffer& vertex_buffer = _pool->add(geometry);
+      pooled = vertex_buffer;
 
-      const Vector* vertices = geometry->getVertices();
-      const UV* uv = geometry->getUV(1);
+      const std::span<const Vector> vertices = geometry.getVertices();
+      const std::span<const UV> uv = geometry.getUV(1);
 
-      activeDevice->allocateVertexBuffer(vertex_buffer->getVertexBuffer(), sizeof(Vertex) * geometry->getVertexCount());
-      volatile Vertex* destination = static_cast<Vertex*>(activeDevice->lockVertexBuffer(vertex_buffer->getVertexBuffer()));
-      for (int32_t i = 0; i < geometry->getVertexCount(); i++)
+      activeDevice().allocateVertexBuffer(vertex_buffer.getVertexBuffer(), sizeof(Vertex) * geometry.getVertexCount());
+      const std::span<Vertex> destination = activeDevice().lockVertexBuffer<Vertex>(vertex_buffer.getVertexBuffer());
+      for (int32_t i = 0; i < geometry.getVertexCount(); i++)
       {
          destination[i].position.x = vertices[i].x;
          destination[i].position.y = vertices[i].y;
@@ -53,15 +53,15 @@ void ExtraMapping::addGeometry(Geometry* geometry)
          destination[i].uv.u = uv[i].u;
          destination[i].uv.v = uv[i].v;
       }
-      activeDevice->unlockVertexBuffer(vertex_buffer->getVertexBuffer());
+      activeDevice().unlockVertexBuffer(vertex_buffer.getVertexBuffer());
 
-      vertex_buffer->setIndexBuffer(geometry->getIndices(), geometry->getIndexCount());
+      vertex_buffer.setIndexBuffer(geometry.getIndices());
    }
 
-   _buffers.push_back({geometry, vertex_buffer});
+   _buffers.push_back({geometry, *pooled});
 }
 
-void ExtraMapping::update(float, Node**, const Matrix& camera)
+void ExtraMapping::update(float, const Matrix& camera)
 {
    _camera = camera;
 }
@@ -75,8 +75,8 @@ void ExtraMapping::begin()
 
    glBindTexture(GL_TEXTURE_2D, _color_map);
 
-   activeDevice->setShader(_shader);
-   activeDevice->bindSampler(_param_texture, 0);
+   activeDevice().setShader(_shader);
+   activeDevice().bindSampler(_param_texture, 0);
 
    // enable required vertex arrays
    glEnableVertexAttribArray(0);  // vertex data
@@ -92,7 +92,7 @@ void ExtraMapping::end()
 
    glDisable(GL_BLEND);
 
-   activeDevice->setShader(0);
+   activeDevice().setShader(0);
 }
 
 void ExtraMapping::renderDiffuse()
@@ -101,22 +101,22 @@ void ExtraMapping::renderDiffuse()
 
    for (const Buffer& buffer : _buffers)
    {
-      VertexBuffer* vertex_buffer = buffer.vertex_buffer;
-      Geometry* geometry = buffer.geometry;
+      const VertexBuffer& vertex_buffer = buffer.vertex_buffer;
+      Geometry& geometry = buffer.geometry;
 
-      if (geometry->isVisible())
+      if (geometry.isVisible())
       {
-         activeDevice->push(geometry->getTransform());
+         activeDevice().push(geometry.getTransform());
 
          // draw mesh
-         glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer->getVertexBuffer());
+         glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer.getVertexBuffer());
          glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), nullptr);
          glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const GLvoid*>(sizeof(Vector)));
 
-         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vertex_buffer->getIndexBuffer());
-         glDrawElements(GL_TRIANGLES, vertex_buffer->getIndexCount(), GL_UNSIGNED_SHORT, nullptr);  // render
+         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vertex_buffer.getIndexBuffer());
+         glDrawElements(GL_TRIANGLES, vertex_buffer.getIndexCount(), GL_UNSIGNED_SHORT, nullptr);  // render
 
-         activeDevice->pop();
+         activeDevice().pop();
       }
    }
 

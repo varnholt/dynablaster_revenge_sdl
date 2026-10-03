@@ -101,9 +101,14 @@ void Vector2::write(Stream& stream)
    stream.writeFloat(y);
 }
 
-float* Vector2::data() const
+std::span<const float, 2> Vector2::values() const
 {
-   return (float*)&x;
+   return std::span<const float, 2>(&x, 2);
+}
+
+std::span<float, 2> Vector2::values()
+{
+   return std::span<float, 2>(&x, 2);
 }
 
 Vector2 Vector2::linear(const Vector2& other, float interpolation_factor) const

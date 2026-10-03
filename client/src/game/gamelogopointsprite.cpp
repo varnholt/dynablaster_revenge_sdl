@@ -33,8 +33,8 @@ void GameLogoPointSprite::initialize()
    TexturePool& pool = TexturePool::Instance();
    sTexture = pool.getTexture("pointsprite");
 
-   sShader = activeDevice->loadShader("pointsprite-vert.glsl", "pointsprite-frag.glsl");
-   sTextureParam = activeDevice->getParameterIndex("texturemap");
+   sShader = activeDevice().loadShader("pointsprite-vert.glsl", "pointsprite-frag.glsl");
+   sTextureParam = activeDevice().getParameterIndex("texturemap");
 
    glGenBuffers(1, &sVertexBuffer);
 }
@@ -57,14 +57,14 @@ void GameLogoPointSprite::draw()
       return;
 
    // bind point sprite texture and shader
-   activeDevice->setShader(sShader);
-   activeDevice->bindSampler(sTextureParam, 0);
+   activeDevice().setShader(sShader);
+   activeDevice().bindSampler(sTextureParam, 0);
    glBindTexture(GL_TEXTURE_2D, sTexture.getTexture());
 
    // positions are already absolute world-space (see GameLogoDrawable::drawSparks()) - no
    // per-object transform beyond whatever perspective projection is already active
    // (initPointSpriteGlParameters()).
-   activeDevice->push(Matrix());
+   activeDevice().push(Matrix());
 
    // 6 verts (2 tris) per sprite quad, 5 floats/vert (position.xyz, uv.xy) - matches the legacy
    // glBegin(GL_QUADS) vertex order (BL, BR, TR, TL) so GL_TRIANGLES(0,1,2)+(0,2,3) reproduces the
@@ -102,6 +102,6 @@ void GameLogoPointSprite::draw()
    glDisableVertexAttribArray(0);
    glDisableVertexAttribArray(1);
 
-   activeDevice->pop();
-   activeDevice->setShader(0);
+   activeDevice().pop();
+   activeDevice().setShader(0);
 }

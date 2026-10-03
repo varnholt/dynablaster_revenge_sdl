@@ -4,19 +4,17 @@
 #include "image/image.h"
 #include "nodes/mesh.h"
 #include "render/geometry.h"
-#include "render/renderbuffer.h"
 #include "render/texturepool.h"
 #include "render/uv.h"
 #include "render/vertexbuffer.h"
 #include "textureslot.h"
 #include "tools/stream.h"
 
-DisplacementMaterial::DisplacementMaterial(SceneGraph* scene) : Material(scene, MAP_DIFFUSE | MAP_DISPLACE)
+DisplacementMaterial::DisplacementMaterial() : Material(MAP_DIFFUSE | MAP_DISPLACE)
 {
 }
 
-DisplacementMaterial::DisplacementMaterial(SceneGraph* scene, const char* map, const char* diffuse_map)
-    : Material(scene, MAP_DIFFUSE | MAP_DISPLACE)
+DisplacementMaterial::DisplacementMaterial(const std::string& map, const std::string& diffuse_map) : Material(MAP_DIFFUSE | MAP_DISPLACE)
 {
    addTexture(_color_map, map);
    addTexture(_diffuse_map, diffuse_map);
@@ -24,33 +22,34 @@ DisplacementMaterial::DisplacementMaterial(SceneGraph* scene, const char* map, c
 
 void DisplacementMaterial::init()
 {
-   _shader = activeDevice->loadShader("displacementmaterial-vert.glsl", "displacementmaterial-frag.glsl");
-   _param_texture = activeDevice->getParameterIndex("texturemap");
-   _param_diffuse = activeDevice->getParameterIndex("diffusemap");
-   _param_time = activeDevice->getParameterIndex("time");
+   _shader = activeDevice().loadShader("displacementmaterial-vert.glsl", "displacementmaterial-frag.glsl");
+   _param_texture = activeDevice().getParameterIndex("texturemap");
+   _param_diffuse = activeDevice().getParameterIndex("diffusemap");
+   _param_time = activeDevice().getParameterIndex("time");
 }
 
 void DisplacementMaterial::load(Stream& stream)
 {
    Material::load(stream);
 
-   addTexture(_color_map, getTextureSlot(0)->name());
+   addTexture(_color_map, getTextureSlot(0).name());
    addTexture(_diffuse_map, "diffuse_level");
 }
 
-void DisplacementMaterial::addGeometry(Geometry* geometry)
+void DisplacementMaterial::addGeometry(Geometry& geometry)
 {
-   VertexBuffer* vertex_buffer = _pool->get(geometry);
-   if (!vertex_buffer)
+   std::optional<std::reference_wrapper<VertexBuffer>> pooled = _pool->get(geometry);
+   if (!pooled)
    {
-      vertex_buffer = _pool->add(geometry);
+      VertexBuffer& vertex_buffer = _pool->add(geometry);
+      pooled = vertex_buffer;
 
-      const Vector* vertices = geometry->getVertices();
-      const UV* uv = geometry->getUV(1);
+      const std::span<const Vector> vertices = geometry.getVertices();
+      const std::span<const UV> uv = geometry.getUV(1);
 
-      activeDevice->allocateVertexBuffer(vertex_buffer->getVertexBuffer(), sizeof(Vertex) * geometry->getVertexCount());
-      volatile Vertex* destination = static_cast<Vertex*>(activeDevice->lockVertexBuffer(vertex_buffer->getVertexBuffer()));
-      for (int32_t i = 0; i < geometry->getVertexCount(); i++)
+      activeDevice().allocateVertexBuffer(vertex_buffer.getVertexBuffer(), sizeof(Vertex) * geometry.getVertexCount());
+      const std::span<Vertex> destination = activeDevice().lockVertexBuffer<Vertex>(vertex_buffer.getVertexBuffer());
+      for (int32_t i = 0; i < geometry.getVertexCount(); i++)
       {
          destination[i].position.x = vertices[i].x;
          destination[i].position.y = vertices[i].y;
@@ -58,15 +57,15 @@ void DisplacementMaterial::addGeometry(Geometry* geometry)
          destination[i].uv.u = uv[i].u;
          destination[i].uv.v = uv[i].v;
       }
-      activeDevice->unlockVertexBuffer(vertex_buffer->getVertexBuffer());
+      activeDevice().unlockVertexBuffer(vertex_buffer.getVertexBuffer());
 
-      vertex_buffer->setIndexBuffer(geometry->getIndices(), geometry->getIndexCount());
+      vertex_buffer.setIndexBuffer(geometry.getIndices());
    }
 
-   _buffers.push_back({geometry, vertex_buffer});
+   _buffers.push_back({geometry, *pooled});
 }
 
-void DisplacementMaterial::update(float, Node**, const Matrix& camera)
+void DisplacementMaterial::update(float, const Matrix& camera)
 {
    _camera = camera;
 }
@@ -75,24 +74,24 @@ void DisplacementMaterial::begin()
 {
    Material::begin();
 
-   activeDevice->setCulling(false);
+   activeDevice().setCulling(false);
    glDisable(GL_BLEND);
 
-   activeDevice->setShader(_shader);
+   activeDevice().setShader(_shader);
 
    glBindTexture(GL_TEXTURE_2D, _color_map);
-   activeDevice->bindSampler(_param_texture, 0);
+   activeDevice().bindSampler(_param_texture, 0);
 
    glActiveTexture(GL_TEXTURE1_ARB);
    glBindTexture(GL_TEXTURE_2D, _diffuse_map);
-   activeDevice->bindSampler(_param_diffuse, 1);
+   activeDevice().bindSampler(_param_diffuse, 1);
 
    // enable required vertex arrays
    glEnableVertexAttribArray(0);  // vertex data
    glEnableVertexAttribArray(2);
 
-   const float time = GlobalTime::Instance()->getTime();
-   activeDevice->setParameter(_param_time, time);
+   const float time = GlobalTime::Instance().getTime();
+   activeDevice().setParameter(_param_time, time);
 }
 
 void DisplacementMaterial::end()
@@ -102,8 +101,8 @@ void DisplacementMaterial::end()
 
    glActiveTexture(GL_TEXTURE0);
 
-   activeDevice->setCulling(true);
-   activeDevice->setShader(0);
+   activeDevice().setCulling(true);
+   activeDevice().setShader(0);
 }
 
 void DisplacementMaterial::renderDiffuse()
@@ -112,22 +111,22 @@ void DisplacementMaterial::renderDiffuse()
 
    for (const Buffer& buffer : _buffers)
    {
-      VertexBuffer* vertex_buffer = buffer.vertex_buffer;
-      Geometry* geometry = buffer.geometry;
+      const VertexBuffer& vertex_buffer = buffer.vertex_buffer;
+      Geometry& geometry = buffer.geometry;
 
-      if (geometry->isVisible())
+      if (geometry.isVisible())
       {
-         activeDevice->push(geometry->getTransform());
+         activeDevice().push(geometry.getTransform());
 
          // draw mesh
-         glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer->getVertexBuffer());
+         glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer.getVertexBuffer());
          glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), nullptr);
          glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const GLvoid*>(sizeof(Vector)));
 
-         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vertex_buffer->getIndexBuffer());
-         glDrawElements(GL_TRIANGLES, vertex_buffer->getIndexCount(), GL_UNSIGNED_SHORT, nullptr);  // render
+         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vertex_buffer.getIndexBuffer());
+         glDrawElements(GL_TRIANGLES, vertex_buffer.getIndexCount(), GL_UNSIGNED_SHORT, nullptr);  // render
 
-         activeDevice->pop();
+         activeDevice().pop();
       }
    }
 

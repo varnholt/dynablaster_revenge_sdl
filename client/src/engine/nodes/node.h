@@ -4,6 +4,9 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
+#include <optional>
+#include <string>
 #include <vector>
 
 #include "math/matrix.h"
@@ -20,8 +23,8 @@
 
 class SceneGraph;
 
-// a node's parent does not own it: every node in a scene is owned by the SceneGraph's flat node
-// list, and a node unregisters itself from that list on destruction
+// every node of a scene is owned by the SceneGraph's flat node list, which also links it to its
+// parent; parent and children only refer to each other
 class Node : public Streamable, public ObjectName
 {
 public:
@@ -39,20 +42,19 @@ public:
       idAnimMesh = 32
    };
 
-   Node(ID id, Node* parent = nullptr);
-   Node(const Node& node, Node* parent = nullptr);
-   ~Node() override;
-   ID id() const;         // return the node id (object type)
-   Node* parent() const;  // get parent node
-   SceneGraph* getRoot() const;
+   explicit Node(ID id);
+   Node(const Node& node);  // copies name, tracks and flags, not the links to parent and children
+   Node& operator=(const Node&) = delete;
+   ~Node() override = default;
+   ID id() const;                                               // return the node id (object type)
+   std::optional<std::reference_wrapper<Node>> parent() const;  // get parent node
+   std::optional<std::reference_wrapper<SceneGraph>> getRoot();
    int32_t getDepth() const;
    bool visible() const;
    void setVisible(bool visible);
-   void addChild(Node* node);
    int32_t getChildCount() const;
-   Node* getChild(int32_t index) const;
-   Node* getChild(const std::string& name) const;
-   void setParent(Node* parent);  // link to parent obj. includes this to parent's children
+   Node& getChild(int32_t index) const;
+   std::optional<std::reference_wrapper<Node>> findChild(const std::string& name) const;
    bool getUserTransformable() const;
    void setUserTransformable(bool state);
    bool hasSkinning() const;
@@ -78,9 +80,14 @@ public:
    const VisTrack& getVisibilityTrack() const;
 
 protected:
-   ID _id;                        // pseudo-rtti to identify the object type
-   Node* _parent = nullptr;       // parent object
-   std::vector<Node*> _children;  // child objects (not owned)
+   friend class SceneGraph;
+
+   void linkChild(Node& child);
+   void unlinkChild(const Node& child);
+
+   ID _id;                                               // pseudo-rtti to identify the object type
+   std::optional<std::reference_wrapper<Node>> _parent;  // parent object
+   std::vector<std::reference_wrapper<Node>> _children;  // child objects
 
    Matrix _transform;
    bool _has_skinning = false;

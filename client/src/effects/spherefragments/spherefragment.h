@@ -5,6 +5,8 @@
 #include "math/vector.h"
 
 #include <cstdint>
+#include <functional>
+#include <span>
 #include <vector>
 
 class Mesh;
@@ -13,15 +15,15 @@ class Image;
 class SphereFragment
 {
 public:
-   SphereFragment(const std::vector<Mesh*>& meshes, const Image* order_image);
+   SphereFragment(const std::vector<std::reference_wrapper<const Mesh>>& meshes, const Image& order_image);
 
    int32_t getPartCount() const;
 
    void animate(float time, const Matrix& rotation);
 
-   const Matrix* getMatrices() const;
+   std::span<const Matrix> getMatrices() const;
 
-   float* getFresnelFactors();
+   std::span<const float> getFresnelFactors() const;
 
    //! draw single fragment
    void draw();

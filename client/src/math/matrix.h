@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include <span>
+
 #include "vector.h"
 #include "vector4.h"
 
@@ -57,11 +59,6 @@ public:
    Matrix operator-(const Matrix& other) const;
    Matrix operator*(const float scalar) const;
 
-   operator const float*() const
-   {
-      return &xx;
-   }
-
    Vector x() const;
    Vector y() const;
    Vector z() const;
@@ -80,7 +77,8 @@ public:
    Matrix transpose() const;
    Matrix transpose3x3() const;
    Matrix getView() const;
-   float* data() const;
+   std::span<const float, 16> values() const;  // components as float[16]
+   std::span<float, 16> values();
 
    void print() const;
    void load(Stream& stream);

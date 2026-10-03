@@ -22,8 +22,6 @@ public:
 
    int32_t id() const;
 
-   UV* data();
-
 private:
    int32_t _id = -1;
    std::vector<UV> _uv;

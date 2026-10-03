@@ -15,7 +15,7 @@ VideoOutput::VideoOutput(GLDevice& device) : _device(device)
 
 VideoOutput::~VideoOutput()
 {
-   FrameBuffer::setScreen(nullptr);
+   FrameBuffer::clearScreen();
 }
 
 void VideoOutput::beginFrame(int32_t window_width, int32_t window_height)
@@ -47,7 +47,7 @@ void VideoOutput::beginFrame(int32_t window_width, int32_t window_height)
    if (!_frame)
    {
       _frame = std::make_unique<FrameBuffer>(width, height, samples);
-      FrameBuffer::setScreen(_frame.get());
+      FrameBuffer::setScreen(*_frame);
    }
    else if (_frame->resolutionChanged(width, height, samples))
    {

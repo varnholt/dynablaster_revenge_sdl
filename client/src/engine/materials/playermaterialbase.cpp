@@ -4,7 +4,6 @@
 #include "animation/motionmixer.h"
 #include "gldevice.h"
 #include "nodes/mesh.h"
-#include "render/renderbuffer.h"
 #include "render/texturepool.h"
 #include "render/uv.h"
 #include "render/vertexbuffer.h"
@@ -16,11 +15,10 @@ Vector PlayerMaterialBase::getCenter2d(const Matrix& projection) const
 {
    Vector center(0.0f);
 
-   Geometry* geometry = getGeometry(0);
-   if (geometry)
+   if (const auto geometry = getGeometry(0))
    {
-      const Node* mesh = geometry->getParent();
-      const Matrix matrix = mesh->getTransform() * projection;
+      const Mesh& mesh = geometry->get().getParent();
+      const Matrix matrix = mesh.getTransform() * projection;
 
       const float t = 1.0f / matrix.ww;
       center.x = matrix.xw * t;
@@ -38,14 +36,14 @@ void PlayerMaterialBase::getBoundingRect(Vector& min, Vector& max, const Matrix&
 
    for (int32_t j = 0; j < geometryCount(); j++)
    {
-      Geometry* geometry = getGeometry(j);
-      const Node* mesh = geometry->getParent();
+      const Geometry& geometry = _buffers[j].geometry;
+      const Mesh& mesh = geometry.getParent();
 
-      const Matrix matrix = mesh->getTransform() * projection;
+      const Matrix matrix = mesh.getTransform() * projection;
 
       // get bounding box
-      const std::vector<Vector> vertices = geometry->getSkinVertices();
-      const int32_t vertex_count = geometry->getVertexCount();
+      const std::vector<Vector> vertices = geometry.getSkinVertices();
+      const int32_t vertex_count = geometry.getVertexCount();
       for (int32_t i = 0; i < vertex_count; i++)
       {
          const Vector& v = vertices[i];
@@ -96,15 +94,15 @@ bool PlayerMaterialBase::Cluster::containsBone(int32_t id) const
    return std::ranges::find(bones, id) != bones.end();
 }
 
-PlayerMaterialBase::PlayerMaterialBase(SceneGraph* scene, int32_t id) : Material(scene, id)
+PlayerMaterialBase::PlayerMaterialBase(int32_t id) : Material(id)
 {
 }
 
-std::vector<std::unique_ptr<PlayerMaterialBase::Cluster>> PlayerMaterialBase::createSkinClusters(Geometry* geometry, int32_t limit)
+std::vector<std::unique_ptr<PlayerMaterialBase::Cluster>> PlayerMaterialBase::createSkinClusters(const Geometry& geometry, int32_t limit)
 {
    std::vector<std::unique_ptr<Cluster>> clusters;
 
-   std::vector<uint16_t> faces = geometry->getIndicesList();
+   std::vector<uint16_t> faces = geometry.getIndicesList();
 
    // original data set is
    // bone 1: [vertex1, w1], [vertex2, w2], ...
@@ -114,12 +112,12 @@ std::vector<std::unique_ptr<PlayerMaterialBase::Cluster>> PlayerMaterialBase::cr
    // vertex1: [bone1, w1], [bone2, w2] ...
    // vertex2: [bone1, w1], [bone2, w2] ...
 
-   std::vector<std::vector<int32_t>> vertex_bones(geometry->getVertexCount());
-   std::vector<std::vector<float>> vertex_weights(geometry->getVertexCount());
-   std::vector<int32_t> bone_usage(geometry->getBoneCount());
-   for (int32_t b = 0; b < geometry->getBoneCount(); b++)
+   std::vector<std::vector<int32_t>> vertex_bones(geometry.getVertexCount());
+   std::vector<std::vector<float>> vertex_weights(geometry.getVertexCount());
+   std::vector<int32_t> bone_usage(geometry.getBoneCount());
+   for (int32_t b = 0; b < geometry.getBoneCount(); b++)
    {
-      const Bone& bone = geometry->getBone(b);
+      const Bone& bone = geometry.getBone(b);
       bone_usage[b] = bone.count();
       for (const Weight& weight : bone.weights())
       {
@@ -225,12 +223,13 @@ std::vector<std::unique_ptr<PlayerMaterialBase::Cluster>> PlayerMaterialBase::cr
    return clusters;
 }
 
-void PlayerMaterialBase::addGeometry(Geometry* geometry)
+void PlayerMaterialBase::addGeometry(Geometry& geometry)
 {
-   VertexBuffer* vertex_buffer = _pool->get(geometry);
-   if (!vertex_buffer)
+   std::optional<std::reference_wrapper<VertexBuffer>> pooled = _pool->get(geometry);
+   if (!pooled)
    {
-      vertex_buffer = _pool->add(geometry);
+      VertexBuffer& vertex_buffer = _pool->add(geometry);
+      pooled = vertex_buffer;
 
       if (_clusters.empty())
       {
@@ -246,61 +245,63 @@ void PlayerMaterialBase::addGeometry(Geometry* geometry)
          total_indices += static_cast<int32_t>(cluster->indices.size());
       }
 
-      activeDevice->allocateVertexBuffer(vertex_buffer->getVertexBuffer(), sizeof(Vertex) * total_vertices);
+      activeDevice().allocateVertexBuffer(vertex_buffer.getVertexBuffer(), sizeof(Vertex) * total_vertices);
       {
-         volatile Vertex* destination = static_cast<Vertex*>(activeDevice->lockVertexBuffer(vertex_buffer->getVertexBuffer()));
+         const std::span<Vertex> destination = activeDevice().lockVertexBuffer<Vertex>(vertex_buffer.getVertexBuffer());
+         size_t vertex = 0;
 
-         const Vector* vertices = geometry->getVertices();
-         const Vector* normals = geometry->getNormals();
-         const UV* uv = geometry->getUV(1);
+         const std::span<const Vector> vertices = geometry.getVertices();
+         const std::span<const Vector> normals = geometry.getNormals();
+         const std::span<const UV> uv = geometry.getUV(1);
 
          for (const auto& cluster : _clusters)
          {
             for (size_t i = 0; i < cluster->vertices.size(); i++)
             {
                const int32_t index = cluster->vertices[i];
-               destination->position.x = vertices[index].x;
-               destination->position.y = vertices[index].y;
-               destination->position.z = vertices[index].z;
+               Vertex& target = destination[vertex++];
+               target.position.x = vertices[index].x;
+               target.position.y = vertices[index].y;
+               target.position.z = vertices[index].z;
 
-               destination->normal.x = normals[index].x;
-               destination->normal.y = normals[index].y;
-               destination->normal.z = normals[index].z;
+               target.normal.x = normals[index].x;
+               target.normal.y = normals[index].y;
+               target.normal.z = normals[index].z;
 
-               destination->uv.u = uv[index].u;
-               destination->uv.v = uv[index].v;
+               target.uv.u = uv[index].u;
+               target.uv.v = uv[index].v;
 
                for (int32_t j = 0; j < max_cluster_bones; j++)
                {
-                  destination->weight[j] = cluster->weights[i][j];
+                  target.weight[j] = cluster->weights[i][j];
                }
-               destination++;
             }
          }
-         activeDevice->unlockVertexBuffer(vertex_buffer->getVertexBuffer());
+         activeDevice().unlockVertexBuffer(vertex_buffer.getVertexBuffer());
       }
 
       {
-         activeDevice->allocateIndexBuffer(vertex_buffer->getIndexBuffer(), total_indices * sizeof(uint16_t));
-         volatile uint16_t* destination = static_cast<uint16_t*>(activeDevice->lockIndexBuffer(vertex_buffer->getIndexBuffer()));
+         activeDevice().allocateIndexBuffer(vertex_buffer.getIndexBuffer(), total_indices * sizeof(uint16_t));
+         const std::span<uint16_t> destination = activeDevice().lockIndexBuffer<uint16_t>(vertex_buffer.getIndexBuffer());
+         size_t target = 0;
          int32_t offset = 0;
          for (const auto& cluster : _clusters)
          {
             for (const uint16_t index : cluster->indices)
             {
-               *destination++ = static_cast<uint16_t>(index + offset);
+               destination[target++] = static_cast<uint16_t>(index + offset);
             }
             offset += static_cast<int32_t>(cluster->vertices.size());
          }
-         activeDevice->unlockIndexBuffer(vertex_buffer->getIndexBuffer());
+         activeDevice().unlockIndexBuffer(vertex_buffer.getIndexBuffer());
       }
 
-      vertex_buffer->setIndexCount(total_indices);
+      vertex_buffer.setIndexCount(total_indices);
    }
-   _buffers.push_back({geometry, vertex_buffer});
+   _buffers.push_back({geometry, *pooled});
 }
 
-void PlayerMaterialBase::update(float /*frame*/, Node** /*node_list*/, const Matrix& camera)
+void PlayerMaterialBase::update(float /*frame*/, const Matrix& camera)
 {
    _camera = camera;
 }

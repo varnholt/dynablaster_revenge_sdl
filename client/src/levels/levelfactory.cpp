@@ -11,18 +11,6 @@
 #include <array>
 #include <filesystem>
 
-LevelFactory* LevelFactory::_instance = nullptr;
-
-LevelFactory::LevelFactory()
-{
-   _instance = this;
-}
-
-LevelFactory* LevelFactory::getFactoryInstance()
-{
-   return _instance ? _instance : new LevelFactory();
-}
-
 std::unique_ptr<Level> LevelFactory::getLevelInstance(Level::LevelType type)
 {
    switch (type)

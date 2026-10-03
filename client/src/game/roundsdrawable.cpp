@@ -20,7 +20,7 @@ constexpr float FADE_OUT_DURATION = 1.0f * 62.5f;
 constexpr float BLUR_FACTOR = 0.15f;
 }  // namespace
 
-RoundsDrawable::RoundsDrawable(RenderDevice* dev) : Drawable(dev)
+RoundsDrawable::RoundsDrawable(RenderDevice* dev) : Drawable(*dev)
 {
    _filename = "data/game/rounds.psd";
    _motion_blur_filter = std::make_unique<MotionBlurFilter>();
@@ -129,7 +129,7 @@ void RoundsDrawable::paintGL()
       }
    }
 
-   activeDevice->setShader(0);
+   activeDevice().setShader(0);
 
    cleanupGlParameters();
 }
@@ -159,7 +159,7 @@ void RoundsDrawable::showGame()
 void RoundsDrawable::initGlParameters()
 {
    Matrix ortho = Matrix::ortho(0.0f, _psd.getWidth(), _psd.getHeight(), 0.0f, -1.0f, 1.0f);
-   static_cast<GLDevice*>(activeDevice)->setProjectionMatrix(ortho);
+   static_cast<GLDevice&>(activeDevice()).setProjectionMatrix(ortho);
 
    glEnable(GL_BLEND);
    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);

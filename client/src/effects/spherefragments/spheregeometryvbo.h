@@ -12,7 +12,7 @@ class Vector4;
 class SphereGeometryVbo : public GeometryVbo
 {
 public:
-   explicit SphereGeometryVbo(Geometry* geometry);
+   explicit SphereGeometryVbo(const Geometry& geometry);
 
    void initialize() override;
 

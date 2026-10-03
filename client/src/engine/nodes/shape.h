@@ -4,7 +4,6 @@
 #pragma once
 
 #include <cstdint>
-#include <memory>
 #include <vector>
 #include "node.h"
 #include "tools/stream.h"
@@ -51,13 +50,13 @@ public:
       std::vector<Vector> _vertices;
    };
 
-   Shape(Node* parent = nullptr);
+   Shape();
    void load(Stream& stream) override;
    void write(Stream& stream) override;
 
    int32_t getPolyCount() const;
-   PolyLine* getPoly(int32_t index) const;
+   const PolyLine& getPoly(int32_t index) const;
 
 private:
-   std::vector<std::unique_ptr<PolyLine>> _polys;
+   std::vector<PolyLine> _polys;
 };

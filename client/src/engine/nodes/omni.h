@@ -5,5 +5,5 @@
 class Omni : public Light
 {
 public:
-   Omni(Node* parent = nullptr);
+   Omni();
 };

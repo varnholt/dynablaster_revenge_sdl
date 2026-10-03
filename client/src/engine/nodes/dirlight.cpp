@@ -1,5 +1,5 @@
 #include "dirlight.h"
 
-DirLight::DirLight(Node* parent) : Light(Node::idDir, parent)
+DirLight::DirLight() : Light(Node::idDir)
 {
 }

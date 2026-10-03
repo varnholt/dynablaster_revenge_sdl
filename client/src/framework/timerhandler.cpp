@@ -1,62 +1,64 @@
 #include "timerhandler.h"
 
+#include <algorithm>
+#include <iterator>
 #include <utility>
 
 TimerHandler::~TimerHandler()
 {
-   auto iterator = _timers.begin();
-   while (iterator != _timers.end())
+   _timers.clear();
+   _single_shots.clear();
+}
+
+void TimerHandler::addTimer(FrameTimer& timer)
+{
+   if (std::ranges::none_of(_timers, [&timer](const FrameTimer& candidate) { return &candidate == &timer; }))
    {
-      FrameTimer* timer = *iterator;
-      iterator = _timers.erase(iterator);
-      if (timer->_delete)
-      {
-         delete timer;
-      }
+      _timers.emplace_back(timer);
    }
 }
 
-void TimerHandler::addTimer(FrameTimer* timer)
+void TimerHandler::removeTimer(const FrameTimer& timer)
 {
-   if (timer)
+   const auto iterator = std::ranges::find_if(_timers, [&timer](const FrameTimer& candidate) { return &candidate == &timer; });
+   if (iterator == _timers.end())
    {
-      _timers.insert(timer);
+      return;
    }
-}
 
-void TimerHandler::removeTimer(FrameTimer* timer)
-{
-   _timers.erase(timer);
+   if (std::distance(_timers.begin(), iterator) <= _cursor)
+   {
+      _cursor--;
+   }
+   _timers.erase(iterator);
 }
 
 void TimerHandler::update()
 {
-   auto iterator = _timers.begin();
-   while (iterator != _timers.end())
+   for (_cursor = 0; _cursor < std::ssize(_timers); _cursor++)
    {
-      FrameTimer* timer = *iterator;
+      FrameTimer& timer = _timers[_cursor];
 
-      if (timer && timer->update())
+      if (timer.update())
       {
-         iterator = _timers.erase(iterator);
-         if (timer->_delete)
+         const bool owned = timer._delete;
+         removeTimer(timer);
+         if (owned)
          {
-            delete timer;
+            std::erase_if(_single_shots, [&timer](const std::unique_ptr<FrameTimer>& candidate) { return candidate.get() == &timer; });
          }
       }
-      else
-      {
-         iterator++;
-      }
    }
+   _cursor = -1;
 }
 
 void TimerHandler::singleShot(float ms, std::function<void()> callback)
 {
-   auto* timer = new FrameTimer();
-   timer->setSingleShot(true);
-   timer->setInterval(ms);
-   timer->_delete = true;
-   timer->timeoutSignal.connect(std::move(callback));
-   timer->start();
+   TimerHandler& handler = Instance();
+   FrameTimer& timer = *handler._single_shots.emplace_back(std::make_unique<FrameTimer>());
+   timer.setSingleShot(true);
+   timer.setInterval(ms);
+   timer._delete = true;
+   timer.timeoutSignal.connect(std::move(callback));
+   timer.start();
 }

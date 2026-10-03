@@ -26,7 +26,7 @@ private:
    void end();
 
    void downSamplePass(
-      FrameBuffer* destination,
+      FrameBuffer& destination,
       int32_t destination_width,
       int32_t destination_height,
       uint32_t texture,
@@ -41,7 +41,7 @@ private:
    uint32_t downSample(uint32_t texture, int32_t width, int32_t height, int32_t pass);
 
    void gaussPass(
-      FrameBuffer* destination,
+      FrameBuffer& destination,
       int32_t destination_width,
       int32_t destination_height,
       uint32_t texture,

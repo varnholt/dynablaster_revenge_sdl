@@ -10,11 +10,6 @@ public:
    UV() = default;
    UV(float u, float v);
 
-   operator const float*() const
-   {
-      return &u;
-   }
-
    void operator<<(Stream& stream);
    void operator>>(Stream& stream);
 

@@ -9,5 +9,5 @@ Image& ImagePool::getImage(const std::string& filename, int32_t /*preprocessing_
       return *entry->second;
    }
 
-   return *(_pool[filename] = std::make_unique<Image>(filename.c_str()));
+   return *(_pool[filename] = std::make_unique<Image>(filename));
 }

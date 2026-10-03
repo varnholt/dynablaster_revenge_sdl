@@ -20,19 +20,24 @@ FrameBuffer::~FrameBuffer()
    discard();
 }
 
-FrameBuffer* FrameBuffer::Instance()
+std::optional<std::reference_wrapper<FrameBuffer>> FrameBuffer::Instance()
 {
    return _instance;
 }
 
-void FrameBuffer::setScreen(FrameBuffer* frame_buffer)
+void FrameBuffer::setScreen(FrameBuffer& frame_buffer)
 {
    _screen = frame_buffer;
 }
 
+void FrameBuffer::clearScreen()
+{
+   _screen.reset();
+}
+
 uint32_t FrameBuffer::screenTarget()
 {
-   return _screen ? _screen->target() : 0;
+   return _screen ? _screen->get().target() : 0;
 }
 
 void FrameBuffer::copyTexImage(int32_t x, int32_t y, int32_t width, int32_t height)
@@ -41,10 +46,11 @@ void FrameBuffer::copyTexImage(int32_t x, int32_t y, int32_t width, int32_t heig
    glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &bound);
 
    // a multisampled framebuffer can't be read, its resolved texture can
-   FrameBuffer* source = nullptr;
-   for (FrameBuffer* frame_buffer : {_instance, _screen})
+   std::optional<std::reference_wrapper<FrameBuffer>> source;
+   for (const auto& frame_buffer : {_instance, _screen})
    {
-      if (frame_buffer && frame_buffer->_multisample_target != 0 && static_cast<GLint>(frame_buffer->_multisample_target) == bound)
+      if (frame_buffer && frame_buffer->get()._multisample_target != 0 &&
+          static_cast<GLint>(frame_buffer->get()._multisample_target) == bound)
       {
          source = frame_buffer;
          break;
@@ -53,15 +59,15 @@ void FrameBuffer::copyTexImage(int32_t x, int32_t y, int32_t width, int32_t heig
 
    if (source)
    {
-      source->resolve();
-      glBindFramebuffer(GL_READ_FRAMEBUFFER, source->_target);
+      source->get().resolve();
+      glBindFramebuffer(GL_READ_FRAMEBUFFER, source->get()._target);
    }
 
    glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, x, y, width, height, 0);
 
    if (source)
    {
-      glBindFramebuffer(GL_FRAMEBUFFER, source->_multisample_target);
+      glBindFramebuffer(GL_FRAMEBUFFER, source->get()._multisample_target);
    }
 }
 
@@ -201,7 +207,7 @@ bool FrameBuffer::setResolution(int32_t width, int32_t height, int32_t multi_sam
    }
 
    // a buffer created mid-frame mustn't leave the frame unbound
-   glBindFramebuffer(GL_FRAMEBUFFER, _instance ? _instance->target() : screenTarget());
+   glBindFramebuffer(GL_FRAMEBUFFER, _instance ? _instance->get().target() : screenTarget());
 
    return ok;
 }
@@ -264,7 +270,7 @@ void FrameBuffer::resolve()
 
 void FrameBuffer::bind(int32_t width, int32_t height)
 {
-   _instance = this;
+   _instance = *this;
    glBindFramebuffer(GL_FRAMEBUFFER, target());
    if (width && height)
    {
@@ -280,44 +286,48 @@ void FrameBuffer::unbind()
 {
    resolve();
 
-   if (_screen && _screen != this)
+   if (_screen && &_screen->get() != this)
    {
-      _screen->bind();
+      _screen->get().bind();
       return;
    }
 
-   _instance = nullptr;
+   _instance.reset();
    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void FrameBuffer::push(FrameBuffer* frame_buffer)
+void FrameBuffer::push()
 {
    _stack.push_back(_instance);
-   if (frame_buffer)
-   {
-      frame_buffer->bind();
-   }
+}
+
+void FrameBuffer::push(FrameBuffer& frame_buffer)
+{
+   push();
+   frame_buffer.bind();
 }
 
 void FrameBuffer::pop()
 {
    if (!_stack.empty())
    {
-      FrameBuffer* previous = _stack.back();
+      const auto previous = _stack.back();
       _stack.pop_back();
       if (previous)
       {
-         previous->bind();
+         previous->get().bind();
       }
       else if (_screen)
       {
-         _screen->bind();
+         _screen->get().bind();
       }
       else
       {
-         _instance = nullptr;
+         _instance.reset();
          glBindFramebuffer(GL_FRAMEBUFFER, 0);
-         glViewport(activeDevice->getBorderLeft(), activeDevice->getBorderBottom(), activeDevice->getWidth(), activeDevice->getHeight());
+         glViewport(
+            activeDevice().getBorderLeft(), activeDevice().getBorderBottom(), activeDevice().getWidth(), activeDevice().getHeight()
+         );
       }
    }
 }
@@ -381,7 +391,7 @@ void FrameBuffer::draw(float alpha)
    glBindTexture(GL_TEXTURE_2D, _texture);
    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-   activeDevice->setParameter(activeDevice->getParameterIndex("alpha"), alpha);
+   activeDevice().setParameter(activeDevice().getParameterIndex("alpha"), alpha);
 
    glBindBuffer(GL_ARRAY_BUFFER, _quad_vertex_buffer);
    glEnableVertexAttribArray(0);

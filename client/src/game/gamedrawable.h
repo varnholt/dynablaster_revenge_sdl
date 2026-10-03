@@ -163,13 +163,13 @@ private:
 
    void resetPlayers();
    void deleteLevelData();
-   void deleteMesh(Mesh* mesh);
+   void deleteMesh(Mesh& mesh);
 
    std::unique_ptr<Level> _level;
    SceneGraph* _playfield = nullptr;
    SceneGraph* _level_scene_graph = nullptr;
    SceneGraph* _players = nullptr;
-   std::vector<Node*> _destruct_anim;
+   std::vector<std::reference_wrapper<Node>> _destruct_anim;
    std::unique_ptr<DetonationManager> _detonations;
    std::unique_ptr<PlayerDeathEffect> _player_death_effect;
    std::unique_ptr<PlayerInfectedEffect> _player_infected_effect;

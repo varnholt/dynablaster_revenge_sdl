@@ -1,7 +1,7 @@
 #include "shape.h"
 #include "tools/stream.h"
 
-Shape::Shape(Node* parent) : Node(Node::idShape, parent)
+Shape::Shape() : Node(Node::idShape)
 {
 }
 
@@ -15,9 +15,7 @@ void Shape::load(Stream& stream)
    for (int32_t i = 0; i < poly_count; i++)
    {
       Chunk poly_chunk(stream);
-      auto poly = std::make_unique<PolyLine>();
-      poly->load(poly_chunk);
-      _polys.push_back(std::move(poly));
+      _polys.emplace_back().load(poly_chunk);
       poly_chunk.skip();
    }
 
@@ -51,7 +49,7 @@ int32_t Shape::getPolyCount() const
    return static_cast<int32_t>(_polys.size());
 }
 
-Shape::PolyLine* Shape::getPoly(int32_t index) const
+const Shape::PolyLine& Shape::getPoly(int32_t index) const
 {
-   return _polys[index].get();
+   return _polys[index];
 }

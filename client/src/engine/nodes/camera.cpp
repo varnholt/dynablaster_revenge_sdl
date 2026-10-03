@@ -1,7 +1,7 @@
 #include "camera.h"
 #include "tools/stream.h"
 
-Camera::Camera(Node* parent) : Node(Node::idCamera, parent)
+Camera::Camera() : Node(Node::idCamera)
 {
 }
 

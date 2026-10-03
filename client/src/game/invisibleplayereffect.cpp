@@ -42,7 +42,7 @@ InvisibilityMaterial* InvisiblePlayerEffect::getMaterial() const
       return nullptr;
    }
 
-   return dynamic_cast<InvisibilityMaterial*>(_scene->getMaterial(INVISIBILITY_MATERIAL_INDEX));
+   return dynamic_cast<InvisibilityMaterial*>(&_scene->getMaterial(INVISIBILITY_MATERIAL_INDEX));
 }
 
 void InvisiblePlayerEffect::addPlayer(PlayerItem* player)
@@ -58,8 +58,8 @@ void InvisiblePlayerEffect::addPlayer(PlayerItem* player)
       return;
    }
 
-   _start_times[player] = GlobalTime::Instance()->getTime();
-   material->addMesh(player->getMesh());
+   _start_times[player] = GlobalTime::Instance().getTime();
+   material->addMesh(*player->getMesh());
 }
 
 void InvisiblePlayerEffect::removePlayer(PlayerItem* player)
@@ -73,7 +73,7 @@ void InvisiblePlayerEffect::removePlayer(PlayerItem* player)
 
    if (auto* material = getMaterial())
    {
-      material->removeMesh(player->getMesh());
+      material->removeMesh(*player->getMesh());
    }
 }
 
@@ -132,11 +132,7 @@ void InvisiblePlayerEffect::captureBackground()
       glGenTextures(1, &_background_texture);
    }
 
-   int32_t x = 0;
-   int32_t y = 0;
-   int32_t width = 0;
-   int32_t height = 0;
-   activeDevice->getViewPort(&x, &y, &width, &height);
+   const auto [x, y, width, height] = activeDevice().getViewPort();
 
    glBindTexture(GL_TEXTURE_2D, _background_texture);
    FrameBuffer::copyTexImage(x, y, width, height);

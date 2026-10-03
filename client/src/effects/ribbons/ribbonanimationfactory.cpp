@@ -36,11 +36,11 @@ RibbonAnimationFactory::RibbonAnimationFactory()
 {
    _texture = TexturePool::Instance().getTexture("data/effects/ribbons/images/ribbon");
 
-   _shader = activeDevice->loadShader("ribbon-vert.glsl", "ribbon-frag.glsl");
-   _time_param = activeDevice->getParameterIndex("time");
-   _field_position_param = activeDevice->getParameterIndex("fieldPosition");
-   _circle_offset_param = activeDevice->getParameterIndex("circleOffset");
-   _texture_param = activeDevice->getParameterIndex("texturemap");
+   _shader = activeDevice().loadShader("ribbon-vert.glsl", "ribbon-frag.glsl");
+   _time_param = activeDevice().getParameterIndex("time");
+   _field_position_param = activeDevice().getParameterIndex("fieldPosition");
+   _circle_offset_param = activeDevice().getParameterIndex("circleOffset");
+   _texture_param = activeDevice().getParameterIndex("texturemap");
 
    initBuffers();
 }
@@ -111,20 +111,20 @@ void RibbonAnimationFactory::update(float dt)
       return;
    }
 
-   activeDevice->setCulling(false);
+   activeDevice().setCulling(false);
    glDisable(GL_DEPTH_TEST);
    glDepthMask(GL_FALSE);
    glEnable(GL_BLEND);
    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-   activeDevice->setShader(_shader);
+   activeDevice().setShader(_shader);
 
    // world space ribbons, the camera lives in the projection matrix
-   activeDevice->push(Matrix());
+   activeDevice().push(Matrix());
 
    glActiveTexture(GL_TEXTURE0);
    glBindTexture(GL_TEXTURE_2D, _texture.getTexture());
-   activeDevice->bindSampler(_texture_param, 0);
+   activeDevice().bindSampler(_texture_param, 0);
 
    for (auto& ribbon : _ribbons)
    {
@@ -134,10 +134,10 @@ void RibbonAnimationFactory::update(float dt)
 
    std::erase_if(_ribbons, [](const Ribbon& ribbon) { return ribbon.time > DURATION; });
 
-   activeDevice->pop();
-   activeDevice->setShader(0);
+   activeDevice().pop();
+   activeDevice().setShader(0);
 
-   activeDevice->setCulling(true);
+   activeDevice().setCulling(true);
    glEnable(GL_DEPTH_TEST);
    glDepthMask(GL_TRUE);
    glDisable(GL_BLEND);
@@ -152,14 +152,14 @@ void RibbonAnimationFactory::draw(const Ribbon& ribbon)
    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(RibbonVertex), reinterpret_cast<const void*>(sizeof(float) * 3));
    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _index_buffer);
 
-   activeDevice->setParameter(_time_param, ribbon.time);
-   activeDevice->setParameter(_field_position_param, Vector4(ribbon.x, ribbon.y, 0.0f, 0.0f));
+   activeDevice().setParameter(_time_param, ribbon.time);
+   activeDevice().setParameter(_field_position_param, Vector4(ribbon.x, ribbon.y, 0.0f, 0.0f));
 
    float offset = 0.0f;
    for (int32_t i = 0; i < RIBBONS_PER_ANIMATION; i++)
    {
       offset += 2.0f * std::numbers::pi_v<float> / RIBBONS_PER_ANIMATION;
-      activeDevice->setParameter(_circle_offset_param, offset);
+      activeDevice().setParameter(_circle_offset_param, offset);
       glDrawElements(GL_TRIANGLES, _index_count, GL_UNSIGNED_SHORT, nullptr);
    }
 

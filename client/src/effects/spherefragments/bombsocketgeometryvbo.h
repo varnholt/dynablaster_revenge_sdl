@@ -12,7 +12,7 @@ class Vector4;
 class BombSocketGeometryVbo : public GeometryVbo
 {
 public:
-   explicit BombSocketGeometryVbo(Geometry* geometry);
+   explicit BombSocketGeometryVbo(const Geometry& geometry);
 
    void initialize() override;
 

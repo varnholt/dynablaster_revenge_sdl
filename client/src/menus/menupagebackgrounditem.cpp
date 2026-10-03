@@ -84,19 +84,19 @@ void MenuPageBackgroundItem::draw()
 
    if (_vertex_buffer == 0)
    {
-      _vertex_buffer = activeDevice->createVertexBuffer(quad_size, true);
+      _vertex_buffer = activeDevice().createVertexBuffer(quad_size, true);
    }
    else
    {
-      activeDevice->allocateVertexBuffer(_vertex_buffer, quad_size, true);
+      activeDevice().allocateVertexBuffer(_vertex_buffer, quad_size, true);
    }
 
-   std::memcpy(activeDevice->lockVertexBuffer(_vertex_buffer, quad_size), quad.data(), quad_size);
-   activeDevice->unlockVertexBuffer(_vertex_buffer);
+   std::ranges::copy(quad, activeDevice().lockVertexBuffer<float>(_vertex_buffer, quad_size).begin());
+   activeDevice().unlockVertexBuffer(_vertex_buffer);
 
    // positions are already baked in page-pixel space, so the world transform must be identity
-   activeDevice->push(Matrix());
-   activeDevice->setParameter(activeDevice->getParameterIndex("alpha"), 1.0f);
+   activeDevice().push(Matrix());
+   activeDevice().setParameter(activeDevice().getParameterIndex("alpha"), 1.0f);
 
    glBindBuffer(GL_ARRAY_BUFFER, _vertex_buffer);
    glEnableVertexAttribArray(0);
@@ -109,5 +109,5 @@ void MenuPageBackgroundItem::draw()
    glDisableVertexAttribArray(0);
    glDisableVertexAttribArray(1);
 
-   activeDevice->pop();
+   activeDevice().pop();
 }

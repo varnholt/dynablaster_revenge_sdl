@@ -20,14 +20,14 @@ namespace
 constexpr float PI = std::numbers::pi_v<float>;
 }  // namespace
 
-SphereFragment::SphereFragment(const std::vector<Mesh*>& meshes, const Image* order_image)
+SphereFragment::SphereFragment(const std::vector<std::reference_wrapper<const Mesh>>& meshes, const Image& order_image)
 {
    _matrix.reserve(meshes.size());
 
-   for (const Mesh* mesh : meshes)
+   for (const Mesh& mesh : meshes)
    {
-      const Matrix& matrix = mesh->getTransform();
-      const Geometry* geometry = mesh->getPart(0);
+      const Matrix& matrix = mesh.getTransform();
+      const Geometry& geometry = mesh.getPart(0);
 
       Vector p = matrix.translation();
       p.normalize();
@@ -37,11 +37,11 @@ SphereFragment::SphereFragment(const std::vector<Mesh*>& meshes, const Image* or
       const float u = 0.5f + p.x * m;
       const float v = 0.5f + p.y * m;
 
-      const uint32_t rgb = order_image->getPixel(u, v);
+      const uint32_t rgb = order_image.getPixel(u, v);
       const float order = ((rgb >> 16 & 255) + (rgb >> 8 & 255) + (rgb & 255)) / 96.0f;
 
-      _vertex_count += geometry->getVertexCount();
-      _index_count += geometry->getIndexCount();
+      _vertex_count += geometry.getVertexCount();
+      _index_count += geometry.getIndexCount();
       _matrix.push_back(matrix);
 
       _random.push_back(frand(1.0f));
@@ -51,23 +51,25 @@ SphereFragment::SphereFragment(const std::vector<Mesh*>& meshes, const Image* or
    }
 
    // create vertex and index buffer
-   _vertex_buffer = activeDevice->createVertexBuffer(_vertex_count * sizeof(Vertex3D));
+   _vertex_buffer = activeDevice().createVertexBuffer(_vertex_count * sizeof(Vertex3D));
 
    // fill vertex buffer
-   auto* vertex = static_cast<Vertex3D*>(activeDevice->lockVertexBuffer(_vertex_buffer));
+   const std::span<Vertex3D> vertices_out = activeDevice().lockVertexBuffer<Vertex3D>(_vertex_buffer);
+   size_t vertex_index = 0;
 
    for (size_t m = 0; m < meshes.size(); m++)
    {
-      const Mesh* mesh = meshes[m];
-      const Matrix& matrix = mesh->getTransform();
+      const Mesh& mesh = meshes[m];
+      const Matrix& matrix = mesh.getTransform();
       const Matrix normal_matrix = matrix.get3x3();
-      const Geometry* geometry = mesh->getPart(0);
-      const Vector* vertices = geometry->getVertices();
-      const Vector* normals = geometry->getNormals();
-      const UV* uvs = geometry->getUV(1);
+      const Geometry& geometry = mesh.getPart(0);
+      const std::span<const Vector> vertices = geometry.getVertices();
+      const std::span<const Vector> normals = geometry.getNormals();
+      const std::span<const UV> uvs = geometry.getUV(1);
 
-      for (int32_t v = 0; v < geometry->getVertexCount(); v++)
+      for (int32_t v = 0; v < geometry.getVertexCount(); v++)
       {
+         Vertex3D& vertex = vertices_out[vertex_index++];
          const Vector& p = vertices[v];
          const Vector& n = normals[v];
 
@@ -77,40 +79,39 @@ SphereFragment::SphereFragment(const std::vector<Mesh*>& meshes, const Image* or
 
          const float orientation = std::max(normal * surface, 0.0f);
 
-         vertex->position.x = p.x;
-         vertex->position.y = p.y;
-         vertex->position.z = p.z;
-         vertex->normal.x = n.x;
-         vertex->normal.y = n.y;
-         vertex->normal.z = n.z;
-         vertex->u = uvs[v].u;
-         vertex->v = uvs[v].v;
-         vertex->index = static_cast<float>(m);
-         vertex->blend = orientation * orientation;
-         vertex->tangent.x = -n.y;
-         vertex->tangent.y = n.x;
-         vertex->tangent.z = 0.0f;
-         vertex++;
+         vertex.position.x = p.x;
+         vertex.position.y = p.y;
+         vertex.position.z = p.z;
+         vertex.normal.x = n.x;
+         vertex.normal.y = n.y;
+         vertex.normal.z = n.z;
+         vertex.u = uvs[v].u;
+         vertex.v = uvs[v].v;
+         vertex.index = static_cast<float>(m);
+         vertex.blend = orientation * orientation;
+         vertex.tangent.x = -n.y;
+         vertex.tangent.y = n.x;
+         vertex.tangent.z = 0.0f;
       }
    }
 
-   activeDevice->unlockVertexBuffer(_vertex_buffer);
+   activeDevice().unlockVertexBuffer(_vertex_buffer);
 
    // fill index buffer
-   _index_buffer = activeDevice->createIndexBuffer(_index_count * sizeof(uint16_t));
-   auto* index = static_cast<uint16_t*>(activeDevice->lockIndexBuffer(_index_buffer));
+   _index_buffer = activeDevice().createIndexBuffer(_index_count * sizeof(uint16_t));
+   const std::span<uint16_t> indices_out = activeDevice().lockIndexBuffer<uint16_t>(_index_buffer);
+   size_t index = 0;
    uint16_t offset = 0;
-   for (const Mesh* mesh : meshes)
+   for (const Mesh& mesh : meshes)
    {
-      const Geometry* geometry = mesh->getPart(0);
-      const uint16_t* indices = geometry->getIndices();
-      for (int32_t i = 0; i < geometry->getIndexCount(); i++)
+      const Geometry& geometry = mesh.getPart(0);
+      for (const uint16_t source : geometry.getIndices())
       {
-         *index++ = offset + indices[i];
+         indices_out[index++] = offset + source;
       }
-      offset += geometry->getVertexCount();
+      offset += geometry.getVertexCount();
    }
-   activeDevice->unlockIndexBuffer(_index_buffer);
+   activeDevice().unlockIndexBuffer(_index_buffer);
 }
 
 int32_t SphereFragment::getPartCount() const
@@ -118,14 +119,14 @@ int32_t SphereFragment::getPartCount() const
    return static_cast<int32_t>(_matrix.size());
 }
 
-const Matrix* SphereFragment::getMatrices() const
+std::span<const Matrix> SphereFragment::getMatrices() const
 {
-   return _model_view.data();
+   return _model_view;
 }
 
-float* SphereFragment::getFresnelFactors()
+std::span<const float> SphereFragment::getFresnelFactors() const
 {
-   return _fresnel_factors.data();
+   return _fresnel_factors;
 }
 
 void SphereFragment::animate(float time, const Matrix& rotation)

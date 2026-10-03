@@ -57,29 +57,29 @@ void LevelCastle::reset()
    _snow_animation->reset();
 }
 
-Material* LevelCastle::createMaterial(SceneGraph* scene, int id) const
+std::unique_ptr<Material> LevelCastle::createMaterial(int32_t id) const
 {
    switch (id)
    {
       case MAP_DIFFUSE:
       {
-         return new TextureMaterial(scene);
+         return std::make_unique<TextureMaterial>();
       }
       case MAP_REFLECT:
       {
-         return new EnvironmentMaterial(scene);
+         return std::make_unique<EnvironmentMaterial>();
       }
       case MAP_DIFFUSE | MAP_REFLECT:
       {
-         return new EnvironmentTextureMaterial(scene);
+         return std::make_unique<EnvironmentTextureMaterial>();
       }
       case MAP_AMBIENT | MAP_DIFFUSE | MAP_REFLECT:
       {
-         return new EnvironmentAmbientDiffuseMaterial(scene);
+         return std::make_unique<EnvironmentAmbientDiffuseMaterial>();
       }
       case MAP_DIFFUSE | MAP_DISPLACE:
       {
-         return new DisplacementMaterial(scene);
+         return std::make_unique<DisplacementMaterial>();
       }
       default:
       {
@@ -90,7 +90,7 @@ Material* LevelCastle::createMaterial(SceneGraph* scene, int id) const
 
 void LevelCastle::loadData()
 {
-   Camera* shadow_camera = nullptr;
+   std::optional<std::reference_wrapper<Camera>> shadow_camera;
 
    if (!isAborted())
    {
@@ -98,18 +98,18 @@ void LevelCastle::loadData()
       _scene = std::make_unique<SceneGraph>();
       _players = std::make_unique<SceneGraph>();
 
-      _level->load("level.hjb", this);
+      _level->load("level.hjb", *this);
 
-      auto* center = static_cast<Camera*>(_level->getNode("Camera001"));
-      auto* upper = static_cast<Camera*>(_level->getNode("Upper"));
-      auto* lower = static_cast<Camera*>(_level->getNode("Lower"));
+      const auto center = _level->findNode<Camera>("Camera001");
+      const auto upper = _level->findNode<Camera>("Upper");
+      const auto lower = _level->findNode<Camera>("Lower");
       _camera_interpolation = std::make_unique<CameraInterpolation>(center, upper, lower);
    }
 
    if (!isAborted())
    {
-      shadow_camera = static_cast<Camera*>(_level->getNode("Shadow Cam"));
-      shadow_camera->setPerspectiveMode(false);
+      shadow_camera = _level->findNode<Camera>("Shadow Cam");
+      shadow_camera->get().setPerspectiveMode(false);
    }
 
    if (!isAborted())
@@ -122,42 +122,47 @@ void LevelCastle::loadData()
 
    if (!isAborted())
    {
-      loadDestructions(shadow_camera);
+      loadDestructions(*shadow_camera);
    }
 
    if (!isAborted())
    {
-      _shadow_billboards = new ShadowBillboard(_scene.get(), "shadowdrop-3x3");
-      _shadow_blocks = new ShadowBillboard(_scene.get(), "shadow_block");
+      _shadow_billboards = _scene->addMaterial(std::make_unique<ShadowBillboard>("shadowdrop-3x3"));
+      _shadow_blocks = _scene->addMaterial(std::make_unique<ShadowBillboard>("shadow_block"));
 
-      _bombs = new EnvironmentTextureMaterial(_scene.get(), "bomb", "diffuse_level", "diffuse_bomb");
-      _stones = new BlockMaterial(_scene.get(), "stone-unwrap", "diffuse_level", "specular_level", "shadow-cookie", shadow_camera);
-      _blocks = new BlockMaterial(_scene.get(), "block-unwrap", "diffuse_level", "specular_level", "shadow-cookie", shadow_camera);
-      _skulls = new SkullMaterial(_scene.get(), "skull", "diffuse_level", "specular_level", "shadow-cookie", shadow_camera);
+      _bombs = _scene->addMaterial(std::make_unique<EnvironmentTextureMaterial>("bomb", "diffuse_level", "diffuse_bomb"));
+      _stones = _scene->addMaterial(
+         std::make_unique<BlockMaterial>("stone-unwrap", "diffuse_level", "specular_level", "shadow-cookie", *shadow_camera)
+      );
+      _blocks = _scene->addMaterial(
+         std::make_unique<BlockMaterial>("block-unwrap", "diffuse_level", "specular_level", "shadow-cookie", *shadow_camera)
+      );
+      _skulls =
+         _scene->addMaterial(std::make_unique<SkullMaterial>("skull", "diffuse_level", "specular_level", "shadow-cookie", *shadow_camera));
 
       // the scene graph takes ownership of every material created for it
       for (int32_t i = 0; i < MAX_PLAYERS; i++)
       {
          const std::string filename = std::format("player_{}", i + 1);
-         new PlayerMaterial(_players.get(), filename.c_str(), "diffuse_level", "specular_level2", "player-ao");
+         _players->addMaterial(std::make_unique<PlayerMaterial>(filename, "diffuse_level", "specular_level2", "player-ao"));
       }
 
-      new InvisibilityMaterial(_players.get());
+      _players->addMaterial(std::make_unique<InvisibilityMaterial>());
 
-      _extra_flame = new ExtraMapping(_scene.get(), "extra_flame");
-      _extra_bomb = new ExtraMapping(_scene.get(), "extra_bomb");
-      _extra_speedup = new ExtraMapping(_scene.get(), "extra_speedup");
-      _extra_kick = new ExtraMapping(_scene.get(), "extra_kick");
-      _extra_skull = new ExtraMapping(_scene.get(), "extra_skull");
+      _extra_flame = _scene->addMaterial(std::make_unique<ExtraMapping>("extra_flame"));
+      _extra_bomb = _scene->addMaterial(std::make_unique<ExtraMapping>("extra_bomb"));
+      _extra_speedup = _scene->addMaterial(std::make_unique<ExtraMapping>("extra_speedup"));
+      _extra_kick = _scene->addMaterial(std::make_unique<ExtraMapping>("extra_kick"));
+      _extra_skull = _scene->addMaterial(std::make_unique<ExtraMapping>("extra_skull"));
    }
 
    TexturePool::Instance().update();
 
    if (!isAborted())
    {
-      _level->setCamera(nullptr);
-      _scene->setCamera(nullptr);
-      _players->setCamera(nullptr);
+      _level->clearCamera();
+      _scene->clearCamera();
+      _players->clearCamera();
    }
 }
 

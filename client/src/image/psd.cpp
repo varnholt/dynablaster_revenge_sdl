@@ -324,12 +324,12 @@ void PSD::Layer::loadChannelImageData(std::istream& stream)
    _image = Image(width, height);
    for (int32_t y = 0; y < height; y++)
    {
-      uint32_t* destination = _image.getScanline(y);
+      const std::span<uint32_t> destination = _image.getScanline(y);
 
-      const uint8_t* red = getChannel(0).getScanline(y);
-      const uint8_t* green = getChannel(1).getScanline(y);
-      const uint8_t* blue = getChannel(2).getScanline(y);
-      const uint8_t* alpha = getChannel(-1).getScanline(y);
+      const std::span<const uint8_t> red = getChannel(0).getScanline(y);
+      const std::span<const uint8_t> green = getChannel(1).getScanline(y);
+      const std::span<const uint8_t> blue = getChannel(2).getScanline(y);
+      const std::span<const uint8_t> alpha = getChannel(-1).getScanline(y);
 
       for (int32_t x = 0; x < width; x++)
       {
@@ -428,9 +428,9 @@ void PSD::Layer::Channel::init(int16_t id, int32_t width, int32_t height)
    _data.assign(static_cast<size_t>(width) * height, 0xff);
 }
 
-const uint8_t* PSD::Layer::Channel::getScanline(int32_t y) const
+std::span<const uint8_t> PSD::Layer::Channel::getScanline(int32_t y) const
 {
-   return _data.data() + static_cast<size_t>(y) * _width;
+   return std::span(_data).subspan(static_cast<size_t>(y) * _width, _width);
 }
 
 // PSD

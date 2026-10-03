@@ -38,15 +38,15 @@ BitmapFont::BitmapFont(
       _soft_radius(soft_radius),
       _thickness(thickness)
 {
-   _shader = activeDevice->loadShader("fontoutlines-vert.glsl", "fontoutlines-frag.glsl");
-   _param_texture = activeDevice->getParameterIndex("distanceMap");
-   _param_outline_color = activeDevice->getParameterIndex("outlineColor");
-   _param_color = activeDevice->getParameterIndex("color");
+   _shader = activeDevice().loadShader("fontoutlines-vert.glsl", "fontoutlines-frag.glsl");
+   _param_texture = activeDevice().getParameterIndex("distanceMap");
+   _param_outline_color = activeDevice().getParameterIndex("outlineColor");
+   _param_color = activeDevice().getParameterIndex("color");
 
-   _param_soft_radius = activeDevice->getParameterIndex("aaRadius");
-   _param_outline_radius = activeDevice->getParameterIndex("outlineRadius");
-   _param_thickness = activeDevice->getParameterIndex("threshold");
-   _param_sample_offset = activeDevice->getParameterIndex("sampleOffset");
+   _param_soft_radius = activeDevice().getParameterIndex("aaRadius");
+   _param_outline_radius = activeDevice().getParameterIndex("outlineRadius");
+   _param_thickness = activeDevice().getParameterIndex("threshold");
+   _param_sample_offset = activeDevice().getParameterIndex("sampleOffset");
 
    const Image& image = ImagePool::Instance().getImage(filename);
    _texture = TexturePool::Instance().getTexture(image, TexturePool::Linear | TexturePool::Clamp);
@@ -175,21 +175,21 @@ void BitmapFont::draw(const std::vector<Vertex>& vertices, const Matrix& transfo
       return;
    }
 
-   activeDevice->setShader(_shader);
+   activeDevice().setShader(_shader);
 
    // Upload after binding the font shader, including any caller's page-space offset.
-   activeDevice->push(transform);
+   activeDevice().push(transform);
 
    const float sample_offset = (vertices[1].u - vertices[0].u) / (vertices[1].x - vertices[0].x);
 
    glBindTexture(GL_TEXTURE_2D, _texture);
-   activeDevice->bindSampler(_param_texture, 0);
-   activeDevice->setParameter(_param_outline_color, Vector4(_outline_red, _outline_green, _outline_blue, _outline_alpha));
-   activeDevice->setParameter(_param_color, Vector4(_color_red, _color_green, _color_blue, _color_alpha));
-   activeDevice->setParameter(_param_soft_radius, _soft_radius);
-   activeDevice->setParameter(_param_outline_radius, _outline_radius);
-   activeDevice->setParameter(_param_thickness, _thickness);
-   activeDevice->setParameter(_param_sample_offset, sample_offset * 1.0f);
+   activeDevice().bindSampler(_param_texture, 0);
+   activeDevice().setParameter(_param_outline_color, Vector4(_outline_red, _outline_green, _outline_blue, _outline_alpha));
+   activeDevice().setParameter(_param_color, Vector4(_color_red, _color_green, _color_blue, _color_alpha));
+   activeDevice().setParameter(_param_soft_radius, _soft_radius);
+   activeDevice().setParameter(_param_outline_radius, _outline_radius);
+   activeDevice().setParameter(_param_thickness, _thickness);
+   activeDevice().setParameter(_param_sample_offset, sample_offset * 1.0f);
 
    // GLES3 has no GL_QUADS - each 4-vertex quad becomes 2 triangles (0,1,2 / 0,2,3), rebuilt
    // into a plain interleaved (x,y,u,v) buffer every draw call
@@ -211,15 +211,16 @@ void BitmapFont::draw(const std::vector<Vertex>& vertices, const Matrix& transfo
    const int size = static_cast<int>(data.size() * sizeof(float));
    if (_vertex_buffer == 0)
    {
-      _vertex_buffer = activeDevice->createVertexBuffer(size, true);
+      _vertex_buffer = activeDevice().createVertexBuffer(size, true);
    }
    else
    {
-      activeDevice->allocateVertexBuffer(_vertex_buffer, size, true);
+      activeDevice().allocateVertexBuffer(_vertex_buffer, size, true);
    }
 
-   std::memcpy(activeDevice->lockVertexBuffer(_vertex_buffer, size), data.data(), data.size() * sizeof(float));
-   activeDevice->unlockVertexBuffer(_vertex_buffer);
+   const std::span<float> destination = activeDevice().lockVertexBuffer<float>(_vertex_buffer, size);
+   std::ranges::copy(data, destination.begin());
+   activeDevice().unlockVertexBuffer(_vertex_buffer);
 
    glBindBuffer(GL_ARRAY_BUFFER, _vertex_buffer);
    glEnableVertexAttribArray(0);
@@ -232,10 +233,10 @@ void BitmapFont::draw(const std::vector<Vertex>& vertices, const Matrix& transfo
    glDisableVertexAttribArray(0);
    glDisableVertexAttribArray(1);
 
-   activeDevice->pop();
+   activeDevice().pop();
 
    // restore the shared menu shader rather than "no shader" - see defaultshader.h
-   activeDevice->setShader(getDefaultMenuShader());
+   activeDevice().setShader(getDefaultMenuShader());
 }
 
 uint32_t BitmapFont::getTexture()

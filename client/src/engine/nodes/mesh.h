@@ -2,35 +2,42 @@
 
 #include <array>
 #include <cstdint>
+#include <functional>
+#include <memory>
+#include <optional>
 #include <vector>
 #include "../render/geometry.h"
+#include "animation/motionmixer.h"
 #include "node.h"
 
 class Stream;
-class MotionMixer;
 
 class Mesh : public Node
 {
 public:
-   Mesh(Node* parent = nullptr);
-   Mesh(const Mesh& mesh, Node* parent = nullptr);
+   Mesh();
+   Mesh(const Mesh& mesh);  // the parts share the vertex data of "mesh"
+   ~Mesh() override;
 
-   void copy(const Mesh& mesh);
+   void copy(const Mesh& mesh);  // deep copy of the parts of "mesh"
 
    void load(Stream& stream) override;
    void write(Stream& stream) override;
 
    int32_t getPartCount() const;
-   void add(Geometry* geometry);
-   Geometry* getPart(int32_t index) const;
+   Geometry& addPart();
+   Geometry& getPart(int32_t index) const;
 
    void setAnimationFrame(float frame);
    float getAnimationFrame() const;
-   Node* getSkeleton() const;
-   void setSkeleton(Node* node);
+   std::optional<std::reference_wrapper<Node>> getSkeleton() const;
+   void setSkeleton(Node& node);
 
-   MotionMixer* getMotionMixer() const;
-   void setMotionMixer(MotionMixer* mixer);
+   std::optional<std::reference_wrapper<MotionMixer>> getMotionMixer() const;
+   void setMotionMixer(std::unique_ptr<MotionMixer> mixer);
+
+   // adds the scene's start indices to the loaded material and bone ids
+   void offsetIds(int32_t material_offset, int32_t node_offset);
 
    void transform(float frame) override;
 
@@ -42,10 +49,9 @@ public:
    void createBoxMapping(bool unwrap, const Vector& min, const Vector& max, const Matrix& gizmo = Matrix());
 
 protected:
-   // geometries are not owned: materials and vertex buffer pools keep raw pointers to them
-   std::vector<Geometry*> _geometry;
-   Node* _skeleton = nullptr;
-   MotionMixer* _motion_mixer = nullptr;  // not owned
+   std::vector<std::unique_ptr<Geometry>> _geometry;
+   std::optional<std::reference_wrapper<Node>> _skeleton;
+   std::unique_ptr<MotionMixer> _motion_mixer;
    float _animation_frame = 0.0f;
    uint32_t _render_flags = 0;
    std::array<float, 4> _render_parameter{};

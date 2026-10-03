@@ -10,7 +10,7 @@ class RenderDevice;
 class Drawable
 {
 public:
-   Drawable(RenderDevice* device, bool visible = false);
+   explicit Drawable(RenderDevice& device, bool visible = false);
    virtual ~Drawable() = default;
 
    virtual void initializeGL() = 0;
@@ -31,6 +31,6 @@ public:
 
 protected:
    // kept as _device/_visible: derived classes outside framework/ access them directly
-   RenderDevice* _device = nullptr;  // render device (not owned)
-   bool _visible = false;            // visibility flag
+   RenderDevice& _device;  // render device
+   bool _visible = false;  // visibility flag
 };

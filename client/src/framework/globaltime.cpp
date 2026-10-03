@@ -1,18 +1,24 @@
 #include "globaltime.h"
 
-GlobalTime* GlobalTime::_instance = nullptr;
+#include <functional>
+#include <optional>
+
+namespace
+{
+std::optional<std::reference_wrapper<GlobalTime>> instance;
+}  // namespace
 
 GlobalTime::GlobalTime()
 {
-   _instance = this;
+   instance = *this;
 }
 
 GlobalTime::~GlobalTime()
 {
-   _instance = nullptr;
+   instance.reset();
 }
 
-GlobalTime* GlobalTime::Instance()
+GlobalTime& GlobalTime::Instance()
 {
-   return _instance;
+   return instance.value();
 }

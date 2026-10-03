@@ -3,7 +3,6 @@
 #include <cstdint>
 #include "material.h"
 #include "math/matrix.h"
-#include "render/renderbuffer.h"
 #include "render/uv.h"
 
 class BombExplosionShader : public Material
@@ -16,12 +15,12 @@ public:
       UV uv;
    };
 
-   BombExplosionShader(SceneGraph* scene);
-   BombExplosionShader(SceneGraph* scene, const char* color_map, const char* environment_map, const char* specular_map);
+   BombExplosionShader();
+   BombExplosionShader(const std::string& color_map, const std::string& environment_map, const std::string& specular_map);
 
-   void update(float frame, Node** node_list, const Matrix& camera) override;
+   void update(float frame, const Matrix& camera) override;
    void load(Stream& stream) override;
-   void addGeometry(Geometry* geometry) override;
+   void addGeometry(Geometry& geometry) override;
    void renderDiffuse() override;
 
 private:

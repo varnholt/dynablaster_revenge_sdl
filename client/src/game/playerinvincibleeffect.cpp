@@ -21,7 +21,7 @@ namespace
 // old device's global clear color; this port's default clear color is opaque.
 void clearTransparent()
 {
-   static_cast<GLDevice*>(activeDevice)->clear(0.0f, 0.0f, 0.0f, 0.0f);
+   static_cast<GLDevice&>(activeDevice()).clear(0.0f, 0.0f, 0.0f, 0.0f);
 }
 
 // draws a quad (as 2 triangles) with an explicit position component count (2 for NDC-space
@@ -174,26 +174,26 @@ PlayerInvincibleEffect::PlayerInvincibleEffect()
 
    setRadius(10.0f);
 
-   _blur_h_shader = activeDevice->loadShader("playerinvincibleblurh-vert.glsl", "playerinvincibleblurh-frag.glsl");
-   _blur_h_texture = activeDevice->getParameterIndex("texturemap");
-   _blur_h_texel_offset = activeDevice->getParameterIndex("texelOffset");
-   _blur_h_radius = activeDevice->getParameterIndex("radius");
-   _blur_h_kernel = activeDevice->getParameterIndex("kernel");
+   _blur_h_shader = activeDevice().loadShader("playerinvincibleblurh-vert.glsl", "playerinvincibleblurh-frag.glsl");
+   _blur_h_texture = activeDevice().getParameterIndex("texturemap");
+   _blur_h_texel_offset = activeDevice().getParameterIndex("texelOffset");
+   _blur_h_radius = activeDevice().getParameterIndex("radius");
+   _blur_h_kernel = activeDevice().getParameterIndex("kernel");
 
-   _blur_v_shader = activeDevice->loadShader("playerinvincibleblurv-vert.glsl", "playerinvincibleblurv-frag.glsl");
-   _blur_v_texture = activeDevice->getParameterIndex("texturemap");
-   _blur_v_texel_offset = activeDevice->getParameterIndex("texelOffset");
-   _blur_v_radius = activeDevice->getParameterIndex("radius");
-   _blur_v_kernel = activeDevice->getParameterIndex("kernel");
+   _blur_v_shader = activeDevice().loadShader("playerinvincibleblurv-vert.glsl", "playerinvincibleblurv-frag.glsl");
+   _blur_v_texture = activeDevice().getParameterIndex("texturemap");
+   _blur_v_texel_offset = activeDevice().getParameterIndex("texelOffset");
+   _blur_v_radius = activeDevice().getParameterIndex("radius");
+   _blur_v_kernel = activeDevice().getParameterIndex("kernel");
 
-   _displace_shader = activeDevice->loadShader("playerinvincibledisplace-vert.glsl", "playerinvincibledisplace-frag.glsl");
-   _displace_texture1 = activeDevice->getParameterIndex("texturemap");
-   _displace_texture2 = activeDevice->getParameterIndex("displace");
-   _displace_texel_offset = activeDevice->getParameterIndex("texelOffset");
-   _displace_offset = activeDevice->getParameterIndex("displaceOffset");
-   _displace_source_rect = activeDevice->getParameterIndex("sourceRect");
-   _displace_fade = activeDevice->getParameterIndex("fade");
-   _display_center = activeDevice->getParameterIndex("center");
+   _displace_shader = activeDevice().loadShader("playerinvincibledisplace-vert.glsl", "playerinvincibledisplace-frag.glsl");
+   _displace_texture1 = activeDevice().getParameterIndex("texturemap");
+   _displace_texture2 = activeDevice().getParameterIndex("displace");
+   _displace_texel_offset = activeDevice().getParameterIndex("texelOffset");
+   _displace_offset = activeDevice().getParameterIndex("displaceOffset");
+   _displace_source_rect = activeDevice().getParameterIndex("sourceRect");
+   _displace_fade = activeDevice().getParameterIndex("fade");
+   _display_center = activeDevice().getParameterIndex("center");
 }
 
 PlayerInvincibleEffect::~PlayerInvincibleEffect()
@@ -272,17 +272,13 @@ void PlayerInvincibleEffect::setMaterialFade(PlayerInvincibleInstance* player, f
       return;
    }
 
-   Geometry* geo = mat->getGeometry(0);
+   const auto geo = mat->getGeometry(0);
    if (!geo)
    {
       return;
    }
 
-   Mesh* mesh = static_cast<Mesh*>(geo->getParent());
-   if (mesh)
-   {
-      mesh->setRenderParameter(2, fade);
-   }
+   geo->get().getParent().setRenderParameter(2, fade);
 }
 
 void PlayerInvincibleEffect::animate(float dt)
@@ -344,12 +340,12 @@ void PlayerInvincibleEffect::blurPlayers(FrameBuffer* temp, const Matrix& proj)
       // horizontal blur - temp framebuffer into the player's own ping-pong texture 0
       player->bind(0);
       clearTransparent();
-      activeDevice->setShader(_blur_h_shader);
+      activeDevice().setShader(_blur_h_shader);
       glBindTexture(GL_TEXTURE_2D, temp->texture());
-      activeDevice->bindSampler(_blur_h_texture, 0);
-      activeDevice->setParameter(_blur_h_texel_offset, Vector2(1.0f / temp->width()));
-      activeDevice->setParameter(_blur_h_radius, _radius);
-      activeDevice->setParameter(_blur_h_kernel, _kernel, 32);
+      activeDevice().bindSampler(_blur_h_texture, 0);
+      activeDevice().setParameter(_blur_h_texel_offset, Vector2(1.0f / temp->width()));
+      activeDevice().setParameter(_blur_h_radius, _radius);
+      activeDevice().setParameter(_blur_h_kernel, _kernel);
 
       float x = (max2d.x - min2d.x) * 2.0f * temp->width() / player->width();
       float y = (max2d.y - min2d.y) * 2.0f * temp->height() / player->height();
@@ -379,11 +375,11 @@ void PlayerInvincibleEffect::blurPlayers(FrameBuffer* temp, const Matrix& proj)
       // vertical blur - texture 0 into texture 1
       player->bind(1);
       clearTransparent();
-      activeDevice->setShader(_blur_v_shader);
+      activeDevice().setShader(_blur_v_shader);
       glBindTexture(GL_TEXTURE_2D, player->texture(0));
-      activeDevice->setParameter(_blur_v_texel_offset, Vector2(0.0f, 1.0f / player->height()));
-      activeDevice->setParameter(_blur_v_radius, _radius);
-      activeDevice->setParameter(_blur_v_kernel, _kernel, 32);
+      activeDevice().setParameter(_blur_v_texel_offset, Vector2(0.0f, 1.0f / player->height()));
+      activeDevice().setParameter(_blur_v_radius, _radius);
+      activeDevice().setParameter(_blur_v_kernel, _kernel);
 
       const float quad_v[4 * 4] = {
          -1.0f,
@@ -407,7 +403,7 @@ void PlayerInvincibleEffect::blurPlayers(FrameBuffer* temp, const Matrix& proj)
 
       player->unbind();
 
-      activeDevice->setShader(0);
+      activeDevice().setShader(0);
    }
 
    FrameBuffer::pop();
@@ -420,12 +416,12 @@ void PlayerInvincibleEffect::render()
       return;
    }
 
-   Matrix proj = static_cast<GLDevice*>(activeDevice)->getProjectionMatrix();
+   Matrix proj = static_cast<GLDevice&>(activeDevice()).getProjectionMatrix();
 
-   float time = GlobalTime::Instance()->getTime() * 0.1f;
+   float time = GlobalTime::Instance().getTime() * 0.1f;
 
-   const int width = activeDevice->getWidth();
-   const int height = activeDevice->getHeight();
+   const int width = activeDevice().getWidth();
+   const int height = activeDevice().getHeight();
 
    if (!_scratch_buffer)
    {
@@ -442,17 +438,17 @@ void PlayerInvincibleEffect::render()
    glEnable(GL_BLEND);
    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
-   activeDevice->setShader(_displace_shader);
+   activeDevice().setShader(_displace_shader);
 
    // identity world transform (old glLoadIdentity), uploads u_modelViewProjection = projection
-   activeDevice->push(Matrix());
+   activeDevice().push(Matrix());
 
    glActiveTexture(GL_TEXTURE1);
    glBindTexture(GL_TEXTURE_2D, _displacement_texture);
-   activeDevice->bindSampler(_displace_texture2, 1);
+   activeDevice().bindSampler(_displace_texture2, 1);
 
    glActiveTexture(GL_TEXTURE0);
-   activeDevice->bindSampler(_displace_texture1, 0);
+   activeDevice().bindSampler(_displace_texture1, 0);
 
    for (auto& [material, player] : _players)
    {
@@ -462,25 +458,25 @@ void PlayerInvincibleEffect::render()
          continue;
       }
 
-      Geometry* geo = mat->getGeometry(0);
+      const auto geo = mat->getGeometry(0);
       if (!geo)
       {
          continue;
       }
 
-      const Matrix& tm = geo->getTransform();
+      const Matrix& tm = geo->get().getTransform();
 
       Vector min2d = player->min2d();
       Vector max2d = player->max2d();
 
-      activeDevice->setParameter(_displace_texel_offset, Vector2(_scratch_buffer->width() / 1920.0f, _scratch_buffer->height() / 1080.0f));
+      activeDevice().setParameter(_displace_texel_offset, Vector2(_scratch_buffer->width() / 1920.0f, _scratch_buffer->height() / 1080.0f));
 
-      activeDevice->setParameter(
+      activeDevice().setParameter(
          _displace_source_rect,
          Vector4(min2d.x, min2d.y, 0.5f * _scratch_buffer->width() / player->width(), 0.5f * _scratch_buffer->height() / player->height())
       );
 
-      activeDevice->setParameter(
+      activeDevice().setParameter(
          _displace_offset,
          Vector4(
             std::sin(time * 2.69 * 0.025) * 0.5f * 1920.0f / _scratch_buffer->width(),
@@ -490,8 +486,8 @@ void PlayerInvincibleEffect::render()
          )
       );
 
-      activeDevice->setParameter(_displace_fade, player->getFade());
-      activeDevice->setParameter(_display_center, player->getCenter());
+      activeDevice().setParameter(_displace_fade, player->getFade());
+      activeDevice().setParameter(_display_center, player->getCenter());
 
       Vector pos[4];
       backProject(pos, min2d, max2d, tm, proj);
@@ -524,6 +520,6 @@ void PlayerInvincibleEffect::render()
    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
    glDepthMask(GL_TRUE);
 
-   activeDevice->pop();
-   activeDevice->setShader(0);
+   activeDevice().pop();
+   activeDevice().setShader(0);
 }

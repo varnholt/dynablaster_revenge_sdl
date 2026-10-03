@@ -1,6 +1,7 @@
 // reference implementation of a dummy material
 
 #include "material.h"
+#include <algorithm>
 #include <array>
 #include <cstdio>
 #include <format>
@@ -12,7 +13,6 @@
 #include "nodes/mesh.h"
 #include "nodes/scenegraph.h"
 #include "render/geometry.h"
-#include "render/renderbuffer.h"
 #include "render/texture.h"
 #include "render/texturepool.h"
 #include "render/vertexbuffer.h"
@@ -30,12 +30,8 @@ void writeText(Stream& stream, const std::string& text)
 }
 }  // namespace
 
-Material::Material(SceneGraph* scene, int32_t id) : _id(id), _pool(std::make_unique<VertexBufferPool>())
+Material::Material(int32_t id) : _id(id), _pool(std::make_unique<VertexBufferPool>())
 {
-   if (scene)
-   {
-      scene->addMaterial(this);
-   }
 }
 
 Material::~Material() = default;
@@ -56,13 +52,13 @@ const std::vector<Material::Buffer>& Material::getBuffers() const
 }
 
 //! get geometry by given index
-Geometry* Material::getGeometry(int32_t index) const
+std::optional<std::reference_wrapper<Geometry>> Material::getGeometry(int32_t index) const
 {
    if (index >= 0 && index < size())
    {
       return _buffers[index].geometry;
    }
-   return nullptr;
+   return std::nullopt;
 }
 
 int32_t Material::getDebug() const
@@ -80,9 +76,9 @@ int32_t Material::geometryCount() const
    return size();
 }
 
-void Material::add(Geometry* geometry)
+void Material::add(Geometry& geometry)
 {
-   _geometry_queue.push_back(geometry);
+   _geometry_queue.emplace_back(geometry);
 }
 
 int32_t Material::size() const
@@ -92,12 +88,12 @@ int32_t Material::size() const
 
 void Material::addTexture(Texture& texture, const std::string& filename, int32_t flags)
 {
-   addTexture(texture, std::make_unique<Image>(filename.c_str()), flags);
+   addTexture(texture, std::make_unique<Image>(filename), flags);
 }
 
 void Material::addTexture(Texture& texture, std::unique_ptr<Image> image, int32_t flags)
 {
-   _texture_queue.push_back({std::move(image), flags, &texture});
+   _texture_queue.push_back({std::move(image), flags, texture});
 }
 
 void Material::prepare()
@@ -105,7 +101,7 @@ void Material::prepare()
    // both queues are processed last-in first-out
    while (!_geometry_queue.empty())
    {
-      Geometry* geometry = _geometry_queue.back();
+      Geometry& geometry = _geometry_queue.back();
       _geometry_queue.pop_back();
       addGeometry(geometry);
    }
@@ -114,7 +110,7 @@ void Material::prepare()
    {
       PendingTexture pending = std::move(_texture_queue.back());
       _texture_queue.pop_back();
-      *pending.texture = TexturePool::Instance().getTexture(*pending.image, pending.flags);
+      pending.texture.get() = TexturePool::Instance().getTexture(*pending.image, pending.flags);
    }
 }
 
@@ -131,14 +127,14 @@ void Material::begin()
 
 uint32_t Material::uploadMap(const Image& image, int32_t flags)
 {
-   return activeDevice->createTexture(image.getData(), image.getWidth(), image.getHeight(), flags);
+   return activeDevice().createTexture(image.getData(), image.getWidth(), image.getHeight(), flags);
 }
 
 void Material::updateMap(uint32_t texture, const Image& image, int32_t flags)
 {
    glBindTexture(GL_TEXTURE_2D, texture);
 
-   return activeDevice->updateTexture(image.getData(), image.getWidth(), image.getHeight(), flags);
+   return activeDevice().updateTexture(image.getData(), image.getWidth(), image.getHeight(), flags);
 }
 
 uint32_t Material::uploadCubeMap(const Image& image)
@@ -183,22 +179,14 @@ uint32_t Material::uploadCubeMap(const Image& image)
 
       for (int32_t i = 0; i < size; i++)
       {
-         const uint32_t* source = image.getScanline(y_position + i) + x_position;
+         const std::span<const uint32_t> source = image.getScanline(y_position + i).subspan(x_position, size);
          if (side == 5)  // back-side must be flipped
          {
-            uint32_t* destination = face.getScanline(size - i - 1);
-            for (int32_t j = 0; j < size; j++)
-            {
-               destination[j] = source[size - 1 - j];
-            }
+            std::ranges::reverse_copy(source, face.getScanline(size - i - 1).begin());
          }
          else
          {
-            uint32_t* destination = face.getScanline(i);
-            for (int32_t j = 0; j < size; j++)
-            {
-               destination[j] = source[j];
-            }
+            std::ranges::copy(source, face.getScanline(i).begin());
          }
       }
 
@@ -208,10 +196,11 @@ uint32_t Material::uploadCubeMap(const Image& image)
          // Image stores ARGB words (BGRA bytes on our little-endian targets).
          // GLES3 requires RGBA here. Convert a copy so downsampling and the source
          // image retain their native channel order, including the flipped back face.
+         const std::span<const uint32_t> face_pixels = face.getData();
          std::vector<uint32_t> pixels(static_cast<size_t>(face.getWidth()) * face.getHeight());
          for (size_t i = 0; i < pixels.size(); ++i)
          {
-            const uint32_t pixel = face.getData()[i];
+            const uint32_t pixel = face_pixels[i];
             pixels[i] = (pixel & 0xff00ff00u) | ((pixel & 0x00ff0000u) >> 16) | ((pixel & 0x000000ffu) << 16);
          }
          glTexImage2D(targets[side], level, GL_RGBA, face.getWidth(), face.getHeight(), 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
@@ -275,22 +264,23 @@ void Material::write(Stream& stream)
    }
 }
 
-TextureSlot* Material::getTextureSlot(int32_t index) const
+const TextureSlot& Material::getTextureSlot(int32_t index) const
 {
-   if (index >= 0 && index < static_cast<int32_t>(_slots.size()))
-   {
-      return _slots[index].get();
-   }
-   return nullptr;
+   return *_slots[index];
 }
 
-void Material::addMesh(Mesh* mesh)
+int32_t Material::getTextureSlotCount() const
 {
-   if (mesh && mesh->id() == Node::idMesh)
+   return static_cast<int32_t>(_slots.size());
+}
+
+void Material::addMesh(Mesh& mesh)
+{
+   if (mesh.id() == Node::idMesh)
    {
-      for (int32_t i = 0; i < mesh->getPartCount(); i++)
+      for (int32_t i = 0; i < mesh.getPartCount(); i++)
       {
-         add(mesh->getPart(i));
+         add(mesh.getPart(i));
       }
    }
 }
@@ -301,22 +291,14 @@ void Material::clear()
    _buffers.clear();
 }
 
-void Material::removeMesh(Mesh* mesh)
+void Material::removeMesh(const Mesh& mesh)
 {
-   for (int32_t i = 0; i < mesh->getPartCount(); i++)
-   {
-      std::erase(_geometry_queue, mesh->getPart(i));
-   }
-
-   std::erase_if(_buffers, [mesh](const Buffer& buffer) { return buffer.geometry->getParent() == mesh; });
+   std::erase_if(_geometry_queue, [&mesh](const Geometry& geometry) { return &geometry.getParent() == &mesh; });
+   std::erase_if(_buffers, [&mesh](const Buffer& buffer) { return &buffer.geometry.get().getParent() == &mesh; });
 }
 
-void Material::update(float /*frame*/, Node** node_list, const Matrix&)
+void Material::update(float /*frame*/, const Matrix&)
 {
-   for (const Buffer& buffer : _buffers)
-   {
-      buffer.vertex_buffer->update(node_list);
-   }
 }
 
 void Material::renderDiffuse()
@@ -327,15 +309,16 @@ void Material::exportGeo(
    Stream& stream,
    const std::string& name,
    const Matrix& transform,
-   Vector* vertices,
-   Vector* normals,
-   UV* texcoords,
-   int32_t vertex_count,
-   uint16_t* indices,
-   int32_t index_count,
+   std::span<const Vector> vertices,
+   std::span<const Vector> normals,
+   std::span<const UV> texcoords,
+   std::span<const uint16_t> indices,
    int32_t index_offset
 )
 {
+   const auto vertex_count = static_cast<int32_t>(vertices.size());
+   const auto index_count = static_cast<int32_t>(indices.size());
+
    // write object info comment
    if (!name.empty())
    {
@@ -369,7 +352,7 @@ void Material::exportGeo(
    stream.writeChar('\n');
    for (int32_t i = 0; i < vertex_count; i++)
    {
-      if (texcoords)
+      if (!texcoords.empty())
       {
          writeText(stream, std::format("vt {:.6f} {:.6f} 0.0\n", texcoords[i].u, 1.0f - texcoords[i].v));
       }
@@ -406,26 +389,24 @@ void Material::exportOBJ(Stream& stream, int32_t& index_offset)
 {
    for (const Buffer& buffer : _buffers)
    {
-      Geometry* geometry = buffer.geometry;
+      const Geometry& geometry = buffer.geometry;
 
-      if (!geometry->isVisible())
+      if (!geometry.isVisible())
       {
          continue;
       }
 
       exportGeo(
          stream,
-         geometry->getParent()->name(),
-         geometry->getTransform(),
-         geometry->getVertices(),
-         geometry->getNormals(),
-         geometry->getUV(1),
-         geometry->getVertexCount(),
-         geometry->getIndices(),
-         geometry->getIndexCount(),
+         geometry.getParent().name(),
+         geometry.getTransform(),
+         geometry.getVertices(),
+         geometry.getNormals(),
+         geometry.getUV(1),
+         geometry.getIndices(),
          index_offset
       );
 
-      index_offset += geometry->getVertexCount();
+      index_offset += geometry.getVertexCount();
    }
 }

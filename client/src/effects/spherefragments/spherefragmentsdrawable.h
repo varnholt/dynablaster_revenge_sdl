@@ -22,7 +22,7 @@ class FrameBuffer;
 class SphereFragmentsDrawable : public Drawable
 {
 public:
-   explicit SphereFragmentsDrawable(RenderDevice* device, bool visible = false);
+   explicit SphereFragmentsDrawable(RenderDevice& device, bool visible = false);
    ~SphereFragmentsDrawable() override;
 
    void initializeGL() override;

@@ -20,7 +20,7 @@ MotionMixer::MotionMixer()
    _current_state.reserve(_bone_count);
    for (int32_t i = 0; i < _bone_count; i++)
    {
-      _current_state.push_back(std::make_unique<Node>(Node::idDummy, nullptr));
+      _current_state.push_back(std::make_unique<Node>(Node::idDummy));
    }
 }
 
@@ -33,33 +33,39 @@ void MotionMixer::cleanup()
    _matrix_precalc.clear();
 }
 
+namespace
+{
 // find the node in the tree below "tree_root" that has the same name path as "source"
-static Node* matchTreeNode(Node* tree_root, Node* source)
+std::optional<std::reference_wrapper<Node>> matchTreeNode(Node& tree_root, const Node& source)
 {
    std::vector<std::string> name_list;
-   while (source)
+   for (std::optional<std::reference_wrapper<const Node>> node = source; node; node = node->get().parent())
    {
-      name_list.push_back(source->name());
-      source = source->parent();
+      name_list.push_back(node->get().name());
    }
 
-   for (int32_t i = static_cast<int32_t>(name_list.size()) - 2; i >= 0 && tree_root;)
+   std::optional<std::reference_wrapper<Node>> match = tree_root;
+   for (int32_t i = static_cast<int32_t>(name_list.size()) - 2; i >= 0 && match;)
    {
-      const std::string& name = name_list[i];
-      Node* child = tree_root->getChild(name);
-      if (child)
+      Node& current = *match;
+      if (const auto child = current.findChild(name_list[i]))
       {
-         tree_root = child;
+         match = child;
          i--;
+      }
+      else if (current.getChildCount() > 0)
+      {
+         match = current.getChild(0);
       }
       else
       {
-         tree_root = tree_root->getChild(0);
+         match.reset();
       }
    }
 
-   return tree_root;
+   return match;
 }
+}  // namespace
 
 int32_t MotionMixer::addAnimation(const std::string& name)
 {
@@ -67,8 +73,8 @@ int32_t MotionMixer::addAnimation(const std::string& name)
 
    // the first loaded animation is kept as reference, all others are dropped after precalc
    auto owned_scene = std::make_unique<SceneGraph>();
-   SceneGraph* scene = owned_scene.get();
-   scene->load(name);
+   SceneGraph& scene = *owned_scene;
+   scene.load(name);
 
    if (!_reference_animation)
    {
@@ -76,9 +82,9 @@ int32_t MotionMixer::addAnimation(const std::string& name)
    }
 
    // match nodes to reference animation
-   for (Node* reference_node : _reference_animation->nodeList())
+   for (const auto& reference_node : _reference_animation->nodeList())
    {
-      if (!matchTreeNode(scene, reference_node))
+      if (!matchTreeNode(scene, *reference_node))
       {
          std::printf("node match fail!\n");
       }
@@ -86,22 +92,22 @@ int32_t MotionMixer::addAnimation(const std::string& name)
 
    // find required bone nodes
    std::vector<std::reference_wrapper<Bone>> bone_list;  // bone initial transform
-   for (int32_t i = 0; i < scene->size(); i++)
+   for (int32_t i = 0; i < scene.size(); i++)
    {
-      Node* node = scene->getNode(i);
-      const int32_t node_animation_length = node->getAnimationLength();
+      Node& node = scene.getNode(i);
+      const int32_t node_animation_length = node.getAnimationLength();
       if (node_animation_length > _animation_length)
       {
          _animation_length = node_animation_length;
       }
 
-      if (node->id() == Node::idMesh)
+      if (node.id() == Node::idMesh)
       {
-         Mesh* mesh = static_cast<Mesh*>(node);
-         for (int32_t p = 0; p < mesh->getPartCount(); p++)
+         const auto& mesh = static_cast<const Mesh&>(node);
+         for (int32_t p = 0; p < mesh.getPartCount(); p++)
          {
-            Geometry* geometry = mesh->getPart(p);
-            for (Bone& bone : geometry->getBoneList())
+            Geometry& geometry = mesh.getPart(p);
+            for (Bone& bone : geometry.getBoneList())
             {
                bone_list.emplace_back(bone);
             }
@@ -135,7 +141,7 @@ int32_t MotionMixer::addAnimation(const std::string& name)
       const float frame = fr * _frame_step;
 
       // transform all scene nodes
-      for (Node* node : scene->nodeList())
+      for (const auto& node : scene.nodeList())
       {
          node->transform(frame);
       }
@@ -143,8 +149,7 @@ int32_t MotionMixer::addAnimation(const std::string& name)
       // store relevant node matrices
       for (const Bone& bone : bone_list)
       {
-         Node* node = scene->getNode(bone.id());
-         animation.push_back(bone.transform() * node->getTransform());
+         animation.push_back(bone.transform() * scene.getNode(bone.id()).getTransform());
       }
       precalc.push_back(std::move(animation));
    }
@@ -220,16 +225,16 @@ void MotionMixer::animate(float frame)
    }
 }
 
-Mesh* MotionMixer::getMesh(const std::string& name)
+std::optional<std::reference_wrapper<Mesh>> MotionMixer::getMesh(const std::string& name)
 {
    if (_reference_animation)
    {
-      return static_cast<Mesh*>(_reference_animation->getNode(name));
+      return _reference_animation->findNode<Mesh>(name);
    }
-   return nullptr;
+   return std::nullopt;
 }
 
-Node* MotionMixer::getNode(int32_t index) const
+Node& MotionMixer::getNode(int32_t index) const
 {
-   return _current_state[index].get();
+   return *_current_state[index];
 }

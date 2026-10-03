@@ -11,7 +11,7 @@ class Stream;
 class Camera : public Node
 {
 public:
-   Camera(Node* parent = nullptr);
+   Camera();
    void load(Stream& stream) override;
    void write(Stream& stream) override;
 

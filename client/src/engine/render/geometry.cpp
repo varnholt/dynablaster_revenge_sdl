@@ -2,8 +2,6 @@
 #include "animation/motionmixer.h"
 #include "math/vector.h"
 #include "nodes/mesh.h"
-#include "nodes/node.h"
-#include "nodes/scenegraph.h"
 #include "uv.h"
 
 #include <algorithm>
@@ -13,10 +11,19 @@
 namespace
 {
 int32_t _current_geometry_id = 0;
-const Matrix _identity;
 }  // namespace
 
-Geometry::Geometry(Node* parent) : _id(_current_geometry_id++), _parent(parent)
+Geometry::Geometry(Mesh& mesh) : _id(_current_geometry_id++), _parent(mesh)
+{
+}
+
+Geometry::Geometry(const Geometry& geometry, Mesh& mesh)
+    : _id(geometry._id),
+      _parent(mesh),
+      _visible(geometry._visible),
+      _material_id(geometry._material_id),
+      _data(geometry._data),
+      _vertex_map(geometry._vertex_map)
 {
 }
 
@@ -128,9 +135,9 @@ void Geometry::createCube(float scale)
    _vertex_map = {0, 1, 2, 3, 4, 5, 6, 7};
 }
 
-const int32_t* Geometry::getVertexMap() const
+std::span<const int32_t> Geometry::getVertexMap() const
 {
-   return _vertex_map.empty() ? nullptr : _vertex_map.data();
+   return _vertex_map;
 }
 
 const std::vector<uint16_t>& Geometry::getIndicesList() const
@@ -178,12 +185,7 @@ void Geometry::load(Stream& stream)
    Chunk chunk(stream);
    Data& data = *_data;
 
-   SceneGraph* scene = SceneGraph::instance();
    _material_id = chunk.getInt();
-   if (_material_id >= 0 && scene)
-   {
-      _material_id += scene->getMaterialStartIndex();
-   }
 
    loadList(chunk, data.vertices);
    loadList(chunk, data.normals);
@@ -225,11 +227,7 @@ void Geometry::write(Stream& stream)
 
 const Matrix& Geometry::getTransform() const
 {
-   if (_parent)
-   {
-      return _parent->getTransform();
-   }
-   return _identity;
+   return _parent.get().getTransform();
 }
 
 int32_t Geometry::getMaterial() const
@@ -237,14 +235,22 @@ int32_t Geometry::getMaterial() const
    return _material_id;
 }
 
-Node* Geometry::getParent() const
+Mesh& Geometry::getParent() const
 {
    return _parent;
 }
 
-void Geometry::setParent(Node* node)
+void Geometry::offsetIds(int32_t material_offset, int32_t node_offset)
 {
-   _parent = node;
+   if (_material_id >= 0)
+   {
+      _material_id += material_offset;
+   }
+
+   for (Bone& bone : _data->bones)
+   {
+      bone.setId(bone.id() + node_offset);
+   }
 }
 
 int32_t Geometry::getIndexCount() const
@@ -252,9 +258,9 @@ int32_t Geometry::getIndexCount() const
    return static_cast<int32_t>(_data->indices.size());
 }
 
-uint16_t* Geometry::getIndices() const
+std::span<const uint16_t> Geometry::getIndices() const
 {
-   return _data->indices.empty() ? nullptr : _data->indices.data();
+   return _data->indices;
 }
 
 int32_t Geometry::getEdgeCount() const
@@ -262,9 +268,9 @@ int32_t Geometry::getEdgeCount() const
    return static_cast<int32_t>(_data->edges.size());
 }
 
-Edge* Geometry::getEdges() const
+std::span<const Edge> Geometry::getEdges() const
 {
-   return _data->edges.empty() ? nullptr : _data->edges.data();
+   return _data->edges;
 }
 
 int32_t Geometry::getVertexCount() const
@@ -272,31 +278,31 @@ int32_t Geometry::getVertexCount() const
    return static_cast<int32_t>(_data->vertices.size());
 }
 
-Vector* Geometry::getVertices() const
+std::span<const Vector> Geometry::getVertices() const
 {
-   return _data->vertices.empty() ? nullptr : _data->vertices.data();
+   return _data->vertices;
 }
 
-Vector* Geometry::getNormals() const
+std::span<const Vector> Geometry::getNormals() const
 {
-   return _data->normals.empty() ? nullptr : _data->normals.data();
+   return _data->normals;
 }
 
-Vector* Geometry::getColors() const
+std::span<const Vector> Geometry::getColors() const
 {
-   return _data->colors.empty() ? nullptr : _data->colors.data();
+   return _data->colors;
 }
 
-UV* Geometry::getUV(int32_t channel) const
+std::span<const UV> Geometry::getUV(int32_t channel) const
 {
-   for (UVChannel& uv_channel : _data->uv_channels)
+   for (const UVChannel& uv_channel : _data->uv_channels)
    {
       if (uv_channel.id() == channel)
       {
-         return uv_channel.data();
+         return uv_channel.getUV();
       }
    }
-   return nullptr;
+   return {};
 }
 
 int32_t Geometry::getBoneCount() const
@@ -304,9 +310,9 @@ int32_t Geometry::getBoneCount() const
    return static_cast<int32_t>(_data->bones.size());
 }
 
-Bone* Geometry::getBones() const
+std::span<const Bone> Geometry::getBones() const
 {
-   return _data->bones.empty() ? nullptr : _data->bones.data();
+   return _data->bones;
 }
 
 const Bone& Geometry::getBone(int32_t index) const
@@ -434,16 +440,14 @@ void Geometry::createBoxMapping(bool, const Vector& min, const Vector& max, cons
 
 std::vector<Vector> Geometry::getSkinVertices() const
 {
-   auto* mesh = static_cast<Mesh*>(_parent);
-   MotionMixer* mixer = mesh->getMotionMixer();
+   const MotionMixer& mixer = _parent.get().getMotionMixer().value();
 
    const std::vector<Vector>& vertices = _data->vertices;
    std::vector<Vector> skinned(vertices.size(), Vector(0.0f, 0.0f, 0.0f));
 
    for (const Bone& bone : _data->bones)
    {
-      Node* node = mixer->getNode(bone.id());
-      const Matrix& bone_matrix = node->getTransform();
+      const Matrix& bone_matrix = mixer.getNode(bone.id()).getTransform();
 
       for (const Weight& weight : bone.weights())
       {

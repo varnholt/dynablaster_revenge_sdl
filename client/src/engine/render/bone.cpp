@@ -1,5 +1,4 @@
 #include "bone.h"
-#include "../nodes/scenegraph.h"
 #include "tools/stream.h"
 
 #include <array>
@@ -58,12 +57,6 @@ void Bone::load(Stream& stream)
       {
          std::printf("vertex %d has %d weights \n", i, weights_per_vertex[i]);
       }
-   }
-
-   SceneGraph* scene = SceneGraph::instance();
-   if (scene)
-   {
-      _id += scene->getNodeStartIndex();
    }
 }
 

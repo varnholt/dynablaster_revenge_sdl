@@ -11,7 +11,7 @@ class Stream;
 class Dummy : public Node
 {
 public:
-   Dummy(Node* parent = nullptr);
+   Dummy();
    void load(Stream& stream) override;
    void write(Stream& stream) override;
 };

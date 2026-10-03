@@ -22,12 +22,12 @@ FuseParticleSystem::FuseParticleSystem()
 {
    Image image;
    image.load("data/logo/pointsprite");
-   _particle_texture_id = activeDevice->createTexture(image.getData(), image.getWidth(), image.getHeight());
+   _particle_texture_id = activeDevice().createTexture(image.getData(), image.getWidth(), image.getHeight());
 
-   _shader = activeDevice->loadShader("fuseparticles-vert.glsl", "fuseparticles-frag.glsl");
-   _texture = activeDevice->getParameterIndex("texturemap");
-   _point_size = activeDevice->getParameterIndex("particleSize");
-   _projection = activeDevice->getParameterIndex("u_projection");
+   _shader = activeDevice().loadShader("fuseparticles-vert.glsl", "fuseparticles-frag.glsl");
+   _texture = activeDevice().getParameterIndex("texturemap");
+   _point_size = activeDevice().getParameterIndex("particleSize");
+   _projection = activeDevice().getParameterIndex("u_projection");
 }
 
 FuseParticleSystem::~FuseParticleSystem()
@@ -38,7 +38,7 @@ FuseParticleSystem::~FuseParticleSystem()
    }
    if (_particle_texture_id)
    {
-      activeDevice->deleteTexture(_particle_texture_id);
+      activeDevice().deleteTexture(_particle_texture_id);
    }
 }
 
@@ -203,10 +203,10 @@ void FuseParticleSystem::render()
    glBindBuffer(GL_ARRAY_BUFFER, _vertex_buffer);
    glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(sizeof(float) * _upload_buffer.size()), _upload_buffer.data(), GL_DYNAMIC_DRAW);
 
-   activeDevice->setShader(_shader);
-   activeDevice->setParameter(_projection, static_cast<GLDevice*>(activeDevice)->getProjectionMatrix());
-   activeDevice->setParameter(_point_size, PARTICLE_PIXEL_SIZE);
-   activeDevice->push(Matrix());
+   activeDevice().setShader(_shader);
+   activeDevice().setParameter(_projection, static_cast<GLDevice&>(activeDevice()).getProjectionMatrix());
+   activeDevice().setParameter(_point_size, PARTICLE_PIXEL_SIZE);
+   activeDevice().push(Matrix());
 
    glEnable(GL_BLEND);
    glBlendFunc(GL_ONE, GL_ONE);
@@ -214,7 +214,7 @@ void FuseParticleSystem::render()
 
    glActiveTexture(GL_TEXTURE0);
    glBindTexture(GL_TEXTURE_2D, _particle_texture_id);
-   activeDevice->bindSampler(_texture, 0);
+   activeDevice().bindSampler(_texture, 0);
 
    glEnableVertexAttribArray(0);
    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, static_cast<GLsizei>(sizeof(float) * 4), (GLvoid*)0);
@@ -227,6 +227,6 @@ void FuseParticleSystem::render()
    glDepthMask(GL_TRUE);
    glDisable(GL_BLEND);
 
-   activeDevice->pop();
-   activeDevice->setShader(0);
+   activeDevice().pop();
+   activeDevice().setShader(0);
 }

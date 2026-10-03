@@ -4,25 +4,23 @@
 #include "gldevice.h"
 #include "image/image.h"
 #include "nodes/mesh.h"
-#include "render/renderbuffer.h"
 #include "render/texturepool.h"
 #include "render/uv.h"
 #include "render/vertexbuffer.h"
 #include "textureslot.h"
 #include "tools/stream.h"
 
-PlayerMaterial::PlayerMaterial(SceneGraph* scene) : PlayerMaterialBase(scene, MAP_DIFFUSE | MAP_REFLECT)
+PlayerMaterial::PlayerMaterial() : PlayerMaterialBase(MAP_DIFFUSE | MAP_REFLECT)
 {
 }
 
 PlayerMaterial::PlayerMaterial(
-   SceneGraph* scene,
-   const char* color_map,
-   const char* environment_map,
-   const char* specular_map,
-   const char* ambient_occlusion_map
+   const std::string& color_map,
+   const std::string& environment_map,
+   const std::string& specular_map,
+   const std::string& ambient_occlusion_map
 )
-    : PlayerMaterialBase(scene, MAP_DIFFUSE | MAP_REFLECT)
+    : PlayerMaterialBase(MAP_DIFFUSE | MAP_REFLECT)
 {
    addTexture(_color_map, color_map);
    addTexture(_diffuse_map, environment_map);
@@ -32,25 +30,25 @@ PlayerMaterial::PlayerMaterial(
 
 void PlayerMaterial::init()
 {
-   _shader = activeDevice->loadShader("playermaterial-vert.glsl", "playermaterial-frag.glsl");
+   _shader = activeDevice().loadShader("playermaterial-vert.glsl", "playermaterial-frag.glsl");
 
-   _param_specular = activeDevice->getParameterIndex("specularmap");
-   _param_diffuse = activeDevice->getParameterIndex("diffusemap");
-   _param_texture = activeDevice->getParameterIndex("texturemap");
-   _param_ambient = activeDevice->getParameterIndex("ambientmap");
-   _param_camera = activeDevice->getParameterIndex("camera");
-   _param_bones = activeDevice->getParameterIndex("bones");
-   _param_flash = activeDevice->getParameterIndex("flash");
-   _param_fade = activeDevice->getParameterIndex("fade");
+   _param_specular = activeDevice().getParameterIndex("specularmap");
+   _param_diffuse = activeDevice().getParameterIndex("diffusemap");
+   _param_texture = activeDevice().getParameterIndex("texturemap");
+   _param_ambient = activeDevice().getParameterIndex("ambientmap");
+   _param_camera = activeDevice().getParameterIndex("camera");
+   _param_bones = activeDevice().getParameterIndex("bones");
+   _param_flash = activeDevice().getParameterIndex("flash");
+   _param_fade = activeDevice().getParameterIndex("fade");
 }
 
 void PlayerMaterial::load(Stream& stream)
 {
    Material::load(stream);
 
-   addTexture(_color_map, getTextureSlot(0)->name());
+   addTexture(_color_map, getTextureSlot(0).name());
    addTexture(_diffuse_map, "diffuse_level");
-   addTexture(_specular_map, getTextureSlot(1)->name(), 1 | 2 | 4);
+   addTexture(_specular_map, getTextureSlot(1).name(), 1 | 2 | 4);
 }
 
 void PlayerMaterial::begin()
@@ -68,11 +66,11 @@ void PlayerMaterial::begin()
    glActiveTexture(GL_TEXTURE3_ARB);
    glBindTexture(GL_TEXTURE_2D, _ambient_map);
 
-   activeDevice->setShader(_shader);
-   activeDevice->bindSampler(_param_specular, 0);
-   activeDevice->bindSampler(_param_diffuse, 1);
-   activeDevice->bindSampler(_param_texture, 2);
-   activeDevice->bindSampler(_param_ambient, 3);
+   activeDevice().setShader(_shader);
+   activeDevice().bindSampler(_param_specular, 0);
+   activeDevice().bindSampler(_param_diffuse, 1);
+   activeDevice().bindSampler(_param_texture, 2);
+   activeDevice().bindSampler(_param_ambient, 3);
 
    // enable required vertex arrays
    glEnableVertexAttribArray(0);  // vertex data
@@ -95,7 +93,7 @@ void PlayerMaterial::end()
 
    glActiveTexture(GL_TEXTURE0);
 
-   activeDevice->setShader(0);
+   activeDevice().setShader(0);
 }
 
 void PlayerMaterial::renderDiffuse()
@@ -105,28 +103,28 @@ void PlayerMaterial::renderDiffuse()
    std::array<Matrix, max_cluster_bones> bones;
    for (const Buffer& buffer : _buffers)
    {
-      VertexBuffer* vertex_buffer = buffer.vertex_buffer;
-      Geometry* geometry = buffer.geometry;
+      const VertexBuffer& vertex_buffer = buffer.vertex_buffer;
+      Geometry& geometry = buffer.geometry;
 
-      if (geometry->isVisible())
+      if (geometry.isVisible())
       {
-         const Mesh* mesh = static_cast<const Mesh*>(geometry->getParent());
-         const MotionMixer* mixer = mesh->getMotionMixer();
+         const Mesh& mesh = geometry.getParent();
+         const auto mixer = mesh.getMotionMixer();
 
-         const float flash = mesh->getRenderParameter(0);
-         const float fade = mesh->getRenderParameter(2);
+         const float flash = mesh.getRenderParameter(0);
+         const float fade = mesh.getRenderParameter(2);
 
-         const Matrix inverse_view = (geometry->getTransform() * _camera).invert();
+         const Matrix inverse_view = (geometry.getTransform() * _camera).invert();
          const Vector object_space_camera = inverse_view.translation();
 
-         activeDevice->setParameter(_param_flash, flash);
-         activeDevice->setParameter(_param_fade, fade);
-         activeDevice->setParameter(_param_camera, object_space_camera);
+         activeDevice().setParameter(_param_flash, flash);
+         activeDevice().setParameter(_param_fade, fade);
+         activeDevice().setParameter(_param_camera, object_space_camera);
 
-         activeDevice->push(geometry->getTransform());
+         activeDevice().push(geometry.getTransform());
 
          // draw mesh
-         glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer->getVertexBuffer());
+         glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer.getVertexBuffer());
          glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), nullptr);
          glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const GLvoid*>(sizeof(Vector)));
 
@@ -134,7 +132,7 @@ void PlayerMaterial::renderDiffuse()
          glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const GLvoid*>(sizeof(Vector) * 2 + 2 * 4));
          glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const GLvoid*>(sizeof(Vector) * 2 + 6 * 4));
 
-         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vertex_buffer->getIndexBuffer());
+         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vertex_buffer.getIndexBuffer());
 
          // render all clusters from the same vertex buffer
          size_t index_offset = 0;
@@ -144,7 +142,7 @@ void PlayerMaterial::renderDiffuse()
             const int32_t bone_count = cluster->boneCount();
             for (int32_t i = 0; i < bone_count; i++)
             {
-               bones[i] = mixer->getNode(cluster->bones[i])->getTransform();
+               bones[i] = mixer->get().getNode(cluster->bones[i]).getTransform();
             }
             for (int32_t i = bone_count; i < max_cluster_bones; i++)
             {
@@ -166,7 +164,7 @@ void PlayerMaterial::renderDiffuse()
             index_offset += cluster->indices.size();
          }
 
-         activeDevice->pop();
+         activeDevice().pop();
       }
    }
 
@@ -182,28 +180,26 @@ void PlayerMaterial::exportOBJ(Stream& stream, int32_t& index_offset)
 {
    for (const Buffer& buffer : _buffers)
    {
-      Geometry* geometry = buffer.geometry;
+      Geometry& geometry = buffer.geometry;
 
-      if (!geometry->isVisible())
+      if (!geometry.isVisible())
       {
          continue;
       }
 
-      std::vector<Vector> vertices = geometry->getSkinVertices();
+      const std::vector<Vector> vertices = geometry.getSkinVertices();
 
       exportGeo(
          stream,
-         geometry->getParent()->name(),
-         geometry->getTransform(),
-         vertices.data(),
-         geometry->getNormals(),
-         geometry->getUV(1),
-         geometry->getVertexCount(),
-         geometry->getIndices(),
-         geometry->getIndexCount(),
+         geometry.getParent().name(),
+         geometry.getTransform(),
+         vertices,
+         geometry.getNormals(),
+         geometry.getUV(1),
+         geometry.getIndices(),
          index_offset
       );
 
-      index_offset += geometry->getVertexCount();
+      index_offset += geometry.getVertexCount();
    }
 }

@@ -43,9 +43,9 @@ SnowAnimation::~SnowAnimation()
 void SnowAnimation::initialize()
 {
    _texture = TexturePool::Instance().getTexture("data/game/snowflake");
-   _shader = activeDevice->loadShader("snow-vert.glsl", "snow-frag.glsl");
-   _texture_param = activeDevice->getParameterIndex("texturemap");
-   _size_factor_param = activeDevice->getParameterIndex("sizeFactor");
+   _shader = activeDevice().loadShader("snow-vert.glsl", "snow-frag.glsl");
+   _texture_param = activeDevice().getParameterIndex("texturemap");
+   _size_factor_param = activeDevice().getParameterIndex("sizeFactor");
 
    glGenBuffers(1, &_vertex_buffer);
 }
@@ -61,12 +61,12 @@ void SnowAnimation::initParticle(Particle& particle, float z)
 
 float SnowAnimation::elapsedMs() const
 {
-   return GlobalTime::Instance()->getTime() * 1000.0f - _start_time;
+   return GlobalTime::Instance().getTime() * 1000.0f - _start_time;
 }
 
 void SnowAnimation::reset()
 {
-   _start_time = GlobalTime::Instance()->getTime() * 1000.0f;
+   _start_time = GlobalTime::Instance().getTime() * 1000.0f;
 
    for (auto& particle : _particles)
    {
@@ -125,25 +125,25 @@ void SnowAnimation::draw(const Matrix& transform)
    }
 
    // point sizes are authored for a 1920 px wide frame
-   float size_factor = static_cast<float>(activeDevice->getWidth()) / 1920.0f;
-   if (FrameBuffer* fb = FrameBuffer::Instance())
+   float size_factor = static_cast<float>(activeDevice().getWidth()) / 1920.0f;
+   if (const auto fb = FrameBuffer::Instance())
    {
-      size_factor = fb->getSizeFactor(1920.0f);
+      size_factor = fb->get().getSizeFactor(1920.0f);
    }
 
    glDepthMask(GL_FALSE);
    glEnable(GL_BLEND);
    glBlendFunc(GL_ONE, GL_ONE);
 
-   activeDevice->setShader(_shader);
-   activeDevice->setParameter(_size_factor_param, size_factor);
+   activeDevice().setShader(_shader);
+   activeDevice().setParameter(_size_factor_param, size_factor);
 
    // push() uploads the transform to the bound shader, so it has to follow setShader()
-   activeDevice->push(transform);
+   activeDevice().push(transform);
 
    glActiveTexture(GL_TEXTURE0);
    glBindTexture(GL_TEXTURE_2D, _texture.getTexture());
-   activeDevice->bindSampler(_texture_param, 0);
+   activeDevice().bindSampler(_texture_param, 0);
 
    glBindBuffer(GL_ARRAY_BUFFER, _vertex_buffer);
    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * vertices.size(), vertices.data(), GL_DYNAMIC_DRAW);
@@ -155,8 +155,8 @@ void SnowAnimation::draw(const Matrix& transform)
    glDisableVertexAttribArray(0);
    glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-   activeDevice->pop();
-   activeDevice->setShader(0);
+   activeDevice().pop();
+   activeDevice().setShader(0);
 
    glDisable(GL_BLEND);
    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
