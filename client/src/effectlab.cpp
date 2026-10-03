@@ -75,6 +75,7 @@ const std::map<std::string, Trigger>& triggers()
       {"infected", [](GameDrawable& game) { game.playerInfected(LOCAL_PLAYER_ID, Constants::SkullSlow, -1, 6, 5); }},
       {"startalers", [](GameDrawable& game) { game.extraRemoved(6, 5, false, Constants::ExtraBomb, LOCAL_PLAYER_ID); }},
       {"death", [](GameDrawable& game) { game.removePlayer(LOCAL_PLAYER_ID); }},
+      {"detonation", [](GameDrawable& game) { game.addDetonation(6, 5, 2, 2, 3, 3, 1.0f); }},
       {"fuse",
        [](GameDrawable& game)
        {

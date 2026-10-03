@@ -38,6 +38,7 @@ At frame 60 (t = 1.0 s) fire the effect's trigger call once.
 - infected   : playerInfected(0, SkullSlow, -1, 6, 5)
 - startalers : extraRemoved(6, 5, false, ExtraBomb, 0)
 - death      : removePlayer(0)
+- detonation : addDetonation(6, 5, 2, 2, 3, 3, 1.0) (new client only so far)
 - fuse       : createMapItem(new BombMapItem(0, 2, 100, 8, 5)) - a bomb two tiles right of the local
                player; the lab keeps it alive (never removed) for all captures
 - extrareveal : createMapItem(new ExtraMapItem(101, ExtraFlame, 8, 5)) - an extra appearing (reveal
