@@ -2,11 +2,11 @@
 
 #include "camerainterpolation.h"
 #include "math/matrix.h"
-#include "tools/array.h"
 
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <vector>
 
 class Camera;
 class SceneGraph;
@@ -56,7 +56,7 @@ public:
    Material* getFlameExtra() const;
    Material* getSkullExtra() const;
 
-   const Array<Node*>& getDestructions() const;
+   const std::vector<Node*>& getDestructions() const;
    Material* getShadowBillboard() const;
    Material* getShadowBlockBillboard() const;
    Material* getBombMaterial() const;
@@ -86,7 +86,7 @@ protected:
    std::unique_ptr<CameraInterpolation> _camera_interpolation;
 
    // the nodes are deleted by whoever takes getDestructions()
-   Array<Node*> _destruct_anim;
+   std::vector<Node*> _destruct_anim;
 
    // materials are owned by the scene graph they were created for
    Material* _stones = nullptr;

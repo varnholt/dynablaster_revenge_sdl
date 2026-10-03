@@ -4,16 +4,16 @@
 
 #include "gamemessage.h"
 
+#include <vector>
 #include "menus/vertex.h"
-#include "tools/array.h"
 
 class AnimatedGameMessage : public GameMessage
 {
 public:
    AnimatedGameMessage();
 
-   void setVertices(const Array<Vertex>& vertices);
-   const Array<Vertex>& getVertices() const;
+   void setVertices(const std::vector<Vertex>& vertices);
+   const std::vector<Vertex>& getVertices() const;
 
    float getAlpha() const;
 
@@ -21,5 +21,5 @@ public:
 
 protected:
    float _alpha = 1.0f;
-   Array<Vertex> _vertices;
+   std::vector<Vertex> _vertices;
 };

@@ -18,8 +18,8 @@ public:
    void operator<<(Stream& stream);
    void operator>>(Stream& stream);
 
-   void load(Stream* stream);
-   void write(Stream* stream);
+   void load(Stream& stream);
+   void write(Stream& stream);
 
    float u = 0.0f;
    float v = 0.0f;

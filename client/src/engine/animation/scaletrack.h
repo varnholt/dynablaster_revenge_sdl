@@ -15,6 +15,6 @@ public:
 
    void add(int32_t time, const Scale& scale);
 
-   void load(Stream* stream) override;
-   void write(Stream* stream) override;
+   void load(Stream& stream) override;
+   void write(Stream& stream) override;
 };

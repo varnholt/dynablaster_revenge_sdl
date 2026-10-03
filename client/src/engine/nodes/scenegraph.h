@@ -3,9 +3,9 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 #include <vector>
 #include "node.h"
-#include "tools/array.h"
 
 class Stream;
 class Material;
@@ -25,18 +25,18 @@ public:
 
    static SceneGraph* instance();
 
-   int32_t load(const String& name, MaterialFactory* materials = nullptr, Node* parent = nullptr);  // load the scene
-   void write(const String& name);
+   int32_t load(const std::string& name, MaterialFactory* materials = nullptr, Node* parent = nullptr);  // load the scene
+   void write(const std::string& name);
 
    int32_t size();  // get total number of nodes
    void addNode(Node* node);
    void removeNode(Node* node);
-   Node* getNode(int32_t index);       // find node by index
-   Node* getNode(const String& name);  // find node by name
+   Node* getNode(int32_t index);            // find node by index
+   Node* getNode(const std::string& name);  // find node by name
 
    void prepare();
    void render(float frame = 0.0f, const Matrix& shake = Matrix());  // recursively render all node of the scene graph
-   void exportOBJ(float frame, Stream* stream, int32_t& vertex_num);
+   void exportOBJ(float frame, Stream& stream, int32_t& vertex_num);
    Matrix setupCamera(const Matrix& shake = Matrix());
    void setCamera(Node* node);    // set active camera
    Node* getCamera();             // get active camera
@@ -47,7 +47,7 @@ public:
    int32_t getMaterialCount() const;
    void addMaterial(Material* material);
    void removeMaterial(Material* material);
-   const Array<Node*>& nodeList() const;
+   const std::vector<Node*>& nodeList() const;
 
    int32_t getMaterialStartIndex() const;
    int32_t getNodeStartIndex() const;
@@ -55,23 +55,23 @@ public:
    const Matrix& getGlobalTransform() const;
    void setGlobalTransform(const Matrix& matrix);
 
-   void exportOBJ(const String& name);
+   void exportOBJ(const std::string& name);
 
 private:
-   int32_t loadHeader(Stream* stream);  // load global information
-   void writeHeader(Stream* stream);
+   int32_t loadHeader(Stream& stream);  // load global information
+   void writeHeader(Stream& stream);
 
-   void loadMaterials(Stream* stream, MaterialFactory* materials);  // load list of materials
-   void writeMaterials(Stream* stream);
+   void loadMaterials(Stream& stream, MaterialFactory* materials);  // load list of materials
+   void writeMaterials(Stream& stream);
 
-   void loadNode(Stream* stream, Node* parent);  // recursive stream-traversal (tree)
-   void writeNode(Stream* stream, Node* parent);
+   void loadNode(Stream& stream, Node* parent);  // recursive stream-traversal (tree)
+   void writeNode(Stream& stream, Node* parent);
 
    void linkMaterials(Mesh* mesh);  // add mesh to used materials
    void setMaterialStartIndex(int32_t index);
    void setNodeStartIndex(int32_t index);
 
-   Array<Node*> _nodes;                // all nodes to avoid tree traversal
+   std::vector<Node*> _nodes;          // all nodes to avoid tree traversal
    std::vector<Material*> _materials;  // materials
    Camera* _camera = nullptr;          // camera (currently active)
    int32_t _animation_begin = 0;

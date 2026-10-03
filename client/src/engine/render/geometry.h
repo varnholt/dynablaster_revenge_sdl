@@ -8,37 +8,39 @@
 #include "bone.h"
 #include "edge.h"
 #include "facelist.h"
-#include "indexlist.h"
 #include "math/matrix.h"
 #include "math/vector.h"
-#include "tools/list.h"
-#include "tools/referenced.h"
 #include "uvchannel.h"
 
 #include <cstdint>
+#include <memory>
 #include <vector>
 
 class Stream;
 class Node;
 
-class Geometry : public Referenced
+class Geometry
 {
 public:
    Geometry(Node* parent);
-   Geometry(const Geometry* geometry);
 
+   // copies share id and vertex data (and with that the vertex buffer of the materials)
+   Geometry(const Geometry& geometry) = default;
+
+   // deep copy of the vertex data of "geometry"
    void copy(const Geometry& geometry);
 
    void createQuad(float x, float y);
    void createCube(float scale);
 
-   const FaceList& getIndicesList() const;
-   const List<Vector>& getVertexList() const;
-   const List<Vector>& getColorList() const;
-   const List<Vector>& getNormalList() const;
-   const List<UVChannel>& getUVList() const;
-   const List<Bone>& getBoneList() const;
-   const Array<Edge>& getEdgeList() const;
+   const std::vector<uint16_t>& getIndicesList() const;
+   const std::vector<Vector>& getVertexList() const;
+   const std::vector<Vector>& getColorList() const;
+   const std::vector<Vector>& getNormalList() const;
+   const std::vector<UVChannel>& getUVList() const;
+   const std::vector<Bone>& getBoneList() const;
+   std::vector<Bone>& getBoneList();
+   const std::vector<Edge>& getEdgeList() const;
    const int32_t* getVertexMap() const;
 
    int32_t getID() const;  // unique id
@@ -47,8 +49,8 @@ public:
    bool isMorphing() const;
    void setMorphFrame(float frame);  // interpolate vertex/normal data to given frame
 
-   void load(Stream* stream);
-   void write(Stream* stream);
+   void load(Stream& stream);
+   void write(Stream& stream);
 
    void setParent(Node* node);  // link geometry to originating mesh-node
    Node* getParent() const;     // originating mesh
@@ -63,7 +65,7 @@ public:
    Edge* getEdges() const;
 
    Vector* getVertices() const;
-   Array<Vector> getSkinVertices() const;
+   std::vector<Vector> getSkinVertices() const;
    Bone* getBones() const;
    const Bone& getBone(int32_t index) const;
    Vector* getNormals() const;
@@ -74,13 +76,21 @@ public:
 
    void calcBoundingBox(Vector& min, Vector& max);
 
-   int32_t morphTargetCount() const;
-   const List<Vector>& processMorphTrack(float time);
-
    void createBoxMapping(bool unwrap, const Vector& min, const Vector& max, const Matrix& tm = Matrix(), const Matrix& gizmo = Matrix());
 
 private:
-   int32_t createEdges();
+   struct Data
+   {
+      std::vector<uint16_t> indices;  // polygon indices
+      std::vector<Vector> vertices;
+      std::vector<Vector> colors;
+      std::vector<Vector> normals;
+      std::vector<UVChannel> uv_channels;  // can be empty
+      std::vector<Bone> bones;             // vertex weights
+      MorphTrack morph_track;
+      std::vector<Edge> edges;
+   };
+
    void calcNormals();
 
    int32_t _id = 0;
@@ -88,13 +98,6 @@ private:
    bool _visible = true;
    int32_t _material_id = 0;
 
-   FaceList _indices;  // polygon indices
-   List<Vector> _vertices;
-   List<Vector> _colors;
-   List<Vector> _normals;
-   List<UVChannel> _uv_channels;  // can be empty
-   List<Bone> _bones;             // vertex weights
-   MorphTrack _morph_track;
-   Array<Edge> _edges;
+   std::shared_ptr<Data> _data = std::make_shared<Data>();
    std::vector<int32_t> _vertex_map;  // vertex identity map
 };

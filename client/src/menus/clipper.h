@@ -1,7 +1,8 @@
 #pragma once
 
-#include "tools/array.h"
 #include "vertex.h"
+
+#include <vector>
 
 class Clipper
 {
@@ -18,20 +19,20 @@ public:
 
    void setBounds(float left, float top, float right, float bottom);
 
-   Array<Vertex> clip(const Array<Vertex>& vertices);
+   std::vector<Vertex> clip(const std::vector<Vertex>& vertices);
    void enable();
-   bool enable(const Array<Vertex>& source_bounding);
+   bool enable(const std::vector<Vertex>& source_bounding);
    void disable();
-   bool visible(const Array<Vertex>& vertices) const;
+   bool visible(const std::vector<Vertex>& vertices) const;
    float getWidth() const;
    float getHeight() const;
 
 private:
    int getClipFlags(const Vertex& vertex) const;
-   Array<Vertex> clipRight(const Array<Vertex>& vertices);
-   Array<Vertex> clipLeft(const Array<Vertex>& vertices);
-   Array<Vertex> clipTop(const Array<Vertex>& vertices);
-   Array<Vertex> clipBottom(const Array<Vertex>& vertices);
+   std::vector<Vertex> clipRight(const std::vector<Vertex>& vertices);
+   std::vector<Vertex> clipLeft(const std::vector<Vertex>& vertices);
+   std::vector<Vertex> clipTop(const std::vector<Vertex>& vertices);
+   std::vector<Vertex> clipBottom(const std::vector<Vertex>& vertices);
 
    float _left;
    float _top;

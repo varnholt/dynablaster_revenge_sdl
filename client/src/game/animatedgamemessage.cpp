@@ -6,12 +6,12 @@ AnimatedGameMessage::AnimatedGameMessage() : GameMessage()
 {
 }
 
-void AnimatedGameMessage::setVertices(const Array<Vertex>& vertices)
+void AnimatedGameMessage::setVertices(const std::vector<Vertex>& vertices)
 {
-   _vertices.copy(vertices);
+   _vertices = vertices;
 }
 
-const Array<Vertex>& AnimatedGameMessage::getVertices() const
+const std::vector<Vertex>& AnimatedGameMessage::getVertices() const
 {
    return _vertices;
 }

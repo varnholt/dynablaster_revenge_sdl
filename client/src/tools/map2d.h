@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <vector>
 
-// 2d grid of non-owning item pointers
+// 2d grid of items; cells outside the grid read as a default constructed item
 template <class Item>
 class Map2d
 {
@@ -17,17 +17,17 @@ public:
    // initialize Map2d to given size, existing data is dropped
    void init(int32_t width, int32_t height);
 
-   // reset all cells to null
+   // reset all cells to a default constructed item
    void clear();
 
-   Item* get(int32_t x, int32_t y) const;
-   void set(int32_t x, int32_t y, const Item* item);
+   Item get(int32_t x, int32_t y) const;
+   void set(int32_t x, int32_t y, const Item& item);
 
    int32_t width() const;
    int32_t height() const;
 
 protected:
-   std::vector<Item*> _data;
+   std::vector<Item> _data;
    int32_t _width = 0;
    int32_t _height = 0;
 };
@@ -45,7 +45,7 @@ void Map2d<Item>::init(int32_t width, int32_t height)
    {
       _width = width;
       _height = height;
-      _data.assign(static_cast<size_t>(width) * height, nullptr);
+      _data.assign(static_cast<size_t>(width) * height, Item{});
    }
    else
    {
@@ -58,25 +58,25 @@ void Map2d<Item>::init(int32_t width, int32_t height)
 template <class Item>
 void Map2d<Item>::clear()
 {
-   std::ranges::fill(_data, nullptr);
+   std::ranges::fill(_data, Item{});
 }
 
 template <class Item>
-Item* Map2d<Item>::get(int32_t x, int32_t y) const
+Item Map2d<Item>::get(int32_t x, int32_t y) const
 {
    if (x >= 0 && x < _width && y >= 0 && y < _height)
    {
       return _data[y * _width + x];
    }
-   return nullptr;
+   return Item{};
 }
 
 template <class Item>
-void Map2d<Item>::set(int32_t x, int32_t y, const Item* item)
+void Map2d<Item>::set(int32_t x, int32_t y, const Item& item)
 {
    if (x >= 0 && x < _width && y >= 0 && y < _height)
    {
-      _data[y * _width + x] = const_cast<Item*>(item);
+      _data[y * _width + x] = item;
    }
 }
 

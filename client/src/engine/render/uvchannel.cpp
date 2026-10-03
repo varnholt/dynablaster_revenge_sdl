@@ -1,13 +1,8 @@
 #include "uvchannel.h"
 #include "tools/stream.h"
 
-UVChannel::UVChannel(int32_t id, UV* uv, int32_t size) : _id(id)
+UVChannel::UVChannel(int32_t id, std::span<const UV> uv) : _id(id), _uv(uv.begin(), uv.end())
 {
-   _uv.init(size);
-   for (int32_t i = 0; i < size; i++)
-   {
-      _uv.add(uv[i]);
-   }
 }
 
 int32_t UVChannel::id() const
@@ -15,32 +10,31 @@ int32_t UVChannel::id() const
    return _id;
 }
 
-UV* UVChannel::data() const
+UV* UVChannel::data()
 {
-   return _uv.data();
+   return _uv.empty() ? nullptr : _uv.data();
 }
 
-const List<UV>& UVChannel::getUV() const
+const std::vector<UV>& UVChannel::getUV() const
 {
    return _uv;
 }
 
-void UVChannel::load(Stream* stream)
+std::vector<UV>& UVChannel::getUV()
 {
-   _id = stream->getInt();
-
-   _uv << *stream;
+   return _uv;
 }
 
-void UVChannel::write(Stream* stream)
+void UVChannel::load(Stream& stream)
 {
-   stream->writeInt(_id);
+   _id = stream.getInt();
 
-   _uv >> *stream;
+   loadList(stream, _uv);
 }
 
-void UVChannel::copy(const UVChannel& other)
+void UVChannel::write(Stream& stream)
 {
-   _id = other.id();
-   _uv.copy(other.getUV());
+   stream.writeInt(_id);
+
+   writeList(stream, _uv);
 }

@@ -5,12 +5,14 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <string>
+#include <vector>
 #include "tools/chunk.h"
-#include "tools/list.h"
 #include "tools/stream.h"
+#include "tools/streamable.h"
 
 template <class KeyClass>
-class Track : public List<KeyClass>
+class Track : public Streamable
 {
 public:
    enum Type
@@ -24,9 +26,9 @@ public:
       idVertexMorph = 2010
    };
 
-   Track(Type type, const String& name = String()) : _type(type), _name(name)
+   Track(Type type, const std::string& name = std::string()) : _type(type), _name(name)
    {
-      if (_name.isEmpty())
+      if (_name.empty())
       {
          switch (_type)
          {
@@ -58,26 +60,30 @@ public:
 
    void addKey(const KeyClass& key)
    {
-      this->add(key);
+      _keys.push_back(key);
+   }
+
+   int32_t size() const
+   {
+      return static_cast<int32_t>(_keys.size());
    }
 
    int32_t getAnimationLength() const
    {
-      const int32_t count = this->size();
-      if (count > 0)
+      if (!_keys.empty())
       {
-         return key(count - 1).time();
+         return _keys.back().time();
       }
       return 0;
    }
 
-   void load(Stream* stream) override
+   void load(Stream& stream) override
    {
       Chunk track(stream);
 
       if (track.id() == _type)
       {
-         List<KeyClass>::load(&track);
+         loadList(track, _keys);
       }
       else
       {
@@ -87,11 +93,11 @@ public:
       track.skip();
    }
 
-   void write(Stream* stream) override
+   void write(Stream& stream) override
    {
       Chunk track(stream, _type, _name);
 
-      List<KeyClass>::write(&track);
+      writeList(track, _keys);
    }
 
    float interpolate(float time)
@@ -100,7 +106,7 @@ public:
       {
          _current_key--;
       }
-      while (_current_key < this->size() - 1 && time >= key(_current_key + 1).time())
+      while (_current_key < size() - 1 && time >= key(_current_key + 1).time())
       {
          _current_key++;
       }
@@ -111,23 +117,29 @@ public:
       return progress / length;
    }
 
-   KeyClass& prevKey() const
+   KeyClass& prevKey()
    {
       return key(_current_key);
    }
 
-   KeyClass& nextKey() const
+   KeyClass& nextKey()
    {
       return key(_current_key + 1);
    }
 
-   KeyClass& key(int32_t index) const
+   KeyClass& key(int32_t index)
    {
-      return (*this)[index];
+      return _keys[index];
+   }
+
+   const KeyClass& key(int32_t index) const
+   {
+      return _keys[index];
    }
 
 protected:
    Type _type;
-   String _name;
+   std::string _name;
    int32_t _current_key = 0;
+   std::vector<KeyClass> _keys;
 };

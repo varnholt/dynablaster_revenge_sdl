@@ -555,7 +555,7 @@ int main(int /*argc*/, char** /*argv*/)
       global_time.update();
 
       // drives every FrameTimer's timeout() signal (e.g. PositionInterpolation's update loop)
-      TimerHandler::Instance()->update();
+      TimerHandler::Instance().update();
 
       const float time_ms = static_cast<float>(SDL_GetTicks());
 

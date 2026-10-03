@@ -7,15 +7,14 @@
 #include "math/vector.h"
 #include "math/vector2.h"
 #include "math/vector4.h"
-#include "tools/singleton.h"
 
 class Stream;
 
-class RenderDevice : public Singleton<RenderDevice>
+class RenderDevice
 {
 public:
    RenderDevice();
-   ~RenderDevice() override = default;
+   virtual ~RenderDevice() = default;
 
    void setKey(int32_t num, int32_t state);
    int32_t getKey(int32_t num);

@@ -3,10 +3,10 @@
 #include "menupagetextedit.h"
 
 #include "framework/frametimer.h"
-#include "tools/array.h"
 #include "vertex.h"
 
 #include <memory>
+#include <vector>
 
 class MenuPageListItemElement : public MenuPageTextEditItem
 {
@@ -37,7 +37,7 @@ public:
 
    float getY() const;
 
-   Array<Vertex> getBoundingRectVertices(float x, float y);
+   std::vector<Vertex> getBoundingRectVertices(float x, float y);
 
    bool isFadingOut();
 

@@ -344,7 +344,7 @@ void MenuPageListItem::drawText()
    {
       const float opacity = (element->isFocussed() || element->isActive() || element->isOverrideAlphaActive()) ? 1.0f : 0.5882f;
 
-      Array<Vertex> bound = element->getBoundingRectVertices(_layer_active->getLeft(), _layer_active->getTop() + _y);
+      std::vector<Vertex> bound = element->getBoundingRectVertices(_layer_active->getLeft(), _layer_active->getTop() + _y);
 
       if (_clipper->enable(bound))
       {
@@ -375,7 +375,7 @@ void MenuPageListItem::drawRows()
    int row = 0;
    for (const auto& element : _elements)
    {
-      Array<Vertex> bounding_rect = element->getBoundingRectVertices(_layer_active->getLeft(), _layer_active->getTop() + _y);
+      std::vector<Vertex> bounding_rect = element->getBoundingRectVertices(_layer_active->getLeft(), _layer_active->getTop() + _y);
 
       if (_clipper->enable(bounding_rect))
       {

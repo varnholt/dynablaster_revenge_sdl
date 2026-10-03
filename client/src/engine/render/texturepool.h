@@ -1,12 +1,12 @@
 #pragma once
 
 #include "texture.h"
-#include "tools/array.h"
 #include "tools/singleton.h"
 
 #include <cstdint>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 class Image;
 
@@ -26,8 +26,8 @@ public:
 
    TexturePool() = default;
 
-   Texture getTexture(const char* filename, int32_t filter = Trilinear);
-   Texture getTexture(Image* image, int32_t filter = Trilinear);
+   Texture getTexture(const std::string& filename, int32_t filter = Trilinear);
+   Texture getTexture(const Image& image, int32_t filter = Trilinear);
 
    void remove(const Texture& texture);
 
@@ -35,7 +35,7 @@ public:
 
 private:
    std::unordered_map<std::string, Texture> _pool;
-   Array<uint32_t> _removal;
+   std::vector<uint32_t> _removal;
    bool _block = false;
    uint32_t _memory = 0;
 };

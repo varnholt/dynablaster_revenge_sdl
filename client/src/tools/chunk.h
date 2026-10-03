@@ -10,11 +10,11 @@
 #include <array>
 #include <cstdint>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "objectname.h"
 #include "stream.h"
-#include "string.h"
 
 class Chunk : public Stream, public ObjectName
 {
@@ -25,12 +25,15 @@ public:
       Write,
    };
 
-   Chunk(Stream* stream);
-   Chunk(Stream* stream, int32_t id, const String& name);
+   explicit Chunk(Stream& stream);
+   Chunk(Stream& stream, int32_t id, const std::string& name);
    ~Chunk() override;
 
-   void getData(void* destination, int32_t size) override;
-   void writeData(void* source, int32_t size) override;
+   Chunk(const Chunk&) = delete;
+   Chunk& operator=(const Chunk&) = delete;
+
+   void getData(std::span<std::byte> destination) override;
+   void writeData(std::span<const std::byte> source) override;
 
    int32_t id() const;
 
@@ -39,9 +42,9 @@ public:
 
 private:
    static constexpr int32_t kBufferSize = 3111;
-   using Buffer = std::array<char, kBufferSize>;
+   using Buffer = std::array<std::byte, kBufferSize>;
 
-   Stream* _stream = nullptr;  // not owned
+   Stream& _stream;
    AccessMode _mode = AccessMode::Read;
    int32_t _id = 0;
    int32_t _size = 0;
@@ -49,6 +52,6 @@ private:
 
    // write mode: data is collected here and flushed to "_stream" (with id, name and size) on destruction
    std::vector<std::unique_ptr<Buffer>> _buffers;
-   Buffer* _buffer = nullptr;  // buffer currently being filled, null when full
+   bool _buffer_open = false;  // last buffer still has free space
    int32_t _buffer_position = 0;
 };

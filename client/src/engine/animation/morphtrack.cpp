@@ -4,18 +4,18 @@ MorphTrack::MorphTrack() : Track<MorphKey>(Track::idVertexMorph)
 {
 }
 
-void MorphTrack::get(List<Vector>& vertices, List<Vector>& normals, float time)
+void MorphTrack::get(std::vector<Vector>& vertices, std::vector<Vector>& normals, float time)
 {
-   const MorphKey& first = Track<MorphKey>::get(0);
-   const MorphKey& last = Track<MorphKey>::getLast();
+   const MorphKey& first = key(0);
+   const MorphKey& last = key(size() - 1);
 
    const int32_t count = first.getVertexCount();
 
    if (time <= first.time() || time >= last.time())
    {
       const MorphKey& source = (time <= first.time()) ? first : last;
-      const List<Vector>& source_vertices = source.getVertices();
-      const List<Vector>& source_normals = source.getNormals();
+      const std::vector<Vector>& source_vertices = source.getVertices();
+      const std::vector<Vector>& source_normals = source.getNormals();
       for (int32_t i = 0; i < count; i++)
       {
          vertices[i] = source_vertices[i];
@@ -26,11 +26,11 @@ void MorphTrack::get(List<Vector>& vertices, List<Vector>& normals, float time)
    {
       const float f = interpolate(time);
 
-      const List<Vector>& v1 = prevKey().getVertices();
-      const List<Vector>& n1 = prevKey().getNormals();
+      const std::vector<Vector>& v1 = prevKey().getVertices();
+      const std::vector<Vector>& n1 = prevKey().getNormals();
 
-      const List<Vector>& v2 = nextKey().getVertices();
-      const List<Vector>& n2 = nextKey().getNormals();
+      const std::vector<Vector>& v2 = nextKey().getVertices();
+      const std::vector<Vector>& n2 = nextKey().getNormals();
 
       for (int32_t i = 0; i < count; i++)
       {
@@ -40,10 +40,10 @@ void MorphTrack::get(List<Vector>& vertices, List<Vector>& normals, float time)
    }
 }
 
-void MorphTrack::calculateNormals(const Array<uint16_t>& indices)
+void MorphTrack::calculateNormals(const std::vector<uint16_t>& indices)
 {
-   for (int32_t i = 0; i < size(); i++)
+   for (MorphKey& morph_key : _keys)
    {
-      key(i).calculateNormals(indices);
+      morph_key.calculateNormals(indices);
    }
 }

@@ -2,9 +2,9 @@
 
 #include <cstdint>
 #include <memory>
+#include <string>
 #include <vector>
 #include "math/matrix.h"
-#include "tools/string.h"
 
 class SceneGraph;
 class Node;
@@ -20,8 +20,8 @@ public:
    ~MotionMixer();
 
    static void cleanup();
-   static int32_t addAnimation(const String& name);
-   static Mesh* getMesh(const String& name);
+   static int32_t addAnimation(const std::string& name);
+   static Mesh* getMesh(const std::string& name);
 
    void setAnimation(int32_t anim1, int32_t anim2, float weight1, int32_t anim3, float weight2);
    void animate(float frame);

@@ -30,7 +30,7 @@ void EnvironmentAmbientMaterial::init()
    _param_camera = activeDevice->getParameterIndex("camera");
 }
 
-void EnvironmentAmbientMaterial::load(Stream* stream)
+void EnvironmentAmbientMaterial::load(Stream& stream)
 {
    Material::load(stream);
 

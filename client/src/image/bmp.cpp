@@ -47,10 +47,10 @@ int32_t saveBmp(char* filename, uint32_t* data, int32_t width, int32_t height)
    stream.open(filename, true);
 
    BMPFileHeader head;
-   stream.writeData(&head, sizeof(BMPFileHeader));
+   stream.writeRaw(head);
 
    BMPInfoHeader info(width, height);
-   stream.writeData(&info, sizeof(BMPInfoHeader));
+   stream.writeRaw(info);
 
    const int32_t padding = (4 - width * 3) & 3;
 

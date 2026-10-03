@@ -11,16 +11,16 @@ class Streamable
 public:
    virtual ~Streamable() = default;
 
-   virtual void load(Stream* stream) = 0;
-   virtual void write(Stream* stream) = 0;
+   virtual void load(Stream& stream) = 0;
+   virtual void write(Stream& stream) = 0;
 
    void operator<<(Stream& stream)
    {
-      load(&stream);
+      load(stream);
    }
 
    void operator>>(Stream& stream)
    {
-      write(&stream);
+      write(stream);
    }
 };

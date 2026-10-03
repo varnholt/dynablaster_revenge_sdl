@@ -1,6 +1,9 @@
 #include "motionmixer.h"
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <functional>
+#include <string>
 #include "math/matrix.h"
 #include "nodes/mesh.h"
 #include "nodes/node.h"
@@ -33,16 +36,16 @@ void MotionMixer::cleanup()
 // find the node in the tree below "tree_root" that has the same name path as "source"
 static Node* matchTreeNode(Node* tree_root, Node* source)
 {
-   Array<String> name_list;
+   std::vector<std::string> name_list;
    while (source)
    {
-      name_list.add(source->name());
+      name_list.push_back(source->name());
       source = source->parent();
    }
 
-   for (int32_t i = name_list.size() - 2; i >= 0 && tree_root;)
+   for (int32_t i = static_cast<int32_t>(name_list.size()) - 2; i >= 0 && tree_root;)
    {
-      const String& name = name_list[i];
+      const std::string& name = name_list[i];
       Node* child = tree_root->getChild(name);
       if (child)
       {
@@ -58,7 +61,7 @@ static Node* matchTreeNode(Node* tree_root, Node* source)
    return tree_root;
 }
 
-int32_t MotionMixer::addAnimation(const String& name)
+int32_t MotionMixer::addAnimation(const std::string& name)
 {
    const int32_t index = static_cast<int32_t>(_matrix_precalc.size());
 
@@ -73,18 +76,17 @@ int32_t MotionMixer::addAnimation(const String& name)
    }
 
    // match nodes to reference animation
-   const Array<Node*>& reference_nodes = _reference_animation->nodeList();
-   for (int32_t i = 0; i < reference_nodes.size(); i++)
+   for (Node* reference_node : _reference_animation->nodeList())
    {
-      if (!matchTreeNode(scene, reference_nodes[i]))
+      if (!matchTreeNode(scene, reference_node))
       {
          std::printf("node match fail!\n");
       }
    }
 
    // find required bone nodes
-   Array<Bone*> bone_list;  // bone initial transform
-   for (int32_t i = 0; i < scene->nodeList().size(); i++)
+   std::vector<std::reference_wrapper<Bone>> bone_list;  // bone initial transform
+   for (int32_t i = 0; i < scene->size(); i++)
    {
       Node* node = scene->getNode(i);
       const int32_t node_animation_length = node->getAnimationLength();
@@ -99,10 +101,9 @@ int32_t MotionMixer::addAnimation(const String& name)
          for (int32_t p = 0; p < mesh->getPartCount(); p++)
          {
             Geometry* geometry = mesh->getPart(p);
-            const List<Bone>& bones = geometry->getBoneList();
-            for (int32_t b = 0; b < bones.size(); b++)
+            for (Bone& bone : geometry->getBoneList())
             {
-               bone_list.add(const_cast<Bone*>(&bones[b]));
+               bone_list.emplace_back(bone);
             }
          }
       }
@@ -110,10 +111,7 @@ int32_t MotionMixer::addAnimation(const String& name)
 
    const int32_t frames = static_cast<int32_t>(std::ceil(_animation_length / _frame_step));
 
-   if (bone_list.size() > _bone_count)
-   {
-      _bone_count = bone_list.size();
-   }
+   _bone_count = std::max(_bone_count, static_cast<int32_t>(bone_list.size()));
 
    // adjust length of existing animations
    for (BoneAnimPrecalc& precalc : _matrix_precalc)
@@ -137,26 +135,25 @@ int32_t MotionMixer::addAnimation(const String& name)
       const float frame = fr * _frame_step;
 
       // transform all scene nodes
-      for (int32_t i = 0; i < scene->nodeList().size(); i++)
+      for (Node* node : scene->nodeList())
       {
-         scene->getNode(i)->transform(frame);
+         node->transform(frame);
       }
 
       // store relevant node matrices
-      for (int32_t i = 0; i < bone_list.size(); i++)
+      for (const Bone& bone : bone_list)
       {
-         Bone* bone = bone_list[i];
-         Node* node = scene->getNode(bone->id());
-         animation.push_back(bone->transform() * node->getTransform());
+         Node* node = scene->getNode(bone.id());
+         animation.push_back(bone.transform() * node->getTransform());
       }
       precalc.push_back(std::move(animation));
    }
    _matrix_precalc.push_back(std::move(precalc));
 
    // fix bone ids
-   for (int32_t i = 0; i < bone_list.size(); i++)
+   for (size_t i = 0; i < bone_list.size(); i++)
    {
-      bone_list[i]->setId(i);
+      bone_list[i].get().setId(static_cast<int32_t>(i));
    }
 
    return index;
@@ -223,7 +220,7 @@ void MotionMixer::animate(float frame)
    }
 }
 
-Mesh* MotionMixer::getMesh(const String& name)
+Mesh* MotionMixer::getMesh(const std::string& name)
 {
    if (_reference_animation)
    {

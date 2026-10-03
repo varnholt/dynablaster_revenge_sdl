@@ -8,7 +8,8 @@ MenuPageLabelItem::MenuPageLabelItem()
 
 void MenuPageLabelItem::initialize()
 {
-   _font = FontPool::Instance()->get(_font_name.c_str());
+   const auto font = FontPool::Instance().get(_font_name);
+   _font = font ? &font->get() : nullptr;
 }
 
 void MenuPageLabelItem::draw()

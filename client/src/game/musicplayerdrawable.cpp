@@ -57,7 +57,7 @@ void MusicPlayerDrawable::initializeGL()
 
    initializeLayers();
 
-   _font = FontPool::Instance()->get("default");
+   _font = &FontPool::Instance().get("default")->get();
 
    FileStream::removePath("data/musicplayer");
 }

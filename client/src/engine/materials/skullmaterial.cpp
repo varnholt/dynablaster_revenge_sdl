@@ -50,7 +50,7 @@ SkullMaterial::SkullMaterial(
    addTexture(_shadow_map, shadow_map);
 }
 
-void SkullMaterial::load(Stream* stream)
+void SkullMaterial::load(Stream& stream)
 {
    Material::load(stream);
 

@@ -5,63 +5,18 @@
 #include <cstring>
 #include <string>
 
-#include "image/imagepool.h"
 #include "tga.h"
 #include "tools/filestream.h"
 
 // construct empty (black, transparent) image x*y
-Image::Image(int32_t x, int32_t y) : _width(x), _height(y)
+Image::Image(int32_t x, int32_t y) : _pixels(std::make_shared<std::vector<uint32_t>>(static_cast<size_t>(x) * y)), _width(x), _height(y)
 {
-   _data = new uint32_t[static_cast<size_t>(_width) * _height]();
 }
 
 // construct image from file
 Image::Image(const char* filename)
 {
    load(filename);
-}
-
-// construct reference
-Image::Image(const Image& image) : Referenced(image), _data(image.getData()), _width(image.getWidth()), _height(image.getHeight())
-{
-}
-
-Image::~Image()
-{
-   // last instance referencing the data: delete it
-   if (getRefCount() == 1)
-   {
-      discard();
-   }
-}
-
-// create reference
-const Image& Image::operator=(const Image& image)
-{
-   if (this != &image)
-   {
-      // last instance referencing the data: delete it
-      if (getRefCount() == 1)
-      {
-         discard();
-         delete _references;
-      }
-
-      _references = image.getRef();
-      addRef();
-      _width = image.getWidth();
-      _height = image.getHeight();
-      _data = image.getData();
-   }
-
-   return *this;
-}
-
-void Image::discard()
-{
-   delete[] _data;
-   _data = nullptr;
-   ImagePool::Instance()->remove(this);
 }
 
 void Image::save(const char* filename)
@@ -71,21 +26,16 @@ void Image::save(const char* filename)
 
 void Image::load(const char* filename)
 {
-   // data is not referenced by another object? delete it.
-   if (!copyRef())
-   {
-      discard();
-   }
-
-   void* data = nullptr;
-   const bool loaded = loadtga(filename, &data, &_width, &_height) != 0;
-   _data = static_cast<uint32_t*>(data);
+   // copies keep the previous pixels
+   auto pixels = std::make_shared<std::vector<uint32_t>>();
+   const bool loaded = loadtga(filename, *pixels, _width, _height) != 0;
+   _pixels = std::move(pixels);
 
    if (loaded)
    {
       const std::string name = std::string(filename) + ".tga";
       FileStream stream;
-      if (stream.open(name.c_str()))
+      if (stream.open(name))
       {
          _path = stream.getPath();
          _filename = filename;
@@ -106,20 +56,20 @@ int32_t Image::getHeight() const
 
 uint32_t* Image::getScanline(int32_t y) const
 {
-   return _data + y * _width;
+   return getData() + y * _width;
 }
 
 uint32_t* Image::getData() const
 {
-   return _data;
+   return (_pixels && !_pixels->empty()) ? _pixels->data() : nullptr;
 }
 
-const String& Image::path() const
+const std::string& Image::path() const
 {
    return _path;
 }
 
-const String& Image::filename() const
+const std::string& Image::filename() const
 {
    return _filename;
 }
@@ -128,7 +78,7 @@ uint32_t Image::getPixel(float u, float v) const
 {
    const auto x = static_cast<int32_t>(std::floor(u * (_width - 1)));
    const auto y = static_cast<int32_t>(std::floor(v * (_height - 1)));
-   return _data[y * _width + x];
+   return getData()[y * _width + x];
 }
 
 // halve resolution
@@ -338,11 +288,13 @@ void Image::copy(int32_t position_x, int32_t position_y, const Image& image, int
 
 void Image::buildNormalMap(int32_t z)
 {
-   uint32_t* source = _data;
-   const uint32_t* source0 = _data + (_height - 1) * _width;
-   const uint32_t* source1 = _data;
-   const uint32_t* source2 = _data + _width;
-   uint32_t* destination = _data = new uint32_t[static_cast<size_t>(_width) * _height];
+   const auto source_pixels = _pixels;
+   auto target_pixels = std::make_shared<std::vector<uint32_t>>(static_cast<size_t>(_width) * _height);
+   const uint32_t* source = source_pixels->data();
+   const uint32_t* source0 = source + (_height - 1) * _width;
+   const uint32_t* source1 = source;
+   const uint32_t* source2 = source + _width;
+   uint32_t* destination = target_pixels->data();
 
    for (int32_t y = 0; y < _height; y++)
    {
@@ -360,17 +312,18 @@ void Image::buildNormalMap(int32_t z)
       source2 = (y < _height - 2) ? source2 + _width : source;
    }
 
-   delete[] source;
+   _pixels = std::move(target_pixels);
 }
 
 void Image::buildDeltaMap()
 {
-   uint32_t* source = _data;
-
-   const uint32_t* source0 = _data + (_height - 1) * _width;
-   const uint32_t* source1 = _data;
-   const uint32_t* source2 = _data + _width;
-   uint32_t* destination = _data = new uint32_t[static_cast<size_t>(_width) * _height];
+   const auto source_pixels = _pixels;
+   auto target_pixels = std::make_shared<std::vector<uint32_t>>(static_cast<size_t>(_width) * _height);
+   const uint32_t* source = source_pixels->data();
+   const uint32_t* source0 = source + (_height - 1) * _width;
+   const uint32_t* source1 = source;
+   const uint32_t* source2 = source + _width;
+   uint32_t* destination = target_pixels->data();
    const uint32_t s = 2;
 
    const auto delta = [s](uint32_t left, uint32_t right, uint32_t up, uint32_t down)
@@ -392,5 +345,5 @@ void Image::buildDeltaMap()
       source2 = (y < _height - 2) ? source2 + _width : source;
    }
 
-   delete[] source;
+   _pixels = std::move(target_pixels);
 }

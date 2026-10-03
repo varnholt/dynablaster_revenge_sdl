@@ -120,14 +120,14 @@ void Mesh::setRenderParameter(int32_t index, float param)
    _render_parameter[index] = param;
 }
 
-void Mesh::load(Stream* stream)
+void Mesh::load(Stream& stream)
 {
    Node::load(stream);
 
    // flags (cast/receive shadow) are not used
-   stream->getInt();
+   stream.getInt();
 
-   const int32_t geometry_count = stream->getInt();
+   const int32_t geometry_count = stream.getInt();
    _geometry.clear();
    _geometry.reserve(geometry_count);
    for (int32_t i = 0; i < geometry_count; i++)
@@ -139,21 +139,21 @@ void Mesh::load(Stream* stream)
 
    // read tracks
    Chunk animation(stream);
-   _position_track.load(&animation);
-   _rotation_track.load(&animation);
-   _scale_track.load(&animation);
-   _visibility_track.load(&animation);
+   _position_track.load(animation);
+   _rotation_track.load(animation);
+   _scale_track.load(animation);
+   _visibility_track.load(animation);
    animation.skip();
 }
 
-void Mesh::write(Stream* stream)
+void Mesh::write(Stream& stream)
 {
    Node::write(stream);
 
    const int32_t flags = 0;  // TODO!
-   stream->writeInt(flags);
+   stream.writeInt(flags);
 
-   stream->writeInt(getPartCount());
+   stream.writeInt(getPartCount());
    for (Geometry* geometry : _geometry)
    {
       geometry->write(stream);
@@ -161,11 +161,11 @@ void Mesh::write(Stream* stream)
 
    // write tracks
    Chunk animation(stream, 2000, "Animation");
-   _position_track.write(&animation);
-   _rotation_track.write(&animation);
-   _scale_track.write(&animation);
-   _visibility_track.write(&animation);
-   _flip_track.write(&animation);
+   _position_track.write(animation);
+   _rotation_track.write(animation);
+   _scale_track.write(animation);
+   _visibility_track.write(animation);
+   _flip_track.write(animation);
 }
 
 void Mesh::createBoxMapping(bool unwrap, const Vector& min, const Vector& max, const Matrix& gizmo)

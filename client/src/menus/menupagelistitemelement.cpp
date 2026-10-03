@@ -118,16 +118,14 @@ float MenuPageListItemElement::getY() const
    return _y;
 }
 
-Array<Vertex> MenuPageListItemElement::getBoundingRectVertices(float x, float y)
+std::vector<Vertex> MenuPageListItemElement::getBoundingRectVertices(float x, float y)
 {
-   Array<Vertex> result(4);
-
-   result.add(Vertex(x + _x, y + _y + _height, 0.0f, 1.0f));
-   result.add(Vertex(x + _x + _width, y + _y + _height, 1.0f, 1.0f));
-   result.add(Vertex(x + _x + _width, y + _y, 1.0f, 0.0f));
-   result.add(Vertex(x + _x, y + _y, 0.0f, 0.0f));
-
-   return result;
+   return {
+      Vertex(x + _x, y + _y + _height, 0.0f, 1.0f),
+      Vertex(x + _x + _width, y + _y + _height, 1.0f, 1.0f),
+      Vertex(x + _x + _width, y + _y, 1.0f, 0.0f),
+      Vertex(x + _x, y + _y, 0.0f, 0.0f),
+   };
 }
 
 void MenuPageListItemElement::stopFadeOut()

@@ -5,20 +5,20 @@ Spot::Spot(Node* parent) : Light(Node::idSpot, parent)
 {
 }
 
-void Spot::load(Stream* stream)
+void Spot::load(Stream& stream)
 {
-   _shape = stream->getInt();
-   _hotspot = stream->getFloat();
-   _fall_size = stream->getFloat();
+   _shape = stream.getInt();
+   _hotspot = stream.getFloat();
+   _fall_size = stream.getFloat();
 
    Light::load(stream);
 }
 
-void Spot::write(Stream* stream)
+void Spot::write(Stream& stream)
 {
-   stream->writeInt(_shape);
-   stream->writeFloat(_hotspot);
-   stream->writeFloat(_fall_size);
+   stream.writeInt(_shape);
+   stream.writeFloat(_hotspot);
+   stream.writeFloat(_fall_size);
 
    Light::write(stream);
 }

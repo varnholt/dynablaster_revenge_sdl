@@ -1,14 +1,13 @@
 #include "filestream.h"
 
 #include <algorithm>
-#include <cstring>
 #include <vector>
 
 namespace
 {
 constexpr int32_t kStreamCacheSize = 4096;
 
-std::vector<String> path_list;
+std::vector<std::string> path_list;
 }  // namespace
 
 FileStream::FileStream() : _cache_buffer(kStreamCacheSize)
@@ -24,28 +23,24 @@ FileStream::~FileStream()
    close();
 }
 
-const String& FileStream::getPath() const
+const std::string& FileStream::getPath() const
 {
    return _path;
 }
 
-void FileStream::addPath(const String& path)
+void FileStream::addPath(const std::string& path)
 {
    path_list.push_back(path);
 }
 
-void FileStream::removePath(const String& path)
+void FileStream::removePath(const std::string& path)
 {
    std::erase(path_list, path);
 }
 
 void FileStream::close()
 {
-   if (_file)
-   {
-      std::fclose(_file);
-      _file = nullptr;
-   }
+   _file.reset();
 
    _cache_position = 0;
    _cache_left = 0;
@@ -53,13 +48,13 @@ void FileStream::close()
    _size = 0;
 }
 
-int32_t FileStream::open(const String& name, bool write)
+int32_t FileStream::open(const std::string& name, bool write)
 {
-   _file = nullptr;
+   _file.reset();
 
    if (write)
    {
-      _file = std::fopen(name, "wb");
+      _file.reset(std::fopen(name.c_str(), "wb"));
       return _file != nullptr;
    }
 
@@ -67,22 +62,22 @@ int32_t FileStream::open(const String& name, bool write)
    for (auto path = path_list.rbegin(); path != path_list.rend() && !_file; ++path)
    {
       _path = *path + "/" + name;
-      _file = std::fopen(_path, "rb");
+      _file.reset(std::fopen(_path.c_str(), "rb"));
    }
 
    if (!_file)
    {
       _path = name;
-      _file = std::fopen(_path, "rb");
+      _file.reset(std::fopen(_path.c_str(), "rb"));
       if (!_file)
       {
          return 0;
       }
    }
 
-   std::fseek(_file, 0, SEEK_END);
-   _size = static_cast<int32_t>(std::ftell(_file));
-   std::fseek(_file, 0, SEEK_SET);
+   std::fseek(_file.get(), 0, SEEK_END);
+   _size = static_cast<int32_t>(std::ftell(_file.get()));
+   std::fseek(_file.get(), 0, SEEK_SET);
 
    _cache_position = 0;
    _cache_left = 0;
@@ -102,27 +97,25 @@ int32_t FileStream::pos() const
    return _global_position + _cache_position;
 }
 
-void FileStream::getData(void* buffer, int32_t size)
+void FileStream::getData(std::span<std::byte> destination)
 {
-   auto* destination = static_cast<uint8_t*>(buffer);
-   while (size > 0)
+   while (!destination.empty())
    {
-      const int32_t length = std::min(size, _cache_left);
-      std::memcpy(destination, _cache_buffer.data() + _cache_position, length);
-      destination += length;
-      _cache_position += length;
-      _cache_left -= length;
+      const auto length = static_cast<size_t>(std::min(static_cast<int32_t>(destination.size()), _cache_left));
+      std::ranges::copy(std::span(_cache_buffer).subspan(_cache_position, length), destination.begin());
+      destination = destination.subspan(length);
+      _cache_position += static_cast<int32_t>(length);
+      _cache_left -= static_cast<int32_t>(length);
       if (_cache_left <= 0)
       {
          refill();
       }
-      size -= length;
    }
 }
 
-void FileStream::writeData(void* buffer, int32_t size)
+void FileStream::writeData(std::span<const std::byte> source)
 {
-   std::fwrite(buffer, 1, size, _file);
+   std::fwrite(source.data(), 1, source.size(), _file.get());
 }
 
 void FileStream::skip(int32_t size)
@@ -147,12 +140,14 @@ int32_t FileStream::refill()
    if (_cache_left)
    {
       // copy remaining data to front, then fill up the remaining space
-      std::memmove(_cache_buffer.data(), _cache_buffer.data() + _cache_position, _cache_left);
-      _cache_left += static_cast<int32_t>(std::fread(_cache_buffer.data() + _cache_left, 1, kStreamCacheSize - _cache_left, _file));
+      const auto remaining = _cache_buffer.begin() + _cache_position;
+      std::copy(remaining, remaining + _cache_left, _cache_buffer.begin());
+      const auto free_space = std::span(_cache_buffer).subspan(_cache_left);
+      _cache_left += static_cast<int32_t>(std::fread(free_space.data(), 1, free_space.size(), _file.get()));
    }
    else
    {
-      _cache_left = static_cast<int32_t>(std::fread(_cache_buffer.data(), 1, kStreamCacheSize, _file));
+      _cache_left = static_cast<int32_t>(std::fread(_cache_buffer.data(), 1, kStreamCacheSize, _file.get()));
    }
 
    _cache_position = 0;

@@ -12,8 +12,8 @@ class Camera : public Node
 {
 public:
    Camera(Node* parent = nullptr);
-   void load(Stream* stream) override;
-   void write(Stream* stream) override;
+   void load(Stream& stream) override;
+   void write(Stream& stream) override;
 
    void transform(float time) override;
    float getFOV() const;

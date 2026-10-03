@@ -6,6 +6,7 @@
 #include <SDL3/SDL.h>
 
 #include <cstdint>
+#include <span>
 #include <vector>
 
 namespace
@@ -45,7 +46,7 @@ GLuint loadStage(GLenum type, const char* filename)
 
    const int32_t size = stream.size();
    std::vector<char> source(static_cast<size_t>(size));
-   stream.getData(source.data(), size);
+   stream.getData(std::as_writable_bytes(std::span(source)));
    stream.close();
    return compileStage(type, source.data(), size, filename);
 }

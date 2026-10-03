@@ -17,7 +17,7 @@ public:
 
    ExtraMapping(SceneGraph* scene);
    ExtraMapping(SceneGraph* scene, const char* map);
-   void load(Stream* stream) override;
+   void load(Stream& stream) override;
    void addGeometry(Geometry* geometry) override;
    void update(float frame, Node** node_list, const Matrix& camera) override;
    void renderDiffuse() override;

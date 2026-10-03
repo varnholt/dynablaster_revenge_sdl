@@ -7,7 +7,7 @@
 #include <memory>
 #include <vector>
 #include "node.h"
-#include "tools/list.h"
+#include "tools/stream.h"
 
 class Stream;
 
@@ -22,23 +22,23 @@ public:
          return (_flags & 1);
       }
 
-      void load(Stream* stream)
+      void load(Stream& stream)
       {
-         _flags = stream->getInt();
+         _flags = stream.getInt();
 
          // vertex types are not used
-         int32_t count = stream->getInt();
+         int32_t count = stream.getInt();
          while (count--)
          {
-            stream->getInt();
+            stream.getInt();
          }
 
-         _vertices.load(stream);
+         loadList(stream, _vertices);
       }
 
       int32_t getVertexCount() const
       {
-         return _vertices.size();
+         return static_cast<int32_t>(_vertices.size());
       }
 
       const Vector& getVertex(int32_t index) const
@@ -48,12 +48,12 @@ public:
 
    private:
       int32_t _flags = 0;
-      List<Vector> _vertices;
+      std::vector<Vector> _vertices;
    };
 
    Shape(Node* parent = nullptr);
-   void load(Stream* stream) override;
-   void write(Stream* stream) override;
+   void load(Stream& stream) override;
+   void write(Stream& stream) override;
 
    int32_t getPolyCount() const;
    PolyLine* getPoly(int32_t index) const;

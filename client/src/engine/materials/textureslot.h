@@ -2,7 +2,6 @@
 
 #include <cstdint>
 #include "tools/objectname.h"
-#include "tools/string.h"
 
 class Stream;
 
@@ -10,10 +9,10 @@ class TextureSlot : public ObjectName
 {
 public:
    TextureSlot() = default;
-   TextureSlot(Stream* stream);
+   TextureSlot(Stream& stream);
 
-   void load(Stream* stream);
-   void write(Stream* stream);
+   void load(Stream& stream);
+   void write(Stream& stream);
 
    float amount() const;
    int32_t channel() const;

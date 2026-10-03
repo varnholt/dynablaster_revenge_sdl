@@ -3,26 +3,26 @@
 #pragma once
 
 #include <cstdint>
+#include <vector>
 #include "key.h"
 #include "math/vector.h"
-#include "tools/list.h"
 
 class MorphKey : public KeyBase
 {
 public:
    MorphKey() = default;
 
-   const List<Vector>& getVertices() const;
-   const List<Vector>& getNormals() const;
+   const std::vector<Vector>& getVertices() const;
+   const std::vector<Vector>& getNormals() const;
 
    int32_t getVertexCount() const;
 
-   void load(Stream* stream) override;
-   void write(Stream* stream) override;
+   void load(Stream& stream) override;
+   void write(Stream& stream) override;
 
-   void calculateNormals(const Array<uint16_t>& index_buffer);
+   void calculateNormals(const std::vector<uint16_t>& index_buffer);
 
 protected:
-   List<Vector> _vertices;
-   List<Vector> _normals;
+   std::vector<Vector> _vertices;
+   std::vector<Vector> _normals;
 };

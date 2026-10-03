@@ -11,7 +11,7 @@ class Outlining : public Material
 {
 public:
    Outlining(SceneGraph* scene);
-   void load(Stream* stream) override;
+   void load(Stream& stream) override;
    void add(Geometry* geometry);
    void update(float frame, Node** nodes, const Matrix& camera) override;
    void renderDiffuse() override;

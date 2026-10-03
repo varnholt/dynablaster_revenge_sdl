@@ -7,7 +7,7 @@ FrameTimer::FrameTimer(const FrameTimer& other)
 {
    if (_started)
    {
-      TimerHandler::Instance()->addTimer(this);
+      TimerHandler::Instance().addTimer(this);
    }
 }
 
@@ -15,7 +15,7 @@ FrameTimer::~FrameTimer()
 {
    if (_started)
    {
-      TimerHandler::Instance()->removeTimer(this);
+      TimerHandler::Instance().removeTimer(this);
    }
 }
 
@@ -29,7 +29,7 @@ FrameTimer& FrameTimer::operator=(const FrameTimer& other)
       _interval = other._interval;
       if (_started)
       {
-         TimerHandler::Instance()->addTimer(this);
+         TimerHandler::Instance().addTimer(this);
       }
    }
    return *this;
@@ -80,7 +80,7 @@ void FrameTimer::start()
    if (!_started)
    {
       _started = true;
-      TimerHandler::Instance()->addTimer(this);
+      TimerHandler::Instance().addTimer(this);
    }
 }
 
@@ -100,7 +100,7 @@ void FrameTimer::stop()
    if (_started)
    {
       _started = false;
-      TimerHandler::Instance()->removeTimer(this);
+      TimerHandler::Instance().removeTimer(this);
    }
 }
 

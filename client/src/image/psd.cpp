@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <ranges>
+#include <span>
 #include <sstream>
 
 // https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/
@@ -584,7 +585,7 @@ bool PSD::load(const std::string& filename)
    }
 
    std::string data(static_cast<size_t>(file.size()), '\0');
-   file.getData(data.data(), static_cast<int32_t>(data.size()));
+   file.getData(std::as_writable_bytes(std::span(data)));
 
    std::istringstream stream(std::move(data));
    load(stream);

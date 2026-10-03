@@ -26,7 +26,7 @@ void ExtraMapping::init()
    _param_texture = activeDevice->getParameterIndex("texturemap");
 }
 
-void ExtraMapping::load(Stream* stream)
+void ExtraMapping::load(Stream& stream)
 {
    Material::load(stream);
 

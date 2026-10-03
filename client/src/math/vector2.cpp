@@ -15,7 +15,7 @@ Vector2::Vector2(float x, float y) : x(x), y(y)
 
 Vector2::Vector2(Stream& stream)
 {
-   load(&stream);
+   load(stream);
 }
 
 void Vector2::set(float px, float py)
@@ -81,24 +81,24 @@ void Vector2::operator-=(const Vector2& other)
 
 void Vector2::operator<<(Stream& stream)
 {
-   load(&stream);
+   load(stream);
 }
 
 void Vector2::operator>>(Stream& stream)
 {
-   write(&stream);
+   write(stream);
 }
 
-void Vector2::load(Stream* stream)
+void Vector2::load(Stream& stream)
 {
-   x = stream->getFloat();
-   y = stream->getFloat();
+   x = stream.getFloat();
+   y = stream.getFloat();
 }
 
-void Vector2::write(Stream* stream)
+void Vector2::write(Stream& stream)
 {
-   stream->writeFloat(x);
-   stream->writeFloat(y);
+   stream.writeFloat(x);
+   stream.writeFloat(y);
 }
 
 float* Vector2::data() const

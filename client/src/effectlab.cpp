@@ -182,7 +182,7 @@ int runEffectLab(const std::string& effect, const std::string& out_dir, const st
       }
 
       global_time.setFrame(frame);
-      TimerHandler::Instance()->update();
+      TimerHandler::Instance().update();
 
       if (frame == TRIGGER_FRAME)
       {

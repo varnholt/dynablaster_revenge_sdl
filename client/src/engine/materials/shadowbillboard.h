@@ -24,7 +24,7 @@ public:
 
    ShadowBillboard(SceneGraph* scene);
    ShadowBillboard(SceneGraph* scene, const char* map);
-   void load(Stream* stream) override;
+   void load(Stream& stream) override;
    void addGeometry(Geometry* geometry) override;
    void renderDiffuse() override;
    void removeMesh(Mesh* mesh) override;

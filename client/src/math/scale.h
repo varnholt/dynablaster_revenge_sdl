@@ -14,8 +14,8 @@ public:
    void operator<<(Stream& stream);  // stream operator
    void operator>>(Stream& stream);  // stream operator
 
-   void load(Stream* stream);
-   void write(Stream* stream);
+   void load(Stream& stream);
+   void write(Stream& stream);
    const Vector& value() const;
    const Quat& orientation() const;
 

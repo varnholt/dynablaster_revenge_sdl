@@ -2,13 +2,10 @@
 
 #include <algorithm>
 #include <array>
-#include <utility>
 
-#include "string.h"
-
-const String& Stream::getPath() const
+const std::string& Stream::getPath() const
 {
-   static String dummy;
+   static const std::string dummy;
    return dummy;
 }
 
@@ -34,19 +31,6 @@ void operator>>(float& value, Stream& stream)
    stream.writeFloat(value);
 }
 
-void Stream::swap16(void* data)
-{
-   auto* bytes = static_cast<uint8_t*>(data);
-   std::swap(bytes[0], bytes[1]);
-}
-
-void Stream::swap32(void* data)
-{
-   auto* bytes = static_cast<uint8_t*>(data);
-   std::swap(bytes[0], bytes[3]);
-   std::swap(bytes[1], bytes[2]);
-}
-
 int32_t Stream::getEndian() const
 {
    return _endian;
@@ -59,60 +43,36 @@ void Stream::setEndian(int32_t big_endian)
 
 char Stream::getChar()
 {
-   char c = 0;
-   getData(&c, sizeof(char));
-   return c;
+   return getRaw<char>();
 }
 
 uint8_t Stream::getByte()
 {
-   uint8_t c = 0;
-   getData(&c, sizeof(uint8_t));
-   return c;
+   return getRaw<uint8_t>();
 }
 
 int32_t Stream::getInt()
 {
-   int32_t value = 0;
-   getData(&value, sizeof(int32_t));
-   if (_endian != kMachineEndian)
-   {
-      swap32(&value);
-   }
-   return value;
+   const auto value = getRaw<int32_t>();
+   return (_endian != kMachineEndian) ? std::byteswap(value) : value;
 }
 
 int32_t Stream::getWord()
 {
-   uint16_t word = 0;
-   getData(&word, sizeof(uint16_t));
-   if (_endian != kMachineEndian)
-   {
-      swap16(&word);
-   }
-   return word;
+   const auto word = getRaw<uint16_t>();
+   return (_endian != kMachineEndian) ? std::byteswap(word) : word;
 }
 
 int16_t Stream::getShort()
 {
-   int16_t word = 0;
-   getData(&word, sizeof(int16_t));
-   if (_endian != kMachineEndian)
-   {
-      swap16(&word);
-   }
-   return word;
+   const auto word = getRaw<int16_t>();
+   return (_endian != kMachineEndian) ? std::byteswap(word) : word;
 }
 
 float Stream::getFloat()
 {
-   float value = 0.0f;
-   getData(&value, sizeof(float));
-   if (_endian != kMachineEndian)
-   {
-      swap32(&value);
-   }
-   return value;
+   const auto bits = getRaw<uint32_t>();
+   return std::bit_cast<float>((_endian != kMachineEndian) ? std::byteswap(bits) : bits);
 }
 
 std::string Stream::getString()
@@ -126,13 +86,25 @@ std::string Stream::getString()
    return result;
 }
 
+std::string Stream::getPrefixedString()
+{
+   std::string result(getByte(), '\0');
+   getData(std::as_writable_bytes(std::span(result)));
+
+   while (!result.empty() && result.back() == 0)
+   {
+      result.pop_back();
+   }
+   return result;
+}
+
 void Stream::skip(int32_t size)
 {
-   std::array<char, 256> dummy{};
+   std::array<std::byte, 256> dummy{};
    while (size > 0)
    {
       const int32_t length = std::min<int32_t>(size, static_cast<int32_t>(dummy.size()));
-      getData(dummy.data(), length);
+      getData(std::span(dummy).first(length));
       size -= length;
    }
 }
@@ -144,58 +116,47 @@ int32_t Stream::pos() const
 
 void Stream::writeChar(char c)
 {
-   writeData(&c, sizeof(char));
+   writeRaw(c);
 }
 
 void Stream::writeByte(uint8_t value)
 {
-   writeData(&value, sizeof(uint8_t));
+   writeRaw(value);
 }
 
 void Stream::writeWord(uint16_t word)
 {
-   if (_endian != kMachineEndian)
-   {
-      swap16(&word);
-   }
-   writeData(&word, sizeof(uint16_t));
+   writeRaw((_endian != kMachineEndian) ? std::byteswap(word) : word);
 }
 
 void Stream::writeShort(int16_t word)
 {
-   if (_endian != kMachineEndian)
-   {
-      swap16(&word);
-   }
-   writeData(&word, sizeof(int16_t));
+   writeRaw((_endian != kMachineEndian) ? std::byteswap(word) : word);
 }
 
 void Stream::writeInt(int32_t value)
 {
-   if (_endian != kMachineEndian)
-   {
-      swap32(&value);
-   }
-   writeData(&value, sizeof(int32_t));
+   writeRaw((_endian != kMachineEndian) ? std::byteswap(value) : value);
 }
 
 void Stream::writeFloat(float value)
 {
-   if (_endian != kMachineEndian)
-   {
-      swap32(&value);
-   }
-   writeData(&value, sizeof(float));
+   const auto bits = std::bit_cast<uint32_t>(value);
+   writeRaw((_endian != kMachineEndian) ? std::byteswap(bits) : bits);
 }
 
-void Stream::writeString(const char* data)
+void Stream::writeString(std::string_view text)
 {
-   if (data)
+   for (const char c : text)
    {
-      for (const char* c = data; *c; ++c)
-      {
-         writeChar(*c);
-      }
+      writeChar(c);
    }
    writeChar(0);
+}
+
+void Stream::writePrefixedString(std::string_view text)
+{
+   const auto length = std::min<size_t>(text.size(), 255);
+   writeByte(static_cast<uint8_t>(length));
+   writeData(std::as_bytes(std::span(text.substr(0, length))));
 }

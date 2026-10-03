@@ -148,12 +148,12 @@ float Quat::operator%(const Quat& q) const
 
 void Quat::operator<<(Stream& stream)
 {
-   load(&stream);
+   load(stream);
 }
 
 void Quat::operator>>(Stream& stream)
 {
-   write(&stream);
+   write(stream);
 }
 
 Quat Quat::conjugate() const
@@ -162,21 +162,21 @@ Quat Quat::conjugate() const
 }
 
 // load object from stream
-void Quat::load(Stream* stream)
+void Quat::load(Stream& stream)
 {
-   x = stream->getFloat();
-   y = stream->getFloat();
-   z = stream->getFloat();
-   w = stream->getFloat();
+   x = stream.getFloat();
+   y = stream.getFloat();
+   z = stream.getFloat();
+   w = stream.getFloat();
 }
 
 // load object from stream
-void Quat::write(Stream* stream)
+void Quat::write(Stream& stream)
 {
-   stream->writeFloat(x);
-   stream->writeFloat(y);
-   stream->writeFloat(z);
-   stream->writeFloat(w);
+   stream.writeFloat(x);
+   stream.writeFloat(y);
+   stream.writeFloat(z);
+   stream.writeFloat(w);
 }
 
 // spherical linear interpolation

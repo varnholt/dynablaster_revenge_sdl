@@ -88,8 +88,8 @@ void GameWinDrawable::initializeGL()
 {
    FileStream::addPath("data/cup");
 
-   _large_font = FontPool::Instance()->get("large");
-   _default_font = FontPool::Instance()->get("large-outlined");
+   _large_font = &FontPool::Instance().get("large")->get();
+   _default_font = &FontPool::Instance().get("large-outlined")->get();
 
    _scene = new SceneGraph();
    CupMaterialFactory factory;
@@ -703,11 +703,11 @@ void GameWinDrawable::initializePlayerMaterial()
    const auto material_texture_name = std::format("player_{}", static_cast<int>(Constants::ColorCyan));
    _player_material = new PlayerMaterial(_scene, material_texture_name.c_str(), "diffuse_level", "specular_level", "player-ao");
 
-   TexturePool* pool = TexturePool::Instance();
+   TexturePool& pool = TexturePool::Instance();
    for (int i = 0; i < 10; i++)
    {
       const auto texture_name = std::format("player_{}", i + 1);
-      _player_textures[i] = pool->getTexture(texture_name.c_str());
+      _player_textures[i] = pool.getTexture(texture_name);
    }
 
    FileStream::removePath("data/winner");

@@ -10,12 +10,12 @@ int32_t KeyBase::time() const
    return _time;
 }
 
-void KeyBase::load(Stream* stream)
+void KeyBase::load(Stream& stream)
 {
-   _time = stream->getInt();
+   _time = stream.getInt();
 }
 
-void KeyBase::write(Stream* stream)
+void KeyBase::write(Stream& stream)
 {
-   stream->writeInt(_time);
+   stream.writeInt(_time);
 }

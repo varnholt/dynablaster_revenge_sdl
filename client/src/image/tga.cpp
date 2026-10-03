@@ -90,38 +90,38 @@ public:
 
 using Palette = std::array<uint32_t, 256>;
 
-void loadPal24(Stream* stream, uint32_t* destination, int32_t size)
+void loadPal24(Stream& stream, uint32_t* destination, int32_t size)
 {
    for (int32_t i = 0; i < size; i++)
    {
-      const uint8_t r = stream->getByte();
-      const uint8_t g = stream->getByte();
-      const uint8_t b = stream->getByte();
+      const uint8_t r = stream.getByte();
+      const uint8_t g = stream.getByte();
+      const uint8_t b = stream.getByte();
       *destination++ = (255u << 24) + (b << 16) + (g << 8) + (r);
    }
 }
 
-void loadPal32(Stream* stream, uint32_t* destination, int32_t size)
+void loadPal32(Stream& stream, uint32_t* destination, int32_t size)
 {
    for (int32_t i = 0; i < size; i++)
    {
-      const uint8_t r = stream->getByte();
-      const uint8_t g = stream->getByte();
-      const uint8_t b = stream->getByte();
-      const uint8_t a = stream->getByte();
+      const uint8_t r = stream.getByte();
+      const uint8_t g = stream.getByte();
+      const uint8_t b = stream.getByte();
+      const uint8_t a = stream.getByte();
       *destination++ = (a << 24) + (b << 16) + (g << 8) + (r);
    }
 }
 
-uint32_t loadPixel8(Stream* stream, const uint32_t* palette)
+uint32_t loadPixel8(Stream& stream, const uint32_t* palette)
 {
-   const uint8_t index = stream->getByte();
+   const uint8_t index = stream.getByte();
    return palette[index];
 }
 
-uint32_t loadPixel16(Stream* stream, const uint32_t* /*palette*/)
+uint32_t loadPixel16(Stream& stream, const uint32_t* /*palette*/)
 {
-   const auto rgb = static_cast<uint16_t>(stream->getWord());
+   const auto rgb = static_cast<uint16_t>(stream.getWord());
 
    const uint8_t a = (rgb >> 15 & 1) * 255;
    const uint8_t r = (rgb & 31) << 3;
@@ -131,28 +131,28 @@ uint32_t loadPixel16(Stream* stream, const uint32_t* /*palette*/)
    return (a << 24) + (b << 16) + (g << 8) + (r);
 }
 
-uint32_t loadPixel24(Stream* stream, const uint32_t* /*palette*/)
+uint32_t loadPixel24(Stream& stream, const uint32_t* /*palette*/)
 {
    const uint8_t a = 255;
-   const uint8_t r = stream->getByte();
-   const uint8_t g = stream->getByte();
-   const uint8_t b = stream->getByte();
+   const uint8_t r = stream.getByte();
+   const uint8_t g = stream.getByte();
+   const uint8_t b = stream.getByte();
 
    return (a << 24) + (b << 16) + (g << 8) + (r);
 }
 
-uint32_t loadPixel32(Stream* stream, const uint32_t* /*palette*/)
+uint32_t loadPixel32(Stream& stream, const uint32_t* /*palette*/)
 {
-   const uint8_t r = stream->getByte();
-   const uint8_t g = stream->getByte();
-   const uint8_t b = stream->getByte();
-   const uint8_t a = stream->getByte();
+   const uint8_t r = stream.getByte();
+   const uint8_t g = stream.getByte();
+   const uint8_t b = stream.getByte();
+   const uint8_t a = stream.getByte();
 
    return (a << 24) + (b << 16) + (g << 8) + (r);
 }
 }  // namespace
 
-int32_t loadtga(const char* fname, void** buf, int32_t* sizex, int32_t* sizey)
+int32_t loadtga(const char* fname, std::vector<uint32_t>& pixels, int32_t& width, int32_t& height)
 {
    TGAHeader info;
    Palette palette{};
@@ -161,15 +161,16 @@ int32_t loadtga(const char* fname, void** buf, int32_t* sizex, int32_t* sizey)
 
    if (!fname || !stream.open((std::string(fname) + ".tga").c_str()))
    {
-      *sizex = 1;
-      *sizey = 1;
-      *buf = new uint32_t[1]{0xffffffff};
+      width = 1;
+      height = 1;
+      pixels.assign(1, 0xffffffff);
       return 0;
    }
 
    info.read(stream);
 
-   auto* data = new uint32_t[static_cast<size_t>(info._width) * info._height];
+   pixels.assign(static_cast<size_t>(info._width) * info._height, 0);
+   uint32_t* data = pixels.data();
 
    if (info._image_type == 1)  // indexed colors
    {
@@ -178,10 +179,10 @@ int32_t loadtga(const char* fname, void** buf, int32_t* sizex, int32_t* sizey)
          switch (info._color_map_format)
          {
             case 24:
-               loadPal24(&stream, palette.data(), info._color_map_length);
+               loadPal24(stream, palette.data(), info._color_map_length);
                break;
             case 32:
-               loadPal32(&stream, palette.data(), info._color_map_length);
+               loadPal32(stream, palette.data(), info._color_map_length);
                break;
             default:
                break;
@@ -198,7 +199,7 @@ int32_t loadtga(const char* fname, void** buf, int32_t* sizex, int32_t* sizey)
    }
 
    const bool top_down = (info._descriptor >> 5 & 1) != 0;
-   uint32_t (*loadPixel)(Stream*, const uint32_t*) = nullptr;
+   uint32_t (*loadPixel)(Stream&, const uint32_t*) = nullptr;
    switch (info._bits_per_pixel)
    {
       case 8:
@@ -249,7 +250,7 @@ int32_t loadtga(const char* fname, void** buf, int32_t* sizex, int32_t* sizey)
                // repeat single pixel color
                single = true;
                count -= 128;
-               color = loadPixel(&stream, palette.data());
+               color = loadPixel(stream, palette.data());
             }
             else
             {
@@ -260,7 +261,7 @@ int32_t loadtga(const char* fname, void** buf, int32_t* sizex, int32_t* sizey)
          const int32_t length = scan < count ? scan : count;
          for (int32_t x = 0; x < length; x++)
          {
-            *destination++ = single ? color : loadPixel(&stream, palette.data());
+            *destination++ = single ? color : loadPixel(stream, palette.data());
          }
 
          count -= length;
@@ -274,20 +275,13 @@ int32_t loadtga(const char* fname, void** buf, int32_t* sizex, int32_t* sizey)
          uint32_t* destination = scanline(y);
          for (int32_t x = 0; x < info._width; x++)
          {
-            *destination++ = loadPixel(&stream, palette.data());
+            *destination++ = loadPixel(stream, palette.data());
          }
       }
    }
 
-   *buf = data;
-   if (sizex)
-   {
-      *sizex = info._width;
-   }
-   if (sizey)
-   {
-      *sizey = info._height;
-   }
+   width = info._width;
+   height = info._height;
 
    return 32;
 }

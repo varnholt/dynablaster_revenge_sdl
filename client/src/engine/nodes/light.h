@@ -4,9 +4,9 @@
 #pragma once
 
 #include <cstdint>
+#include <vector>
 #include "animation/postrack.h"
 #include "node.h"
-#include "render/idlist.h"
 
 class Stream;
 
@@ -16,8 +16,8 @@ public:
    Light(Node::ID id, Node* parent = nullptr);
    Vector getColor() const;
    void transform(float frame) override;
-   void load(Stream* stream) override;
-   void write(Stream* stream) override;
+   void load(Stream& stream) override;
+   void write(Stream& stream) override;
 
 protected:
    int32_t _flags = 0;
@@ -25,5 +25,5 @@ protected:
    float _attenuation_end = 0.0f;
    Vector _color;
    PosTrack _color_track;
-   IDList _exclude;
+   std::vector<int32_t> _exclude;
 };

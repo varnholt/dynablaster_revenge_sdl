@@ -26,7 +26,8 @@ MenuPageTextEditItem::MenuPageTextEditItem()
 
 void MenuPageTextEditItem::initialize()
 {
-   _font = FontPool::Instance()->get(_font_name.c_str());
+   const auto font = FontPool::Instance().get(_font_name);
+   _font = font ? &font->get() : nullptr;
 
    // init update timer
    _timer.setInterval(CURSOR_UPDATE_TIME);

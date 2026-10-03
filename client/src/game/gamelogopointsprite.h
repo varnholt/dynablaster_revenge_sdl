@@ -3,9 +3,9 @@
 // Draws a screen-facing quad batch (not real GL point sprites, despite the class name).
 
 #include <cstdint>
+#include <vector>
 #include "math/vector.h"
 #include "render/texture.h"
-#include "tools/array.h"
 
 class GameLogoPointSprite
 {
@@ -17,7 +17,7 @@ public:
    static void initialize();
 
    //! setter for point sprite vectors
-   static void setPointSprites(const Array<Vector>& v, const Array<float>& glow_values);
+   static void setPointSprites(std::vector<Vector> v, std::vector<float> glow_values);
 
    //! draw the vectors in one go
    static void draw();
@@ -35,8 +35,8 @@ protected:
    static uint32_t sVertexBuffer;
 
    //! vector singleton
-   static Array<Vector> _positions;
+   static std::vector<Vector> _positions;
 
    //! glow values
-   static Array<float> _glow_values;
+   static std::vector<float> _glow_values;
 };

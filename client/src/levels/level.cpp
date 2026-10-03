@@ -197,7 +197,7 @@ SceneGraph* Level::getPlayers() const
    return _players.get();
 }
 
-const Array<Node*>& Level::getDestructions() const
+const std::vector<Node*>& Level::getDestructions() const
 {
    return _destruct_anim;
 }
@@ -291,6 +291,6 @@ void Level::loadDestructions(Camera* shadow_camera)
          }
       }
 
-      _destruct_anim.add(node);
+      _destruct_anim.push_back(node);
    }
 }

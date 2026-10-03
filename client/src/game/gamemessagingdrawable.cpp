@@ -220,7 +220,7 @@ void GameMessagingDrawable::updateMessageVertices()
    _font->setColor(1.0f, 1.0f, 1.0f, 1.0f);
    _font->buildVertices(FONT_SCALE_MESSAGE, visible_text.c_str(), _line_edit_say_layer->getLeft(), LINEEDIT_SAY_Y);
 
-   _message_vertices.copy(_font->getVertices());
+   _message_vertices = _font->getVertices();
 }
 
 void GameMessagingDrawable::buildNickVertices()
@@ -230,7 +230,7 @@ void GameMessagingDrawable::buildNickVertices()
    {
       _font->setColor(1.0f, 1.0f, 1.0f, 1.0f);
       _font->buildVertices(FONT_SCALE_NICK, player_info->getNick().c_str(), 0, 0);
-      _nick_vertices.copy(_font->getVertices());
+      _nick_vertices = _font->getVertices();
    }
    else
    {
@@ -270,7 +270,7 @@ void GameMessagingDrawable::gameStateChanged()
 
 void GameMessagingDrawable::initializeGL()
 {
-   _font = FontPool::Instance()->get("default");
+   _font = &FontPool::Instance().get("default")->get();
 
    initializeLayers();
 }
@@ -379,8 +379,9 @@ bool GameMessagingDrawable::drawMessageOverlay()
    if (!getMessage().empty())
    {
       _font->setColor(1.0f, 1.0f, 1.0f, 1.0f);
-      _font->draw(_message_vertices,
-                  Matrix::position(static_cast<float>(_player_name_layer->getLeft()), offset + LABEL_PLAYER_OFFSET_Y, 0.0f));
+      _font->draw(
+         _message_vertices, Matrix::position(static_cast<float>(_player_name_layer->getLeft()), offset + LABEL_PLAYER_OFFSET_Y, 0.0f)
+      );
    }
 
    return fully_visible;

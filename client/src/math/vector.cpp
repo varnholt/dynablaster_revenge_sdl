@@ -15,7 +15,7 @@ Vector::Vector(float x, float y, float z) : x(x), y(y), z(z)
 
 Vector::Vector(Stream& stream)
 {
-   load(&stream);
+   load(stream);
 }
 
 void Vector::set(float px, float py, float pz)
@@ -130,12 +130,12 @@ bool Vector::operator!=(const Vector& other) const
 
 void Vector::operator<<(Stream& stream)
 {
-   load(&stream);
+   load(stream);
 }
 
 void Vector::operator>>(Stream& stream)
 {
-   write(&stream);
+   write(stream);
 }
 
 void Vector::normalize(float length)
@@ -161,18 +161,18 @@ float Vector::length() const
    return std::sqrt(x * x + y * y + z * z);
 }
 
-void Vector::load(Stream* stream)
+void Vector::load(Stream& stream)
 {
-   x = stream->getFloat();
-   y = stream->getFloat();
-   z = stream->getFloat();
+   x = stream.getFloat();
+   y = stream.getFloat();
+   z = stream.getFloat();
 }
 
-void Vector::write(Stream* stream)
+void Vector::write(Stream& stream)
 {
-   stream->writeFloat(x);
-   stream->writeFloat(y);
-   stream->writeFloat(z);
+   stream.writeFloat(x);
+   stream.writeFloat(y);
+   stream.writeFloat(z);
 }
 
 float* Vector::data() const

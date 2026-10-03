@@ -1,6 +1,7 @@
 #include "spherefragmentsdrawable.h"
 
 // engine
+#include <string>
 #include "framework/framebuffer.h"
 #include "gldevice.h"
 #include "math/matrix.h"
@@ -11,7 +12,6 @@
 #include "nodes/scenegraph.h"
 #include "render/geometry.h"
 #include "tools/filestream.h"
-#include "tools/string.h"
 
 // spherefragments
 #include "blendquad.h"
@@ -210,16 +210,16 @@ void SphereFragmentsDrawable::removeFragments()
    for (int32_t i = 0; i < _scene_graph_bomb->getChildCount(); i++)
    {
       Node* node = _scene_graph_bomb->getChild(i);
-      String name = node->name();
-      const int32_t index = name.indexOf("_");
-      if (index < 0)
+      const std::string& name = node->name();
+
+      // a trailing '_' does not separate a fragment name
+      const auto index = name.find('_');
+      if (index == std::string::npos || index + 1 == name.size())
       {
          continue;
       }
 
-      name = name.mid(0, index);
-
-      Node* fragment = _scene_graph_earth->getChild(name);
+      Node* fragment = _scene_graph_earth->getChild(name.substr(0, index));
       if (fragment && fragment->id() == Node::idMesh)
       {
          static_cast<Mesh*>(fragment)->setVisible(false);

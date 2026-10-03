@@ -2,21 +2,20 @@
 
 #pragma once
 
-#include "tools/string.h"
-
 #include <cstdint>
+#include <string>
 
 class Filter
 {
 public:
-   Filter(const String& name);
+   Filter(const std::string& name);
    virtual ~Filter() = default;
 
    virtual bool init() = 0;
    virtual void process(uint32_t texture, float u, float v) = 0;
 
-   const String& getName() const;
+   const std::string& getName() const;
 
 private:
-   String _name;
+   std::string _name;
 };

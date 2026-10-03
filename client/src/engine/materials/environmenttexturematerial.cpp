@@ -37,7 +37,7 @@ void EnvironmentTextureMaterial::init()
    _param_camera = activeDevice->getParameterIndex("camera");
 }
 
-void EnvironmentTextureMaterial::load(Stream* stream)
+void EnvironmentTextureMaterial::load(Stream& stream)
 {
    Material::load(stream);
 

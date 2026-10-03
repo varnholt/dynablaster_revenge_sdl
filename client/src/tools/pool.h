@@ -1,6 +1,8 @@
 #pragma once
 
+#include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
 
@@ -11,33 +13,28 @@ class Pool
 public:
    virtual ~Pool() = default;
 
-   Item* get(const char* id) const;
+   std::optional<std::reference_wrapper<Item>> get(const std::string& id) const;
 
-   // takes ownership of "item" when added; returns false (ownership stays with the caller) if "id" exists
-   bool add(const char* id, Item* item);
+   // keeps the existing item if "id" is already taken
+   Item& add(const std::string& id, std::unique_ptr<Item> item);
 
 private:
    std::unordered_map<std::string, std::unique_ptr<Item>> _data;
 };
 
 template <class Item>
-Item* Pool<Item>::get(const char* id) const
+std::optional<std::reference_wrapper<Item>> Pool<Item>::get(const std::string& id) const
 {
    const auto iterator = _data.find(id);
    if (iterator != _data.end())
    {
-      return iterator->second.get();
+      return *iterator->second;
    }
-   return nullptr;
+   return std::nullopt;
 }
 
 template <class Item>
-bool Pool<Item>::add(const char* id, Item* item)
+Item& Pool<Item>::add(const std::string& id, std::unique_ptr<Item> item)
 {
-   if (_data.contains(id))
-   {
-      return false;
-   }
-   _data.emplace(std::string(id), std::unique_ptr<Item>(item));
-   return true;
+   return *_data.try_emplace(id, std::move(item)).first->second;
 }

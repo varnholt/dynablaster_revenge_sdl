@@ -5,7 +5,6 @@
 #include <vector>
 #include "../render/geometry.h"
 #include "node.h"
-#include "tools/list.h"
 
 class Stream;
 class MotionMixer;
@@ -18,8 +17,8 @@ public:
 
    void copy(const Mesh& mesh);
 
-   void load(Stream* stream) override;
-   void write(Stream* stream) override;
+   void load(Stream& stream) override;
+   void write(Stream& stream) override;
 
    int32_t getPartCount() const;
    void add(Geometry* geometry);

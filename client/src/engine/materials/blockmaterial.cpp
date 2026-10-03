@@ -139,7 +139,7 @@ void BlockMaterial::putImage(Image& target, int32_t x_position, int32_t y_positi
    putScanline(target.getScanline(y_position + height + 1) + x_position, source.getScanline(height - 1), width);
 }
 
-void BlockMaterial::load(Stream* stream)
+void BlockMaterial::load(Stream& stream)
 {
    Material::load(stream);
 

@@ -8,7 +8,6 @@
 
 #include "math/matrix.h"
 #include "math/vector.h"
-#include "tools/array.h"
 #include "tools/objectname.h"
 #include "tools/streamable.h"
 
@@ -52,7 +51,7 @@ public:
    void addChild(Node* node);
    int32_t getChildCount() const;
    Node* getChild(int32_t index) const;
-   Node* getChild(const String& name) const;
+   Node* getChild(const std::string& name) const;
    void setParent(Node* parent);  // link to parent obj. includes this to parent's children
    bool getUserTransformable() const;
    void setUserTransformable(bool state);
@@ -63,8 +62,8 @@ public:
    void bakeAnimationTrack(float step);
    const BakedTransformation& getBakedAnimation() const;
 
-   void load(Stream* stream) override;  // load object from stream
-   void write(Stream* stream) override;
+   void load(Stream& stream) override;  // load object from stream
+   void write(Stream& stream) override;
 
    virtual void transform(float frame);  // calc transformation at frame
 

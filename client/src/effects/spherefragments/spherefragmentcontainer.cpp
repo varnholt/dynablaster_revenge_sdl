@@ -20,14 +20,14 @@ constexpr int32_t MAX_FRAGMENT_VERTICES = 200;
 
 SphereFragmentContainer::SphereFragmentContainer(Node* root)
 {
-   TexturePool* pool = TexturePool::Instance();
+   TexturePool& pool = TexturePool::Instance();
 
    Image normal_map("earth_normalmap");
    normal_map.buildNormalMap(256);  // strength of normal map
 
-   _earth_texture = pool->getTexture("earth");
-   _normal_map_texture = pool->getTexture(&normal_map);
-   _lava_map_texture = pool->getTexture("bomb");
+   _earth_texture = pool.getTexture("earth");
+   _normal_map_texture = pool.getTexture(normal_map);
+   _lava_map_texture = pool.getTexture("bomb");
 
    _shader = activeDevice->loadShader("spherefragments-vert.glsl", "spherefragments-frag.glsl");
 

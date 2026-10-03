@@ -50,6 +50,6 @@ public:
    void operator<<(Stream& stream);  // stream operator
    void operator>>(Stream& stream);  // stream operator
 
-   void load(Stream* stream);   // load components from stream
-   void write(Stream* stream);  // write components to stream
+   void load(Stream& stream);   // load components from stream
+   void write(Stream& stream);  // write components to stream
 };

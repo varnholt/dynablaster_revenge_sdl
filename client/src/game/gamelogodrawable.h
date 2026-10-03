@@ -6,9 +6,9 @@
 #include "effects/spherefragments/spherefragmentsdrawable.h"
 
 // engine
+#include <vector>
 #include "image/psd.h"
 #include "math/vector.h"
-#include "tools/array.h"
 
 #include <memory>
 #include <string>
@@ -117,7 +117,7 @@ protected:
 
    // spark point sprites
 
-   Array<Spark> _sparks;
+   std::vector<Spark> _sparks;
    Vector _spark_origin;
    bool _spark_times_initialized = false;
 };

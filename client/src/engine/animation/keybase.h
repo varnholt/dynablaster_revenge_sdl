@@ -13,8 +13,8 @@ public:
 
    int32_t time() const;
 
-   void load(Stream* stream) override;
-   void write(Stream* stream) override;
+   void load(Stream& stream) override;
+   void write(Stream& stream) override;
 
 protected:
    int32_t _time = 0;

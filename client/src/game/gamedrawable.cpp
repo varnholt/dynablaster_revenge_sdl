@@ -96,8 +96,8 @@ void GameDrawable::deleteLevelData()
       _lens_flare_factory->activate({});
    }
 
-   for (int i = 0; i < _destruct_anim.size(); i++)
-      delete _destruct_anim[i];
+   for (Node* node : _destruct_anim)
+      delete node;
 }
 
 //-----------------------------------------------------------------------------
