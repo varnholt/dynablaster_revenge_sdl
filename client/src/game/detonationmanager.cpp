@@ -124,9 +124,15 @@ void DetonationManager::init()
    // instead (sampled at v=0.5 in flame-frag.glsl).
    Image palette("detonationpalette");
 
-   // Use the normal Image upload path to convert BGRA asset bytes to GLES3 RGBA.
-   // Linear filtering, no mipmaps, clamp to edge; preserve the height-one palette.
-   _gradient_map = dev.createTexture(palette.getData(), palette.getWidth(), 1, 1 | 4);
+   // the palette asset is stored with red and blue already swapped, so unlike every other image
+   // it is uploaded as-is (createTexture() would swap them back and turn the flames blue)
+   glGenTextures(1, &_gradient_map);
+   glBindTexture(GL_TEXTURE_2D, _gradient_map);
+   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, palette.getWidth(), 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, palette.getData().data());
+   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
    // procedural noise volume - GLES3 has native GL_TEXTURE_3D support, ported as-is except the
    // internal format: GL_ALPHA isn't part of GLES3's texImage3D format table, R8 is the modern
