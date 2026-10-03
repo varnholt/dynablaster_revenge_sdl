@@ -152,6 +152,16 @@ int main(int /*argc*/, char** /*argv*/)
 #endif
    }
 
+   // NET_Quit() runs once everything below is destroyed - the embedded server keeps polling its
+   // sockets on its own thread until the BombermanClient is gone
+   struct NetQuit
+   {
+      ~NetQuit()
+      {
+         NET_Quit();
+      }
+   } net_quit;
+
    // creates the embedded Server on demand via host()
    BombermanClient bomberman_client;
    bomberman_client.initialize();
@@ -164,7 +174,6 @@ int main(int /*argc*/, char** /*argv*/)
    GlesContext context;
    if (!context.init("Dynablaster Revenge", window_width, window_height))
    {
-      NET_Quit();
       return 1;
    }
 
@@ -600,7 +609,7 @@ int main(int /*argc*/, char** /*argv*/)
 
 #ifdef __EMSCRIPTEN__
    // simulate_infinite_loop=true unwinds main()'s stack here and drives frame() off
-   // requestAnimationFrame instead - NET_Quit()/return below never actually run in this build.
+   // requestAnimationFrame instead - the return below never actually runs in this build.
    emscripten_set_main_loop_arg([](void* arg) { (*static_cast<std::function<void()>*>(arg))(); }, &frame, 0, true);
 #else
    while (running)
@@ -608,8 +617,6 @@ int main(int /*argc*/, char** /*argv*/)
       frame();
    }
 #endif
-
-   NET_Quit();
 
    return 0;
 }
