@@ -1,7 +1,7 @@
 #pragma once
 
-#include "menupageitem.h"
 #include "gamesignal.h"
+#include "menupageitem.h"
 
 class MenuPageCheckBoxItem : public MenuPageItem
 {
@@ -10,15 +10,15 @@ public:
 
    void draw() override;
 
-   virtual void setCheckedLayer(PSDLayer* layer);
+   virtual void setCheckedLayer(PSDLayer& layer);
 
-   virtual void setUncheckedLayer(PSDLayer* layer);
+   virtual void setUncheckedLayer(PSDLayer& layer);
 
-   virtual PSDLayer* getCheckedLayer() const;
+   virtual std::optional<std::reference_wrapper<PSDLayer>> getCheckedLayer() const;
 
-   virtual PSDLayer* getUncheckedLayer() const;
+   virtual std::optional<std::reference_wrapper<PSDLayer>> getUncheckedLayer() const;
 
-   PSDLayer* getLayer() const override;
+   std::optional<std::reference_wrapper<PSDLayer>> getLayer() const override;
 
    bool isChecked() const;
 
@@ -33,9 +33,9 @@ public:
 protected:
    virtual void toggleChecked();
 
-   // non-owning, the layers belong to the MenuPage
-   PSDLayer* _layer_checked = nullptr;
-   PSDLayer* _layer_unchecked = nullptr;
+   // the layers belong to the MenuPage
+   std::optional<std::reference_wrapper<PSDLayer>> _layer_checked;
+   std::optional<std::reference_wrapper<PSDLayer>> _layer_unchecked;
 
    bool _checked = false;
 };

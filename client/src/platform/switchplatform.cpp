@@ -10,12 +10,12 @@
 #include "menus/menupageeditablecomboboxitem.h"
 #include "menus/menupagetextedit.h"
 
+#include <sys/stat.h>
+#include <unistd.h>
 #include <algorithm>
 #include <cerrno>
 #include <cstdio>
 #include <cstdlib>
-#include <sys/stat.h>
-#include <unistd.h>
 
 namespace
 {
@@ -98,27 +98,32 @@ SwitchPlatform::~SwitchPlatform()
 
 void SwitchPlatform::editText(MenuDrawable& menu)
 {
-   auto* page = menu.getMenu()->getCurrentPage();
+   const auto page = menu.getMenu().getCurrentPage();
    if (!page)
       return;
-   auto* item = page->getActiveItem();
-   auto* edit = dynamic_cast<MenuPageTextEditItem*>(item);
-   if (auto* combo = dynamic_cast<MenuPageEditableComboBoxItem*>(item))
-      edit = combo->getTextEditItem();
-   if (!edit)
+   const auto item = page->get().getActiveItem();
+   if (!item)
       return;
+   std::optional<std::reference_wrapper<MenuPageTextEditItem>> text_edit;
+   if (auto* text_edit_item = dynamic_cast<MenuPageTextEditItem*>(&item->get()))
+      text_edit = *text_edit_item;
+   if (auto* combo = dynamic_cast<MenuPageEditableComboBoxItem*>(&item->get()))
+      text_edit = combo->getTextEditItem();
+   if (!text_edit)
+      return;
+   MenuPageTextEditItem& edit = *text_edit;
 
    SwkbdConfig keyboard{};
    if (R_FAILED(swkbdCreate(&keyboard, 0)))
       return;
    swkbdConfigMakePresetDefault(&keyboard);
-   swkbdConfigSetInitialText(&keyboard, edit->getText().c_str());
-   swkbdConfigSetStringLenMax(&keyboard, std::clamp(edit->getMaxLength(), 1, 255));
+   swkbdConfigSetInitialText(&keyboard, edit.getText().c_str());
+   swkbdConfigSetStringLenMax(&keyboard, std::clamp(edit.getMaxLength(), 1, 255));
    std::array<char, 1024> text{};
    const Result result = swkbdShow(&keyboard, text.data(), text.size());
    swkbdClose(&keyboard);
    if (R_SUCCEEDED(result))
-      edit->setText(text.data());
+      edit.setText(text.data());
    _last_tick = SDL_GetTicks();
 }
 
@@ -139,15 +144,19 @@ void SwitchPlatform::updateInput(bool in_game, GameDrawable& game, MenuDrawable&
    std::array<SDL_Keycode, 10> keys{};
    if (in_game)
    {
-      auto* controls = GameSettings::getInstance()->getControllerSettings();
-      keys = {above ? controls->getUpKey() : 0, below ? controls->getDownKey() : 0,
-              left ? controls->getLeftKey() : 0, right ? controls->getRightKey() : 0,
-              (held & (HidNpadButton_A | HidNpadButton_B)) ? controls->getBombKey() : 0,
-              (held & HidNpadButton_L) ? controls->getZoomOutKey() : 0,
-              (held & HidNpadButton_R) ? controls->getZoomInKey() : 0,
-              (held & HidNpadButton_ZL) ? SDLK_TAB : 0,
-              (held & HidNpadButton_Minus) ? SDLK_ESCAPE : 0,
-              (held & HidNpadButton_Plus) ? SDLK_F10 : 0};
+      auto& controls = GameSettings::getInstance().getControllerSettings();
+      keys = {
+         above ? controls.getUpKey() : 0,
+         below ? controls.getDownKey() : 0,
+         left ? controls.getLeftKey() : 0,
+         right ? controls.getRightKey() : 0,
+         (held & (HidNpadButton_A | HidNpadButton_B)) ? controls.getBombKey() : 0,
+         (held & HidNpadButton_L) ? controls.getZoomOutKey() : 0,
+         (held & HidNpadButton_R) ? controls.getZoomInKey() : 0,
+         (held & HidNpadButton_ZL) ? SDLK_TAB : 0,
+         (held & HidNpadButton_Minus) ? SDLK_ESCAPE : 0,
+         (held & HidNpadButton_Plus) ? SDLK_F10 : 0
+      };
    }
    for (size_t i = 0; i < keys.size(); ++i)
    {
@@ -173,10 +182,14 @@ void SwitchPlatform::updateInput(bool in_game, GameDrawable& game, MenuDrawable&
    if (in_game)
       return;
 
-   const float dx = (held & HidNpadButton_Left) ? -1.0f : (held & HidNpadButton_Right) ? 1.0f
-                    : std::abs(stick.x) > dead_zone ? static_cast<float>(stick.x) / 32768.0f : 0.0f;
-   const float dy = (held & HidNpadButton_Up) ? -1.0f : (held & HidNpadButton_Down) ? 1.0f
-                    : std::abs(stick.y) > dead_zone ? -static_cast<float>(stick.y) / 32768.0f : 0.0f;
+   const float dx = (held & HidNpadButton_Left)     ? -1.0f
+                    : (held & HidNpadButton_Right)  ? 1.0f
+                    : std::abs(stick.x) > dead_zone ? static_cast<float>(stick.x) / 32768.0f
+                                                    : 0.0f;
+   const float dy = (held & HidNpadButton_Up)       ? -1.0f
+                    : (held & HidNpadButton_Down)   ? 1.0f
+                    : std::abs(stick.y) > dead_zone ? -static_cast<float>(stick.y) / 32768.0f
+                                                    : 0.0f;
    _cursor_x = std::clamp(_cursor_x + dx * dt * 1200.0f, 0.0f, 1919.0f);
    _cursor_y = std::clamp(_cursor_y + dy * dt * 1200.0f, 0.0f, 1079.0f);
    const int x = static_cast<int>(_cursor_x);
@@ -197,18 +210,19 @@ void SwitchPlatform::updateInput(bool in_game, GameDrawable& game, MenuDrawable&
       editText(menu);
    if (down & HidNpadButton_B)
    {
-      if (auto* page = menu.getMenu()->getCurrentPage())
+      if (const auto page = menu.getMenu().getCurrentPage())
       {
-         for (const auto& item : page->getPageItems())
+         for (const auto& item : page->get().getPageItems())
          {
-            auto* layer = item->getCurrentLayer();
-            if (!layer || !item->isVisible() || !item->isEnabled())
+            const auto current_layer = item->getCurrentLayer();
+            if (!current_layer || !item->isVisible() || !item->isEnabled())
                continue;
-            const std::string name = layer->getName();
+            const PSD::Layer& layer = *current_layer;
+            const std::string name = layer.getName();
             if (name.starts_with("button_back") || name.starts_with("button_cancel") || name.starts_with("button_leave"))
             {
-               const int bx = layer->getLeft() + layer->getWidth() / 2;
-               const int by = layer->getTop() + layer->getHeight() / 2;
+               const int bx = layer.getLeft() + layer.getWidth() / 2;
+               const int by = layer.getTop() + layer.getHeight() / 2;
                menu.mouseMoveEvent(bx, by);
                menu.mousePressEvent(bx, by);
                menu.mouseReleaseEvent();

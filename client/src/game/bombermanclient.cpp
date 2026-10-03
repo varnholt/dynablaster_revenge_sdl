@@ -86,7 +86,7 @@ BombermanClient::BombermanClient(/*const std::string& host, const std::string& n
 
    _position_interpolation = std::make_unique<PositionInterpolation>();
 
-   _position_interpolation->bounceSignal.connect([]() { SoundManager::getInstance()->playSoundBombBounce(); });
+   _position_interpolation->bounceSignal.connect([]() { SoundManager::getInstance().playSoundBombBounce(); });
 
    GameStateMachine::getInstance()->stateChangedSignal.connect([this]() { gameStateChanged(); });
 
@@ -372,7 +372,7 @@ void BombermanClient::reportConnectionError(const char* reason)
       message += std::format(" ({})", reason);
    }
 
-   HelpManager::getInstance()->addMessage("", message, Constants::HelpSeverityError);
+   HelpManager::getInstance().addMessage("", message, Constants::HelpSeverityError);
 }
 
 //-----------------------------------------------------------------------------
@@ -519,7 +519,7 @@ void BombermanClient::processJoinGameResponse(Packet* packet)
 
          // play "player joined sample"
          if (!GamePlayback::getInstance()->isReplaying())
-            SoundManager::getInstance()->playSoundPlayerJoined();
+            SoundManager::getInstance().playSoundPlayerJoined();
       }
 
       // ensure it was us who joined as join game responses are
@@ -564,7 +564,7 @@ void BombermanClient::processJoinGameResponse(Packet* packet)
    else if (response->getPlayerId() == getPlayerId())
    {
       // the player which did not successfully login was me!
-      HelpManager::getInstance()->addMessage("", TEXT_ERROR_UNABLE_TO_JOIN, Constants::HelpSeverityError);
+      HelpManager::getInstance().addMessage("", TEXT_ERROR_UNABLE_TO_JOIN, Constants::HelpSeverityError);
    }
 }
 
@@ -667,7 +667,7 @@ void BombermanClient::processPlayerKilled(Packet* packet)
    }
 
    // play killed sample
-   SoundManager::getInstance()->playSoundKilled();
+   SoundManager::getInstance().playSoundKilled();
 }
 
 //-----------------------------------------------------------------------------
@@ -701,7 +701,7 @@ void BombermanClient::processPlayerInfected(Packet* packet)
          infected_packet->getExtraPosY()
       );
 
-      SoundManager::getInstance()->playSkullSound(infected_packet->getSkullType());
+      SoundManager::getInstance().playSkullSound(infected_packet->getSkullType());
    }
 }
 
@@ -718,7 +718,7 @@ void BombermanClient::processDetonation(Packet* packet)
    // TODO: pos needs to be rotated and scaled properly
    //       right now 0,0 is closest to the listener
 
-   SoundManager::getInstance()->playSoundBomb();
+   SoundManager::getInstance().playSoundBomb();
 
    int intense = std::max<int>(det->getUp(), det->getDown());
    intense = std::max<int>(intense, det->getLeft());
@@ -736,7 +736,7 @@ void BombermanClient::processError(Packet* packet)
    ErrorPacket* error_packet = dynamic_cast<ErrorPacket*>(packet);
 
    // show error received from server
-   HelpManager::getInstance()->addMessage("", error_packet->getErrorMessage(), Constants::HelpSeverityError);
+   HelpManager::getInstance().addMessage("", error_packet->getErrorMessage(), Constants::HelpSeverityError);
 
    switch (error_packet->getErrorType())
    {
@@ -918,7 +918,7 @@ void BombermanClient::processMapItemMove(Packet* packet)
 
       // play kick sound
       if (move_packet->getSpeed() > 0.0f)
-         SoundManager::getInstance()->playSoundKick();
+         SoundManager::getInstance().playSoundKick();
    }
 }
 
@@ -932,7 +932,7 @@ void BombermanClient::processExtraMapItemCreated(Packet* packet)
    _map_items[extra->getUniqueId()] = extra;
    createMapItemSignal(extra);
 
-   SoundManager::getInstance()->playSoundExtraRevealed();
+   SoundManager::getInstance().playSoundExtraRevealed();
 }
 
 //-----------------------------------------------------------------------------
@@ -1059,9 +1059,9 @@ void BombermanClient::processStartGameResponse(Packet* packet)
 
    gameStartedSignal();
 
-   SoundManager* sm = SoundManager::getInstance();
-   sm->playSoundStart();
-   sm->restartPlayListAfterFadeOut(1000);
+   SoundManager& sm = SoundManager::getInstance();
+   sm.playSoundStart();
+   sm.restartPlayListAfterFadeOut(1000);
 
    // resend keys pressed on start game
    //	fix for 0000032: Player movement at start of each round
@@ -1088,9 +1088,9 @@ void BombermanClient::processStopGameResponse(Packet* packet)
    {
       gameStoppedSignal();
 
-      SoundManager* sm = SoundManager::getInstance();
-      sm->playSoundStart();
-      sm->restartPlayListAfterFadeOut(SHOW_WINNER_TIME_SUM);
+      SoundManager& sm = SoundManager::getInstance();
+      sm.playSoundStart();
+      sm.restartPlayListAfterFadeOut(SHOW_WINNER_TIME_SUM);
    }
 }
 
@@ -1106,7 +1106,7 @@ void BombermanClient::processGameEvent(Packet* packet)
    {
       case GameEventPacket::ExtraCollected:
       {
-         SoundManager::getInstance()->playSoundExtra();
+         SoundManager::getInstance().playSoundExtra();
 
          extraRemovedSignal(response->getX(), response->getY(), false, response->getExtraType(), response->getPlayerId());
 
@@ -1145,7 +1145,7 @@ void BombermanClient::processMessage(Packet* packet)
       // omit broadcast messages
       if (message_packet->getSenderId() != -1 && message_packet->getSenderId() != getPlayerId())
       {
-         SoundManager::getInstance()->playSoundMessageReceived();
+         SoundManager::getInstance().playSoundMessageReceived();
       }
    }
 }
@@ -1175,7 +1175,7 @@ void BombermanClient::processTime(Packet* packet)
 
       if (time_left == (duration * 3 / 20))
       {
-         SoundManager::getInstance()->playSoundHurryUp();
+         SoundManager::getInstance().playSoundHurryUp();
       }
 
       timeChangedSignal(time_left, duration);
@@ -1201,7 +1201,7 @@ void BombermanClient::processCountdown(Packet* packet)
    {
       // use first tick to mute the music while the
       // countdown samples are played
-      SoundManager::getInstance()->fadeOut(1000);
+      SoundManager::getInstance().fadeOut(1000);
 
       showGameSignal();
 
@@ -1215,7 +1215,7 @@ void BombermanClient::processCountdown(Packet* packet)
       countdownSignal(time_left);
 
       // play sample
-      SoundManager::getInstance()->playSoundTime(time_left);
+      SoundManager::getInstance().playSoundTime(time_left);
    }
 }
 
@@ -1500,12 +1500,12 @@ void BombermanClient::poll()
 */
 void BombermanClient::keyPressed(const KeyEvent& event)
 {
-   GameSettings::ControllerSettings* controller_settings = GameSettings::getInstance()->getControllerSettings();
+   GameSettings::ControllerSettings& controller_settings = GameSettings::getInstance().getControllerSettings();
 
-   bool control_key = event.key() == controller_settings->getUpKey() || event.key() == controller_settings->getDownKey() ||
-                      event.key() == controller_settings->getLeftKey() || event.key() == controller_settings->getRightKey() ||
-                      event.key() == controller_settings->getBombKey() || event.key() == controller_settings->getZoomInKey() ||
-                      event.key() == controller_settings->getZoomOutKey() || event.key() == controller_settings->getStartKey();
+   bool control_key = event.key() == controller_settings.getUpKey() || event.key() == controller_settings.getDownKey() ||
+                      event.key() == controller_settings.getLeftKey() || event.key() == controller_settings.getRightKey() ||
+                      event.key() == controller_settings.getBombKey() || event.key() == controller_settings.getZoomInKey() ||
+                      event.key() == controller_settings.getZoomOutKey() || event.key() == controller_settings.getStartKey();
 
    if ((control_key && !event.isAutoRepeat()) || !control_key)
    {
@@ -1599,7 +1599,7 @@ void BombermanClient::processLeaveGameResponse(Packet* packet)
 
    // play "player left sample"
    if (!GamePlayback::getInstance()->isReplaying())
-      SoundManager::getInstance()->playSoundPlayerLeft();
+      SoundManager::getInstance().playSoundPlayerLeft();
 }
 
 //-----------------------------------------------------------------------------
@@ -1615,7 +1615,7 @@ void BombermanClient::processExtraShake(Packet* packet)
    if (item)
    {
       shakeBlockSignal(item);
-      SoundManager::getInstance()->playSoundBoxShake();
+      SoundManager::getInstance().playSoundBoxShake();
    }
 }
 
@@ -1674,8 +1674,8 @@ void BombermanClient::processKeyPressed(int key)
       // restart music if escape was hit during countdown
       if (GameStateMachine::getInstance()->getState() == Constants::GamePreparing)
       {
-         SoundManager* sm = SoundManager::getInstance();
-         sm->restartPlayListAfterFadeOut(1000);
+         SoundManager& sm = SoundManager::getInstance();
+         sm.restartPlayListAfterFadeOut(1000);
       }
 
       leaveGameRequest();
@@ -1711,29 +1711,29 @@ void BombermanClient::processKeyPressed(int key)
    {
       bool moved = false;
 
-      GameSettings::ControllerSettings* controller_settings = GameSettings::getInstance()->getControllerSettings();
+      GameSettings::ControllerSettings& controller_settings = GameSettings::getInstance().getControllerSettings();
 
-      if (key == controller_settings->getUpKey())
+      if (key == controller_settings.getUpKey())
       {
          _keys_pressed |= Constants::KeyUp;
          moved = true;
       }
-      else if (key == controller_settings->getDownKey())
+      else if (key == controller_settings.getDownKey())
       {
          _keys_pressed |= Constants::KeyDown;
          moved = true;
       }
-      else if (key == controller_settings->getLeftKey())
+      else if (key == controller_settings.getLeftKey())
       {
          _keys_pressed |= Constants::KeyLeft;
          moved = true;
       }
-      else if (key == controller_settings->getRightKey())
+      else if (key == controller_settings.getRightKey())
       {
          _keys_pressed |= Constants::KeyRight;
          moved = true;
       }
-      else if (key == controller_settings->getBombKey()
+      else if (key == controller_settings.getBombKey()
                // || key == Qt::Key_Space
                // || key == Qt::Key_Control
       )
@@ -1766,21 +1766,21 @@ void BombermanClient::processKeyPressed(int key)
 
 void BombermanClient::processKeyReleased(int key)
 {
-   GameSettings::ControllerSettings* controller_settings = GameSettings::getInstance()->getControllerSettings();
+   GameSettings::ControllerSettings& controller_settings = GameSettings::getInstance().getControllerSettings();
 
-   if (key == controller_settings->getUpKey())
+   if (key == controller_settings.getUpKey())
    {
       _keys_pressed &= ~Constants::KeyUp;
    }
-   else if (key == controller_settings->getDownKey())
+   else if (key == controller_settings.getDownKey())
    {
       _keys_pressed &= ~Constants::KeyDown;
    }
-   else if (key == controller_settings->getLeftKey())
+   else if (key == controller_settings.getLeftKey())
    {
       _keys_pressed &= ~Constants::KeyLeft;
    }
-   else if (key == controller_settings->getRightKey())
+   else if (key == controller_settings.getRightKey())
    {
       _keys_pressed &= ~Constants::KeyRight;
    }
@@ -1793,7 +1793,7 @@ void BombermanClient::processKeyReleased(int key)
    {
       zoomInSignal(false);
    }
-   else if (key == controller_settings->getBombKey())
+   else if (key == controller_settings.getBombKey())
    {
       // next bomb may be dropped
       _bomb_released = true;
@@ -1952,7 +1952,7 @@ void BombermanClient::sendMessage(const std::string& message, bool finishedTypin
    if (finishedTyping)
    {
       setMessage("");
-      SoundManager::getInstance()->playSoundMessageSent();
+      SoundManager::getInstance().playSoundMessageSent();
    }
 }
 
@@ -1996,7 +1996,7 @@ void BombermanClient::createGame(
    Constants::Dimension dimension
 )
 {
-   bool dry_run = GameSettings::getInstance()->getDevelopmentSettings()->isDryRunEnabled();
+   bool dry_run = GameSettings::getInstance().getDevelopmentSettings().isDryRunEnabled();
 
    if (dry_run)
       rounds = 999;
@@ -2184,7 +2184,7 @@ void BombermanClient::host()
       }
       else
       {
-         HelpManager::getInstance()->addMessage("", TEXT_ERROR_UNABLE_TO_BIND, Constants::HelpSeverityError);
+         HelpManager::getInstance().addMessage("", TEXT_ERROR_UNABLE_TO_BIND, Constants::HelpSeverityError);
 
          _server.reset();
       }
@@ -2205,9 +2205,9 @@ void BombermanClient::initializeBots()
       int bots = 0;
 
       if (isSinglePlayer())
-         bots = GameSettings::getInstance()->getCreateGameSettingsSingle()->getBotCount();
+         bots = GameSettings::getInstance().getCreateGameSettingsSingle().getBotCount();
       else
-         bots = GameSettings::getInstance()->getCreateGameSettingsMulti()->getBotCount();
+         bots = GameSettings::getInstance().getCreateGameSettingsMulti().getBotCount();
 
       _bot_factory->add(bots);
    }
@@ -2218,7 +2218,7 @@ void BombermanClient::initializeBots()
  */
 void BombermanClient::initializePlayback()
 {
-   bool recording = GameSettings::getInstance()->getDevelopmentSettings()->isGameRecordingEnabled();
+   bool recording = GameSettings::getInstance().getDevelopmentSettings().isGameRecordingEnabled();
 
    GamePlayback::getInstance()->setRecording(recording);
 }
@@ -2365,7 +2365,7 @@ void BombermanClient::showIps()
             combined += ";" + ip_list[index++];
 
          std::string ip_text = std::format("your ips are;{}", combined);
-         HelpManager::getInstance()->addMessage("", ip_text, Constants::HelpSeverityNotification);
+         HelpManager::getInstance().addMessage("", ip_text, Constants::HelpSeverityNotification);
       }
    }
 }

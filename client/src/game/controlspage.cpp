@@ -15,19 +15,19 @@
 
 namespace
 {
-constexpr const char* controls_page = "data/menus/controls.psd";
-constexpr const char* column_group = "column";
+const std::string controls_page = "data/menus/controls.psd";
+const std::string column_group = "column";
 constexpr int32_t page_width = 1920;
 constexpr int32_t column_width = 193;
 constexpr int32_t column_spacing = 240;
 
-constexpr const char* arrow_color_left = "Shape 14 copy 6";
-constexpr const char* arrow_color_right = "Shape 14 copy 7";
-constexpr const char* arrow_device_left = "Shape 14 copy 4";
-constexpr const char* arrow_device_right = "Shape 14 copy 5";
-constexpr const char* action_ok = "button_ok_active";
-constexpr const char* action_cancel = "button_cancel_active";
-constexpr const char* glow = "player-select";
+const std::string arrow_color_left = "Shape 14 copy 6";
+const std::string arrow_color_right = "Shape 14 copy 7";
+const std::string arrow_device_left = "Shape 14 copy 4";
+const std::string arrow_device_right = "Shape 14 copy 5";
+const std::string action_ok = "button_ok_active";
+const std::string action_cancel = "button_cancel_active";
+const std::string glow = "player-select";
 constexpr uint64_t pulse_ms = 350;
 constexpr size_t max_controller_name = 18;
 
@@ -61,14 +61,14 @@ std::pair<std::string, size_t> splitInstance(const std::string& name)
 ControlsPage::ControlsPage(MenuDrawable& menu, ControllerInput& controller_input, LocalPlayers& local_players, BombermanClient& client)
     : _menu(menu), _controller_input(controller_input), _local_players(local_players), _client(client)
 {
-   if (MenuPage* page = getPage())
+   if (const auto page = getPage())
    {
-      const auto first_column = page->getLayer(MenuPage::getInstanceName("controls_window", 1));
-      _column_left = first_column != page->getLayers().end() ? first_column->getLeft() : 0;
+      const auto first_column = page->get().getLayer(MenuPage::getInstanceName("controls_window", 1));
+      _column_left = first_column != page->get().getLayers().end() ? first_column->getLeft() : 0;
 
-      if (MenuPageItem* item = page->getPageItem(MenuPage::getInstanceName(glow, 1)); item && item->getActiveLayer())
+      if (const auto item = page->get().getPageItem(MenuPage::getInstanceName(glow, 1)); item && item->get().getActiveLayer())
       {
-         _glow_opacity = item->getActiveLayer()->getOpacity();
+         _glow_opacity = item->get().getActiveLayer()->get().getOpacity();
       }
    }
 }
@@ -81,9 +81,9 @@ ControlsPage::~ControlsPage()
    }
 }
 
-MenuPage* ControlsPage::getPage() const
+std::optional<std::reference_wrapper<MenuPage>> ControlsPage::getPage() const
 {
-   return Menu::getInstance()->getPageByName(controls_page);
+   return Menu::getInstance().getPageByName(controls_page);
 }
 
 const ControlsSetup& ControlsPage::getSetup() const
@@ -93,40 +93,42 @@ const ControlsSetup& ControlsPage::getSetup() const
 
 bool ControlsPage::isCurrentPage() const
 {
-   const MenuPage* current = Menu::getInstance()->getCurrentPage();
-   return current && current->getFilename() == controls_page;
+   const auto current = Menu::getInstance().getCurrentPage();
+   return current && current->get().getFilename() == controls_page;
 }
 
 std::vector<std::string> ControlsPage::getDefaultNames() const
 {
-   const auto* login = GameSettings::getInstance()->getLoginSettings();
+   const auto& login = GameSettings::getInstance().getLoginSettings();
    return {
-      login->getNick(),
-      login->getPlayer2Nick(),
-      login->getPlayer3Nick(),
-      login->getPlayer4Nick(),
-      login->getPlayer5Nick(),
-      login->getPlayer6Nick(),
-      login->getPlayer7Nick(),
-      login->getPlayer8Nick(),
-      login->getPlayer9Nick(),
-      login->getPlayer10Nick(),
+      login.getNick(),
+      login.getPlayer2Nick(),
+      login.getPlayer3Nick(),
+      login.getPlayer4Nick(),
+      login.getPlayer5Nick(),
+      login.getPlayer6Nick(),
+      login.getPlayer7Nick(),
+      login.getPlayer8Nick(),
+      login.getPlayer9Nick(),
+      login.getPlayer10Nick(),
    };
 }
 
 bool ControlsPage::open(int32_t game_id, const std::string& return_page)
 {
-   MenuPage* page = getPage();
+   const auto page_ref = getPage();
    const auto controllers = _controller_input.getDevices();
-   if (!page)
+   if (!page_ref)
    {
       return false;
    }
 
+   MenuPage& page = *page_ref;
+
    _game_id = game_id;
    _return_page = return_page;
 
-   const auto max_columns = static_cast<size_t>(page->getGroupInstanceCount(column_group));
+   const auto max_columns = static_cast<size_t>(page.getGroupInstanceCount(column_group));
    Settings settings(GameSettings::getFilename());
    // a stored setup where nobody plays is of no use
    if (!_setup.restore(settings, controllers, max_columns) || _setup.getPlayingColumns().empty())
@@ -137,17 +139,16 @@ bool ControlsPage::open(int32_t game_id, const std::string& return_page)
    // the main player starts with the nick it logged in with
    if (const auto playing = _setup.getPlayingColumns(); !playing.empty())
    {
-      _setup.setName(playing.front(), GameSettings::getInstance()->getLoginSettings()->getNick());
+      _setup.setName(playing.front(), GameSettings::getInstance().getLoginSettings().getNick());
    }
 
    // the names belong to the columns, not to whoever edited them last
    for (size_t i = 0; i < _setup.getColumns().size(); i++)
    {
-      if (MenuPageTextEditItem* edit =
-             dynamic_cast<MenuPageTextEditItem*>(page->getPageItem(MenuPage::getInstanceName("bg_linedit_name", static_cast<int32_t>(i + 1))
-             )))
+      if (const auto edit =
+             page.getPageItem<MenuPageTextEditItem>(MenuPage::getInstanceName("bg_linedit_name", static_cast<int32_t>(i + 1))))
       {
-         edit->setText(_setup.getColumns()[i].name);
+         edit->get().setText(_setup.getColumns()[i].name);
       }
    }
 
@@ -158,28 +159,29 @@ bool ControlsPage::open(int32_t game_id, const std::string& return_page)
 
 void ControlsPage::readNames()
 {
-   MenuPage* page = getPage();
+   MenuPage& page = getPage()->get();
    for (size_t i = 0; i < _setup.getColumns().size(); i++)
    {
-      if (const auto* edit =
-             dynamic_cast<MenuPageTextEditItem*>(page->getPageItem(MenuPage::getInstanceName("bg_linedit_name", static_cast<int32_t>(i + 1))
-             )))
+      if (const auto edit =
+             page.getPageItem<MenuPageTextEditItem>(MenuPage::getInstanceName("bg_linedit_name", static_cast<int32_t>(i + 1))))
       {
-         _setup.setName(i, edit->getText());
+         _setup.setName(i, edit->get().getText());
       }
    }
 }
 
 void ControlsPage::refresh()
 {
-   MenuPage* page = getPage();
-   if (!page)
+   const auto page_ref = getPage();
+   if (!page_ref)
    {
       return;
    }
 
+   MenuPage& page = *page_ref;
+
    const auto& columns = _setup.getColumns();
-   const auto instances = page->getGroupInstanceCount(column_group);
+   const auto instances = page.getGroupInstanceCount(column_group);
    const auto count = static_cast<int32_t>(columns.size());
 
    // as many columns as players, centered
@@ -189,60 +191,63 @@ void ControlsPage::refresh()
 
    for (int32_t index = 1; index <= instances; index++)
    {
-      page->setGroupInstanceOffset(column_group, index, left - _column_left);
+      page.setGroupInstanceOffset(column_group, index, left - _column_left);
 
       const bool shown = index <= count;
-      const ControlsSetup::Column* column = shown ? &columns[static_cast<size_t>(index - 1)] : nullptr;
-      const bool plays = column && column->device.type != ControlsSetup::DeviceType::None;
+      const std::optional<std::reference_wrapper<const ControlsSetup::Column>> column =
+         shown ? std::optional{std::cref(columns[static_cast<size_t>(index - 1)])} : std::nullopt;
+      const bool plays = column && column->get().device.type != ControlsSetup::DeviceType::None;
 
       const auto set_visible = [&](const std::string& base, bool visible)
       {
-         if (MenuPageItem* item = page->getPageItem(MenuPage::getInstanceName(base, index)))
+         if (const auto item = page.getPageItem(MenuPage::getInstanceName(base, index)))
          {
-            item->setVisible(visible);
+            item->get().setVisible(visible);
          }
       };
 
       set_visible("controls_window", shown);
-      for (const char* base : {arrow_device_left, arrow_device_right})
+      for (const std::string& base : {arrow_device_left, arrow_device_right})
       {
          set_visible(base, shown && _setup.canCycleDevice(static_cast<size_t>(index - 1)));
       }
-      for (const char* base : {"player-select", "bg_linedit_name", "player_number", arrow_color_left, arrow_color_right})
+      for (const std::string& base :
+           std::initializer_list<std::string>{"player-select", "bg_linedit_name", "player_number", arrow_color_left, arrow_color_right})
       {
          set_visible(base, plays);
       }
-      set_visible("keyboard-icon", column && column->device.type == ControlsSetup::DeviceType::Keyboard);
-      set_visible("gamepad-icon", column && column->device.type == ControlsSetup::DeviceType::Controller);
+      set_visible("keyboard-icon", column && column->get().device.type == ControlsSetup::DeviceType::Keyboard);
+      set_visible("gamepad-icon", column && column->get().device.type == ControlsSetup::DeviceType::Controller);
       for (int32_t level = 0; level < 4; level++)
       {
          set_visible("bot-level" + std::to_string(level), false);
       }
       for (int32_t color = 1; color <= ControlsSetup::color_count; color++)
       {
-         set_visible(colorIcon(static_cast<Constants::Color>(color)), plays && column->color == static_cast<Constants::Color>(color));
+         set_visible(colorIcon(static_cast<Constants::Color>(color)), plays && column->get().color == static_cast<Constants::Color>(color));
       }
 
       // which controller it is
-      if (auto* label = dynamic_cast<MenuPageLabelItem*>(page->getPageItem(MenuPage::getInstanceName("gamepad-icon", index))))
+      if (const auto label = page.getPageItem<MenuPageLabelItem>(MenuPage::getInstanceName("gamepad-icon", index)))
       {
          std::string name;
-         if (column && column->device.type == ControlsSetup::DeviceType::Controller)
+         if (column && column->get().device.type == ControlsSetup::DeviceType::Controller)
          {
             const auto devices = _controller_input.getDevices();
-            if (const auto info = std::ranges::find(devices, column->device.id, &ControllerInput::DeviceInfo::id); info != devices.end())
+            if (const auto info = std::ranges::find(devices, column->get().device.id, &ControllerInput::DeviceInfo::id);
+                info != devices.end())
             {
                name = info->name.substr(0, max_controller_name);
             }
          }
-         label->setText(name);
+         label->get().setText(name);
       }
 
       // the player number in joining order
-      if (auto* label = dynamic_cast<MenuPageLabelItem*>(page->getPageItem(MenuPage::getInstanceName("player_number", index))))
+      if (const auto label = page.getPageItem<MenuPageLabelItem>(MenuPage::getInstanceName("player_number", index)))
       {
          const auto position = std::ranges::find(playing, static_cast<size_t>(index - 1));
-         label->setText(position != playing.end() ? std::to_string(position - playing.begin() + 1) : std::string());
+         label->get().setText(position != playing.end() ? std::to_string(position - playing.begin() + 1) : std::string());
       }
    }
 }
@@ -265,7 +270,7 @@ void ControlsPage::pulse(size_t column)
 
 void ControlsPage::update()
 {
-   MenuPage* page = getPage();
+   const auto page = getPage();
    if (!page)
    {
       return;
@@ -279,16 +284,18 @@ void ControlsPage::update()
          continue;
       }
 
-      MenuPageItem* item = page->getPageItem(MenuPage::getInstanceName(glow, static_cast<int32_t>(column + 1)));
-      PSDLayer* layer = item ? item->getActiveLayer() : nullptr;
-      if (!layer)
+      const auto item = page->get().getPageItem(MenuPage::getInstanceName(glow, static_cast<int32_t>(column + 1)));
+      const auto active_layer = item ? item->get().getActiveLayer() : std::nullopt;
+      if (!active_layer)
       {
          continue;
       }
 
+      PSDLayer& layer = *active_layer;
+
       // dims, then flares back up
       const float t = std::min(1.0f, static_cast<float>(now - _pulse_start[column]) / static_cast<float>(pulse_ms));
-      layer->setOpacity(_glow_opacity * (0.3f + 0.7f * t));
+      layer.setOpacity(_glow_opacity * (0.3f + 0.7f * t));
       if (t >= 1.0f)
       {
          _pulse_start[column] = 0;
@@ -399,9 +406,12 @@ bool ControlsPage::onKeyPressed(SDL_Keycode key)
    }
 
    // typing a name
-   if (const auto* edit = dynamic_cast<MenuPageTextEditItem*>(getPage()->getActiveItem()); edit && edit->isEditingActive())
+   if (const auto active_item = getPage()->get().getActiveItem())
    {
-      return false;
+      if (const auto* edit = dynamic_cast<const MenuPageTextEditItem*>(&active_item->get()); edit && edit->isEditingActive())
+      {
+         return false;
+      }
    }
 
    readNames();
@@ -458,9 +468,9 @@ void ControlsPage::confirm()
    // the main player is already logged in, a new name renames it
    if (!main.name.empty() && main.name != _client.getNick())
    {
-      auto* login = GameSettings::getInstance()->getLoginSettings();
-      login->setNick(main.name);
-      login->serialize();
+      auto& login = GameSettings::getInstance().getLoginSettings();
+      login.setNick(main.name);
+      login.serialize();
       _client.rename(main.name);
    }
 

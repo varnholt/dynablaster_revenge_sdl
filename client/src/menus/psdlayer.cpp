@@ -4,9 +4,10 @@
 #include "math/matrix.h"
 #include "render/texturepool.h"
 
-#include <memory>
+#include <array>
+#include <cstring>
 
-PSDLayer::PSDLayer(PSD::Layer& layer, float z, bool unwrap) : _layer(&layer), _opacity(layer.getOpacity() / 255.0)
+PSDLayer::PSDLayer(PSD::Layer& layer, float z, bool unwrap) : _layer(layer), _opacity(layer.getOpacity() / 255.0)
 {
    const int width = layer.getWidth();
    const int height = layer.getHeight();
@@ -14,45 +15,42 @@ PSDLayer::PSDLayer(PSD::Layer& layer, float z, bool unwrap) : _layer(&layer), _o
    const int texture_width = width;
    const int texture_height = height;
 
-   auto image = std::make_unique<Image>(texture_width, texture_height);
-   const Image& source = layer.getImage();
-
-   if (!unwrap)
    {
-      image->scaled(source);
-   }
-   else
-   {
-      image->copy(0, 0, source, true);
-   }
+      Image image(texture_width, texture_height);
+      const Image& source = layer.getImage();
 
-   _texture = TexturePool::Instance().getTexture(*image, TexturePool::Trilinear | TexturePool::Clamp);
+      if (!unwrap)
+      {
+         image.scaled(source);
+      }
+      else
+      {
+         image.copy(0, 0, source, true);
+      }
 
-   image.reset();
+      _texture = TexturePool::Instance().getTexture(image, TexturePool::Trilinear | TexturePool::Clamp);
+   }
 
    _u = static_cast<float>(width) / texture_width;
    _v = static_cast<float>(height) / texture_height;
 
-   _vertex_buffer = activeDevice->createVertexBuffer(4 * sizeof(Vertex));
-   auto* vertex = static_cast<Vertex*>(activeDevice->lockVertexBuffer(_vertex_buffer));
-   *vertex++ = Vertex(0, 0, z, 0, 0);
-   *vertex++ = Vertex(0, height, z, 0, _v);
-   *vertex++ = Vertex(width, 0, z, _u, 0);
-   *vertex++ = Vertex(width, height, z, _u, _v);
+   const std::array<Vertex, 4> vertices{
+      Vertex(0, 0, z, 0, 0),
+      Vertex(0, height, z, 0, _v),
+      Vertex(width, 0, z, _u, 0),
+      Vertex(width, height, z, _u, _v),
+   };
+   _vertex_buffer = activeDevice->createVertexBuffer(sizeof(vertices));
+   std::memcpy(activeDevice->lockVertexBuffer(_vertex_buffer), vertices.data(), sizeof(vertices));
    activeDevice->unlockVertexBuffer(_vertex_buffer);
 
-   _index_buffer = activeDevice->createIndexBuffer(6 * sizeof(uint16_t));
-   auto* index = static_cast<uint16_t*>(activeDevice->lockIndexBuffer(_index_buffer));
-   *index++ = 0;
-   *index++ = 1;
-   *index++ = 2;
-   *index++ = 1;
-   *index++ = 3;
-   *index++ = 2;
+   constexpr std::array<uint16_t, 6> indices{0, 1, 2, 1, 3, 2};
+   _index_buffer = activeDevice->createIndexBuffer(sizeof(indices));
+   std::memcpy(activeDevice->lockIndexBuffer(_index_buffer), indices.data(), sizeof(indices));
    activeDevice->unlockIndexBuffer(_index_buffer);
 }
 
-PSD::Layer* PSDLayer::getLayer() const
+PSD::Layer& PSDLayer::getLayer() const
 {
    return _layer;
 }
@@ -69,17 +67,17 @@ float PSDLayer::getV() const
 
 int PSDLayer::getWidth() const
 {
-   return _layer->getWidth();
+   return _layer.get().getWidth();
 }
 
 int PSDLayer::getHeight() const
 {
-   return _layer->getHeight();
+   return _layer.get().getHeight();
 }
 
 int PSDLayer::getLeft() const
 {
-   return _layer->getLeft();
+   return _layer.get().getLeft();
 }
 
 int PSDLayer::getRight() const
@@ -89,12 +87,12 @@ int PSDLayer::getRight() const
 
 int PSDLayer::getTop() const
 {
-   return _layer->getTop();
+   return _layer.get().getTop();
 }
 
 int PSDLayer::getBottom() const
 {
-   return _layer->getTop() + _layer->getHeight();
+   return _layer.get().getTop() + _layer.get().getHeight();
 }
 
 uint32_t PSDLayer::getTexture() const
@@ -125,7 +123,7 @@ void PSDLayer::setOpacity(float opacity)
 void PSDLayer::render(float x, float y, float alpha)
 {
    Matrix world;
-   world.translate(Vector(_layer->getLeft() + x, _layer->getTop() + y, 0.0f));
+   world.translate(Vector(_layer.get().getLeft() + x, _layer.get().getTop() + y, 0.0f));
    activeDevice->push(world);
 
    glBindTexture(GL_TEXTURE_2D, _texture);

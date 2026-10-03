@@ -33,11 +33,11 @@ MenuDrawable::~MenuDrawable() = default;
 
 void MenuDrawable::initGlParameters()
 {
-   if (MenuPage* page = _menu->getCurrentPage())
+   if (const auto page = _menu->getCurrentPage())
    {
-      const Matrix ortho = Matrix::ortho(0.0f, page->getWidth(), page->getHeight(), 0.0f, -1.0f, 1.0f);
+      const Matrix ortho = Matrix::ortho(0.0f, page->get().getWidth(), page->get().getHeight(), 0.0f, -1.0f, 1.0f);
 
-      static_cast<GLDevice*>(activeDevice)->setProjectionMatrix(ortho);
+      static_cast<GLDevice&>(*activeDevice).setProjectionMatrix(ortho);
    }
 
    glDisable(GL_DEPTH_TEST);
@@ -53,7 +53,7 @@ void MenuDrawable::drawMenuContents()
 {
    initGlParameters();
 
-   MenuPage* background = _menu->getBackground();
+   MenuPage& background = _menu->getBackground()->get();
    for (const auto& page : _menu->getPages())
    {
       if (!page->isActive())
@@ -61,11 +61,11 @@ void MenuDrawable::drawMenuContents()
          continue;
       }
 
-      MenuPageAnimation* animation = page->getAnimation();
+      const auto animation = page->getAnimation();
 
       if (animation)
       {
-         animation->animate();
+         animation->get().animate();
       }
 
       // re-established per page: during a cross-fade 2 pages are active at once
@@ -75,7 +75,7 @@ void MenuDrawable::drawMenuContents()
       // the blit pass below leaves an identity projection behind, so re-establish the page-space
       // ortho projection for every page, not just once before the loop
       const Matrix page_ortho = Matrix::ortho(0.0f, page->getWidth(), page->getHeight(), 0.0f, -1.0f, 1.0f);
-      static_cast<GLDevice*>(activeDevice)->setProjectionMatrix(page_ortho);
+      static_cast<GLDevice&>(*activeDevice).setProjectionMatrix(page_ortho);
 
       if (!_frame_buffer)
       {
@@ -93,13 +93,13 @@ void MenuDrawable::drawMenuContents()
 
       activeDevice->setShader(_shader);
 
-      background->render();
+      background.render();
       page->render();
 
       _frame_buffer->unbind();
       FrameBuffer::pop();
 
-      const float page_alpha = animation ? static_cast<MenuPageFadeAnimation*>(animation)->getAlpha() : 1.0f;
+      const float page_alpha = animation ? static_cast<const MenuPageFadeAnimation&>(animation->get()).getAlpha() : 1.0f;
 
       // the draws above may have changed blend state again
       glEnable(GL_BLEND);
@@ -109,7 +109,7 @@ void MenuDrawable::drawMenuContents()
       // residue and must be replaced, not multiplied. Shader and projection must be set before
       // push(), which uploads the combined MVP immediately.
       activeDevice->setShader(getFramebufferBlitShader());
-      static_cast<GLDevice*>(activeDevice)->setProjectionMatrix(Matrix());
+      static_cast<GLDevice&>(*activeDevice).setProjectionMatrix(Matrix());
       activeDevice->push(Matrix());
       activeDevice->setParameter(getFramebufferBlitShaderAlphaParam(), _alpha);
 
@@ -221,9 +221,9 @@ void MenuDrawable::animate(float time)
 void MenuDrawable::initializationFinished()
 {
    // called externally after everything is set up
-   if (_menu->getCurrentPage())
+   if (const auto page = _menu->getCurrentPage())
    {
-      pageChangedSignal(_menu->getCurrentPage()->getFilename());
+      pageChangedSignal(page->get().getFilename());
    }
 }
 
@@ -303,44 +303,44 @@ void MenuDrawable::pageChangeRequest(const std::string& name)
 {
    setInputBlocked(true);
 
-   MenuPage* previous = _menu->getCurrentPage();
-   MenuPage* current = _menu->getPageByName(name);
+   MenuPage& previous = _menu->getCurrentPage()->get();
+   MenuPage& current = _menu->getPageByName(name)->get();
    _menu->setCurrentPage(current);
 
    // set and connect animations
-   previous->setAnimation(_fade_out_animation.get());
-   current->setAnimation(_fade_in_animation.get());
+   previous.setAnimation(*_fade_out_animation);
+   current.setAnimation(*_fade_in_animation);
 
    // cleanup previous connections
    _fade_in_animation->stoppedSignal.disconnectAll();
    _fade_out_animation->stoppedSignal.disconnectAll();
 
    // disable previous page when animation has finished
-   _fade_out_animation->stoppedSignal.connect([previous]() { previous->deactivate(); });
+   _fade_out_animation->stoppedSignal.connect([&previous]() { previous.deactivate(); });
 
-   _fade_out_animation->stoppedSignal.connect([previous]() { previous->resetAnimation(); });
+   _fade_out_animation->stoppedSignal.connect([&previous]() { previous.resetAnimation(); });
 
-   _fade_in_animation->stoppedSignal.connect([current]() { current->resetAnimation(); });
+   _fade_in_animation->stoppedSignal.connect([&current]() { current.resetAnimation(); });
 
    _fade_in_animation->stoppedSignal.connect([this]() { pageChangeAnimationStopped(); });
 
    // activate the current page
-   current->setActive(true);
+   current.setActive(true);
 
    // start animations
    _fade_in_animation->start();
    _fade_out_animation->start();
 
-   previous->unFocusAllItems();
+   previous.unFocusAllItems();
 
    // signal page change
    pageChangedSignal(name);
    pageChangeActiveSignal(true);
 }
 
-Menu* MenuDrawable::getMenu()
+Menu& MenuDrawable::getMenu()
 {
-   return _menu.get();
+   return *_menu;
 }
 
 void MenuDrawable::pageChangeAnimationStopped()

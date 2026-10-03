@@ -1,19 +1,12 @@
 #include "helpmanager.h"
 
-HelpManager* HelpManager::sInstance = nullptr;
+#include "tools/singleton.h"
 
-HelpManager::HelpManager()
+HelpManager::HelpManager() = default;
+
+HelpManager& HelpManager::getInstance()
 {
-}
-
-HelpManager* HelpManager::getInstance()
-{
-   if (!sInstance)
-   {
-      sInstance = new HelpManager();
-   }
-
-   return sInstance;
+   return Singleton<HelpManager>::Instance();
 }
 
 void HelpManager::addMessage(

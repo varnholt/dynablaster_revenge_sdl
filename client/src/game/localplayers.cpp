@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <array>
+#include <span>
 
 namespace
 {
@@ -53,17 +54,19 @@ void LocalPlayers::add(const Player& player)
    }
 
    Slot slot;
+   slot.id = _next_slot_id++;
    slot.controller = player.controller;
    slot.client = std::make_unique<LocalPlayerClient>(_client.getHost(), player.nick, _client.getGameId(), player.color);
 
-   LocalPlayerClient* client = slot.client.get();
-   client->joinedSignal.connect([this](int32_t) { updateLocalPlayerIds(); });
-   client->joinFailedSignal.connect([this, client]() { Timer::singleShot(0, [this, client]() { remove(client); }); });
+   LocalPlayerClient& client = *slot.client;
+   const uint32_t slot_id = slot.id;
+   client.joinedSignal.connect([this](int32_t) { updateLocalPlayerIds(); });
+   client.joinFailedSignal.connect([this, slot_id]() { Timer::singleShot(0, [this, slot_id]() { remove(slot_id); }); });
    if (player.controller)
    {
       const ControllerInput::Id controller = *player.controller;
-      client->rumbleSignal.connect([this, controller](float intensity, int32_t duration_ms)
-                                   { _controller_input.rumble(controller, intensity, duration_ms); });
+      client.rumbleSignal.connect([this, controller](float intensity, int32_t duration_ms)
+                                  { _controller_input.rumble(controller, intensity, duration_ms); });
       _controller_input.setAssigned(controller, true);
    }
 
@@ -76,9 +79,9 @@ void LocalPlayers::exclude(ControllerInput::Id controller)
    _controller_input.setAssigned(controller, true);
 }
 
-void LocalPlayers::remove(const LocalPlayerClient* client)
+void LocalPlayers::remove(uint32_t slot_id)
 {
-   const auto it = std::ranges::find_if(_slots, [client](const Slot& slot) { return slot.client.get() == client; });
+   const auto it = std::ranges::find(_slots, slot_id, &Slot::id);
    if (it == _slots.end())
    {
       return;
@@ -99,7 +102,7 @@ void LocalPlayers::removeController(ControllerInput::Id controller)
    const auto it = std::ranges::find(_slots, std::optional(controller), &Slot::controller);
    if (it != _slots.end())
    {
-      remove(it->client.get());
+      remove(it->id);
    }
 }
 
@@ -125,16 +128,17 @@ void LocalPlayers::removeAll()
 
 uint8_t LocalPlayers::readKeyboard() const
 {
-   const auto* controls = GameSettings::getInstance()->getControllerSettings();
+   const auto& controls = GameSettings::getInstance().getControllerSettings();
    const std::array<std::pair<SDL_Keycode, uint8_t>, 5> key_map{{
-      {controls->getUpKey(), Constants::KeyUp},
-      {controls->getDownKey(), Constants::KeyDown},
-      {controls->getLeftKey(), Constants::KeyLeft},
-      {controls->getRightKey(), Constants::KeyRight},
-      {controls->getBombKey(), Constants::KeyBomb},
+      {controls.getUpKey(), Constants::KeyUp},
+      {controls.getDownKey(), Constants::KeyDown},
+      {controls.getLeftKey(), Constants::KeyLeft},
+      {controls.getRightKey(), Constants::KeyRight},
+      {controls.getBombKey(), Constants::KeyBomb},
    }};
 
-   const bool* state = SDL_GetKeyboardState(nullptr);
+   int key_count = 0;
+   const std::span<const bool> state(SDL_GetKeyboardState(&key_count), static_cast<size_t>(key_count));
    uint8_t keys = 0;
    for (const auto& [keycode, key] : key_map)
    {

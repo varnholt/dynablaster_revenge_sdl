@@ -5,14 +5,18 @@
 #include "framework/frametimer.h"
 #include "vertex.h"
 
-#include <memory>
 #include <vector>
+
+class MenuPageListItem;
 
 class MenuPageListItemElement : public MenuPageTextEditItem
 {
 public:
-   MenuPageListItemElement();
+   explicit MenuPageListItemElement(MenuPageListItem& parent);
    ~MenuPageListItemElement() override;
+
+   //! the list the element belongs to
+   MenuPageListItem& getParent() const;
 
    void initialize() override;
 
@@ -56,9 +60,7 @@ public:
    void setActive(bool) override;
 
 private:
-   // placeholder layers owned by the element; the base class only observes them
-   std::unique_ptr<PSDLayer> _dummy_layer_active;
-   std::unique_ptr<PSDLayer> _dummy_layer_inactive;
+   MenuPageListItem& _parent;
 
    int _index = 0;
    int _width = 0;

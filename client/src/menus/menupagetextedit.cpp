@@ -26,8 +26,7 @@ MenuPageTextEditItem::MenuPageTextEditItem()
 
 void MenuPageTextEditItem::initialize()
 {
-   const auto font = FontPool::Instance().get(_font_name);
-   _font = font ? &font->get() : nullptr;
+   _font = FontPool::Instance().get(_font_name);
 
    // init update timer
    _timer.setInterval(CURSOR_UPDATE_TIME);
@@ -47,11 +46,11 @@ void MenuPageTextEditItem::draw()
 
    if (_color.isValid())
    {
-      _font->setColor(_color.redF(), _color.greenF(), _color.blueF(), _alpha / 255.0f);
+      _font->get().setColor(_color.redF(), _color.greenF(), _color.blueF(), _alpha / 255.0f);
    }
    else
    {
-      _font->setColor(1.0f, 1.0f, 1.0f, _alpha / 255.0f);
+      _font->get().setColor(1.0f, 1.0f, 1.0f, _alpha / 255.0f);
    }
 
    //        i0               i0+maxLength
@@ -60,11 +59,11 @@ void MenuPageTextEditItem::draw()
    const int i0 = std::max(_cursor_position - getFieldWidth(), 0);
    const std::string visible_text = _text.substr(std::min(static_cast<size_t>(i0), _text.size()), getFieldWidth());
 
-   _font->buildVertices(
-      _scale, visible_text.c_str(), _layer_active->getLeft() + _font_x_offset, _layer_active->getBottom() + _font_y_offset
+   _font->get().buildVertices(
+      _scale, visible_text.c_str(), _layer_active->get().getLeft() + _font_x_offset, _layer_active->get().getBottom() + _font_y_offset
    );
 
-   _font->draw();
+   _font->get().draw();
 
    if (_editing_active)
    {
@@ -291,7 +290,7 @@ void MenuPageTextEditItem::drawCursor()
    float top = 0.0f;
    float bottom = 0.0f;
 
-   _font->getCursor(_scale, getCursorPosition(), left, right, top, bottom);
+   _font->get().getCursor(_scale, getCursorPosition(), left, right, top, bottom);
 
    if (_cursor_texture == 0)
    {
@@ -324,8 +323,7 @@ void MenuPageTextEditItem::drawCursor()
       activeDevice->allocateVertexBuffer(_cursor_vertex_buffer, quad_size, true);
    }
 
-   void* destination = activeDevice->lockVertexBuffer(_cursor_vertex_buffer, quad_size);
-   std::memcpy(destination, quad.data(), quad_size);
+   std::memcpy(activeDevice->lockVertexBuffer(_cursor_vertex_buffer, quad_size), quad.data(), quad_size);
    activeDevice->unlockVertexBuffer(_cursor_vertex_buffer);
 
    activeDevice->push(Matrix());

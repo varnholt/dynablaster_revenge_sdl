@@ -159,11 +159,11 @@ void GameWinDrawable::hideLayers()
 {
    for (int i = 0; i < 10; i++)
    {
-      _ranks[i]->getLayer()->setVisible(false);
-      _icons[i]->getLayer()->setVisible(false);
-      _names[i]->getLayer()->setVisible(false);
-      _points[i]->getLayer()->setVisible(false);
-      _bars[i]->getLayer()->setVisible(false);
+      _ranks[i]->getLayer().setVisible(false);
+      _icons[i]->getLayer().setVisible(false);
+      _names[i]->getLayer().setVisible(false);
+      _points[i]->getLayer().setVisible(false);
+      _bars[i]->getLayer().setVisible(false);
    }
 }
 
@@ -220,11 +220,11 @@ void GameWinDrawable::initGameData()
       PSDLayer* bar_layer = _bars[row];
       PSDLayer* icon_layer = _icons[color_index];
 
-      icon_layer->getLayer()->setY(name_layer->getTop() + OFFSET_Y_ICON);
+      icon_layer->getLayer().setY(name_layer->getTop() + OFFSET_Y_ICON);
 
-      rank_layer->getLayer()->setVisible(true);
-      bar_layer->getLayer()->setVisible(true);
-      icon_layer->getLayer()->setVisible(true);
+      rank_layer->getLayer().setVisible(true);
+      bar_layer->getLayer().setVisible(true);
+      icon_layer->getLayer().setVisible(true);
 
       row++;
    }
@@ -512,9 +512,9 @@ bool GameWinDrawable::isDrawGame() const
 void GameWinDrawable::playSound()
 {
    if (isDrawGame())
-      Timer::singleShot(500, []() { SoundManager::getInstance()->playSoundGameDraw(); });
+      Timer::singleShot(500, []() { SoundManager::getInstance().playSoundGameDraw(); });
    else
-      Timer::singleShot(500, []() { SoundManager::getInstance()->playSoundGameWin(); });
+      Timer::singleShot(500, []() { SoundManager::getInstance().playSoundGameWin(); });
 }
 
 void GameWinDrawable::stateChanged()
@@ -524,7 +524,7 @@ void GameWinDrawable::stateChanged()
       // if the player pressed ESC, there's no valid game id anymore - and no results screen to show.
       if (BombermanClient::getInstance()->isGameIdValid())
       {
-         SoundManager::getInstance()->fadeOut(1000);
+         SoundManager::getInstance().fadeOut(1000);
 
          std::vector<PlayerInfo*> player_alive;
          std::vector<PlayerInfo*> player_list = BombermanClient::getInstance()->getPlayerInfoList();
@@ -541,7 +541,7 @@ void GameWinDrawable::stateChanged()
 
             Constants::Color color = player_alive[0]->getColor();
             setColorEnum(color);
-            setColor(GameSettings::getInstance()->getStyleSettings()->getColor(color));
+            setColor(GameSettings::getInstance().getStyleSettings().getColor(color));
          }
 
          setDrawGame(player_alive.size() != 1);
@@ -646,7 +646,7 @@ void GameWinDrawable::initializeLayers()
    {
       auto owned_layer = std::make_unique<PSDLayer>(psd_layer);
       PSDLayer* layer = owned_layer.get();
-      std::string layer_name = layer->getLayer()->getName();
+      std::string layer_name = layer->getLayer().getName();
 
       _psd_layers.push_back(std::move(owned_layer));
 

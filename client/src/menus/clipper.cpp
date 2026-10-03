@@ -249,10 +249,10 @@ void Clipper::enable()
 
    int width = 0;
    int height = 0;
-   if (FrameBuffer* frame_buffer = FrameBuffer::Instance())
+   if (FrameBuffer::Instance())
    {
-      width = frame_buffer->width();
-      height = frame_buffer->height();
+      width = FrameBuffer::Instance()->width();
+      height = FrameBuffer::Instance()->height();
    }
    else
    {

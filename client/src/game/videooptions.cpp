@@ -9,8 +9,7 @@
 #include <algorithm>
 #include <format>
 
-VideoOptions::VideoOptions(const GlesContext& context)
-    : _context(context)
+VideoOptions::VideoOptions(const GlesContext& context) : _context(context)
 {
    if (const char* title = SDL_GetWindowTitle(_context.window()))
    {
@@ -72,17 +71,17 @@ std::vector<int32_t> VideoOptions::sampleCounts()
 
 void VideoOptions::apply()
 {
-   const auto* settings = GameSettings::getInstance()->getVideoSettings();
+   const auto& settings = GameSettings::getInstance().getVideoSettings();
 
    applyFullscreen();
 
    // 0: off, 1: every refresh (60fps), 2: every other refresh (30fps)
-   if (!SDL_GL_SetSwapInterval(std::clamp(settings->getVSync(), 0, 2)))
+   if (!SDL_GL_SetSwapInterval(std::clamp(settings.getVSync(), 0, 2)))
    {
-      SDL_Log("VideoOptions: swap interval %d failed: %s", settings->getVSync(), SDL_GetError());
+      SDL_Log("VideoOptions: swap interval %d failed: %s", settings.getVSync(), SDL_GetError());
    }
 
-   _show_fps = settings->isFpsShown();
+   _show_fps = settings.isFpsShown();
    _fps_start_ticks = SDL_GetTicks();
    _frames = 0;
 
@@ -94,12 +93,12 @@ void VideoOptions::apply()
 
 void VideoOptions::toggleFullscreen()
 {
-   auto* settings = GameSettings::getInstance()->getVideoSettings();
-   settings->toggleFullscreen();
-   settings->serialize();
+   auto& settings = GameSettings::getInstance().getVideoSettings();
+   settings.toggleFullscreen();
+   settings.serialize();
 
    // Cancel on the video page mustn't bring back the old display mode
-   GameSettings::getInstance()->getVideoSettingsBackup()->setFullscreen(settings->isFullscreen());
+   GameSettings::getInstance().getVideoSettingsBackup().setFullscreen(settings.isFullscreen());
 
    applyFullscreen();
 }
@@ -118,12 +117,12 @@ void VideoOptions::storeWindowSize()
       return;
    }
 
-   auto* settings = GameSettings::getInstance()->getVideoSettings();
-   if (settings->getWidth() != width || settings->getHeight() != height)
+   auto& settings = GameSettings::getInstance().getVideoSettings();
+   if (settings.getWidth() != width || settings.getHeight() != height)
    {
-      settings->setWidth(width);
-      settings->setHeight(height);
-      settings->serialize();
+      settings.setWidth(width);
+      settings.setHeight(height);
+      settings.serialize();
    }
 }
 
@@ -150,7 +149,7 @@ void VideoOptions::frameSwapped()
 
 void VideoOptions::applyFullscreen()
 {
-   const bool fullscreen = GameSettings::getInstance()->getVideoSettings()->isFullscreen();
+   const bool fullscreen = GameSettings::getInstance().getVideoSettings().isFullscreen();
    const bool is_fullscreen = (SDL_GetWindowFlags(_context.window()) & SDL_WINDOW_FULLSCREEN) != 0;
 
    if (fullscreen != is_fullscreen && !SDL_SetWindowFullscreen(_context.window(), fullscreen))

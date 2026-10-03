@@ -33,26 +33,26 @@ void MenuPageScrollImageItem::initialize()
 {
    MenuPageItem::initialize();
 
-   PSDLayer* bounding_rect = getInactiveLayer();
+   const PSDLayer& bounding_rect = getInactiveLayer()->get();
 
    // use layer for clipping
    _clipper = std::make_unique<Clipper>(
-      static_cast<float>(bounding_rect->getLeft()),
-      static_cast<float>(bounding_rect->getTop()),
-      static_cast<float>(bounding_rect->getRight()),
-      static_cast<float>(bounding_rect->getBottom())
+      static_cast<float>(bounding_rect.getLeft()),
+      static_cast<float>(bounding_rect.getTop()),
+      static_cast<float>(bounding_rect.getRight()),
+      static_cast<float>(bounding_rect.getBottom())
    );
 }
 
 void MenuPageScrollImageItem::draw()
 {
-   PSDLayer* layer = getActiveLayer();
+   PSDLayer& layer = getActiveLayer()->get();
 
-   const float offset = _y * (layer->getHeight() - _clipper->getHeight());
+   const float offset = _y * (layer.getHeight() - _clipper->getHeight());
 
    // clip image to reference layer
    _clipper->enable();
-   layer->render(0.0f, -offset);  // move up to scroll down
+   layer.render(0.0f, -offset);  // move up to scroll down
    _clipper->disable();
 }
 

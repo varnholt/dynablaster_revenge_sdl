@@ -243,7 +243,7 @@ void MusicPlayerDrawable::showCurrentlyPlaying(const std::string& artist, const 
 {
    // matches the original's guard, minus isMusicMuted() - this port's SoundManager has no
    // separate mute flag, only a volume slider (see project memory on the F2/F3 shortcuts).
-   if (SoundManager::getInstance()->getVolumeMusic() <= 0.0f || !GameSettings::getInstance()->getAudioSettings()->isMusicPlayerVisibile())
+   if (SoundManager::getInstance().getVolumeMusic() <= 0.0f || !GameSettings::getInstance().getAudioSettings().isMusicPlayerVisibile())
       return;
 
    _artist = artist;

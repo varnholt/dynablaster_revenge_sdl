@@ -15,17 +15,11 @@ public:
    //! setter for visible flag
    void setVisible(bool visible) override;
 
-   //! setter for textedit item
-   void setTextEditItem(MenuPageTextEditItem* item);
+   //! setter for textedit item, it shows and edits the value
+   void setTextEditItem(MenuPageTextEditItem& item);
 
    //! getter for textedit item
-   MenuPageTextEditItem* getTextEditItem() const;
-
-   //! link combobox to related textedit
-   static void linkComboBoxToTextEdit(const std::string& text_edit_key, const std::string& combo_box_key);
-
-   //! add textedit to id/ptr-map
-   static void addTextEdit(const std::string&, MenuPageTextEditItem*);
+   std::optional<std::reference_wrapper<MenuPageTextEditItem>> getTextEditItem() const;
 
    //! append an item to the list
    void appendItem(
@@ -39,9 +33,6 @@ protected:
    //! update clipper boundaries
    void updateClipperBounds();
 
-   //! linked textedit item (non-owning)
-   MenuPageTextEditItem* _text_edit_item = nullptr;
-
-   //! registry used while the pages are built, non-owning
-   static std::map<std::string, MenuPageTextEditItem*> _map_text_edits;
+   //! linked textedit item, on the same page
+   std::optional<std::reference_wrapper<MenuPageTextEditItem>> _text_edit_item;
 };

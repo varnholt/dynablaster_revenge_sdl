@@ -1,6 +1,7 @@
 #include "soundmanager.h"
 
 #include "gamesettings.h"
+#include "tools/singleton.h"
 
 #include "logging.h"
 
@@ -38,12 +39,8 @@ void splitTrackFilename(const std::string& stem, std::string& artist, std::strin
 }
 }  // namespace
 
-SoundManager* SoundManager::sInstance = nullptr;
-
 SoundManager::SoundManager()
 {
-   sInstance = this;
-
    if (!SDL_InitSubSystem(SDL_INIT_AUDIO))
    {
       qWarning("SoundManager: SDL_InitSubSystem(SDL_INIT_AUDIO) failed: %s", SDL_GetError());
@@ -57,21 +54,25 @@ SoundManager::SoundManager()
       return;
    }
 
-   for (auto& channel : _channels)
-      channel = SDL_CreateAudioStream(nullptr, nullptr);
+   std::array<SDL_AudioStream*, channel_count> channels{};
+   for (size_t i = 0; i < channels.size(); i++)
+   {
+      _channels[i].reset(SDL_CreateAudioStream(nullptr, nullptr));
+      channels[i] = _channels[i].get();
+   }
 
-   SDL_BindAudioStreams(_device, _channels.data(), static_cast<int>(_channels.size()));
+   SDL_BindAudioStreams(_device, channels.data(), static_cast<int>(channels.size()));
 
-   _music_stream = SDL_CreateAudioStream(nullptr, nullptr);
-   SDL_BindAudioStream(_device, _music_stream);
+   _music_stream.reset(SDL_CreateAudioStream(nullptr, nullptr));
+   SDL_BindAudioStream(_device, _music_stream.get());
 
    SDL_ResumeAudioDevice(_device);
 
    initializeSamples();
 
-   _volume_music = GameSettings::getInstance()->getAudioSettings()->getVolumeMusic();
-   _volume_sfx = GameSettings::getInstance()->getAudioSettings()->getVolumeSfx();
-   SDL_SetAudioStreamGain(_music_stream, _volume_music);
+   _volume_music = GameSettings::getInstance().getAudioSettings().getVolumeMusic();
+   _volume_sfx = GameSettings::getInstance().getAudioSettings().getVolumeSfx();
+   SDL_SetAudioStreamGain(_music_stream.get(), _volume_music);
 
    _music_timer.timeoutSignal.connect([this]() { updateMusic(); });
    _music_timer.start(50);
@@ -79,37 +80,26 @@ SoundManager::SoundManager()
 
 SoundManager::~SoundManager()
 {
+   // the streams go before the device
    for (auto& channel : _channels)
    {
-      if (channel)
-      {
-         SDL_UnbindAudioStream(channel);
-         SDL_DestroyAudioStream(channel);
-      }
+      channel.reset();
    }
 
-   if (_music_stream)
-   {
-      SDL_UnbindAudioStream(_music_stream);
-      SDL_DestroyAudioStream(_music_stream);
-   }
+   _music_stream.reset();
 
    for (auto& sample : _samples)
    {
-      if (sample.buffer)
-         SDL_free(sample.buffer);
+      sample.buffer.reset();
    }
 
    if (_device)
       SDL_CloseAudioDevice(_device);
 }
 
-SoundManager* SoundManager::getInstance()
+SoundManager& SoundManager::getInstance()
 {
-   if (!sInstance)
-      sInstance = new SoundManager();
-
-   return sInstance;
+   return Singleton<SoundManager>::Instance();
 }
 
 void SoundManager::initializeSamples()
@@ -139,19 +129,25 @@ void SoundManager::initializeSamples()
    loadSample(SampleGameDraw, "data/sfx/draw.wav");
 }
 
-void SoundManager::loadSample(SampleId id, const char* filename)
+void SoundManager::StreamDeleter::operator()(SDL_AudioStream* stream) const
+{
+   SDL_UnbindAudioStream(stream);
+   SDL_DestroyAudioStream(stream);
+}
+
+void SoundManager::loadSample(SampleId id, const std::string& filename)
 {
    Sample& sample = _samples[id];
    Uint8* buffer = nullptr;
    Uint32 length = 0;
 
-   if (!SDL_LoadWAV(filename, &sample.spec, &buffer, &length))
+   if (!SDL_LoadWAV(filename.c_str(), &sample.spec, &buffer, &length))
    {
-      qWarning("SoundManager: failed to load %s: %s", filename, SDL_GetError());
+      qWarning("SoundManager: failed to load %s: %s", filename.c_str(), SDL_GetError());
       return;
    }
 
-   sample.buffer = buffer;
+   sample.buffer.reset(buffer);
    sample.length = length;
 }
 
@@ -164,13 +160,13 @@ void SoundManager::play(SampleId id)
    if (!sample.buffer)
       return;
 
-   SDL_AudioStream* channel = _channels[_next_channel];
+   const Stream& channel = _channels[_next_channel];
    _next_channel = (_next_channel + 1) % channel_count;
 
-   SDL_ClearAudioStream(channel);
-   SDL_SetAudioStreamGain(channel, _volume_sfx);
-   SDL_SetAudioStreamFormat(channel, &sample.spec, nullptr);
-   SDL_PutAudioStreamData(channel, sample.buffer, static_cast<int>(sample.length));
+   SDL_ClearAudioStream(channel.get());
+   SDL_SetAudioStreamGain(channel.get(), _volume_sfx);
+   SDL_SetAudioStreamFormat(channel.get(), &sample.spec, nullptr);
+   SDL_PutAudioStreamData(channel.get(), sample.buffer.get(), static_cast<int>(sample.length));
 }
 
 void SoundManager::fadeOut(float fade_out_time)
@@ -179,7 +175,7 @@ void SoundManager::fadeOut(float fade_out_time)
       return;
 
    _fading = true;
-   _fade_start_volume = SDL_GetAudioStreamGain(_music_stream);
+   _fade_start_volume = SDL_GetAudioStreamGain(_music_stream.get());
    _fade_duration_ms = fade_out_time;
    _fade_elapsed_ms = 0.0f;
 }
@@ -187,13 +183,13 @@ void SoundManager::fadeOut(float fade_out_time)
 void SoundManager::restartPlayListAfterFadeOut(int delay)
 {
    if (_music_stream)
-      SDL_ClearAudioStream(_music_stream);
+      SDL_ClearAudioStream(_music_stream.get());
 
    Timer::singleShot(
       delay,
       [this]()
       {
-         SDL_SetAudioStreamGain(_music_stream, _volume_music);
+         SDL_SetAudioStreamGain(_music_stream.get(), _volume_music);
          playNextTrack();
       }
    );
@@ -214,7 +210,7 @@ void SoundManager::setVolumeMusic(float volume)
    _volume_music = volume;
 
    if (_music_stream && !_fading)
-      SDL_SetAudioStreamGain(_music_stream, _volume_music);
+      SDL_SetAudioStreamGain(_music_stream.get(), _volume_music);
 }
 
 void SoundManager::setVolumeSfx(float volume)
@@ -277,9 +273,9 @@ void SoundManager::playTrack(std::size_t index)
    spec.channels = info.channels;
    spec.freq = info.hz;
 
-   SDL_ClearAudioStream(_music_stream);
-   SDL_SetAudioStreamFormat(_music_stream, &spec, nullptr);
-   SDL_PutAudioStreamData(_music_stream, info.buffer, static_cast<int>(info.samples * sizeof(mp3d_sample_t)));
+   SDL_ClearAudioStream(_music_stream.get());
+   SDL_SetAudioStreamFormat(_music_stream.get(), &spec, nullptr);
+   SDL_PutAudioStreamData(_music_stream.get(), info.buffer, static_cast<int>(info.samples * sizeof(mp3d_sample_t)));
 
    free(info.buffer);
 
@@ -298,18 +294,18 @@ void SoundManager::updateMusic()
    {
       _fade_elapsed_ms += 50.0f;
       const float factor = (std::max)(1.0f - _fade_elapsed_ms / _fade_duration_ms, 0.0f);
-      SDL_SetAudioStreamGain(_music_stream, factor * _fade_start_volume);
+      SDL_SetAudioStreamGain(_music_stream.get(), factor * _fade_start_volume);
 
       if (factor <= 0.0f)
       {
-         SDL_ClearAudioStream(_music_stream);
+         SDL_ClearAudioStream(_music_stream.get());
          _fading = false;
       }
 
       return;
    }
 
-   if (!_playlist.empty() && SDL_GetAudioStreamQueued(_music_stream) == 0)
+   if (!_playlist.empty() && SDL_GetAudioStreamQueued(_music_stream.get()) == 0)
    {
       _track_index = (_track_index + 1) % _playlist.size();
       playTrack(_track_index);

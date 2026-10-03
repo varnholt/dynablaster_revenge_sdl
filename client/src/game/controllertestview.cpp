@@ -11,16 +11,17 @@
 
 #include <algorithm>
 #include <array>
+#include <string>
 #include <utility>
 
 namespace
 {
 
-const char* const kOptionsControls = "data/menus/options_controls.psd";
-const char* const kName = "label_controller_name";
-const char* const kStickActive = "controller_analog_1_active";
-const char* const kStickOutline = "controller_analog_1_outline";
-const char* const kSecondStickActive = "controller_analog_2_active";
+const std::string kOptionsControls = "data/menus/options_controls.psd";
+const std::string kName = "label_controller_name";
+const std::string kStickActive = "controller_analog_1_active";
+const std::string kStickOutline = "controller_analog_1_outline";
+const std::string kSecondStickActive = "controller_analog_2_active";
 
 //! the stick layers move this many page pixels at full deflection
 constexpr float kStickRange = 10.0f;
@@ -28,7 +29,7 @@ constexpr float kStickRange = 10.0f;
 //! the name label holds this many characters
 constexpr size_t kNameLength = 16;
 
-const std::array<std::pair<SDL_GamepadButton, const char*>, 8> kButtonLabels{{
+const std::array<std::pair<SDL_GamepadButton, std::string>, 8> kButtonLabels{{
    {SDL_GAMEPAD_BUTTON_SOUTH, "label_controller_button_a"},
    {SDL_GAMEPAD_BUTTON_EAST, "label_controller_button_b"},
    {SDL_GAMEPAD_BUTTON_WEST, "label_controller_button_x"},
@@ -40,7 +41,7 @@ const std::array<std::pair<SDL_GamepadButton, const char*>, 8> kButtonLabels{{
 }};
 
 //! indexed by 1 + x + 3 * (1 + y) with x, y in -1..1, y pointing down
-const std::array<const char*, 9> kDpadLabels{
+const std::array<std::string, 9> kDpadLabels{
    "label_controller_top_left",
    "label_controller_top",
    "label_controller_top_right",
@@ -68,7 +69,7 @@ ControllerTestView::~ControllerTestView() = default;
 
 MenuPage& ControllerTestView::page() const
 {
-   return *Menu::getInstance()->getPageByName(kOptionsControls);
+   return Menu::getInstance().getPageByName(kOptionsControls)->get();
 }
 
 void ControllerTestView::onPageChanged(const std::string& page_name)
@@ -97,16 +98,16 @@ void ControllerTestView::onPageChanged(const std::string& page_name)
 void ControllerTestView::reset()
 {
    // the second stick isn't shown, only its outline
-   if (MenuPageItem* item = page().getPageItem(kSecondStickActive))
+   if (const auto item = page().getPageItem(kSecondStickActive))
    {
-      item->setVisible(false);
+      item->get().setVisible(false);
    }
 
    for (const auto& [button, label] : kButtonLabels)
    {
-      if (MenuPageItem* item = page().getPageItem(label))
+      if (const auto item = page().getPageItem(label))
       {
-         item->setVisible(false);
+         item->get().setVisible(false);
       }
    }
 
@@ -138,9 +139,9 @@ void ControllerTestView::update()
    showButtons(*state);
    showDpad(*state);
 
-   const auto* controls = GameSettings::getInstance()->getControllerSettings();
+   const auto& controls = GameSettings::getInstance().getControllerSettings();
    const auto axis = [](int value) { return static_cast<size_t>(std::clamp(value, 0, SDL_GAMEPAD_AXIS_COUNT - 1)); };
-   showStick(state->axes[axis(controls->getAnalogueAxis1())], state->axes[axis(controls->getAnalogueAxis2())]);
+   showStick(state->axes[axis(controls.getAnalogueAxis1())], state->axes[axis(controls.getAnalogueAxis2())]);
 
    calibrate(*state);
 }
@@ -178,11 +179,13 @@ void ControllerTestView::selectDevice()
 
 void ControllerTestView::showName()
 {
-   auto* label = dynamic_cast<MenuPageLabelItem*>(page().getPageItem(kName));
-   if (!label)
+   const auto label_item = page().getPageItem<MenuPageLabelItem>(kName);
+   if (!label_item)
    {
       return;
    }
+
+   MenuPageLabelItem& label = *label_item;
 
    std::string name;
    for (const auto& device : _controller_input.getDevices())
@@ -201,10 +204,10 @@ void ControllerTestView::showName()
       name += "...";
    }
 
-   label->setText(name);
-   if (PSD::Layer* layer = label->getCurrentLayer())
+   label.setText(name);
+   if (const auto layer = label.getCurrentLayer())
    {
-      label->setCenterWidth(static_cast<float>(layer->getWidth()));
+      label.setCenterWidth(static_cast<float>(layer->get().getWidth()));
    }
 }
 
@@ -223,9 +226,9 @@ void ControllerTestView::showButtons(const ControllerInput::State& state)
 
    for (const auto& [button, label] : kButtonLabels)
    {
-      if (MenuPageItem* item = page().getPageItem(label))
+      if (const auto item = page().getPageItem(label))
       {
-         item->setVisible(all || state.buttons[button]);
+         item->get().setVisible(all || state.buttons[button]);
       }
    }
 }
@@ -239,15 +242,15 @@ void ControllerTestView::showDpad(const ControllerInput::State& state)
    // exactly one of the nine is shown, like processJoystickHat()
    for (size_t i = 0; i < kDpadLabels.size(); i++)
    {
-      if (MenuPageItem* item = page().getPageItem(kDpadLabels[i]))
+      if (const auto item = page().getPageItem(kDpadLabels[i]))
       {
-         item->setVisible(i == pressed);
+         item->get().setVisible(i == pressed);
       }
    }
 
-   if (auto* label = dynamic_cast<MenuPageLabelItem*>(page().getPageItem(kDpadLabels[pressed])))
+   if (const auto label = page().getPageItem<MenuPageLabelItem>(kDpadLabels[pressed]))
    {
-      label->setAlpha(255);
+      label->get().setAlpha(255);
    }
 }
 
@@ -257,22 +260,23 @@ void ControllerTestView::showStick(int16_t x, int16_t y)
    const auto dx = static_cast<int32_t>(kStickRange * x / 32767.0f);
    const auto dy = static_cast<int32_t>(kStickRange * y / 32767.0f);
 
-   const auto place = [&](const char* name, std::optional<Position>& rest)
+   const auto place = [&](const std::string& name, std::optional<Position>& rest)
    {
-      MenuPageItem* item = page().getPageItem(name);
-      PSD::Layer* layer = item ? item->getCurrentLayer() : nullptr;
-      if (!layer)
+      const auto item = page().getPageItem(name);
+      const auto current_layer = item ? item->get().getCurrentLayer() : std::nullopt;
+      if (!current_layer)
       {
          return;
       }
 
+      PSD::Layer& layer = *current_layer;
       if (!rest)
       {
-         rest = Position{layer->getLeft(), layer->getTop()};
+         rest = Position{layer.getLeft(), layer.getTop()};
       }
 
-      layer->setX(rest->x + dx);
-      layer->setY(rest->y + dy);
+      layer.setX(rest->x + dx);
+      layer.setY(rest->y + dy);
    };
 
    place(kStickActive, _stick_active_position);
@@ -281,16 +285,16 @@ void ControllerTestView::showStick(int16_t x, int16_t y)
 
 void ControllerTestView::calibrate(const ControllerInput::State& state)
 {
-   auto* controls = GameSettings::getInstance()->getControllerSettings();
+   auto& controls = GameSettings::getInstance().getControllerSettings();
 
    StickCalibration::Axes axes{};
    std::copy_n(state.axes.begin(), StickCalibration::axis_count, axes.begin());
 
    // like axesCalibrated(): steers right away, OK stores it, Cancel reloads the stored axes
-   if (const auto pair = _calibration.process(axes, controls->getAnalogueThreshold()))
+   if (const auto pair = _calibration.process(axes, controls.getAnalogueThreshold()))
    {
-      controls->setAnalogueAxis1(pair->first);
-      controls->setAnalogueAxis2(pair->second);
+      controls.setAnalogueAxis1(pair->first);
+      controls.setAnalogueAxis2(pair->second);
       qDebug("ControllerTestView: steering axes %d, %d", pair->first, pair->second);
    }
 }

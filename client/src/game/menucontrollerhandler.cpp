@@ -12,7 +12,7 @@
 
 namespace
 {
-constexpr const char* graph_file = "data/menus/menu_controller.ini";
+const std::string graph_file = "data/menus/menu_controller.ini";
 
 // at most this many moves are queued while the cursor is still gliding
 constexpr size_t max_queued_buttons = 5;
@@ -62,11 +62,13 @@ void MenuControllerHandler::initialize()
    for (const auto& page_key : page_keys)
    {
       const std::string psd_name = settings.value("pages/" + page_key).toString();
-      MenuPage* page = Menu::getInstance()->getPageByName(psd_name);
-      if (!page)
+      const auto page_ref = Menu::getInstance().getPageByName(psd_name);
+      if (!page_ref)
       {
          continue;
       }
+
+      const MenuPage& page = *page_ref;
 
       auto graph = std::make_unique<MenuControllerGraph>(_animation);
       graph->clickSignal.connect(
@@ -90,23 +92,24 @@ void MenuControllerHandler::initialize()
          // element=north,south,east,west
          if (items.size() == 4)
          {
-            auto element = std::make_unique<MenuControllerGraph::Element>();
-            element->item = page->getPageItem(element_name);
-            element->north_item = page->getPageItem(unquoted(items[0]));
-            element->south_item = page->getPageItem(unquoted(items[1]));
-            element->east_item = page->getPageItem(unquoted(items[2]));
-            element->west_item = page->getPageItem(unquoted(items[3]));
-
-            if (!element->item)
+            const auto item = page.getPageItem(element_name);
+            if (!item)
             {
-               SDL_Log("%s: %s has no item '%s'", graph_file, psd_name.c_str(), element_name.c_str());
+               SDL_Log("%s: %s has no item '%s'", graph_file.c_str(), psd_name.c_str(), element_name.c_str());
                continue;
             }
-            graph->add(std::move(element));
+
+            graph->add({
+               .item = *item,
+               .north_item = page.getPageItem(unquoted(items[0])),
+               .south_item = page.getPageItem(unquoted(items[1])),
+               .east_item = page.getPageItem(unquoted(items[2])),
+               .west_item = page.getPageItem(unquoted(items[3])),
+            });
          }
          else if (items.size() == 1 && element_name == "default")
          {
-            graph->setDefaultPageItem(page->getPageItem(unquoted(items.front())));
+            graph->setDefaultPageItem(page.getPageItem(unquoted(items.front())));
          }
       }
 
@@ -115,16 +118,20 @@ void MenuControllerHandler::initialize()
    }
 }
 
-MenuControllerGraph* MenuControllerHandler::getCurrentGraph() const
+std::optional<std::reference_wrapper<MenuControllerGraph>> MenuControllerHandler::getCurrentGraph() const
 {
-   MenuPage* page = Menu::getInstance()->getCurrentPage();
+   const auto page = Menu::getInstance().getCurrentPage();
    if (!page)
    {
-      return nullptr;
+      return std::nullopt;
    }
 
-   const auto it = _graphs.find(page->getFilename());
-   return it != _graphs.end() ? it->second.get() : nullptr;
+   const auto it = _graphs.find(page->get().getFilename());
+   if (it != _graphs.end())
+   {
+      return *it->second;
+   }
+   return std::nullopt;
 }
 
 void MenuControllerHandler::buttonPressed(ControllerInput::Button button)
@@ -161,28 +168,30 @@ void MenuControllerHandler::processButtonQueue()
    const ControllerInput::Button button = _button_queue.front();
    _button_queue.pop_front();
 
-   MenuControllerGraph* graph = getCurrentGraph();
-   if (!graph)
+   const auto current_graph = getCurrentGraph();
+   if (!current_graph)
    {
       return;
    }
 
+   MenuControllerGraph& graph = *current_graph;
+
    switch (button)
    {
       case ControllerInput::ButtonUp:
-         graph->walk(MenuControllerGraph::Direction::North);
+         graph.walk(MenuControllerGraph::Direction::North);
          break;
       case ControllerInput::ButtonDown:
-         graph->walk(MenuControllerGraph::Direction::South);
+         graph.walk(MenuControllerGraph::Direction::South);
          break;
       case ControllerInput::ButtonLeft:
-         graph->walk(MenuControllerGraph::Direction::West);
+         graph.walk(MenuControllerGraph::Direction::West);
          break;
       case ControllerInput::ButtonRight:
-         graph->walk(MenuControllerGraph::Direction::East);
+         graph.walk(MenuControllerGraph::Direction::East);
          break;
       case ControllerInput::ButtonBomb:
-         graph->click();
+         graph.click();
          break;
       default:
          break;
@@ -196,9 +205,9 @@ void MenuControllerHandler::focusDefaultItem()
       return;
    }
 
-   if (MenuControllerGraph* graph = getCurrentGraph())
+   if (const auto graph = getCurrentGraph())
    {
-      graph->changeFocus(nullptr, graph->getDefaultPageItem());
+      graph->get().changeFocus(std::nullopt, graph->get().getDefaultPageItem());
    }
 }
 

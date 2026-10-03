@@ -42,7 +42,7 @@ void MenuPageButtonItem::draw()
    {
       if (_fade_out)
       {
-         PSDLayer* psd_layer = getActiveLayer();
+         PSDLayer& psd_layer = getActiveLayer()->get();
 
          _fade_value = 0.0f;
 
@@ -51,7 +51,7 @@ void MenuPageButtonItem::draw()
             _fade_value = std::cos(_focus_out_time.elapsed() * 0.005);
          }
 
-         psd_layer->render(0, 0, _fade_value);
+         psd_layer.render(0, 0, _fade_value);
 
          // either cos drops below 0.0 or focus out time exceeds 300ms
          if (_fade_value < 0.1f)

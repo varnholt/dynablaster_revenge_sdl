@@ -1,8 +1,10 @@
 #pragma once
 
-#include "psdlayer.h"
 #include "gamesignal.h"
+#include "psdlayer.h"
 
+#include <functional>
+#include <optional>
 #include <string>
 
 class MenuPageItem
@@ -33,17 +35,17 @@ public:
 
    // layer information
 
-   virtual void setActiveLayer(PSDLayer* layer);
+   virtual void setActiveLayer(PSDLayer& layer);
 
-   virtual void setInactiveLayer(PSDLayer* layer);
+   virtual void setInactiveLayer(PSDLayer& layer);
 
-   virtual PSDLayer* getLayer() const;
+   virtual std::optional<std::reference_wrapper<PSDLayer>> getLayer() const;
 
-   virtual PSD::Layer* getCurrentLayer();
+   std::optional<std::reference_wrapper<PSD::Layer>> getCurrentLayer() const;
 
-   virtual PSDLayer* getActiveLayer();
+   std::optional<std::reference_wrapper<PSDLayer>> getActiveLayer() const;
 
-   virtual PSDLayer* getInactiveLayer();
+   std::optional<std::reference_wrapper<PSDLayer>> getInactiveLayer() const;
 
    // main
 
@@ -109,12 +111,6 @@ public:
    //! mouse released
    virtual void mouseReleased();
 
-   //! getter for parent item
-   MenuPageItem* getParent() const;
-
-   //! setter for parent item
-   void setParent(MenuPageItem* value);
-
    //! action was triggered
    Signal<const std::string&> actionSignal;
 
@@ -153,9 +149,9 @@ protected:
 
    std::string _action;
 
-   // non-owning, the layers belong to the MenuPage
-   PSDLayer* _layer_active = nullptr;
-   PSDLayer* _layer_inactive = nullptr;
+   // the layers belong to the MenuPage
+   std::optional<std::reference_wrapper<PSDLayer>> _layer_active;
+   std::optional<std::reference_wrapper<PSDLayer>> _layer_inactive;
 
    bool _focussed = false;
    bool _interactive = false;
@@ -166,6 +162,4 @@ protected:
    bool _enabled = true;
 
    int _tab_index = -1;
-
-   MenuPageItem* _parent = nullptr;
 };

@@ -21,10 +21,10 @@
 #include "engine/nodes/scenegraph.h"
 
 #include "effects/spherefragments/spherefragmentsdrawable.h"
-#include "game/gamelogodrawable.h"
 #include "game/bombermanclient.h"
 #include "game/controllerinput.h"
 #include "game/controlspage.h"
+#include "game/gamelogodrawable.h"
 #include "game/localplayers.h"
 #include "game/menucontrollerhandler.h"
 
@@ -43,11 +43,11 @@
 #include <SDL3/SDL.h>
 
 #include <algorithm>
-#include <sstream>
 #include <array>
 #include <cstdint>
 #include <cstdlib>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -321,16 +321,15 @@ int main(int argc, char** argv)
       // isActive() directly, a static screenshot doesn't need the page transition.
       if (!page_name.empty())
       {
-         MenuPage* target_page = menu_drawable->getMenu()->getPageByName(page_name.c_str());
-         if (target_page)
+         if (const auto target_page = menu_drawable->getMenu().getPageByName(page_name))
          {
-            MenuPage* previous = menu_drawable->getMenu()->getCurrentPage();
-            if (previous && previous != target_page)
+            const auto previous = menu_drawable->getMenu().getCurrentPage();
+            if (previous && &previous->get() != &target_page->get())
             {
-               previous->setActive(false);
+               previous->get().setActive(false);
             }
-            target_page->setActive(true);
-            menu_drawable->getMenu()->setCurrentPage(target_page);
+            target_page->get().setActive(true);
+            menu_drawable->getMenu().setCurrentPage(*target_page);
          }
          else
          {
@@ -343,41 +342,40 @@ int main(int argc, char** argv)
       // own layers - not just page items - are queryable by name).
       if (!dump_layer.empty())
       {
-         const PSD::Layer* layer = nullptr;
-         for (const MenuPage* page : {menu_drawable->getMenu()->getCurrentPage(), menu_drawable->getMenu()->getBackground()})
+         std::optional<std::reference_wrapper<const PSD::Layer>> found_layer;
+         for (const auto& page : {menu_drawable->getMenu().getCurrentPage(), menu_drawable->getMenu().getBackground()})
          {
-            if (const auto found = page->getLayer(dump_layer); !layer && found != page->getLayers().end())
+            if (const auto found = page->get().getLayer(dump_layer); !found_layer && found != page->get().getLayers().end())
             {
-               layer = &*found;
+               found_layer = *found;
             }
          }
-         if (layer)
+         if (found_layer)
          {
+            const PSD::Layer& layer = *found_layer;
             SDL_Log(
                "layer %s: left=%d top=%d width=%d height=%d center=(%d,%d) opacity=%d",
                dump_layer.c_str(),
-               layer->getLeft(),
-               layer->getTop(),
-               layer->getWidth(),
-               layer->getHeight(),
-               layer->getLeft() + layer->getWidth() / 2,
-               layer->getTop() + layer->getHeight() / 2,
-               layer->getOpacity()
+               layer.getLeft(),
+               layer.getTop(),
+               layer.getWidth(),
+               layer.getHeight(),
+               layer.getLeft() + layer.getWidth() / 2,
+               layer.getTop() + layer.getHeight() / 2,
+               layer.getOpacity()
             );
 
             // decoded pixel alpha at several points, separates psd decode issues from blending issues
-            dumpLayerPixels(layer->getImage());
+            dumpLayerPixels(layer.getImage());
 
             // the gl texture ids the render path uses, to rule out a texture id mixup
-            MenuPageItem* background_item = menu_drawable->getMenu()->getBackground()->getPageItem("background_active");
-            if (background_item)
+            if (const auto background_item = menu_drawable->getMenu().getBackground()->get().getPageItem("background_active"))
             {
-               SDL_Log("  background page item's active-layer texture id=%u", background_item->getActiveLayer()->getTexture());
+               SDL_Log("  background page item's active-layer texture id=%u", background_item->get().getActiveLayer()->get().getTexture());
             }
-            MenuPageItem* login_item = menu_drawable->getMenu()->getCurrentPage()->getPageItem("login_window");
-            if (login_item)
+            if (const auto login_item = menu_drawable->getMenu().getCurrentPage()->get().getPageItem("login_window"))
             {
-               SDL_Log("  login_window page item's active-layer texture id=%u", login_item->getActiveLayer()->getTexture());
+               SDL_Log("  login_window page item's active-layer texture id=%u", login_item->get().getActiveLayer()->get().getTexture());
             }
          }
          else
@@ -388,16 +386,16 @@ int main(int argc, char** argv)
       }
 
       static ActionLogger action_logger;
-      menu_drawable->getMenu()->actionRequestSignal.connect([](const std::string& page, const std::string& action)
-                                                            { action_logger.onActionRequest(page, action); });
+      menu_drawable->getMenu().actionRequestSignal.connect([](const std::string& page, const std::string& action)
+                                                           { action_logger.onActionRequest(page, action); });
 
       // placeholder rows so the host-address dropdown has something to render when opened
-      MenuPageItem* host_table_item = menu_drawable->getMenu()->getCurrentPage()->getPageItem("editablecombobox_host_table");
-      if (auto* host_table = dynamic_cast<MenuPageEditableComboBoxItem*>(host_table_item))
+      if (const auto host_table =
+             menu_drawable->getMenu().getCurrentPage()->get().getPageItem<MenuPageEditableComboBoxItem>("editablecombobox_host_table"))
       {
-         host_table->appendItem("127.0.0.1");
-         host_table->appendItem("192.168.1.1");
-         host_table->appendItem("10.0.0.5");
+         host_table->get().appendItem("127.0.0.1");
+         host_table->get().appendItem("192.168.1.1");
+         host_table->get().appendItem("10.0.0.5");
       }
    }
    else
@@ -464,8 +462,9 @@ int main(int argc, char** argv)
          bomberman_client = std::make_unique<BombermanClient>();
          local_players = std::make_unique<LocalPlayers>(*controller_input, *bomberman_client);
          controls_page = std::make_unique<ControlsPage>(*menu_drawable, *controller_input, *local_players, *bomberman_client);
-         menu_drawable->getMenu()->actionRequestSignal.connect([page = controls_page.get()](const std::string& page_name, const std::string& action)
-                                                               { page->onActionRequest(page_name, action); });
+         menu_drawable->getMenu().actionRequestSignal.connect([page = controls_page.get()](
+                                                                 const std::string& page_name, const std::string& action
+                                                              ) { page->onActionRequest(page_name, action); });
          controller_input->buttonPressedSignal.connect([page = controls_page.get()](ControllerInput::Id id, ControllerInput::Button button)
                                                        { page->onControllerButtonPressed(id, button); });
       }
@@ -716,10 +715,10 @@ int main(int argc, char** argv)
 
       ++frame;
 
-      const bool controller_done = controller_script.empty() ||
-                                   (controller_step == controller_script.size() && SDL_GetTicks() - controller_step_start_ms > controller_step_ms);
-      const bool selftest_done = (menu_mode || logo3d_mode) ? (selftest && frame > 40 && controller_done)
-                                                            : (selftest && injector.finished() && frame > 40);
+      const bool controller_done = controller_script.empty() || (controller_step == controller_script.size() &&
+                                                                 SDL_GetTicks() - controller_step_start_ms > controller_step_ms);
+      const bool selftest_done =
+         (menu_mode || logo3d_mode) ? (selftest && frame > 40 && controller_done) : (selftest && injector.finished() && frame > 40);
 
       if (selftest_done && controls_page)
       {

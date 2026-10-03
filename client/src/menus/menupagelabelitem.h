@@ -4,6 +4,9 @@
 
 #include "math/color.h"
 
+#include <functional>
+#include <optional>
+
 class BitmapFont;
 
 class MenuPageLabelItem : public MenuPageItem
@@ -40,8 +43,8 @@ public:
 protected:
    std::string _font_name;
 
-   // non-owning, fonts belong to the FontPool
-   BitmapFont* _font = nullptr;
+   // fonts belong to the FontPool
+   std::optional<std::reference_wrapper<BitmapFont>> _font;
 
    std::string _text;
 

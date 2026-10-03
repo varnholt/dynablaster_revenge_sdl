@@ -10,14 +10,14 @@
 #include "menus/gamefonts.h"
 #include "tools/datapaths.h"
 
+#include "bombmapitem.h"
 #include "constants.h"
+#include "extramapitem.h"
 #include "game/bombermanclient.h"
 #include "game/gamedrawable.h"
 #include "game/gamesettings.h"
 #include "game/videooutput.h"
 #include "gameinformation.h"
-#include "bombmapitem.h"
-#include "extramapitem.h"
 #include "playerinfo.h"
 
 #include <SDL3/SDL.h>
@@ -162,10 +162,10 @@ int runEffectLab(const std::string& effect, const std::string& out_dir, const st
    game.setPlayerPosition(OTHER_PLAYER_ID, 4.5f, 5.5f, 0.0f);
 
    // captures mustn't depend on the local video options
-   auto* video_settings = GameSettings::getInstance()->getVideoSettings();
-   video_settings->setResolution(1);
-   video_settings->setAntialias(1);
-   video_settings->setBrightness(0.5f);
+   auto& video_settings = GameSettings::getInstance().getVideoSettings();
+   video_settings.setResolution(1);
+   video_settings.setAntialias(1);
+   video_settings.setBrightness(0.5f);
    VideoOutput video_output(device);
 
    const int32_t last_frame = TRIGGER_FRAME + (effect == "snow" ? LONG_CAPTURE_OFFSETS.back() : CAPTURE_OFFSETS.back());

@@ -4,6 +4,7 @@
 #include "render/texture.h"
 
 #include <cstdint>
+#include <functional>
 
 /// \brief renders one PSD layer as a textured quad through whichever shader the caller has bound
 /// (normally the shared menu shader, see defaultshader.h); opacity goes into its "alpha" uniform.
@@ -24,11 +25,10 @@ public:
       float v = 0.0f;
    };
 
-   PSDLayer() = default;
    PSDLayer(PSD::Layer& layer, float z = -1.0f, bool unwrap = true);
    virtual ~PSDLayer() = default;
 
-   PSD::Layer* getLayer() const;
+   PSD::Layer& getLayer() const;
    uint32_t getTexture() const;
    uint32_t getVertexBuffer() const;
    uint32_t getIndexBuffer() const;
@@ -48,8 +48,8 @@ public:
    int getBottom() const;
 
 private:
-   // non-owning, the layer belongs to its PSD
-   PSD::Layer* _layer = nullptr;
+   // the layer belongs to its PSD
+   std::reference_wrapper<PSD::Layer> _layer;
    Texture _texture;
    uint32_t _vertex_buffer = 0;
    uint32_t _index_buffer = 0;

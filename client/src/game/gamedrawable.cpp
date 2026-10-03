@@ -108,10 +108,10 @@ void GameDrawable::setVisible(bool visible)
    if (visible)
    {
       // reload camera settings from gameplay settings
-      GameSettings::GameplaySettings* settings = GameSettings::getInstance()->getGameplaySettings();
+      GameSettings::GameplaySettings& settings = GameSettings::getInstance().getGameplaySettings();
 
-      _camera_follows_player = settings->isCameraFollowingPlayer();
-      _camera_shake_intensity = settings->getCameraShakeIntensity();
+      _camera_follows_player = settings.isCameraFollowingPlayer();
+      _camera_shake_intensity = settings.getCameraShakeIntensity();
 
       // reset
       _time_reset = true;

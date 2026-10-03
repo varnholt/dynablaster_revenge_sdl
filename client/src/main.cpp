@@ -12,17 +12,17 @@
 #include "framework/timerhandler.h"
 #include "timer.h"
 
+#include "game/controllerinput.h"
+#include "game/controllertestview.h"
+#include "game/controlspage.h"
 #include "game/countdowndrawable.h"
 #include "game/gamedrawable.h"
-#include "game/controllerinput.h"
-#include "game/controlspage.h"
-#include "game/controllertestview.h"
-#include "game/gamesettings.h"
-#include "game/localplayers.h"
-#include "game/menucontrollerhandler.h"
 #include "game/gamelogodrawable.h"
 #include "game/gamemessagingdrawable.h"
+#include "game/gamesettings.h"
 #include "game/gamewindrawable.h"
+#include "game/localplayers.h"
+#include "game/menucontrollerhandler.h"
 #include "game/musicplayerdrawable.h"
 #include "game/roundsdrawable.h"
 #include "game/soundmanager.h"
@@ -83,10 +83,10 @@ SDL_Keycode mapEditingKey(SDL_Keycode key)
 /// \brief the keys of GameSettings::ControllerSettings, as set on the controls options page
 bool isConfiguredGameKey(SDL_Keycode key)
 {
-   const auto* controls = GameSettings::getInstance()->getControllerSettings();
-   return key == controls->getUpKey() || key == controls->getDownKey() || key == controls->getLeftKey() ||
-          key == controls->getRightKey() || key == controls->getBombKey() || key == controls->getZoomInKey() ||
-          key == controls->getZoomOutKey() || key == controls->getStartKey();
+   const auto& controls = GameSettings::getInstance().getControllerSettings();
+   return key == controls.getUpKey() || key == controls.getDownKey() || key == controls.getLeftKey() || key == controls.getRightKey() ||
+          key == controls.getBombKey() || key == controls.getZoomInKey() || key == controls.getZoomOutKey() ||
+          key == controls.getStartKey();
 }
 
 /// \brief allow-lists the keys the game side handles: the configured keymap of
@@ -123,9 +123,9 @@ SDL_Keycode mapGameKey(SDL_Keycode key)
 /// rief the keys that move the player and drop bombs, see GameSettings::ControllerSettings
 bool isMovementKey(SDL_Keycode key)
 {
-   const auto* controls = GameSettings::getInstance()->getControllerSettings();
-   return key == controls->getUpKey() || key == controls->getDownKey() || key == controls->getLeftKey() ||
-          key == controls->getRightKey() || key == controls->getBombKey();
+   const auto& controls = GameSettings::getInstance().getControllerSettings();
+   return key == controls.getUpKey() || key == controls.getDownKey() || key == controls.getLeftKey() || key == controls.getRightKey() ||
+          key == controls.getBombKey();
 }
 
 }  // namespace
@@ -157,9 +157,9 @@ int main(int /*argc*/, char** /*argv*/)
    bomberman_client.initialize();
 
    // the last windowed size, 1024x576 (16:9 like the menu's page space) by default
-   const auto* video_settings = GameSettings::getInstance()->getVideoSettings();
-   const int window_width = video_settings->getWidth() > 0 ? video_settings->getWidth() : 1024;
-   const int window_height = video_settings->getHeight() > 0 ? video_settings->getHeight() : 576;
+   const auto& video_settings = GameSettings::getInstance().getVideoSettings();
+   const int window_width = video_settings.getWidth() > 0 ? video_settings.getWidth() : 1024;
+   const int window_height = video_settings.getHeight() > 0 ? video_settings.getHeight() : 576;
 
    GlesContext context;
    if (!context.init("Dynablaster Revenge", window_width, window_height))
@@ -215,8 +215,8 @@ int main(int /*argc*/, char** /*argv*/)
 
    // turns button clicks (Menu::actionRequest) into page navigation
    MenuPageNavigator navigator;
-   menu_drawable.getMenu()->actionRequestSignal.connect([&](const std::string& page, const std::string& action)
-                                                        { navigator.onActionRequest(page, action); });
+   menu_drawable.getMenu().actionRequestSignal.connect([&](const std::string& page, const std::string& action)
+                                                       { navigator.onActionRequest(page, action); });
    navigator.pageChangeRequestSignal.connect([&](const std::string& page) { menu_drawable.pageChangeRequest(page); });
 
    // fullscreen, vsync and the fps title, at startup and whenever the video options are stored
@@ -228,9 +228,9 @@ int main(int /*argc*/, char** /*argv*/)
    menu_drawable.pageChangedSignal.connect([&](const std::string& page) { navigator.onPageChanged(page); });
 
    // menu hover/click sound feedback
-   menu_drawable.getMenu()->layerFocussedSignal.connect([](const std::string& page, const std::string& item)
-                                                        { SoundManager::getInstance()->playSoundMouseOver(page, item); });
-   menu_drawable.pageChangedSignal.connect([](const std::string& page) { SoundManager::getInstance()->playSoundMouseClick(page); });
+   menu_drawable.getMenu().layerFocussedSignal.connect([](const std::string& page, const std::string& item)
+                                                       { SoundManager::getInstance().playSoundMouseOver(page, item); });
+   menu_drawable.pageChangedSignal.connect([](const std::string& page) { SoundManager::getInstance().playSoundMouseClick(page); });
 
    // in-game rendering, starts hidden; showGame/showMenu below toggle it against the menu
    GameDrawable game_drawable(&device);
@@ -259,9 +259,8 @@ int main(int /*argc*/, char** /*argv*/)
    music_player_drawable.initializeGL();
 
    // client <-> game wiring
-   SoundManager::getInstance()->trackChangedSignal.connect([&](
-                                                              const std::string& artist, const std::string& album, const std::string& track
-                                                           ) { music_player_drawable.showCurrentlyPlaying(artist, album, track); });
+   SoundManager::getInstance().trackChangedSignal.connect([&](const std::string& artist, const std::string& album, const std::string& track)
+                                                          { music_player_drawable.showCurrentlyPlaying(artist, album, track); });
    game_drawable.level_loaded_signal.connect([&](const std::string& path) { bomberman_client.levelLoaded(path); });
    bomberman_client.loadLevelSignal.connect([&](const std::string& level) { game_drawable.loadLevel(level); });
    bomberman_client.shakeBlockSignal.connect([&](MapItem* item) { game_drawable.shakeBlock(item); });
@@ -336,7 +335,7 @@ int main(int /*argc*/, char** /*argv*/)
    MenuControllerHandler menu_controller_handler(menu_drawable, menu_cursor, controller_input);
    menu_controller_handler.initialize();
    controller_input.buttonPressedSignal.connect([&](ControllerInput::Id, ControllerInput::Button button)
-                                             { menu_controller_handler.buttonPressed(button); });
+                                                { menu_controller_handler.buttonPressed(button); });
    menu_drawable.pageChangedSignal.connect([&](const std::string&) { menu_controller_handler.focusDefaultItem(); });
 
    // the controller picture and stick calibration of the controls options
@@ -351,10 +350,10 @@ int main(int /*argc*/, char** /*argv*/)
    ControlsPage controls_page(menu_drawable, controller_input, local_players, bomberman_client);
    navigator.setBotsWaitCondition([&]() { return local_players.isJoining(); });
    navigator.setJoinHandler([&](int game_id, const std::string& return_page) { return controls_page.open(game_id, return_page); });
-   menu_drawable.getMenu()->actionRequestSignal.connect([&](const std::string& page, const std::string& action)
-                                                        { controls_page.onActionRequest(page, action); });
+   menu_drawable.getMenu().actionRequestSignal.connect([&](const std::string& page, const std::string& action)
+                                                       { controls_page.onActionRequest(page, action); });
    controller_input.buttonPressedSignal.connect([&](ControllerInput::Id id, ControllerInput::Button button)
-                                             { controls_page.onControllerButtonPressed(id, button); });
+                                                { controls_page.onControllerButtonPressed(id, button); });
 #endif
 
    // movement keys steer the main player unless the keyboard belongs to another local player
@@ -368,7 +367,7 @@ int main(int /*argc*/, char** /*argv*/)
    };
 
    // background music
-   SoundManager::getInstance()->startPlaylist();
+   SoundManager::getInstance().startPlaylist();
 
    bool running = true;
    navigator.quitRequestSignal.connect([&running]() { running = false; });
@@ -377,18 +376,21 @@ int main(int /*argc*/, char** /*argv*/)
    VideoOutput video_output(device);
 
    const std::array<std::reference_wrapper<Drawable>, 6> animated_drawables{
-      logo_drawable, game_drawable, countdown_drawable, rounds_drawable, game_win_drawable, music_player_drawable};
+      logo_drawable, game_drawable, countdown_drawable, rounds_drawable, game_win_drawable, music_player_drawable
+   };
 
    // in drawing order
-   const std::array<std::reference_wrapper<Drawable>, 9> painted_drawables{menu_drawable,
-                                                                           menu_cursor,
-                                                                           logo_drawable,
-                                                                           game_drawable,
-                                                                           game_messaging_drawable,
-                                                                           countdown_drawable,
-                                                                           rounds_drawable,
-                                                                           game_win_drawable,
-                                                                           music_player_drawable};
+   const std::array<std::reference_wrapper<Drawable>, 9> painted_drawables{
+      menu_drawable,
+      menu_cursor,
+      logo_drawable,
+      game_drawable,
+      game_messaging_drawable,
+      countdown_drawable,
+      rounds_drawable,
+      game_win_drawable,
+      music_player_drawable
+   };
 
    // a std::function so Emscripten can drive it from requestAnimationFrame, a blocking loop
    // would freeze the browser tab

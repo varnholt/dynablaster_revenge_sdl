@@ -1,5 +1,7 @@
 #include "gamesettings.h"
 
+#include "tools/singleton.h"
+
 #include <cstdint>
 
 #ifdef __SWITCH__
@@ -39,12 +41,8 @@
 #define DEFAULT_GAMEPLAY_CAMERA_SHAKE_INTENSITY 1.0f
 #define DEFAULT_GAMEPLAY_CAMERA_FOLLOWS_PLAYER true
 
-GameSettings* GameSettings::s_settings = nullptr;
-
 GameSettings::GameSettings()
 {
-   s_settings = this;
-
    // create settings instances
    _development_settings = std::make_unique<DevelopmentSettings>();
    _audio_settings = std::make_unique<AudioSettings>();
@@ -60,32 +58,29 @@ GameSettings::GameSettings()
    _create_game_settings_single->setSinglePlayer(true);
    _create_game_settings_multi->setSinglePlayer(false);
 
-   _settings.push_back(_development_settings.get());
-   _settings.push_back(_audio_settings.get());
-   _settings.push_back(_gameplay_settings.get());
-   _settings.push_back(_login_settings.get());
-   _settings.push_back(_video_settings.get());
-   _settings.push_back(_controller_settings.get());
-   _settings.push_back(_create_game_settings_single.get());
-   _settings.push_back(_create_game_settings_multi.get());
-   _settings.push_back(_style_settings.get());
+   _settings.push_back(*_development_settings);
+   _settings.push_back(*_audio_settings);
+   _settings.push_back(*_gameplay_settings);
+   _settings.push_back(*_login_settings);
+   _settings.push_back(*_video_settings);
+   _settings.push_back(*_controller_settings);
+   _settings.push_back(*_create_game_settings_single);
+   _settings.push_back(*_create_game_settings_multi);
+   _settings.push_back(*_style_settings);
 
    // deserialize settings data
-   for (SettingsPrivate* settings : _settings)
-      settings->deserialize();
+   for (SettingsPrivate& settings : _settings)
+      settings.deserialize();
 }
 
 GameSettings::~GameSettings() = default;
 
-GameSettings* GameSettings::getInstance()
+GameSettings& GameSettings::getInstance()
 {
-   if (!s_settings)
-      new GameSettings();
-
-   return s_settings;
+   return Singleton<GameSettings>::Instance();
 }
 
-const char* GameSettings::getFilename()
+std::string GameSettings::getFilename()
 {
    return SETTINGS_FILE;
 }
@@ -110,62 +105,62 @@ void GameSettings::SettingsPrivate::restoreDefaults()
 {
 }
 
-GameSettings::DevelopmentSettings* GameSettings::getDevelopmentSettings()
+GameSettings::DevelopmentSettings& GameSettings::getDevelopmentSettings()
 {
-   return _development_settings.get();
+   return *_development_settings;
 }
 
-GameSettings::StyleSettings* GameSettings::getStyleSettings()
+GameSettings::StyleSettings& GameSettings::getStyleSettings()
 {
-   return _style_settings.get();
+   return *_style_settings;
 }
 
-GameSettings::GameplaySettings* GameSettings::getGameplaySettings()
+GameSettings::GameplaySettings& GameSettings::getGameplaySettings()
 {
-   return _gameplay_settings.get();
+   return *_gameplay_settings;
 }
 
-GameSettings::AudioSettings* GameSettings::getAudioSettings()
+GameSettings::AudioSettings& GameSettings::getAudioSettings()
 {
-   return _audio_settings.get();
+   return *_audio_settings;
 }
 
-GameSettings::LoginSettings* GameSettings::getLoginSettings()
+GameSettings::LoginSettings& GameSettings::getLoginSettings()
 {
-   return _login_settings.get();
+   return *_login_settings;
 }
 
-GameSettings::VideoSettings* GameSettings::getVideoSettings()
+GameSettings::VideoSettings& GameSettings::getVideoSettings()
 {
-   return _video_settings.get();
+   return *_video_settings;
 }
 
-GameSettings::VideoSettings* GameSettings::getVideoSettingsBackup()
+GameSettings::VideoSettings& GameSettings::getVideoSettingsBackup()
 {
-   return _video_settings_backup.get();
+   return *_video_settings_backup;
 }
 
-GameSettings::CreateGameSettings* GameSettings::getCreateGameSettingsSingle()
+GameSettings::CreateGameSettings& GameSettings::getCreateGameSettingsSingle()
 {
-   return _create_game_settings_single.get();
+   return *_create_game_settings_single;
 }
 
-GameSettings::CreateGameSettings* GameSettings::getCreateGameSettingsMulti()
+GameSettings::CreateGameSettings& GameSettings::getCreateGameSettingsMulti()
 {
-   return _create_game_settings_multi.get();
+   return *_create_game_settings_multi;
 }
 
-GameSettings::ControllerSettings* GameSettings::getControllerSettings()
+GameSettings::ControllerSettings& GameSettings::getControllerSettings()
 {
-   return _controller_settings.get();
+   return *_controller_settings;
 }
 
 void GameSettings::serialize()
 {
-   getAudioSettings()->serialize();
-   getVideoSettings()->serialize();
-   getControllerSettings()->serialize();
-   getGameplaySettings()->serialize();
+   getAudioSettings().serialize();
+   getVideoSettings().serialize();
+   getControllerSettings().serialize();
+   getGameplaySettings().serialize();
 }
 
 GameSettings::AudioSettings::AudioSettings()
@@ -1135,21 +1130,21 @@ void GameSettings::VideoSettings::deserialize()
    setBorderBottom(value("video/borderbottom", DEFAULT_VIDEO_BORDERBOTTOM).toInt());
 }
 
-void GameSettings::VideoSettings::duplicate(GameSettings::VideoSettings* dest, GameSettings::VideoSettings* src)
+void GameSettings::VideoSettings::duplicate(GameSettings::VideoSettings& dest, const GameSettings::VideoSettings& src)
 {
-   dest->setWidth(src->getWidth());
-   dest->setHeight(src->getHeight());
-   dest->setResolution(src->getResolution());
-   dest->setAntialias(src->getAntialias());
-   dest->setFullscreen(src->isFullscreen());
-   dest->setBrightness(src->getBrightness());
-   dest->setVSync(src->getVSync());
-   dest->setShowFps(src->isFpsShown());
-   dest->setZoom(src->getZoom());
-   dest->setBorderLeft(src->getBorderLeft());
-   dest->setBorderTop(src->getBorderTop());
-   dest->setBorderRight(src->getBorderRight());
-   dest->setBorderBottom(src->getBorderBottom());
+   dest.setWidth(src.getWidth());
+   dest.setHeight(src.getHeight());
+   dest.setResolution(src.getResolution());
+   dest.setAntialias(src.getAntialias());
+   dest.setFullscreen(src.isFullscreen());
+   dest.setBrightness(src.getBrightness());
+   dest.setVSync(src.getVSync());
+   dest.setShowFps(src.isFpsShown());
+   dest.setZoom(src.getZoom());
+   dest.setBorderLeft(src.getBorderLeft());
+   dest.setBorderTop(src.getBorderTop());
+   dest.setBorderRight(src.getBorderRight());
+   dest.setBorderBottom(src.getBorderBottom());
 }
 
 void GameSettings::VideoSettings::restoreDefaults()

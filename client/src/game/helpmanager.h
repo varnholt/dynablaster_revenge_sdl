@@ -9,7 +9,10 @@
 class HelpManager
 {
 public:
-   static HelpManager* getInstance();
+   //! the instance is never destroyed
+   static HelpManager& getInstance();
+
+   HelpManager();
 
    // no live consumer ported yet - client/src/game/gamehelpdrawable.cpp (the toast HUD
    // that subscribed to this) hasn't been ported to client-sdl.
@@ -22,11 +25,6 @@ public:
       Constants::HelpLocation location = Constants::HelpLocationTopRight,
       int delay = 0
    );
-
-protected:
-   HelpManager();
-
-   static HelpManager* sInstance;
 };
 
 #endif  // HELPMANAGER_H

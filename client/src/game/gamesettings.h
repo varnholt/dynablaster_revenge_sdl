@@ -1,6 +1,7 @@
 #ifndef GAMESETTINGS_H
 #define GAMESETTINGS_H
 
+#include <functional>
 #include <map>
 #include <string>
 #include <unordered_map>
@@ -415,7 +416,7 @@ public:
       void deserialize() override;
 
       //! backup video settings
-      static void duplicate(VideoSettings* dest, VideoSettings* src);
+      static void duplicate(VideoSettings& dest, const VideoSettings& src);
 
       //! restore video settings
       void restoreDefaults() override;
@@ -711,52 +712,52 @@ public:
       Constants::Dimension _dimensions = Constants::DimensionInvalid;
    };
 
+   //! constructor, use getInstance()
+   GameSettings();
+
    //! destructor
    virtual ~GameSettings();
 
-   //! instance getter
-   static GameSettings* getInstance();
+   //! instance getter, the instance is never destroyed
+   static GameSettings& getInstance();
 
    //! the ini file all settings live in
-   static const char* getFilename();
+   static std::string getFilename();
 
    //! getter for development settings
-   DevelopmentSettings* getDevelopmentSettings();
+   DevelopmentSettings& getDevelopmentSettings();
 
    //! getter for style settings
-   StyleSettings* getStyleSettings();
+   StyleSettings& getStyleSettings();
 
    //! getter for gameplay settings
-   GameplaySettings* getGameplaySettings();
+   GameplaySettings& getGameplaySettings();
 
    //! getter for audio settings
-   AudioSettings* getAudioSettings();
+   AudioSettings& getAudioSettings();
 
    //! getter for login settings
-   LoginSettings* getLoginSettings();
+   LoginSettings& getLoginSettings();
 
    //! getter for video settings
-   VideoSettings* getVideoSettings();
+   VideoSettings& getVideoSettings();
 
    //! getter for video settings backup
-   VideoSettings* getVideoSettingsBackup();
+   VideoSettings& getVideoSettingsBackup();
 
    //! getter for creategame settings
-   CreateGameSettings* getCreateGameSettingsSingle();
+   CreateGameSettings& getCreateGameSettingsSingle();
 
    //! getter for creategame settings
-   CreateGameSettings* getCreateGameSettingsMulti();
+   CreateGameSettings& getCreateGameSettingsMulti();
 
    //! getter for controller settings
-   ControllerSettings* getControllerSettings();
+   ControllerSettings& getControllerSettings();
 
    //! store all options (audio/video/controller)
    void serialize();
 
 protected:
-   //! constructor
-   GameSettings();
-
    //! development setting
    std::unique_ptr<DevelopmentSettings> _development_settings;
 
@@ -787,11 +788,8 @@ protected:
    //! design settings
    std::unique_ptr<StyleSettings> _style_settings;
 
-   //! singleton instance
-   static GameSettings* s_settings;
-
    //! list of settings
-   std::vector<SettingsPrivate*> _settings;
+   std::vector<std::reference_wrapper<SettingsPrivate>> _settings;
 };
 
 #endif  // GAMESETTINGS_H

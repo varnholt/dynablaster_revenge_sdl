@@ -2,16 +2,19 @@
 
 #include <algorithm>
 
-Menu* Menu::_instance = nullptr;
+std::optional<std::reference_wrapper<Menu>> Menu::_instance;
 
 Menu::Menu()
 {
    _settings = std::make_unique<Settings>("data/menus/menu.ini", Settings::IniFormat);
 
-   _instance = this;
+   _instance = *this;
 }
 
-Menu::~Menu() = default;
+Menu::~Menu()
+{
+   _instance.reset();
+}
 
 void Menu::initialize()
 {
@@ -43,12 +46,12 @@ void Menu::initialize()
       // assign "special" pages
       if (filename.contains("background"))
       {
-         _background = page.get();
+         _background = *page;
       }
       else if (!default_assigned)
       {
-         _current_page = page.get();
-         _current_page->setActive(true);
+         _current_page = *page;
+         page->setActive(true);
          default_assigned = true;
       }
 
@@ -58,7 +61,7 @@ void Menu::initialize()
    // the background page is always rendered first
    if (_background)
    {
-      const auto background = std::ranges::find_if(_pages, [this](const auto& page) { return page.get() == _background; });
+      const auto background = std::ranges::find_if(_pages, [this](const auto& page) { return page.get() == &_background->get(); });
 
       if (background != _pages.end())
       {
@@ -69,16 +72,16 @@ void Menu::initialize()
    _settings->endGroup();
 }
 
-Menu* Menu::getInstance()
+Menu& Menu::getInstance()
 {
-   return _instance;
+   return _instance->get();
 }
 
 void Menu::mouseMoved(int x, int y)
 {
    if (_current_page)
    {
-      _current_page->mouseMoved(x, y);
+      _current_page->get().mouseMoved(x, y);
    }
 }
 
@@ -86,7 +89,7 @@ void Menu::mousePressed(int x, int y)
 {
    if (_current_page)
    {
-      _current_page->mousePressed(x, y);
+      _current_page->get().mousePressed(x, y);
    }
 }
 
@@ -94,7 +97,7 @@ void Menu::mouseReleased()
 {
    if (_current_page)
    {
-      _current_page->mouseReleased();
+      _current_page->get().mouseReleased();
    }
 }
 
@@ -102,7 +105,7 @@ void Menu::keyPressed(int key, const std::string& text)
 {
    if (_current_page)
    {
-      _current_page->keyPressed(key, text);
+      _current_page->get().keyPressed(key, text);
    }
 }
 
@@ -110,46 +113,40 @@ void Menu::paste(const std::string& text)
 {
    if (_current_page)
    {
-      _current_page->paste(text);
+      _current_page->get().paste(text);
    }
 }
 
-void Menu::setCurrentPage(MenuPage* page)
+void Menu::setCurrentPage(MenuPage& page)
 {
    _current_page = page;
 }
 
-MenuPage* Menu::getCurrentPage()
+std::optional<std::reference_wrapper<MenuPage>> Menu::getCurrentPage() const
 {
    return _current_page;
 }
 
-MenuPage* Menu::getBackground()
+std::optional<std::reference_wrapper<MenuPage>> Menu::getBackground() const
 {
    return _background;
-}
-
-void Menu::setMenuWorkflow(MenuWorkflow* workflow)
-{
-   _menu_workflow = workflow;
 }
 
 void Menu::actionResponse(const std::string& /*page*/, const std::string& /*action*/, bool /*ok*/)
 {
 }
 
-MenuPage* Menu::getPageByName(const std::string& page_name)
+std::optional<std::reference_wrapper<MenuPage>> Menu::getPageByName(const std::string& page_name) const
 {
    const auto iterator = std::ranges::find_if(_pages, [&page_name](const auto& page) { return page->getFilename() == page_name; });
-   return iterator != _pages.end() ? iterator->get() : nullptr;
+   if (iterator != _pages.end())
+   {
+      return **iterator;
+   }
+   return std::nullopt;
 }
 
 const std::vector<std::unique_ptr<MenuPage>>& Menu::getPages() const
 {
    return _pages;
-}
-
-MenuWorkflow* Menu::getMenuWorkflow() const
-{
-   return _menu_workflow;
 }

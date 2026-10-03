@@ -4,8 +4,10 @@
 #include "gamesignal.h"
 #include "menus/menupageitem.h"
 
+#include <cstddef>
 #include <cstdint>
-#include <memory>
+#include <functional>
+#include <optional>
 #include <vector>
 
 class MenuControllerCursorAnimation;
@@ -28,17 +30,21 @@ public:
       West
    };
 
+   using OptionalItem = std::optional<std::reference_wrapper<MenuPageItem>>;
+
    struct Element
    {
-      MenuPageItem* item = nullptr;
-      MenuPageItem* north_item = nullptr;
-      MenuPageItem* south_item = nullptr;
-      MenuPageItem* east_item = nullptr;
-      MenuPageItem* west_item = nullptr;
-      Element* north = nullptr;
-      Element* south = nullptr;
-      Element* east = nullptr;
-      Element* west = nullptr;
+      std::reference_wrapper<MenuPageItem> item;
+      OptionalItem north_item;
+      OptionalItem south_item;
+      OptionalItem east_item;
+      OptionalItem west_item;
+
+      // indices into the graph's elements, resolved by link()
+      std::optional<size_t> north;
+      std::optional<size_t> south;
+      std::optional<size_t> east;
+      std::optional<size_t> west;
    };
 
    explicit MenuControllerGraph(MenuControllerCursorAnimation& animation);
@@ -46,16 +52,16 @@ public:
    MenuControllerGraph& operator=(const MenuControllerGraph&) = delete;
    ~MenuControllerGraph();
 
-   void add(std::unique_ptr<Element> element);
+   void add(Element element);
 
    /// \brief resolves the neighbour items to their elements once all elements are added
    void link();
 
-   MenuPageItem* getDefaultPageItem() const;
-   void setDefaultPageItem(MenuPageItem* item);
+   OptionalItem getDefaultPageItem() const;
+   void setDefaultPageItem(OptionalItem item);
 
    /// \brief moves the cursor onto the next item
-   void changeFocus(MenuPageItem* current_item, MenuPageItem* next_item);
+   void changeFocus(OptionalItem current_item, OptionalItem next_item);
 
    void walk(Direction direction);
    void click();
@@ -65,28 +71,29 @@ public:
 
 private:
    void mouseMove(int32_t x, int32_t y);
-   MenuPageItem* internalNavigation(Direction direction);
-   MenuPageItem* getModalItem() const;
-   MenuPageComboBoxItem* getVisibleCombobox() const;
-   MenuPageComboBoxItem* getComboBoxForButton(MenuPageItem* button) const;
-   MenuPageItem* getActiveItem(MenuPageItem::PageItemType type) const;
-   MenuPageSliderItem* getActiveSlider() const;
-   MenuPageTextEditItem* getEditingActiveTextEdit() const;
-   Element* getFocussedElement() const;
+   OptionalItem internalNavigation(Direction direction);
+   OptionalItem getModalItem() const;
+   std::optional<std::reference_wrapper<MenuPageComboBoxItem>> getVisibleCombobox() const;
+   std::optional<std::reference_wrapper<MenuPageComboBoxItem>> getComboBoxForButton(const MenuPageItem& button) const;
+   OptionalItem getActiveItem(MenuPageItem::PageItemType type) const;
+   std::optional<std::reference_wrapper<MenuPageSliderItem>> getActiveSlider() const;
+   std::optional<std::reference_wrapper<MenuPageTextEditItem>> getEditingActiveTextEdit() const;
+   std::optional<size_t> findElement(const MenuPageItem& item) const;
+   std::optional<size_t> getFocussedElement() const;
    void autoAdjust();
-   void buttonForComboBox(Element* current, MenuPageComboBoxItem* visible_combobox);
-   void buttonForSlider(MenuPageSliderItem* activated_slider);
-   void buttonForLists(Element* current);
-   void buttonForTextEdit(MenuPageTextEditItem* text_edit);
+   void buttonForComboBox(std::optional<size_t> current, std::optional<std::reference_wrapper<MenuPageComboBoxItem>> visible_combobox);
+   void buttonForSlider(std::optional<std::reference_wrapper<MenuPageSliderItem>> activated_slider);
+   void buttonForLists(std::optional<size_t> current);
+   void buttonForTextEdit(std::optional<std::reference_wrapper<MenuPageTextEditItem>> text_edit);
    void updateComboboxFocus(bool visible);
    void disconnectCombobox();
 
    MenuControllerCursorAnimation& _animation;
-   std::vector<std::unique_ptr<Element>> _elements;
-   MenuPageItem* _default_page_item = nullptr;
+   std::vector<Element> _elements;
+   OptionalItem _default_page_item;
    CharCycling _char_cycling;
 
    // one-shot: an opened combobox moves the cursor onto its value once it's visible
-   MenuPageComboBoxItem* _opened_combobox = nullptr;
+   std::optional<std::reference_wrapper<MenuPageComboBoxItem>> _opened_combobox;
    Signal<bool>::Connection _combobox_visible_connection = 0;
 };

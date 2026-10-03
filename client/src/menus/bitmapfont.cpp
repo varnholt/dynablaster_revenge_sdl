@@ -9,11 +9,12 @@
 
 #include <algorithm>
 #include <array>
+#include <cstring>
 #include <vector>
 
 BitmapFont::BitmapFont(
-   const char* filename,
-   Parameter* description,
+   const std::string& filename,
+   std::span<const Parameter> description,
    float size,
    float spacing,
    float distance_radius,
@@ -55,7 +56,7 @@ BitmapFont::BitmapFont(
 
 bool BitmapFont::isCharAvailable(char c) const
 {
-   return getCharParameter(c) != nullptr;
+   return getCharParameter(c).has_value();
 }
 
 void BitmapFont::setOutlineColor(float r, float g, float b, float a)
@@ -82,19 +83,19 @@ void BitmapFont::setColor(float r, float g, float b, float a)
    _color_alpha = a;
 }
 
-BitmapFont::Parameter* BitmapFont::getCharParameter(char c) const
+std::optional<BitmapFont::Parameter> BitmapFont::getCharParameter(char c) const
 {
    // only 7-bit ascii has glyphs; char is unsigned on some platforms (ARM)
    const auto code = static_cast<uint8_t>(c);
    if (code < 128)
    {
-      return &_description[code];
+      return _description[code];
    }
 
-   return nullptr;
+   return std::nullopt;
 }
 
-float BitmapFont::buildVertices(float size, const char* text, float x, float y, float center_width, float center_height)
+float BitmapFont::buildVertices(float size, std::string_view text, float x, float y, float center_width, float center_height)
 {
    _vertices.clear();
 
@@ -109,9 +110,9 @@ float BitmapFont::buildVertices(float size, const char* text, float x, float y, 
    if (center_width >= 0.0f)
    {
       float width = 0.0f;
-      for (const char* character = text; *character; ++character)
+      for (const char character : text)
       {
-         if (const Parameter* param = getCharParameter(*character))
+         if (const auto param = getCharParameter(character))
          {
             width += (param->space + _spacing);
          }
@@ -124,17 +125,21 @@ float BitmapFont::buildVertices(float size, const char* text, float x, float y, 
    if (center_height >= 0.0f)
    {
       float height = center_height;
-      if (const Parameter* param = getCharParameter('M'))
+      if (const auto param = getCharParameter('M'))
       {
          height = (param->height - _radius * 2) * size;
       }
       y -= (center_height - height) * 0.5f;
    }
 
-   while (*text)
+   for (const char c : text)
    {
-      const char c = *text++;
-      const Parameter* param = getCharParameter(c);
+      // no glyph, nothing to draw
+      const auto param = getCharParameter(c);
+      if (!param)
+      {
+         continue;
+      }
 
       const float x_left = x - (param->basecolumn) * size;
       const float x_right = x - (param->basecolumn - param->width) * size;
@@ -213,8 +218,7 @@ void BitmapFont::draw(const std::vector<Vertex>& vertices, const Matrix& transfo
       activeDevice->allocateVertexBuffer(_vertex_buffer, size, true);
    }
 
-   auto* destination = static_cast<float*>(activeDevice->lockVertexBuffer(_vertex_buffer, size));
-   std::ranges::copy(data, destination);
+   std::memcpy(activeDevice->lockVertexBuffer(_vertex_buffer, size), data.data(), data.size() * sizeof(float));
    activeDevice->unlockVertexBuffer(_vertex_buffer);
 
    glBindBuffer(GL_ARRAY_BUFFER, _vertex_buffer);
@@ -248,21 +252,21 @@ void BitmapFont::getCursor(float size, int cursor_position, float& left, float& 
    if (vertex_count < 4)
    {
       // empty string
-      const Parameter* param = getCharParameter('M');
+      const Parameter param = *getCharParameter('M');
       left = _base_column;
-      right = left + param->space * size + _radius * size * 2;
+      right = left + param.space * size + _radius * size * 2;
 
-      top = _base_column - (param->baseline) * size;
-      bottom = _baseline - (param->baseline + param->height) * size;
+      top = _base_column - (param.baseline) * size;
+      bottom = _baseline - (param.baseline + param.height) * size;
    }
    else if (cursor_position >= vertex_count)
    {
       // cursor at end of text
-      const Parameter* param = getCharParameter('M');
+      const Parameter param = *getCharParameter('M');
       cursor_position = vertex_count - 4;
 
       left = _vertices[cursor_position + 1].x - (_radius * size * 2) + _spacing * size;
-      right = left + param->space * size + _radius * size * 2;
+      right = left + param.space * size + _radius * size * 2;
    }
    else
    {
@@ -270,9 +274,9 @@ void BitmapFont::getCursor(float size, int cursor_position, float& left, float& 
       right = _vertices[cursor_position + 1].x;
    }
 
-   const Parameter* param = getCharParameter('M');
-   top = _baseline - (param->baseline) * size;
-   bottom = _baseline - (param->baseline + param->height) * size;
+   const Parameter param = *getCharParameter('M');
+   top = _baseline - (param.baseline) * size;
+   bottom = _baseline - (param.baseline + param.height) * size;
 
    top -= _radius * size;
    bottom += _radius * size;

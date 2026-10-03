@@ -1,10 +1,11 @@
 #pragma once
 
-#include "menupagelistitem.h"
 #include "gamesignal.h"
+#include "menupagelistitem.h"
 
 #include <cstdint>
-#include <map>
+#include <functional>
+#include <optional>
 
 class MenuPageButtonItem;
 class MenuPageLabelItem;
@@ -27,21 +28,6 @@ public:
 
    void animate(float time) override;
 
-   //! add combobox to id/ptr-map
-   static void addComboBox(const std::string&, MenuPageComboBoxItem*);
-
-   //! add button to id/ptr-map
-   static void addButton(const std::string&, MenuPageButtonItem*);
-
-   //! add label to id/ptr-map
-   static void addLabel(const std::string&, MenuPageLabelItem*);
-
-   //! link combobox to related button
-   static void linkComboBoxToButton(const std::string& button_key, const std::string& combo_box_key);
-
-   //! link combobox to related label
-   static void linkComboBoxToLabel(const std::string& label_key, const std::string& combo_box_key);
-
    void initialize() override;
 
    void setFocus(bool) override;
@@ -49,20 +35,17 @@ public:
    //! getter for modal flag
    bool isModal() const override;
 
-   //! setter for button item
-   virtual void setButtonItem(MenuPageButtonItem* item);
+   //! setter for button item, the combobox opens when it's clicked
+   virtual void setButtonItem(MenuPageButtonItem& item);
 
    //! getter for button item
-   MenuPageButtonItem* getButtonItem() const;
+   std::optional<std::reference_wrapper<MenuPageButtonItem>> getButtonItem() const;
 
-   //! getter for button item
-   static MenuPageButtonItem* getButtonItem(const std::string& name);
-
-   //! setter for label item
-   virtual void setLabelItem(MenuPageLabelItem* item);
+   //! setter for label item, it shows the selected value
+   virtual void setLabelItem(MenuPageLabelItem& item);
 
    //! getter for label item
-   MenuPageLabelItem* getLabelItem() const;
+   std::optional<std::reference_wrapper<MenuPageLabelItem>> getLabelItem() const;
 
    void mousePressed(int x, int y) override;
 
@@ -86,7 +69,7 @@ public:
 
 protected:
    //! draws single quad
-   virtual void drawQuad(PSDLayer* layer, float x, float y, float width, float height, int opacity = 255);
+   virtual void drawQuad(const PSDLayer& layer, float x, float y, float width, float height, int opacity = 255);
 
    //! get notified on table bound changes, resize layer
    void updateTableBounds() override;
@@ -97,17 +80,12 @@ protected:
    //! make combobox invisible again
    float _invisible_animation_time = 0.0f;
 
-   //! linked button item (non-owning)
-   MenuPageButtonItem* _button_item = nullptr;
+   //! linked button item, on the same page
+   std::optional<std::reference_wrapper<MenuPageButtonItem>> _button_item;
 
-   //! linked label item (non-owning)
-   MenuPageLabelItem* _label_item = nullptr;
+   //! linked label item, on the same page
+   std::optional<std::reference_wrapper<MenuPageLabelItem>> _label_item;
 
    //! dynamic vertex buffer reused by drawQuad() every call
    uint32_t _quad_vertex_buffer = 0;
-
-   // registries used while the pages are built, non-owning
-   static std::map<std::string, MenuPageComboBoxItem*> _map_combo_boxes;
-   static std::map<std::string, MenuPageButtonItem*> _map_buttons;
-   static std::map<std::string, MenuPageLabelItem*> _map_labels;
 };

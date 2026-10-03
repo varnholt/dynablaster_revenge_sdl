@@ -50,10 +50,16 @@ std::vector<std::string> splitByUnderscore(const std::string& s)
    return result;
 }
 
-bool containsPoint(const PSD::Layer* layer, int x, int y)
+bool containsPoint(const std::optional<std::reference_wrapper<PSD::Layer>>& layer, int x, int y)
 {
-   return x > layer->getLeft() && x < layer->getLeft() + layer->getWidth() && y > layer->getTop() &&
-          y < layer->getTop() + layer->getHeight();
+   if (!layer)
+   {
+      return false;
+   }
+
+   const PSD::Layer& bounds = *layer;
+   return x > bounds.getLeft() && x < bounds.getLeft() + bounds.getWidth() && y > bounds.getTop() &&
+          y < bounds.getTop() + bounds.getHeight();
 }
 }  // namespace
 
@@ -62,12 +68,17 @@ MenuPage::MenuPage() = default;
 MenuPage::~MenuPage() = default;
 
 template <typename T>
-T* MenuPage::addPageItem()
+T& MenuPage::addPageItem()
 {
    auto item = std::make_unique<T>();
-   T* result = item.get();
+   T& result = *item;
    _page_items.push_back(std::move(item));
    return result;
+}
+
+void MenuPage::setPageItemName(const std::string& name, MenuPageItem& item)
+{
+   _page_item_name_map.insert_or_assign(name, std::ref(item));
 }
 
 void MenuPage::initialize()
@@ -104,7 +115,7 @@ void MenuPage::initializeLayers()
       if (layer.isSectionDivider())
       {
          // group folders and dividers carry no pixels
-         _render_layers.push_back(nullptr);
+         _render_layers.emplace_back();
       }
       else if (layer_name.starts_with("background"))
       {
@@ -117,13 +128,13 @@ void MenuPage::initializeLayers()
    }
 }
 
-MenuPageItem* MenuPage::processLabel(PSDLayer* layer, std::string layer_name)
+std::optional<std::reference_wrapper<MenuPageItem>> MenuPage::processLabel(PSDLayer& layer, const std::string& layer_name)
 {
-   auto* page_item = addPageItem<MenuPageLabelItem>();
+   auto& page_item = addPageItem<MenuPageLabelItem>();
 
    // both layers are the same
-   page_item->setActiveLayer(layer);
-   page_item->setInactiveLayer(layer);
+   page_item.setActiveLayer(layer);
+   page_item.setInactiveLayer(layer);
 
    // copies in a repeated group share their settings
    const std::string base_name = getInstanceBaseName(layer_name);
@@ -135,33 +146,33 @@ MenuPageItem* MenuPage::processLabel(PSDLayer* layer, std::string layer_name)
    const std::string color_key = base_name + "_color";
    const std::string alpha_key = base_name + "_alpha";
 
-   page_item->setLayerDrawn(_settings->value(base_name + "_draw_layer", true).toBool());
+   page_item.setLayerDrawn(_settings->value(base_name + "_draw_layer", true).toBool());
    if (_settings->value(base_name + "_centered", false).toBool())
    {
-      page_item->setCenterWidth(static_cast<float>(layer->getWidth()));
+      page_item.setCenterWidth(static_cast<float>(layer.getWidth()));
    }
 
-   page_item->setFontName(_settings->value(font_name_key, "default").toString());
-   page_item->setFontXOffset(_settings->value(font_x_offset_key).toInt());
-   page_item->setFontYOffset(_settings->value(font_y_offset_key).toInt());
-   page_item->setMaxChars(_settings->value(max_chars_key).toInt());
-   page_item->setScale(_settings->value(scale_key).toFloat());
-   page_item->setColor(Color(_settings->value(color_key, "#FFFFFF").toString()));
-   page_item->setAlpha(_settings->value(alpha_key, 255).toInt());
+   page_item.setFontName(_settings->value(font_name_key, "default").toString());
+   page_item.setFontXOffset(_settings->value(font_x_offset_key).toInt());
+   page_item.setFontYOffset(_settings->value(font_y_offset_key).toInt());
+   page_item.setMaxChars(_settings->value(max_chars_key).toInt());
+   page_item.setScale(_settings->value(scale_key).toFloat());
+   page_item.setColor(Color(_settings->value(color_key, "#FFFFFF").toString()));
+   page_item.setAlpha(_settings->value(alpha_key, 255).toInt());
 
    // store page item without postfix names
-   _page_item_name_map[layer_name] = page_item;
+   setPageItemName(layer_name, page_item);
 
    return page_item;
 }
 
-MenuPageItem* MenuPage::processLineEdit(PSDLayer* layer, std::string layer_name)
+std::optional<std::reference_wrapper<MenuPageItem>> MenuPage::processLineEdit(PSDLayer& layer, const std::string& layer_name)
 {
-   auto* page_item = addPageItem<MenuPageTextEditItem>();
+   auto& page_item = addPageItem<MenuPageTextEditItem>();
 
    // both layers are the same
-   page_item->setActiveLayer(layer);
-   page_item->setInactiveLayer(layer);
+   page_item.setActiveLayer(layer);
+   page_item.setInactiveLayer(layer);
 
    // copies in a repeated group share their settings
    const std::string base_name = getInstanceBaseName(layer_name);
@@ -174,45 +185,40 @@ MenuPageItem* MenuPage::processLineEdit(PSDLayer* layer, std::string layer_name)
    const std::string color_key = base_name + "_color";
    const std::string alpha_key = base_name + "_alpha";
 
-   page_item->setLayerDrawn(_settings->value(base_name + "_draw_layer", false).toBool());
+   page_item.setLayerDrawn(_settings->value(base_name + "_draw_layer", false).toBool());
 
-   page_item->setFontName(_settings->value(font_name_key, "default").toString());
-   page_item->setFontXOffset(_settings->value(font_x_offset_key).toInt());
-   page_item->setFontYOffset(_settings->value(font_y_offset_key).toInt());
-   page_item->setFieldWidth(_settings->value(field_width_key).toInt());
-   page_item->setMaxLength(_settings->value(field_max_length_key).toInt());
-   page_item->setScale(_settings->value(scale_key).toFloat());
-   page_item->setColor(Color(_settings->value(color_key, "#FFFFFF").toString()));
-   page_item->setAlpha(_settings->value(alpha_key, 255).toInt());
+   page_item.setFontName(_settings->value(font_name_key, "default").toString());
+   page_item.setFontXOffset(_settings->value(font_x_offset_key).toInt());
+   page_item.setFontYOffset(_settings->value(font_y_offset_key).toInt());
+   page_item.setFieldWidth(_settings->value(field_width_key).toInt());
+   page_item.setMaxLength(_settings->value(field_max_length_key).toInt());
+   page_item.setScale(_settings->value(scale_key).toFloat());
+   page_item.setColor(Color(_settings->value(color_key, "#FFFFFF").toString()));
+   page_item.setAlpha(_settings->value(alpha_key, 255).toInt());
 
    // store page item without postfix names
-   _page_item_name_map[layer_name] = page_item;
+   setPageItemName(layer_name, page_item);
 
    return page_item;
 }
 
-MenuPageItem* MenuPage::processBackground(PSDLayer* layer, std::string layer_name)
+std::optional<std::reference_wrapper<MenuPageItem>> MenuPage::processBackground(PSDLayer& layer, const std::string& layer_name)
 {
-   bool added = false;
-   MenuPageItem* page_item = nullptr;
-
    const std::string base_name = "background_" + splitByUnderscore(layer_name).at(1);
 
-   if (!_page_item_name_map.contains(base_name))
+   const auto existing = getPageItem<MenuPageBackgroundItem>(base_name);
+   const bool added = !_page_item_name_map.contains(base_name);
+
+   MenuPageBackgroundItem& page_item = added ? addPageItem<MenuPageBackgroundItem>() : existing->get();
+   if (added)
    {
-      added = true;
-      page_item = addPageItem<MenuPageBackgroundItem>();
-      _page_item_name_map[base_name] = page_item;
-   }
-   else
-   {
-      page_item = _page_item_name_map[base_name];
+      setPageItemName(base_name, page_item);
    }
 
    if (layer_name.ends_with("_active"))
    {
-      page_item->setActiveLayer(layer);
-      page_item->setInactiveLayer(layer);
+      page_item.setActiveLayer(layer);
+      page_item.setInactiveLayer(layer);
    }
    else if (layer_name.contains("_gradient"))
    {
@@ -227,15 +233,19 @@ MenuPageItem* MenuPage::processBackground(PSDLayer* layer, std::string layer_nam
          color = MenuPageBackgroundItem::BackgroundColorGreen;
       }
 
-      dynamic_cast<MenuPageBackgroundItem*>(page_item)->addGradientLayer(layer, color);
+      page_item.addGradientLayer(layer, color);
    }
 
-   return added ? page_item : nullptr;
+   if (added)
+   {
+      return page_item;
+   }
+   return std::nullopt;
 }
 
-MenuPageItem* MenuPage::processTableMain(PSDLayer* layer, std::string layer_name)
+std::optional<std::reference_wrapper<MenuPageItem>> MenuPage::processTableMain(PSDLayer& layer, const std::string& layer_name)
 {
-   auto* page_item = addPageItem<MenuPageListItem>();
+   auto& page_item = addPageItem<MenuPageListItem>();
 
    std::string base_name = layer_name;
    eraseAll(base_name, "_main");
@@ -248,79 +258,79 @@ MenuPageItem* MenuPage::processTableMain(PSDLayer* layer, std::string layer_name
    const std::string scale_key = base_name + "_scale";
    const std::string row_height_key = base_name + "_row_height";
 
-   page_item->setFontName(_settings->value(font_name_key, "default").toString());
-   page_item->setFontXOffset(_settings->value(font_x_offset_key).toInt());
-   page_item->setFontYOffset(_settings->value(font_y_offset_key).toInt());
-   page_item->setFieldWidth(_settings->value(field_width_key).toInt());
-   page_item->setScale(_settings->value(scale_key).toFloat());
-   page_item->setRowHeight(_settings->value(row_height_key).toInt());
+   page_item.setFontName(_settings->value(font_name_key, "default").toString());
+   page_item.setFontXOffset(_settings->value(font_x_offset_key).toInt());
+   page_item.setFontYOffset(_settings->value(font_y_offset_key).toInt());
+   page_item.setFieldWidth(_settings->value(field_width_key).toInt());
+   page_item.setScale(_settings->value(scale_key).toFloat());
+   page_item.setRowHeight(_settings->value(row_height_key).toInt());
 
    // store page item without postfix names
-   _page_item_name_map[layer_name] = page_item;
+   setPageItemName(layer_name, page_item);
 
    // both layers are the same
-   page_item->setActiveLayer(layer);
-   page_item->setInactiveLayer(layer);
+   page_item.setActiveLayer(layer);
+   page_item.setInactiveLayer(layer);
 
    return page_item;
 }
 
-MenuPageItem* MenuPage::processTableScrollButtons(PSDLayer* layer, std::string layer_name)
+std::optional<std::reference_wrapper<MenuPageItem>> MenuPage::processTableScrollButtons(PSDLayer& layer, const std::string& layer_name)
 {
-   auto* page_item = addPageItem<MenuPageItem>();
+   auto& page_item = addPageItem<MenuPageItem>();
 
-   page_item->setInteractive(true);
+   page_item.setInteractive(true);
 
    const bool up = layer_name.contains("scroll_up");
-   page_item->setAction(up ? "scroll_up" : "scroll_down");
+   page_item.setAction(up ? "scroll_up" : "scroll_down");
 
    const std::string base_layer = "table_" + splitByUnderscore(layer_name).at(1) + "_main";
 
    // the scroll target lives on this page too, so the connections never outlive it
-   auto* scroll_target = static_cast<MenuPageListItem*>(_page_item_name_map[base_layer]);
+   MenuPageListItem& scroll_target = getPageItem<MenuPageListItem>(base_layer)->get();
 
    if (up)
    {
-      page_item->actionSignal.connect([scroll_target](const std::string&) { scroll_target->scrollUp(); });
+      page_item.actionSignal.connect([&scroll_target](const std::string&) { scroll_target.scrollUp(); });
    }
    else
    {
-      page_item->actionSignal.connect([scroll_target](const std::string&) { scroll_target->scrollDown(); });
+      page_item.actionSignal.connect([&scroll_target](const std::string&) { scroll_target.scrollDown(); });
    }
 
-   page_item->mouseReleasedSignal.connect([scroll_target]() { scroll_target->scrollStop(); });
+   page_item.mouseReleasedSignal.connect([&scroll_target]() { scroll_target.scrollStop(); });
 
    // both layers are the same
-   page_item->setActiveLayer(layer);
-   page_item->setInactiveLayer(layer);
+   page_item.setActiveLayer(layer);
+   page_item.setInactiveLayer(layer);
 
    // store page item without postfix names
-   _page_item_name_map[layer_name] = page_item;
+   setPageItemName(layer_name, page_item);
 
    return page_item;
 }
 
-MenuPageItem* MenuPage::processTableScrollBar(PSDLayer* layer, std::string layer_name)
+std::optional<std::reference_wrapper<MenuPageItem>> MenuPage::processTableScrollBar(PSDLayer& layer, const std::string& layer_name)
 {
-   auto* page_item = addPageItem<MenuPageItem>();
+   auto& page_item = addPageItem<MenuPageItem>();
 
-   page_item->setInteractive(true);
+   page_item.setInteractive(true);
 
    // both layers are the same
-   page_item->setActiveLayer(layer);
-   page_item->setInactiveLayer(layer);
+   page_item.setActiveLayer(layer);
+   page_item.setInactiveLayer(layer);
 
    // store page item without postfix names
-   _page_item_name_map[layer_name] = page_item;
+   setPageItemName(layer_name, page_item);
 
    return page_item;
 }
 
-MenuPageItem* MenuPage::processTableScrollBarSlider(PSDLayer* layer, std::string layer_name)
+std::optional<std::reference_wrapper<MenuPageItem>> MenuPage::processTableScrollBarSlider(PSDLayer& layer, const std::string& layer_name)
 {
-   auto* scrollbar_item = addPageItem<MenuPageScrollbar>();
+   auto& scrollbar_item = addPageItem<MenuPageScrollbar>();
 
-   scrollbar_item->setInteractive(true);
+   scrollbar_item.setInteractive(true);
 
    const std::string table_name = splitByUnderscore(layer_name).at(1);
    const std::string scroll_area_layer = "table_" + table_name + "_scrollbar";
@@ -328,51 +338,48 @@ MenuPageItem* MenuPage::processTableScrollBarSlider(PSDLayer* layer, std::string
    // connect slider to table; both live on this page
    const std::string base_layer = "table_" + table_name + "_main";
 
-   auto* table_item = static_cast<MenuPageListItem*>(_page_item_name_map[base_layer]);
+   MenuPageListItem& table_item = getPageItem<MenuPageListItem>(base_layer)->get();
 
-   scrollbar_item->scrollToPercentageSignal.connect([table_item](float percent) { table_item->scrollToPercentage(percent); });
+   scrollbar_item.scrollToPercentageSignal.connect([&table_item](float percent) { table_item.scrollToPercentage(percent); });
 
-   MenuPageItem* scrollbar = _page_item_name_map[scroll_area_layer];
-   scrollbar_item->setTop(scrollbar->getCurrentLayer()->getTop());
-   scrollbar_item->setHeight(scrollbar->getCurrentLayer()->getHeight());
+   const PSD::Layer& scrollbar = getPageItem(scroll_area_layer)->get().getCurrentLayer()->get();
+   scrollbar_item.setTop(scrollbar.getTop());
+   scrollbar_item.setHeight(scrollbar.getHeight());
 
    // connect table back to slider
-   table_item->scrollAnimationSignal.connect([scrollbar_item](float percent) { scrollbar_item->updateFromAnimation(percent); });
+   table_item.scrollAnimationSignal.connect([&scrollbar_item](float percent) { scrollbar_item.updateFromAnimation(percent); });
 
    // both layers are the same
-   scrollbar_item->setActiveLayer(layer);
-   scrollbar_item->setInactiveLayer(layer);
+   scrollbar_item.setActiveLayer(layer);
+   scrollbar_item.setInactiveLayer(layer);
 
    // store page item without postfix names
-   _page_item_name_map[layer_name] = scrollbar_item;
+   setPageItemName(layer_name, scrollbar_item);
 
    return scrollbar_item;
 }
 
-MenuPageItem* MenuPage::processSliderScrollBarIcons(PSDLayer* layer, std::string layer_name)
+std::optional<std::reference_wrapper<MenuPageItem>> MenuPage::processSliderScrollBarIcons(PSDLayer& layer, const std::string& layer_name)
 {
-   auto* page_item = addPageItem<MenuPageSliderItem>();
-   _page_item_name_map[layer_name] = page_item;
+   auto& page_item = addPageItem<MenuPageSliderItem>();
+   setPageItemName(layer_name, page_item);
 
    // both layers are the same
-   page_item->setActiveLayer(layer);
-   page_item->setInactiveLayer(layer);
+   page_item.setActiveLayer(layer);
+   page_item.setInactiveLayer(layer);
 
    const std::string bar_name = layer_name + "_bar";
    if (const auto bar_layer = getLayer(bar_name); bar_layer != getLayers().end())
    {
-      page_item->setMinimum(bar_layer->getLeft());
-      page_item->setMaximum(bar_layer->getLeft() + bar_layer->getWidth());
+      page_item.setMinimum(bar_layer->getLeft());
+      page_item.setMaximum(bar_layer->getLeft() + bar_layer->getWidth());
    }
 
    return page_item;
 }
 
-MenuPageItem* MenuPage::processScrollImage(PSDLayer* layer, std::string layer_name)
+std::optional<std::reference_wrapper<MenuPageItem>> MenuPage::processScrollImage(PSDLayer& layer, const std::string& layer_name)
 {
-   MenuPageScrollImageItem* scroll_image = nullptr;
-   bool complete = false;
-
    // determine basename: image_scroll_cliprect or image_scroll
    std::string base_name = layer_name;
    const bool clip_rect = layer_name.contains("_cliprect");
@@ -381,140 +388,136 @@ MenuPageItem* MenuPage::processScrollImage(PSDLayer* layer, std::string layer_na
       eraseAll(base_name, "_cliprect");
    }
 
-   if (_page_item_name_map.contains(base_name))
-   {
-      scroll_image = dynamic_cast<MenuPageScrollImageItem*>(_page_item_name_map[base_name]);
+   // the page item is complete and can be initialized once both layers are there
+   const bool complete = _page_item_name_map.contains(base_name);
 
-      // page item is now complete and can be initialized
-      complete = true;
-   }
-   else
+   MenuPageScrollImageItem& scroll_image =
+      complete ? getPageItem<MenuPageScrollImageItem>(base_name)->get() : addPageItem<MenuPageScrollImageItem>();
+   if (!complete)
    {
-      scroll_image = addPageItem<MenuPageScrollImageItem>();
-      _page_item_name_map[base_name] = scroll_image;
+      setPageItemName(base_name, scroll_image);
    }
 
    if (clip_rect)
    {
       // we use the inactive layer as clipping layer
-      scroll_image->setInactiveLayer(layer);
+      scroll_image.setInactiveLayer(layer);
    }
    else
    {
-      scroll_image->setActiveLayer(layer);
+      scroll_image.setActiveLayer(layer);
    }
 
-   return complete ? scroll_image : nullptr;
+   if (complete)
+   {
+      return scroll_image;
+   }
+   return std::nullopt;
 }
 
-MenuPageItem* MenuPage::processCheckBox(PSDLayer* layer, std::string layer_name_without_postfix, std::string layer_name)
+std::optional<std::reference_wrapper<MenuPageItem>> MenuPage::processCheckBox(PSDLayer& layer, const std::string& layer_name)
 {
-   MenuPageItem* page_item = nullptr;
-   layer_name_without_postfix = layer_name;
+   std::string layer_name_without_postfix = layer_name;
    eraseAll(layer_name_without_postfix, "_yes");
    eraseAll(layer_name_without_postfix, "_no");
 
-   if (!_page_item_name_map.contains(layer_name_without_postfix))
+   const bool added = !_page_item_name_map.contains(layer_name_without_postfix);
+   if (added)
    {
-      page_item = addPageItem<MenuPageCheckBoxItem>();
+      auto& check_box = addPageItem<MenuPageCheckBoxItem>();
 
       // store button action
-      page_item->setAction(_settings->value(layer_name_without_postfix).toString());
+      check_box.setAction(_settings->value(layer_name_without_postfix).toString());
 
       // store page item without postfix names
-      _page_item_name_map[layer_name_without_postfix] = page_item;
+      setPageItemName(layer_name_without_postfix, check_box);
    }
-   else
-   {
-      // use previously assigned pageitem
-      page_item = _page_item_name_map[layer_name_without_postfix];
-   }
+
+   // use previously assigned pageitem
+   MenuPageItem& page_item = _page_item_name_map.at(layer_name_without_postfix);
 
    if (layer_name.ends_with("_no"))
    {
-      dynamic_cast<MenuPageCheckBoxItem*>(page_item)->setUncheckedLayer(layer);
+      dynamic_cast<MenuPageCheckBoxItem&>(page_item).setUncheckedLayer(layer);
    }
    else if (layer_name.ends_with("_yes"))
    {
-      dynamic_cast<MenuPageCheckBoxItem*>(page_item)->setCheckedLayer(layer);
+      dynamic_cast<MenuPageCheckBoxItem&>(page_item).setCheckedLayer(layer);
    }
 
    return page_item;
 }
 
-MenuPageItem* MenuPage::processPixmap(PSDLayer* layer, std::string layer_name)
+std::optional<std::reference_wrapper<MenuPageItem>> MenuPage::processPixmap(PSDLayer& layer, const std::string& layer_name)
 {
-   auto* page_item = addPageItem<MenuPagePixmapItem>();
+   auto& page_item = addPageItem<MenuPagePixmapItem>();
 
    // both layers are the same
-   page_item->setActiveLayer(layer);
-   page_item->setInactiveLayer(layer);
+   page_item.setActiveLayer(layer);
+   page_item.setInactiveLayer(layer);
 
    // store page item without postfix names
-   _page_item_name_map[layer_name] = page_item;
+   setPageItemName(layer_name, page_item);
 
    return page_item;
 }
 
-MenuPageItem* MenuPage::processDefaultItem(PSDLayer* layer, std::string layer_name)
+std::optional<std::reference_wrapper<MenuPageItem>> MenuPage::processDefaultItem(PSDLayer& layer, const std::string& layer_name)
 {
    if (layer_name.starts_with("unused_"))
    {
-      return nullptr;
+      return std::nullopt;
    }
 
-   auto* page_item = addPageItem<MenuPageItem>();
+   auto& page_item = addPageItem<MenuPageItem>();
 
    // both layers are the same
-   page_item->setActiveLayer(layer);
-   page_item->setInactiveLayer(layer);
+   page_item.setActiveLayer(layer);
+   page_item.setInactiveLayer(layer);
 
    // store page item without postfix names
-   _page_item_name_map[layer_name] = page_item;
+   setPageItemName(layer_name, page_item);
 
    return page_item;
 }
 
-MenuPageItem* MenuPage::processButton(PSDLayer* layer, std::string layer_name, std::string layer_name_without_postfix)
+std::optional<std::reference_wrapper<MenuPageItem>> MenuPage::processButton(PSDLayer& layer, const std::string& layer_name)
 {
-   MenuPageItem* page_item = nullptr;
-   layer_name_without_postfix = layer_name;
+   std::string layer_name_without_postfix = layer_name;
    eraseAll(layer_name_without_postfix, "_inactive");
    eraseAll(layer_name_without_postfix, "_active");
 
    if (!_page_item_name_map.contains(layer_name_without_postfix))
    {
-      page_item = addPageItem<MenuPageButtonItem>();
+      auto& button = addPageItem<MenuPageButtonItem>();
 
       // store button action
-      page_item->setAction(_settings->value(layer_name_without_postfix).toString());
+      button.setAction(_settings->value(layer_name_without_postfix).toString());
 
-      page_item->actionSignal.connect([this](const std::string& action) { actionRequestFromItem(action); });
+      button.actionSignal.connect([this](const std::string& action) { actionRequestFromItem(action); });
 
       // store page item without postfix names
-      _page_item_name_map[layer_name_without_postfix] = page_item;
+      setPageItemName(layer_name_without_postfix, button);
    }
-   else
-   {
-      // use previously assigned pageitem
-      page_item = _page_item_name_map[layer_name_without_postfix];
-   }
+
+   // use previously assigned pageitem
+   MenuPageItem& page_item = _page_item_name_map.at(layer_name_without_postfix);
 
    if (layer_name.ends_with("_inactive"))
    {
-      page_item->setInactiveLayer(layer);
+      page_item.setInactiveLayer(layer);
    }
    else if (layer_name.ends_with("_active"))
    {
-      page_item->setActiveLayer(layer);
+      page_item.setActiveLayer(layer);
    }
 
    return page_item;
 }
 
-MenuPageItem* MenuPage::processComboBox(PSDLayer* layer, std::string layer_name)
+std::optional<std::reference_wrapper<MenuPageItem>> MenuPage::processComboBox(PSDLayer& layer, std::string layer_name)
 {
-   MenuPageItem* page_item = nullptr;
+   std::optional<std::reference_wrapper<MenuPageItem>> page_item;
    const std::vector<std::string> items = splitByUnderscore(layer_name);
    const std::string& item_name = items.at(1);
 
@@ -534,14 +537,9 @@ MenuPageItem* MenuPage::processComboBox(PSDLayer* layer, std::string layer_name)
 
    if (item_type_lower == "table")
    {
-      MenuPageComboBoxItem* combo_box = nullptr;
-
       if (!_page_item_name_map.contains(base_name))
       {
-         combo_box = addPageItem<MenuPageComboBoxItem>();
-
-         MenuPageComboBoxItem::addComboBox(base_name, combo_box);
-         MenuPageComboBoxItem::linkComboBoxToButton(base_name_button, base_name_table);
+         auto& combo_box = addPageItem<MenuPageComboBoxItem>();
 
          // read lineedit properties
          const std::string font_name_key = base_name + "_font_name";
@@ -550,124 +548,114 @@ MenuPageItem* MenuPage::processComboBox(PSDLayer* layer, std::string layer_name)
          const std::string scale_key = base_name + "_scale";
          const std::string row_height_key = base_name + "_row_height";
 
-         combo_box->setFontName(_settings->value(font_name_key, "default").toString());
-         combo_box->setFontXOffset(_settings->value(font_x_offset_key).toInt());
-         combo_box->setFontYOffset(_settings->value(font_y_offset_key).toInt());
-         combo_box->setScale(_settings->value(scale_key).toFloat());
-         combo_box->setRowHeight(_settings->value(row_height_key).toInt());
+         combo_box.setFontName(_settings->value(font_name_key, "default").toString());
+         combo_box.setFontXOffset(_settings->value(font_x_offset_key).toInt());
+         combo_box.setFontYOffset(_settings->value(font_y_offset_key).toInt());
+         combo_box.setScale(_settings->value(scale_key).toFloat());
+         combo_box.setRowHeight(_settings->value(row_height_key).toInt());
 
          // store page item without postfix names
-         _page_item_name_map[base_name] = combo_box;
+         setPageItemName(base_name, combo_box);
 
          // if link between combobox table and button not yet made
-         MenuPageComboBoxItem::addComboBox(base_name, combo_box);
-         MenuPageComboBoxItem::linkComboBoxToButton(base_name_button, base_name_table);
-      }
-      else
-      {
-         combo_box = static_cast<MenuPageComboBoxItem*>(_page_item_name_map[base_name]);
+         linkComboBoxToButton(base_name_button, base_name_table);
       }
 
+      auto& combo_box = getPageItem<MenuPageComboBoxItem>(base_name)->get();
       page_item = combo_box;
 
       if (postfix == "table_selected_item")
       {
-         combo_box->setLayerSelectedElement(layer);
+         combo_box.setLayerSelectedElement(layer);
       }
       else if (postfix == "table_focussed_item")
       {
-         combo_box->setLayerFocussedElement(layer);
+         combo_box.setLayerFocussedElement(layer);
       }
       else if (postfix == "table_bg_first")
       {
-         combo_box->setLayerFirstElement(layer);
+         combo_box.setLayerFirstElement(layer);
       }
       else if (postfix == "table_bg_last")
       {
-         combo_box->setLayerLastElement(layer);
+         combo_box.setLayerLastElement(layer);
       }
       else if (postfix == "table_bg_default")
       {
-         combo_box->setLayerDefaultElement(layer);
+         combo_box.setLayerDefaultElement(layer);
       }
       else if (postfix == "table_gradient")
       {
-         combo_box->setLayerGradientElement(layer);
+         combo_box.setLayerGradientElement(layer);
 
          // maybe the gradient layer is good enough as active/inactive layer
-         combo_box->setActiveLayer(layer);
-         combo_box->setInactiveLayer(layer);
+         combo_box.setActiveLayer(layer);
+         combo_box.setInactiveLayer(layer);
       }
    }
    else if (item_type_lower == "button")
    {
       // a standard button; deliberately not returned, so it is not initialized as page item
-      MenuPageItem* button_item = nullptr;
-
       if (!_page_item_name_map.contains(base_name))
       {
-         button_item = addPageItem<MenuPageButtonItem>();
+         auto& button = addPageItem<MenuPageButtonItem>();
 
          // store button action
-         button_item->setAction(_settings->value(base_name).toString());
+         button.setAction(_settings->value(base_name).toString());
 
-         button_item->actionSignal.connect([this](const std::string& action) { actionRequestFromItem(action); });
+         button.actionSignal.connect([this](const std::string& action) { actionRequestFromItem(action); });
 
          // store page item without postfix names
-         _page_item_name_map[base_name] = button_item;
+         setPageItemName(base_name, button);
       }
-      else
-      {
-         // use previously assigned pageitem
-         button_item = _page_item_name_map[base_name];
-      }
+
+      // use previously assigned pageitem
+      MenuPageItem& button_item = _page_item_name_map.at(base_name);
 
       if (layer_name.ends_with("_inactive"))
       {
-         button_item->setInactiveLayer(layer);
+         button_item.setInactiveLayer(layer);
       }
       else if (layer_name.ends_with("_active"))
       {
-         button_item->setActiveLayer(layer);
+         button_item.setActiveLayer(layer);
       }
 
       // if link between combobox table and button not yet made
-      MenuPageComboBoxItem::addButton(base_name, static_cast<MenuPageButtonItem*>(button_item));
-      MenuPageComboBoxItem::linkComboBoxToButton(base_name_button, base_name_table);
+      linkComboBoxToButton(base_name_button, base_name_table);
    }
    else if (item_type_lower == "label")
    {
-      auto* label_item = addPageItem<MenuPageLabelItem>();
+      auto& label_item = addPageItem<MenuPageLabelItem>();
       page_item = label_item;
 
       // both layers are the same
-      label_item->setActiveLayer(layer);
-      label_item->setInactiveLayer(layer);
+      label_item.setActiveLayer(layer);
+      label_item.setInactiveLayer(layer);
 
       const std::string font_name_key = base_name + "_font_name";
       const std::string font_x_offset_key = base_name + "_font_x_offset";
       const std::string font_y_offset_key = base_name + "_font_y_offset";
       const std::string scale_key = base_name + "_scale";
 
-      label_item->setFontName(_settings->value(font_name_key, "default").toString());
-      label_item->setFontXOffset(_settings->value(font_x_offset_key).toInt());
-      label_item->setFontYOffset(_settings->value(font_y_offset_key).toInt());
-      label_item->setScale(_settings->value(scale_key).toFloat());
+      label_item.setFontName(_settings->value(font_name_key, "default").toString());
+      label_item.setFontXOffset(_settings->value(font_x_offset_key).toInt());
+      label_item.setFontYOffset(_settings->value(font_y_offset_key).toInt());
+      label_item.setScale(_settings->value(scale_key).toFloat());
 
       // store page item without postfix names
-      _page_item_name_map[base_name] = label_item;
+      setPageItemName(base_name, label_item);
 
       // if link between combobox table and label not yet made
-      MenuPageComboBoxItem::addLabel(base_name, label_item);
-      MenuPageComboBoxItem::linkComboBoxToLabel(base_name_label, base_name_table);
+      linkComboBoxToLabel(base_name_label, base_name_table);
    }
 
    return page_item;
 }
 
-MenuPageItem* MenuPage::processEditableComboBox(PSDLayer* layer, std::string layer_name)
+std::optional<std::reference_wrapper<MenuPageItem>> MenuPage::processEditableComboBox(PSDLayer& layer, std::string layer_name)
 {
-   MenuPageItem* page_item = nullptr;
+   std::optional<std::reference_wrapper<MenuPageItem>> page_item;
    const std::vector<std::string> items = splitByUnderscore(layer_name);
    const std::string& item_name = items.at(1);
 
@@ -687,14 +675,9 @@ MenuPageItem* MenuPage::processEditableComboBox(PSDLayer* layer, std::string lay
 
    if (item_type_lower == "table")
    {
-      MenuPageEditableComboBoxItem* combo_box = nullptr;
-
       if (!_page_item_name_map.contains(base_name))
       {
-         combo_box = addPageItem<MenuPageEditableComboBoxItem>();
-
-         MenuPageComboBoxItem::addComboBox(base_name, combo_box);
-         MenuPageComboBoxItem::linkComboBoxToButton(base_name_button, base_name_table);
+         auto& combo_box = addPageItem<MenuPageEditableComboBoxItem>();
 
          // read lineedit properties
          const std::string font_name_key = base_name + "_font_name";
@@ -703,99 +686,90 @@ MenuPageItem* MenuPage::processEditableComboBox(PSDLayer* layer, std::string lay
          const std::string scale_key = base_name + "_scale";
          const std::string row_height_key = base_name + "_row_height";
 
-         combo_box->setFontName(_settings->value(font_name_key, "default").toString());
-         combo_box->setFontXOffset(_settings->value(font_x_offset_key).toInt());
-         combo_box->setFontYOffset(_settings->value(font_y_offset_key).toInt());
-         combo_box->setScale(_settings->value(scale_key).toFloat());
-         combo_box->setRowHeight(_settings->value(row_height_key).toInt());
+         combo_box.setFontName(_settings->value(font_name_key, "default").toString());
+         combo_box.setFontXOffset(_settings->value(font_x_offset_key).toInt());
+         combo_box.setFontYOffset(_settings->value(font_y_offset_key).toInt());
+         combo_box.setScale(_settings->value(scale_key).toFloat());
+         combo_box.setRowHeight(_settings->value(row_height_key).toInt());
 
          // store page item without postfix names
-         _page_item_name_map[base_name] = combo_box;
+         setPageItemName(base_name, combo_box);
 
          // if link between combobox table and button not yet made
-         MenuPageComboBoxItem::addComboBox(base_name, combo_box);
-         MenuPageComboBoxItem::linkComboBoxToButton(base_name_button, base_name_table);
-      }
-      else
-      {
-         combo_box = static_cast<MenuPageEditableComboBoxItem*>(_page_item_name_map[base_name]);
+         linkComboBoxToButton(base_name_button, base_name_table);
       }
 
+      auto& combo_box = getPageItem<MenuPageEditableComboBoxItem>(base_name)->get();
       page_item = combo_box;
 
       if (postfix == "table_selected_item")
       {
-         combo_box->setLayerSelectedElement(layer);
+         combo_box.setLayerSelectedElement(layer);
       }
       else if (postfix == "table_focussed_item")
       {
-         combo_box->setLayerFocussedElement(layer);
+         combo_box.setLayerFocussedElement(layer);
       }
       else if (postfix == "table_bg_first")
       {
-         combo_box->setLayerFirstElement(layer);
+         combo_box.setLayerFirstElement(layer);
       }
       else if (postfix == "table_bg_last")
       {
-         combo_box->setLayerLastElement(layer);
+         combo_box.setLayerLastElement(layer);
       }
       else if (postfix == "table_bg_default")
       {
-         combo_box->setLayerDefaultElement(layer);
+         combo_box.setLayerDefaultElement(layer);
       }
       else if (postfix == "table_gradient")
       {
-         combo_box->setLayerGradientElement(layer);
+         combo_box.setLayerGradientElement(layer);
 
          // maybe the gradient layer is good enough as active/inactive layer
-         combo_box->setActiveLayer(layer);
-         combo_box->setInactiveLayer(layer);
+         combo_box.setActiveLayer(layer);
+         combo_box.setInactiveLayer(layer);
       }
    }
    else if (item_type_lower == "button")
    {
       // a standard button; deliberately not returned, so it is not initialized as page item
-      MenuPageItem* button_item = nullptr;
-
       if (!_page_item_name_map.contains(base_name))
       {
-         button_item = addPageItem<MenuPageButtonItem>();
+         auto& button = addPageItem<MenuPageButtonItem>();
 
          // store button action
-         button_item->setAction(_settings->value(base_name).toString());
+         button.setAction(_settings->value(base_name).toString());
 
-         button_item->actionSignal.connect([this](const std::string& action) { actionRequestFromItem(action); });
+         button.actionSignal.connect([this](const std::string& action) { actionRequestFromItem(action); });
 
          // store page item without postfix names
-         _page_item_name_map[base_name] = button_item;
+         setPageItemName(base_name, button);
       }
-      else
-      {
-         // use previously assigned pageitem
-         button_item = _page_item_name_map[base_name];
-      }
+
+      // use previously assigned pageitem
+      MenuPageItem& button_item = _page_item_name_map.at(base_name);
 
       if (layer_name.ends_with("_inactive"))
       {
-         button_item->setInactiveLayer(layer);
+         button_item.setInactiveLayer(layer);
       }
       else if (layer_name.ends_with("_active"))
       {
-         button_item->setActiveLayer(layer);
+         button_item.setActiveLayer(layer);
       }
 
       // if link between combobox table and button not yet made
-      MenuPageComboBoxItem::addButton(base_name, static_cast<MenuPageButtonItem*>(button_item));
-      MenuPageComboBoxItem::linkComboBoxToButton(base_name_button, base_name_table);
+      linkComboBoxToButton(base_name_button, base_name_table);
    }
    else if (item_type_lower == "lineedit")
    {
-      auto* text_edit = addPageItem<MenuPageTextEditItem>();
+      auto& text_edit = addPageItem<MenuPageTextEditItem>();
       page_item = text_edit;
 
       // both layers are the same
-      text_edit->setActiveLayer(layer);
-      text_edit->setInactiveLayer(layer);
+      text_edit.setActiveLayer(layer);
+      text_edit.setInactiveLayer(layer);
 
       const std::string font_name_key = base_name + "_font_name";
       const std::string font_x_offset_key = base_name + "_font_x_offset";
@@ -806,24 +780,56 @@ MenuPageItem* MenuPage::processEditableComboBox(PSDLayer* layer, std::string lay
       const std::string color_key = base_name + "_color";
       const std::string alpha_key = base_name + "_alpha";
 
-      text_edit->setFontName(_settings->value(font_name_key, "default").toString());
-      text_edit->setFontXOffset(_settings->value(font_x_offset_key).toInt());
-      text_edit->setFontYOffset(_settings->value(font_y_offset_key).toInt());
-      text_edit->setFieldWidth(_settings->value(field_width_key).toInt());
-      text_edit->setMaxLength(_settings->value(field_max_length_key).toInt());
-      text_edit->setScale(_settings->value(scale_key).toFloat());
-      text_edit->setColor(Color(_settings->value(color_key, "#FFFFFF").toString()));
-      text_edit->setAlpha(_settings->value(alpha_key, 255).toInt());
+      text_edit.setFontName(_settings->value(font_name_key, "default").toString());
+      text_edit.setFontXOffset(_settings->value(font_x_offset_key).toInt());
+      text_edit.setFontYOffset(_settings->value(font_y_offset_key).toInt());
+      text_edit.setFieldWidth(_settings->value(field_width_key).toInt());
+      text_edit.setMaxLength(_settings->value(field_max_length_key).toInt());
+      text_edit.setScale(_settings->value(scale_key).toFloat());
+      text_edit.setColor(Color(_settings->value(color_key, "#FFFFFF").toString()));
+      text_edit.setAlpha(_settings->value(alpha_key, 255).toInt());
 
       // store page item without postfix names
-      _page_item_name_map[base_name] = text_edit;
+      setPageItemName(base_name, text_edit);
 
       // if link between combobox table and textedit not yet made
-      MenuPageEditableComboBoxItem::addTextEdit(base_name, text_edit);
-      MenuPageEditableComboBoxItem::linkComboBoxToTextEdit(base_name_line_edit, base_name_table);
+      linkComboBoxToTextEdit(base_name_line_edit, base_name_table);
    }
 
    return page_item;
+}
+
+void MenuPage::linkComboBoxToButton(const std::string& button_key, const std::string& combo_box_key)
+{
+   const auto button = getPageItem<MenuPageButtonItem>(button_key);
+   const auto combo_box = getPageItem<MenuPageComboBoxItem>(combo_box_key);
+
+   if (button && combo_box && !combo_box->get().getButtonItem())
+   {
+      combo_box->get().setButtonItem(*button);
+   }
+}
+
+void MenuPage::linkComboBoxToLabel(const std::string& label_key, const std::string& combo_box_key)
+{
+   const auto label = getPageItem<MenuPageLabelItem>(label_key);
+   const auto combo_box = getPageItem<MenuPageComboBoxItem>(combo_box_key);
+
+   if (label && combo_box)
+   {
+      combo_box->get().setLabelItem(*label);
+   }
+}
+
+void MenuPage::linkComboBoxToTextEdit(const std::string& text_edit_key, const std::string& combo_box_key)
+{
+   const auto text_edit = getPageItem<MenuPageTextEditItem>(text_edit_key);
+   const auto combo_box = getPageItem<MenuPageEditableComboBoxItem>(combo_box_key);
+
+   if (text_edit && combo_box)
+   {
+      combo_box->get().setTextEditItem(*text_edit);
+   }
 }
 
 /*!
@@ -927,20 +933,17 @@ void MenuPage::initializePageItems()
    // plain layers start hidden if they're hidden in the PSD (opt-in, older pages toggle theirs in code)
    const bool respect_layer_visibility = _settings->value("respect_layer_visibility", false).toBool();
 
-   std::string layer_name_without_postfix;
-
    for (size_t l = 0; l < getLayerCount(); l++)
    {
-      PSDLayer* layer = _render_layers[l].get();
-      if (!layer)
+      if (!_render_layers[l])
       {
          continue;
       }
 
+      PSDLayer& layer = *_render_layers[l];
       const std::string layer_name = StringUtils::trim(getLayer(l).getName());
-      layer_name_without_postfix.clear();
 
-      MenuPageItem* page_item = nullptr;
+      std::optional<std::reference_wrapper<MenuPageItem>> page_item;
 
       // menu.ini can give plain layers a type: <layer>_item = label | lineedit | clickable | none
       const std::string item_type = _settings->value(getInstanceBaseName(layer_name) + "_item").toString();
@@ -962,10 +965,10 @@ void MenuPage::initializePageItems()
          page_item = processDefaultItem(layer, layer_name);
          if (page_item)
          {
-            page_item->setInteractive(true);
+            page_item->get().setInteractive(true);
             if (respect_layer_visibility)
             {
-               page_item->setVisible(getLayer(l).isVisible());
+               page_item->get().setVisible(getLayer(l).isVisible());
             }
          }
       }
@@ -979,11 +982,11 @@ void MenuPage::initializePageItems()
       }
       else if (layer_name.starts_with("checkbox"))
       {
-         page_item = processCheckBox(layer, layer_name_without_postfix, layer_name);
+         page_item = processCheckBox(layer, layer_name);
       }
       else if (layer_name.starts_with("button"))
       {
-         page_item = processButton(layer, layer_name, layer_name_without_postfix);
+         page_item = processButton(layer, layer_name);
       }
       else if (layer_name.starts_with("label"))
       {
@@ -1030,23 +1033,23 @@ void MenuPage::initializePageItems()
          page_item = processDefaultItem(layer, layer_name);
          if (page_item && respect_layer_visibility)
          {
-            page_item->setVisible(getLayer(l).isVisible());
+            page_item->get().setVisible(getLayer(l).isVisible());
          }
       }
 
       if (page_item)
       {
-         page_item->initialize();
+         page_item->get().initialize();
       }
    }
 
    // activate default item
    const std::string default_item = _settings->value("default").toString();
-   if (_page_item_name_map.contains(default_item))
+   if (const auto item = getPageItem(default_item))
    {
-      _active_item = _page_item_name_map[default_item];
-      _active_item->activated();
-      _active_item->setFocus(true);
+      _active_item = item;
+      item->get().activated();
+      item->get().setFocus(true);
    }
 
    _settings->endGroup();
@@ -1061,9 +1064,9 @@ void MenuPage::initializeTabIndices()
    int index = 0;
    for (const auto& key : index_items)
    {
-      if (_page_item_name_map.contains(key))
+      if (const auto item = getPageItem(key))
       {
-         _page_item_name_map[key]->setTabIndex(index);
+         item->get().setTabIndex(index);
          index++;
       }
    }
@@ -1071,10 +1074,15 @@ void MenuPage::initializeTabIndices()
    _settings->endGroup();
 }
 
+bool MenuPage::isActiveItem(const MenuPageItem& item) const
+{
+   return _active_item && &_active_item->get() == &item;
+}
+
 void MenuPage::tabPressed()
 {
    // get current tab index
-   const int tab_index = _active_item ? _active_item->getTabIndex() : -1;
+   const int tab_index = _active_item ? _active_item->get().getTabIndex() : -1;
 
    // find greater tab index
    auto next = std::ranges::find_if(_page_items, [tab_index](const auto& item) { return item->getTabIndex() > tab_index; });
@@ -1087,46 +1095,50 @@ void MenuPage::tabPressed()
 
    if (next != _page_items.end())
    {
-      MenuPageItem* next_focus_item = next->get();
+      MenuPageItem& next_focus_item = **next;
 
-      if (_active_item && _active_item != next_focus_item)
+      if (_active_item && !isActiveItem(next_focus_item))
       {
-         _active_item->deactivated();
+         _active_item->get().deactivated();
          _active_item = next_focus_item;
-         _active_item->activated();
+         next_focus_item.activated();
       }
    }
 }
 
-MenuPageItem* MenuPage::getActiveItem() const
+std::optional<std::reference_wrapper<MenuPageItem>> MenuPage::getActiveItem() const
 {
    return _active_item;
 }
 
-void MenuPage::setActiveItem(MenuPageItem* value)
+void MenuPage::setActiveItem(std::optional<std::reference_wrapper<MenuPageItem>> value)
 {
    _active_item = value;
 }
 
-std::vector<MenuPageItem*> MenuPage::getItemsAt(int x, int y) const
+std::vector<std::reference_wrapper<MenuPageItem>> MenuPage::getItemsAt(int x, int y) const
 {
-   std::vector<MenuPageItem*> items;
+   std::vector<std::reference_wrapper<MenuPageItem>> items;
 
    for (const auto& item : _page_items)
    {
       if (item && item->isInteractive() && containsPoint(item->getCurrentLayer(), x, y))
       {
-         items.push_back(item.get());
+         items.push_back(*item);
       }
    }
 
    return items;
 }
 
-MenuPageItem* MenuPage::getFocussedItem() const
+std::optional<std::reference_wrapper<MenuPageItem>> MenuPage::getFocussedItem() const
 {
    const auto iterator = std::ranges::find_if(_page_items, [](const auto& item) { return item->isFocussed(); });
-   return iterator != _page_items.end() ? iterator->get() : nullptr;
+   if (iterator != _page_items.end())
+   {
+      return **iterator;
+   }
+   return std::nullopt;
 }
 
 void MenuPage::mouseMoved(int x, int y)
@@ -1138,7 +1150,7 @@ void MenuPage::mouseMoved(int x, int y)
          continue;
       }
 
-      PSD::Layer* layer = item->getCurrentLayer();
+      const auto layer = item->getCurrentLayer();
 
       if (containsPoint(layer, x, y))
       {
@@ -1146,7 +1158,7 @@ void MenuPage::mouseMoved(int x, int y)
          {
             if (item->isEnabled())
             {
-               layerFocussedSignal(_filename, layer->getName());
+               layerFocussedSignal(_filename, layer->get().getName());
             }
 
             item->setFocus(true);
@@ -1174,42 +1186,32 @@ void MenuPage::mousePressed(int x, int y)
 {
    bool focus_set = false;
 
-   std::vector<MenuPageItem*> clicked_items;
-
-   for (const auto& item : _page_items)
-   {
-      if (item && item->isInteractive() && containsPoint(item->getCurrentLayer(), x, y))
-      {
-         clicked_items.push_back(item.get());
-      }
-   }
+   std::vector<std::reference_wrapper<MenuPageItem>> clicked_items = getItemsAt(x, y);
 
    // a visible modal item swallows the click
-   const auto modal = std::ranges::find_if(clicked_items, [](MenuPageItem* item) { return item->isVisible() && item->isModal(); });
+   const auto modal = std::ranges::find_if(clicked_items, [](const MenuPageItem& item) { return item.isVisible() && item.isModal(); });
    if (modal != clicked_items.end())
    {
       clicked_items = {*modal};
    }
 
-   for (MenuPageItem* item : clicked_items)
+   for (MenuPageItem& item : clicked_items)
    {
-      const PSD::Layer* layer = item->getCurrentLayer();
-
-      if (item->isActionRequestOnClickEnabled())
+      if (item.isActionRequestOnClickEnabled())
       {
-         actionRequestSignal(_filename, layer->getName());
+         actionRequestSignal(_filename, item.getCurrentLayer()->get().getName());
       }
 
-      item->activated();
-      item->mousePressed(x, y);
+      item.activated();
+      item.mousePressed(x, y);
 
       focus_set = true;
 
-      if (_active_item != item)
+      if (!isActiveItem(item))
       {
          if (_active_item)
          {
-            _active_item->deactivated();
+            _active_item->get().deactivated();
          }
 
          _active_item = item;
@@ -1220,10 +1222,10 @@ void MenuPage::mousePressed(int x, int y)
    {
       if (_active_item)
       {
-         _active_item->deactivated();
+         _active_item->get().deactivated();
       }
 
-      _active_item = nullptr;
+      _active_item.reset();
    }
 }
 
@@ -1231,7 +1233,7 @@ void MenuPage::paste(const std::string& text)
 {
    if (_active_item)
    {
-      _active_item->paste(text);
+      _active_item->get().paste(text);
    }
 }
 
@@ -1261,12 +1263,6 @@ const std::vector<std::unique_ptr<MenuPageItem>>& MenuPage::getPageItems() const
    return _page_items;
 }
 
-MenuPageItem* MenuPage::getPageItem(const std::string& layer_name) const
-{
-   const auto iterator = _page_item_name_map.find(layer_name);
-   return iterator != _page_item_name_map.end() ? iterator->second : nullptr;
-}
-
 void MenuPage::keyPressed(int key, const std::string& text)
 {
    // check if any item has focus
@@ -1281,15 +1277,15 @@ void MenuPage::keyPressed(int key, const std::string& text)
    }
    else
    {
-      _active_item->keyPressed(key, text);
+      _active_item->get().keyPressed(key, text);
 
       if (key == SDLK_RETURN || key == SDLK_KP_ENTER)
       {
-         actionRequestSignal(_filename, _active_item->getCurrentLayer()->getName());
+         actionRequestSignal(_filename, _active_item->get().getCurrentLayer()->get().getName());
       }
 
       // in any case notify workflow a key was pressed
-      actionKeyPressedSignal(_filename, _active_item->getCurrentLayer()->getName(), key);
+      actionKeyPressedSignal(_filename, _active_item->get().getCurrentLayer()->get().getName(), key);
    }
 }
 
@@ -1308,12 +1304,12 @@ std::string MenuPage::getFilename() const
    return _filename;
 }
 
-void MenuPage::setAnimation(MenuPageAnimation* animation)
+void MenuPage::setAnimation(MenuPageAnimation& animation)
 {
    _animation = animation;
 }
 
-MenuPageAnimation* MenuPage::getAnimation()
+std::optional<std::reference_wrapper<MenuPageAnimation>> MenuPage::getAnimation() const
 {
    return _animation;
 }
@@ -1325,7 +1321,7 @@ void MenuPage::deactivate()
 
 void MenuPage::resetAnimation()
 {
-   _animation = nullptr;
+   _animation.reset();
 }
 
 void MenuPage::unFocusAllItems()

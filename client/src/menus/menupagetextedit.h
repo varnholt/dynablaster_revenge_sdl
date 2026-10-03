@@ -6,6 +6,8 @@
 #include "math/color.h"
 
 #include <cstdint>
+#include <functional>
+#include <optional>
 
 class BitmapFont;
 
@@ -106,8 +108,8 @@ protected:
 
    FrameTimer _cursor_time;
 
-   // non-owning, fonts belong to the FontPool
-   BitmapFont* _font = nullptr;
+   // fonts belong to the FontPool
+   std::optional<std::reference_wrapper<BitmapFont>> _font;
 
    std::string _text;
 

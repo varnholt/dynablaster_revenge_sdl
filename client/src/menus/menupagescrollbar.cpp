@@ -8,7 +8,7 @@ MenuPageScrollbar::MenuPageScrollbar()
 
 void MenuPageScrollbar::mousePressed(int x, int y)
 {
-   _relative_to_y = y - _layer_active->getTop();
+   _relative_to_y = y - _layer_active->get().getTop();
 
    setActive(true);
    MenuPageItem::mousePressed(x, y);
@@ -24,9 +24,9 @@ void MenuPageScrollbar::mouseMoved(int x, int y)
 {
    y -= _relative_to_y;
 
-   if (y + _layer_active->getHeight() > _top + _height)
+   if (y + _layer_active->get().getHeight() > _top + _height)
    {
-      _position = _top + _height - _layer_active->getHeight();
+      _position = _top + _height - _layer_active->get().getHeight();
    }
    else if (y < _top)
    {
@@ -37,9 +37,9 @@ void MenuPageScrollbar::mouseMoved(int x, int y)
       _position = y;
    }
 
-   _layer_active->getLayer()->setY(_position);
+   _layer_active->get().getLayer().setY(_position);
 
-   _offset = (_position - _top) / static_cast<float>(_height - _layer_active->getHeight());
+   _offset = (_position - _top) / static_cast<float>(_height - _layer_active->get().getHeight());
 
    if (!_signals_blocked)
    {
@@ -70,6 +70,6 @@ void MenuPageScrollbar::updateFromAnimation(float percent)
    _relative_to_y = 0;
 
    _signals_blocked = true;
-   mouseMoved(0, _top + ((_height - _layer_active->getHeight()) * percent));
+   mouseMoved(0, _top + ((_height - _layer_active->get().getHeight()) * percent));
    _signals_blocked = false;
 }
