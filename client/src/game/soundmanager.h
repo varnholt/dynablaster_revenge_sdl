@@ -13,13 +13,18 @@
 
 #include <array>
 #include <filesystem>
+#include <memory>
 #include <string>
 #include <vector>
 
 class SoundManager
 {
 public:
-   static SoundManager* getInstance();
+   //! the instance is never destroyed
+   static SoundManager& getInstance();
+
+   SoundManager();
+   ~SoundManager();
 
    void fadeOut(float fade_out_time);
    void restartPlayListAfterFadeOut(int delay);
@@ -62,9 +67,6 @@ public:
    Signal<const std::string&, const std::string&, const std::string&> trackChangedSignal;
 
 protected:
-   SoundManager();
-   ~SoundManager();
-
    enum SampleId
    {
       SampleBomb,
@@ -93,15 +95,22 @@ protected:
       SampleCount
    };
 
+   struct StreamDeleter
+   {
+      void operator()(SDL_AudioStream* stream) const;
+   };
+
+   using Stream = std::unique_ptr<SDL_AudioStream, StreamDeleter>;
+
    struct Sample
    {
-      Uint8* buffer = nullptr;
+      std::unique_ptr<Uint8, decltype(&SDL_free)> buffer{nullptr, &SDL_free};
       Uint32 length = 0;
       SDL_AudioSpec spec{};
    };
 
    void initializeSamples();
-   void loadSample(SampleId id, const char* filename);
+   void loadSample(SampleId id, const std::string& filename);
 
    // picks the next of a small round-robin pool of mixed-together channels (matches the
    // original's own fixed-channel-count SamplePlayer, referenced by its getChannelCount()) and
@@ -115,7 +124,7 @@ protected:
    static constexpr int channel_count = 8;
 
    SDL_AudioDeviceID _device = 0;
-   std::array<SDL_AudioStream*, channel_count> _channels{};
+   std::array<Stream, channel_count> _channels;
    int _next_channel = 0;
    std::array<Sample, SampleCount> _samples{};
 
@@ -125,7 +134,7 @@ protected:
    float _volume_music = 1.0f;
    float _volume_sfx = 1.0f;
 
-   SDL_AudioStream* _music_stream = nullptr;
+   Stream _music_stream;
    std::vector<std::filesystem::path> _playlist;
    std::size_t _track_index = 0;
    Timer _music_timer;
@@ -134,6 +143,4 @@ protected:
    float _fade_start_volume = 1.0f;
    float _fade_duration_ms = 1000.0f;
    float _fade_elapsed_ms = 0.0f;
-
-   static SoundManager* sInstance;
 };

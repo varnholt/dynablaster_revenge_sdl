@@ -21,7 +21,7 @@ void MenuPageBackgroundItem::initialize()
    MenuPageItem::initialize();
 }
 
-void MenuPageBackgroundItem::addGradientLayer(PSDLayer* gradient, MenuPageBackgroundItem::BackgroundColor color)
+void MenuPageBackgroundItem::addGradientLayer(PSDLayer& gradient, MenuPageBackgroundItem::BackgroundColor color)
 {
    _background_layers[color] = gradient;
 }
@@ -45,12 +45,12 @@ void MenuPageBackgroundItem::draw()
 
       if (alpha > 0.0f)
       {
-         _background_layers[_background_color]->render(0.0f, 0.0f, alpha);
+         _background_layers[_background_color]->get().render(0.0f, 0.0f, alpha);
       }
 
       if (alpha_inverted > 0.0f)
       {
-         _background_layers[_background_color_previous]->render(0.0f, 0.0f, alpha_inverted);
+         _background_layers[_background_color_previous]->get().render(0.0f, 0.0f, alpha_inverted);
       }
    }
 
@@ -59,14 +59,14 @@ void MenuPageBackgroundItem::draw()
 
    // one quad for the whole background, scrolling slowly by animating its texcoords; rebuilt
    // into a small dynamic buffer every frame, drawn with the shader MenuDrawable already bound
-   PSD::Layer* psd_layer = getCurrentLayer();
+   const PSD::Layer& psd_layer = getCurrentLayer()->get();
 
-   const float height = static_cast<float>(psd_layer->getHeight());
-   const float width = static_cast<float>(psd_layer->getWidth());
-   const float x_translation = static_cast<float>(psd_layer->getLeft());
-   const float y_translation = static_cast<float>(psd_layer->getTop());
+   const float height = static_cast<float>(psd_layer.getHeight());
+   const float width = static_cast<float>(psd_layer.getWidth());
+   const float x_translation = static_cast<float>(psd_layer.getLeft());
+   const float y_translation = static_cast<float>(psd_layer.getTop());
 
-   glBindTexture(GL_TEXTURE_2D, getActiveLayer()->getTexture());
+   glBindTexture(GL_TEXTURE_2D, getActiveLayer()->get().getTexture());
    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
@@ -91,8 +91,7 @@ void MenuPageBackgroundItem::draw()
       activeDevice->allocateVertexBuffer(_vertex_buffer, quad_size, true);
    }
 
-   void* destination = activeDevice->lockVertexBuffer(_vertex_buffer, quad_size);
-   std::memcpy(destination, quad.data(), quad_size);
+   std::memcpy(activeDevice->lockVertexBuffer(_vertex_buffer, quad_size), quad.data(), quad_size);
    activeDevice->unlockVertexBuffer(_vertex_buffer);
 
    // positions are already baked in page-pixel space, so the world transform must be identity

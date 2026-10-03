@@ -9,12 +9,12 @@ void MenuPageItem::initialize()
 {
 }
 
-void MenuPageItem::setActiveLayer(PSDLayer* layer)
+void MenuPageItem::setActiveLayer(PSDLayer& layer)
 {
    _layer_active = layer;
 }
 
-void MenuPageItem::setInactiveLayer(PSDLayer* layer)
+void MenuPageItem::setInactiveLayer(PSDLayer& layer)
 {
    _layer_inactive = layer;
 }
@@ -82,30 +82,33 @@ void MenuPageItem::draw()
 {
    if (isVisible() && isLayerDrawn())
    {
-      if (PSDLayer* psd_layer = getLayer())
+      if (const auto psd_layer = getLayer())
       {
-         psd_layer->render();
+         psd_layer->get().render();
       }
    }
 }
 
-PSDLayer* MenuPageItem::getLayer() const
+std::optional<std::reference_wrapper<PSDLayer>> MenuPageItem::getLayer() const
 {
    return isFocussed() ? _layer_active : _layer_inactive;
 }
 
-PSD::Layer* MenuPageItem::getCurrentLayer()
+std::optional<std::reference_wrapper<PSD::Layer>> MenuPageItem::getCurrentLayer() const
 {
-   PSDLayer* layer = getLayer();
-   return layer ? layer->getLayer() : nullptr;
+   if (const auto layer = getLayer())
+   {
+      return layer->get().getLayer();
+   }
+   return std::nullopt;
 }
 
-PSDLayer* MenuPageItem::getActiveLayer()
+std::optional<std::reference_wrapper<PSDLayer>> MenuPageItem::getActiveLayer() const
 {
    return _layer_active;
 }
 
-PSDLayer* MenuPageItem::getInactiveLayer()
+std::optional<std::reference_wrapper<PSDLayer>> MenuPageItem::getInactiveLayer() const
 {
    return _layer_inactive;
 }
@@ -117,16 +120,6 @@ void MenuPageItem::keyPressed(int /*key*/, const std::string& /*text*/)
 void MenuPageItem::setEnabled(bool enabled)
 {
    _enabled = enabled;
-}
-
-MenuPageItem* MenuPageItem::getParent() const
-{
-   return _parent;
-}
-
-void MenuPageItem::setParent(MenuPageItem* value)
-{
-   _parent = value;
 }
 
 bool MenuPageItem::hasNestedElements()

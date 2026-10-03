@@ -5,31 +5,30 @@
 
 #include <cmath>
 
-MenuPageListItemElement::MenuPageListItemElement()
+MenuPageListItemElement::MenuPageListItemElement(MenuPageListItem& parent) : _parent(parent)
 {
    _page_item_type = PageItemTypeListElement;
 }
 
 MenuPageListItemElement::~MenuPageListItemElement() = default;
 
+MenuPageListItem& MenuPageListItemElement::getParent() const
+{
+   return _parent;
+}
+
 void MenuPageListItemElement::initialize()
 {
-   // create dummy layers
-   _dummy_layer_active = std::make_unique<PSDLayer>();
-   _dummy_layer_inactive = std::make_unique<PSDLayer>();
-   _layer_active = _dummy_layer_active.get();
-   _layer_inactive = _dummy_layer_inactive.get();
-
    MenuPageTextEditItem::initialize();
 }
 
 void MenuPageListItemElement::draw(float x, float y, float opacity)
 {
    const Color& rgb = getColor();
-   _font->setColor(rgb.red() / 255.0f, rgb.green() / 255.0f, rgb.blue() / 255.0f, opacity);
+   _font->get().setColor(rgb.red() / 255.0f, rgb.green() / 255.0f, rgb.blue() / 255.0f, opacity);
 
    // draw item data
-   _font->buildVertices(_scale, _text.c_str(), _x + x, _y + y + _height, -1, _height);
+   _font->get().buildVertices(_scale, _text.c_str(), _x + x, _y + y + _height, -1, _height);
 
    float r = 0.0f;
    float g = 0.0f;
@@ -37,15 +36,15 @@ void MenuPageListItemElement::draw(float x, float y, float opacity)
    float a = 0.0f;
    if (_outline_color.isValid())
    {
-      _font->getOutlineColor(r, g, b, a);
-      _font->setOutlineColor(_outline_color.redF(), _outline_color.greenF(), _outline_color.blueF(), _outline_color.alphaF());
+      _font->get().getOutlineColor(r, g, b, a);
+      _font->get().setOutlineColor(_outline_color.redF(), _outline_color.greenF(), _outline_color.blueF(), _outline_color.alphaF());
    }
 
-   _font->draw();
+   _font->get().draw();
 
    if (_outline_color.isValid())
    {
-      _font->setOutlineColor(r, g, b, a);
+      _font->get().setOutlineColor(r, g, b, a);
    }
 }
 

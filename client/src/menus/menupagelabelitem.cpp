@@ -8,8 +8,7 @@ MenuPageLabelItem::MenuPageLabelItem()
 
 void MenuPageLabelItem::initialize()
 {
-   const auto font = FontPool::Instance().get(_font_name);
-   _font = font ? &font->get() : nullptr;
+   _font = FontPool::Instance().get(_font_name);
 }
 
 void MenuPageLabelItem::draw()
@@ -20,23 +19,23 @@ void MenuPageLabelItem::draw()
    {
       if (_color.isValid())
       {
-         _font->setColor(_color.redF(), _color.greenF(), _color.blueF(), _alpha / 255.0f);
+         _font->get().setColor(_color.redF(), _color.greenF(), _color.blueF(), _alpha / 255.0f);
       }
       else
       {
-         _font->setColor(1.0f, 1.0f, 1.0f, _alpha / 255.0f);
+         _font->get().setColor(1.0f, 1.0f, 1.0f, _alpha / 255.0f);
       }
 
-      _font->buildVertices(
+      _font->get().buildVertices(
          _scale,
          _text.c_str(),
-         _layer_active->getLeft() + _font_x_offset,
-         _layer_active->getBottom() + _font_y_offset,
+         _layer_active->get().getLeft() + _font_x_offset,
+         _layer_active->get().getBottom() + _font_y_offset,
          _center_width,
          _center_height
       );
 
-      _font->draw();
+      _font->get().draw();
    }
 }
 

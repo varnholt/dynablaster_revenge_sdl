@@ -29,7 +29,7 @@ LocalPlayerClient::LocalPlayerClient(std::string host, std::string nick, int32_t
    _poll_timer.timeoutSignal.connect([this]() { poll(); });
    _poll_timer.start(poll_interval_ms);
 
-   _address = NET_ResolveHostname(_host.c_str());
+   _address.reset(NET_ResolveHostname(_host.c_str()));
    if (!_address)
    {
       SDL_Log("LocalPlayerClient: cannot resolve %s", _host.c_str());
@@ -41,21 +41,30 @@ LocalPlayerClient::~LocalPlayerClient()
    leave();
 }
 
+void LocalPlayerClient::AddressDeleter::operator()(NET_Address* address) const
+{
+   NET_UnrefAddress(address);
+}
+
+void LocalPlayerClient::SocketDeleter::operator()(NET_StreamSocket* socket) const
+{
+   NET_WaitUntilStreamSocketDrained(socket, 100);
+   NET_DestroyStreamSocket(socket);
+}
+
 void LocalPlayerClient::poll()
 {
    if (_address)
    {
-      const NET_Status status = NET_GetAddressStatus(_address);
+      const NET_Status status = NET_GetAddressStatus(_address.get());
       if (status == NET_SUCCESS)
       {
-         _socket = NET_CreateClient(_address, server_port, 0);
-         NET_UnrefAddress(_address);
-         _address = nullptr;
+         _socket.reset(NET_CreateClient(_address.get(), server_port, 0));
+         _address.reset();
       }
       else if (status == NET_FAILURE)
       {
-         NET_UnrefAddress(_address);
-         _address = nullptr;
+         _address.reset();
          joinFailedSignal();
       }
       return;
@@ -63,12 +72,12 @@ void LocalPlayerClient::poll()
 
    if (_socket && !_connected)
    {
-      const NET_Status status = NET_GetConnectionStatus(_socket);
+      const NET_Status status = NET_GetConnectionStatus(_socket.get());
       if (status == NET_SUCCESS)
       {
          _connected = true;
          LoginRequestPacket login(_nick, false);
-         send(&login);
+         send(login);
       }
       else if (status == NET_FAILURE)
       {
@@ -88,7 +97,7 @@ void LocalPlayerClient::readData()
 {
    std::array<char, 4096> chunk{};
    int32_t bytes_read = 0;
-   while ((bytes_read = NET_ReadFromStreamSocket(_socket, chunk.data(), static_cast<int>(chunk.size()))) > 0)
+   while ((bytes_read = NET_ReadFromStreamSocket(_socket.get(), chunk.data(), static_cast<int>(chunk.size()))) > 0)
    {
       _buffer.append(chunk.data(), static_cast<size_t>(bytes_read));
    }
@@ -108,7 +117,7 @@ void LocalPlayerClient::readData()
 
       if (packet)
       {
-         processPacket(packet.get());
+         processPacket(*packet);
       }
    }
 
@@ -132,14 +141,14 @@ bool LocalPlayerClient::packetAvailable()
    return _buffer.bytesAvailable() >= _block_size;
 }
 
-void LocalPlayerClient::processPacket(Packet* packet)
+void LocalPlayerClient::processPacket(Packet& packet)
 {
-   switch (packet->getType())
+   switch (packet.getType())
    {
       case Packet::LOGINRESPONSE:
       {
-         auto* response = static_cast<LoginResponsePacket*>(packet);
-         _player_id = response->getId();
+         const auto& response = static_cast<LoginResponsePacket&>(packet);
+         _player_id = response.getId();
          if (_player_id < 0)
          {
             joinFailedSignal();
@@ -147,20 +156,20 @@ void LocalPlayerClient::processPacket(Packet* packet)
          }
 
          JoinGameRequestPacket join(_game_id, _preferred_color);
-         send(&join);
+         send(join);
          break;
       }
 
       case Packet::JOINGAMERESPONSE:
       {
          // join responses are broadcast for every player, only ours matters
-         auto* response = static_cast<JoinGameResponsePacket*>(packet);
-         if (response->getPlayerId() != _player_id || _joined)
+         const auto& response = static_cast<JoinGameResponsePacket&>(packet);
+         if (response.getPlayerId() != _player_id || _joined)
          {
             break;
          }
 
-         if (!response->isSuccessful())
+         if (!response.isSuccessful())
          {
             joinFailedSignal();
             break;
@@ -169,14 +178,14 @@ void LocalPlayerClient::processPacket(Packet* packet)
          // nothing to load, ready right away
          _joined = true;
          PlayerSynchronizePacket sync(PlayerSynchronizePacket::LevelLoaded);
-         send(&sync);
+         send(sync);
          joinedSignal(_player_id);
          break;
       }
 
       case Packet::PLAYERKILLED:
       {
-         if (static_cast<PlayerKilledPacket*>(packet)->getPlayerId() == _player_id)
+         if (static_cast<const PlayerKilledPacket&>(packet).getPlayerId() == _player_id)
          {
             rumbleSignal(0.5f, 2000);
          }
@@ -185,8 +194,8 @@ void LocalPlayerClient::processPacket(Packet* packet)
 
       case Packet::GAMEEVENT:
       {
-         auto* event = static_cast<GameEventPacket*>(packet);
-         if (event->getGameEvent() == GameEventPacket::ExtraCollected && event->getPlayerId() == _player_id)
+         const auto& event = static_cast<GameEventPacket&>(packet);
+         if (event.getGameEvent() == GameEventPacket::ExtraCollected && event.getPlayerId() == _player_id)
          {
             rumbleSignal(0.2f, 500);
          }
@@ -198,15 +207,15 @@ void LocalPlayerClient::processPacket(Packet* packet)
    }
 }
 
-void LocalPlayerClient::send(Packet* packet)
+void LocalPlayerClient::send(Packet& packet)
 {
    if (!_socket || !_connected)
    {
       return;
    }
 
-   packet->serialize();
-   NET_WriteToStreamSocket(_socket, packet->constData(), static_cast<int>(packet->size()));
+   packet.serialize();
+   NET_WriteToStreamSocket(_socket.get(), packet.constData(), static_cast<int>(packet.size()));
 }
 
 void LocalPlayerClient::setKeys(uint8_t keys)
@@ -241,7 +250,7 @@ void LocalPlayerClient::sendKeys()
    if (_joined)
    {
       KeyPacket packet(0, static_cast<int8_t>(_keys));
-      send(&packet);
+      send(packet);
    }
 }
 
@@ -250,7 +259,7 @@ void LocalPlayerClient::leave()
    if (_joined)
    {
       LeaveGameRequestPacket packet(_game_id, _player_id);
-      send(&packet);
+      send(packet);
       _joined = false;
    }
 
@@ -261,18 +270,8 @@ void LocalPlayerClient::disconnect()
 {
    _poll_timer.stop();
 
-   if (_address)
-   {
-      NET_UnrefAddress(_address);
-      _address = nullptr;
-   }
-
-   if (_socket)
-   {
-      NET_WaitUntilStreamSocketDrained(_socket, 100);
-      NET_DestroyStreamSocket(_socket);
-      _socket = nullptr;
-   }
+   _address.reset();
+   _socket.reset();
 
    _connected = false;
    _joined = false;

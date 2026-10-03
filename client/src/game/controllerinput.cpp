@@ -26,10 +26,8 @@ constexpr std::array<std::pair<SDL_GamepadButton, uint32_t>, 11> button_map{{
 
 ControllerInput::~ControllerInput()
 {
-   for (auto& [id, device] : _devices)
-   {
-      SDL_CloseGamepad(device.controller);
-   }
+   // the controllers close before the subsystem quits
+   _devices.clear();
 
    if (_initialized)
    {
@@ -39,7 +37,7 @@ ControllerInput::~ControllerInput()
 
 bool ControllerInput::initialize()
 {
-   if (!GameSettings::getInstance()->getDevelopmentSettings()->isControllersEnabled())
+   if (!GameSettings::getInstance().getDevelopmentSettings().isControllersEnabled())
    {
       return false;
    }
@@ -75,7 +73,7 @@ void ControllerInput::addDevice(Id id)
    }
 
    Device device;
-   device.controller = SDL_OpenGamepad(id);
+   device.controller.reset(SDL_OpenGamepad(id));
    if (!device.controller)
    {
       SDL_Log("Failed to open controller %u: %s", id, SDL_GetError());
@@ -83,7 +81,7 @@ void ControllerInput::addDevice(Id id)
    }
 
    device.info.id = id;
-   const char* name = SDL_GetGamepadName(device.controller);
+   const char* name = SDL_GetGamepadName(device.controller.get());
    device.info.name = name ? name : "controller";
    std::array<char, 33> guid{};
    SDL_GUIDToString(SDL_GetGamepadGUIDForID(id), guid.data(), static_cast<int>(guid.size()));
@@ -112,7 +110,6 @@ void ControllerInput::removeDevice(Id id)
       }
    }
 
-   SDL_CloseGamepad(it->second.controller);
    _devices.erase(it);
    _assigned.erase(id);
 
@@ -125,18 +122,18 @@ uint32_t ControllerInput::readButtons(const Device& device) const
    uint32_t buttons = 0;
    for (const auto& [sdl_button, button] : button_map)
    {
-      if (SDL_GetGamepadButton(device.controller, sdl_button))
+      if (SDL_GetGamepadButton(device.controller.get(), sdl_button))
       {
          buttons |= button;
       }
    }
 
    // the left stick unless calibration picked another one
-   const auto* controls = GameSettings::getInstance()->getControllerSettings();
+   const auto& controls = GameSettings::getInstance().getControllerSettings();
    const auto axis = [](int value) { return static_cast<SDL_GamepadAxis>(std::clamp(value, 0, SDL_GAMEPAD_AXIS_COUNT - 1)); };
-   const int32_t threshold = controls->getAnalogueThreshold();
-   const int16_t x = SDL_GetGamepadAxis(device.controller, axis(controls->getAnalogueAxis1()));
-   const int16_t y = SDL_GetGamepadAxis(device.controller, axis(controls->getAnalogueAxis2()));
+   const int32_t threshold = controls.getAnalogueThreshold();
+   const int16_t x = SDL_GetGamepadAxis(device.controller.get(), axis(controls.getAnalogueAxis1()));
+   const int16_t y = SDL_GetGamepadAxis(device.controller.get(), axis(controls.getAnalogueAxis2()));
    if (x < -threshold)
    {
       buttons |= ButtonLeft;
@@ -208,15 +205,15 @@ void ControllerInput::updateGame(bool in_game, GameDrawable& game)
          }
       }
 
-      const auto* controls = GameSettings::getInstance()->getControllerSettings();
+      const auto& controls = GameSettings::getInstance().getControllerSettings();
       const std::array<std::pair<uint32_t, SDL_Keycode>, 7> key_map{{
-         {ButtonUp, controls->getUpKey()},
-         {ButtonDown, controls->getDownKey()},
-         {ButtonLeft, controls->getLeftKey()},
-         {ButtonRight, controls->getRightKey()},
-         {ButtonBomb, controls->getBombKey()},
-         {ButtonShoulderLeft, controls->getZoomOutKey()},
-         {ButtonShoulderRight, controls->getZoomInKey()},
+         {ButtonUp, controls.getUpKey()},
+         {ButtonDown, controls.getDownKey()},
+         {ButtonLeft, controls.getLeftKey()},
+         {ButtonRight, controls.getRightKey()},
+         {ButtonBomb, controls.getBombKey()},
+         {ButtonShoulderLeft, controls.getZoomOutKey()},
+         {ButtonShoulderRight, controls.getZoomInKey()},
       }};
 
       for (const auto& [mask, key] : key_map)
@@ -262,7 +259,7 @@ void ControllerInput::rumble(Id id, float intensity, int32_t duration_ms)
    if (it != _devices.end())
    {
       const auto strength = static_cast<uint16_t>(std::clamp(intensity, 0.0f, 1.0f) * 0xffff);
-      SDL_RumbleGamepad(it->second.controller, strength, strength, static_cast<uint32_t>(duration_ms));
+      SDL_RumbleGamepad(it->second.controller.get(), strength, strength, static_cast<uint32_t>(duration_ms));
    }
 }
 
@@ -314,12 +311,12 @@ std::optional<ControllerInput::State> ControllerInput::getState(Id id) const
    State state;
    for (int32_t button = 0; button < SDL_GAMEPAD_BUTTON_COUNT; button++)
    {
-      state.buttons[button] = SDL_GetGamepadButton(it->second.controller, static_cast<SDL_GamepadButton>(button));
+      state.buttons[button] = SDL_GetGamepadButton(it->second.controller.get(), static_cast<SDL_GamepadButton>(button));
    }
 
    for (int32_t axis = 0; axis < SDL_GAMEPAD_AXIS_COUNT; axis++)
    {
-      state.axes[axis] = SDL_GetGamepadAxis(it->second.controller, static_cast<SDL_GamepadAxis>(axis));
+      state.axes[axis] = SDL_GetGamepadAxis(it->second.controller.get(), static_cast<SDL_GamepadAxis>(axis));
    }
 
    return state;

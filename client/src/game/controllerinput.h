@@ -6,6 +6,7 @@
 
 #include <array>
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <string>
 #include <unordered_map>
@@ -89,7 +90,7 @@ public:
 private:
    struct Device
    {
-      SDL_Gamepad* controller = nullptr;
+      std::unique_ptr<SDL_Gamepad, decltype(&SDL_CloseGamepad)> controller{nullptr, &SDL_CloseGamepad};
       DeviceInfo info;
       uint32_t buttons = 0;
    };

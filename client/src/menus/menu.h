@@ -1,14 +1,14 @@
 #pragma once
 
-#include "settings.h"
 #include "gamesignal.h"
+#include "settings.h"
 
 #include "menupage.h"
 
+#include <functional>
 #include <memory>
+#include <optional>
 #include <vector>
-
-class MenuWorkflow;
 
 class Menu
 {
@@ -21,7 +21,8 @@ public:
 
    void initialize();
 
-   static Menu* getInstance();
+   //! the menu MenuDrawable owns, only while it exists
+   static Menu& getInstance();
 
    void mouseMoved(int x, int y);
 
@@ -33,27 +34,21 @@ public:
 
    void paste(const std::string& text);
 
-   MenuPage* getCurrentPage();
+   std::optional<std::reference_wrapper<MenuPage>> getCurrentPage() const;
 
-   void setCurrentPage(MenuPage* page);
+   void setCurrentPage(MenuPage& page);
 
-   MenuPage* getBackground();
+   std::optional<std::reference_wrapper<MenuPage>> getBackground() const;
 
-   MenuPage* getPageByName(const std::string&);
+   std::optional<std::reference_wrapper<MenuPage>> getPageByName(const std::string&) const;
 
    const std::vector<std::unique_ptr<MenuPage>>& getPages() const;
-
-   MenuWorkflow* getMenuWorkflow() const;
-
-   void setMenuWorkflow(MenuWorkflow*);
 
    //! action response
    void actionResponse(const std::string& page, const std::string& action, bool ok);
 
    //! action request
    Signal<const std::string&, const std::string&> actionRequestSignal;
-
-   Signal<MenuPage*, MenuPage*> pageChangeRequestSignal;
 
    //! a key was pressed while an item was focussed
    Signal<const std::string&, const std::string&, int> actionKeyPressedSignal;
@@ -66,11 +61,9 @@ private:
 
    std::unique_ptr<Settings> _settings;
 
-   // non-owning, point into _pages
-   MenuPage* _current_page = nullptr;
-   MenuPage* _background = nullptr;
+   // point into _pages
+   std::optional<std::reference_wrapper<MenuPage>> _current_page;
+   std::optional<std::reference_wrapper<MenuPage>> _background;
 
-   MenuWorkflow* _menu_workflow = nullptr;
-
-   static Menu* _instance;
+   static std::optional<std::reference_wrapper<Menu>> _instance;
 };

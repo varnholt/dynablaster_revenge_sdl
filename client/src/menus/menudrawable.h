@@ -21,7 +21,7 @@ public:
    MenuDrawable(RenderDevice*);
    ~MenuDrawable() override;
 
-   Menu* getMenu();
+   Menu& getMenu();
 
    void initializeGL() override;
 
@@ -90,7 +90,7 @@ protected:
    void startFadeInFrameBuffer();
 
    // declared before the animations: the pages only observe them, the animations' stopped
-   // callbacks capture page pointers
+   // callbacks capture page references
    std::unique_ptr<Menu> _menu;
 
    std::unique_ptr<MenuPageFadeAnimation> _fade_in_animation;

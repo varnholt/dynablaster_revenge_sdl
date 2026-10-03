@@ -6,27 +6,27 @@ MenuPageCheckBoxItem::MenuPageCheckBoxItem()
    _interactive = true;
 }
 
-void MenuPageCheckBoxItem::setCheckedLayer(PSDLayer* layer)
+void MenuPageCheckBoxItem::setCheckedLayer(PSDLayer& layer)
 {
    _layer_checked = layer;
 }
 
-void MenuPageCheckBoxItem::setUncheckedLayer(PSDLayer* layer)
+void MenuPageCheckBoxItem::setUncheckedLayer(PSDLayer& layer)
 {
    _layer_unchecked = layer;
 }
 
-PSDLayer* MenuPageCheckBoxItem::getCheckedLayer() const
+std::optional<std::reference_wrapper<PSDLayer>> MenuPageCheckBoxItem::getCheckedLayer() const
 {
    return _layer_checked;
 }
 
-PSDLayer* MenuPageCheckBoxItem::getUncheckedLayer() const
+std::optional<std::reference_wrapper<PSDLayer>> MenuPageCheckBoxItem::getUncheckedLayer() const
 {
    return _layer_unchecked;
 }
 
-PSDLayer* MenuPageCheckBoxItem::getLayer() const
+std::optional<std::reference_wrapper<PSDLayer>> MenuPageCheckBoxItem::getLayer() const
 {
    return isChecked() ? _layer_checked : _layer_unchecked;
 }

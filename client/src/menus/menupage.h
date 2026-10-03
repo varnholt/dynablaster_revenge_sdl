@@ -1,16 +1,19 @@
 #pragma once
 
-#include "settings.h"
 #include "gamesignal.h"
+#include "settings.h"
 
 #include "image/psd.h"
+#include "menupageitem.h"
 
+#include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
+#include <type_traits>
 #include <vector>
 
-class MenuPageItem;
 class MenuPageAnimation;
 class PSDLayer;
 
@@ -40,53 +43,26 @@ public:
 
    bool isActive();
 
-   void setAnimation(MenuPageAnimation*);
+   //! the animation is owned by the MenuDrawable
+   void setAnimation(MenuPageAnimation&);
 
-   MenuPageAnimation* getAnimation();
+   std::optional<std::reference_wrapper<MenuPageAnimation>> getAnimation() const;
 
-   MenuPageItem* getPageItem(const std::string& layer_name) const;
-
-   MenuPageItem* processLabel(PSDLayer* layer, std::string layer_name);
-
-   MenuPageItem* processLineEdit(PSDLayer* layer, std::string layer_name);
-
-   MenuPageItem* processBackground(PSDLayer* layer, std::string layer_name);
-
-   MenuPageItem* processTableMain(PSDLayer* layer, std::string layer_name);
-
-   MenuPageItem* processTableScrollButtons(PSDLayer* layer, std::string layer_name);
-
-   MenuPageItem* processTableScrollBar(PSDLayer* layer, std::string layer_name);
-
-   MenuPageItem* processTableScrollBarSlider(PSDLayer* layer, std::string layer_name);
-
-   MenuPageItem* processSliderScrollBarIcons(PSDLayer* layer, std::string layer_name);
-
-   MenuPageItem* processScrollImage(PSDLayer* layer, std::string layer_name);
-
-   MenuPageItem* processCheckBox(PSDLayer* layer, std::string layer_name_without_postfix, std::string layer_name);
-
-   MenuPageItem* processPixmap(PSDLayer* layer, std::string layer_name);
-
-   MenuPageItem* processDefaultItem(PSDLayer* layer, std::string layer_name);
-
-   MenuPageItem* processButton(PSDLayer* layer, std::string layer_name, std::string layer_name_without_postfix);
-
-   MenuPageItem* processComboBox(PSDLayer* layer, std::string layer_name);
-
-   MenuPageItem* processEditableComboBox(PSDLayer* layer, std::string layer_name);
+   //! the page item of that name if it is a T
+   template <typename T = MenuPageItem>
+   std::optional<std::reference_wrapper<T>> getPageItem(const std::string& layer_name) const;
 
    //! getter for the active item
-   MenuPageItem* getActiveItem() const;
+   std::optional<std::reference_wrapper<MenuPageItem>> getActiveItem() const;
 
    //! setter for the active item
-   void setActiveItem(MenuPageItem* value);
+   void setActiveItem(std::optional<std::reference_wrapper<MenuPageItem>> value);
 
    //! getter for pageitem at given position
-   std::vector<MenuPageItem*> getItemsAt(int x, int y) const;
+   std::vector<std::reference_wrapper<MenuPageItem>> getItemsAt(int x, int y) const;
 
    //! getter for the focussed item
-   MenuPageItem* getFocussedItem() const;
+   std::optional<std::reference_wrapper<MenuPageItem>> getFocussedItem() const;
 
    //! a repeated layer group (see repeatGroups()) has this many instances, 0 if it isn't one
    int32_t getGroupInstanceCount(const std::string& group) const;
@@ -149,15 +125,47 @@ protected:
 
    //! creates a page item owned by this page
    template <typename T>
-   T* addPageItem();
+   T& addPageItem();
+
+   //! adds or replaces the page item of that name
+   void setPageItemName(const std::string& name, MenuPageItem& item);
+
+   //! a nullopt result is not initialized as page item
+   std::optional<std::reference_wrapper<MenuPageItem>> processLabel(PSDLayer& layer, const std::string& layer_name);
+   std::optional<std::reference_wrapper<MenuPageItem>> processLineEdit(PSDLayer& layer, const std::string& layer_name);
+   std::optional<std::reference_wrapper<MenuPageItem>> processBackground(PSDLayer& layer, const std::string& layer_name);
+   std::optional<std::reference_wrapper<MenuPageItem>> processTableMain(PSDLayer& layer, const std::string& layer_name);
+   std::optional<std::reference_wrapper<MenuPageItem>> processTableScrollButtons(PSDLayer& layer, const std::string& layer_name);
+   std::optional<std::reference_wrapper<MenuPageItem>> processTableScrollBar(PSDLayer& layer, const std::string& layer_name);
+   std::optional<std::reference_wrapper<MenuPageItem>> processTableScrollBarSlider(PSDLayer& layer, const std::string& layer_name);
+   std::optional<std::reference_wrapper<MenuPageItem>> processSliderScrollBarIcons(PSDLayer& layer, const std::string& layer_name);
+   std::optional<std::reference_wrapper<MenuPageItem>> processScrollImage(PSDLayer& layer, const std::string& layer_name);
+   std::optional<std::reference_wrapper<MenuPageItem>> processCheckBox(PSDLayer& layer, const std::string& layer_name);
+   std::optional<std::reference_wrapper<MenuPageItem>> processPixmap(PSDLayer& layer, const std::string& layer_name);
+   std::optional<std::reference_wrapper<MenuPageItem>> processDefaultItem(PSDLayer& layer, const std::string& layer_name);
+   std::optional<std::reference_wrapper<MenuPageItem>> processButton(PSDLayer& layer, const std::string& layer_name);
+   std::optional<std::reference_wrapper<MenuPageItem>> processComboBox(PSDLayer& layer, std::string layer_name);
+   std::optional<std::reference_wrapper<MenuPageItem>> processEditableComboBox(PSDLayer& layer, std::string layer_name);
+
+   //! a combobox opens when its button is clicked
+   void linkComboBoxToButton(const std::string& button_key, const std::string& combo_box_key);
+
+   //! a combobox shows its value in a label
+   void linkComboBoxToLabel(const std::string& label_key, const std::string& combo_box_key);
+
+   //! an editable combobox shows its value in a text edit
+   void linkComboBoxToTextEdit(const std::string& text_edit_key, const std::string& combo_box_key);
+
+   //! the active item is this one
+   bool isActiveItem(const MenuPageItem& item) const;
 
    // declared before the items so the items (which observe the layers) are destroyed first
    std::vector<std::unique_ptr<PSDLayer>> _render_layers;
 
    std::vector<std::unique_ptr<MenuPageItem>> _page_items;
 
-   // non-owning lookup into _page_items
-   std::map<std::string, MenuPageItem*> _page_item_name_map;
+   // lookup into _page_items
+   std::map<std::string, std::reference_wrapper<MenuPageItem>> _page_item_name_map;
 
    std::string _title;
 
@@ -165,11 +173,11 @@ protected:
 
    std::unique_ptr<Settings> _settings;
 
-   //! focussed item (non-owning)
-   MenuPageItem* _active_item = nullptr;
+   //! focussed item
+   std::optional<std::reference_wrapper<MenuPageItem>> _active_item;
 
-   //! page animation (non-owning, owned by MenuDrawable)
-   MenuPageAnimation* _animation = nullptr;
+   //! page animation, owned by MenuDrawable
+   std::optional<std::reference_wrapper<MenuPageAnimation>> _animation;
 
    //! page is active
    bool _active = false;
@@ -180,3 +188,26 @@ protected:
    //! repeated group -> current horizontal offset of each instance
    std::map<std::string, std::vector<int32_t>> _group_instance_offsets;
 };
+
+template <typename T>
+std::optional<std::reference_wrapper<T>> MenuPage::getPageItem(const std::string& layer_name) const
+{
+   const auto iterator = _page_item_name_map.find(layer_name);
+   if (iterator == _page_item_name_map.end())
+   {
+      return std::nullopt;
+   }
+
+   if constexpr (std::is_same_v<T, MenuPageItem>)
+   {
+      return iterator->second;
+   }
+   else
+   {
+      if (auto* item = dynamic_cast<T*>(&iterator->second.get()))
+      {
+         return *item;
+      }
+      return std::nullopt;
+   }
+}

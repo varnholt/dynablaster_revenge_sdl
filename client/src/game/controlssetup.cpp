@@ -6,8 +6,8 @@
 
 namespace
 {
-constexpr const char* keyboard_name = "keyboard";
-constexpr const char* none_name = "none";
+const std::string keyboard_name = "keyboard";
+const std::string none_name = "none";
 
 std::string section(size_t controller_count)
 {

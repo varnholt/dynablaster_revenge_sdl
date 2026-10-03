@@ -1,14 +1,16 @@
 #pragma once
 
 #include "framework/frametimer.h"
-#include "menupageitem.h"
 #include "gamesignal.h"
+#include "menupageitem.h"
 
 #include "math/color.h"
 
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <memory>
+#include <optional>
 #include <vector>
 
 class Clipper;
@@ -39,7 +41,7 @@ public:
    void setRowHeight(int height);
 
    //! getter for element at i
-   MenuPageListItemElement* getElementAt(int i) const;
+   std::optional<std::reference_wrapper<MenuPageListItemElement>> getElementAt(int i) const;
 
    //! get element text
    const std::string& getElementText(int element);
@@ -91,19 +93,19 @@ public:
 
    void mousePressed(int x, int y) override;
 
-   virtual void setLayerFirstElement(PSDLayer* layer);
-   virtual void setLayerDefaultElement(PSDLayer* layer);
-   virtual void setLayerLastElement(PSDLayer* layer);
-   virtual void setLayerGradientElement(PSDLayer* layer);
-   virtual void setLayerSelectedElement(PSDLayer* layer);
-   virtual void setLayerFocussedElement(PSDLayer* layer);
+   virtual void setLayerFirstElement(PSDLayer& layer);
+   virtual void setLayerDefaultElement(PSDLayer& layer);
+   virtual void setLayerLastElement(PSDLayer& layer);
+   virtual void setLayerGradientElement(PSDLayer& layer);
+   virtual void setLayerSelectedElement(PSDLayer& layer);
+   virtual void setLayerFocussedElement(PSDLayer& layer);
 
-   virtual PSDLayer* getLayerFirstElement() const;
-   virtual PSDLayer* getLayerDefaultElement() const;
-   virtual PSDLayer* getLayerLastElement() const;
-   virtual PSDLayer* getLayerGradientElement() const;
-   virtual PSDLayer* getLayerSelectedElement() const;
-   virtual PSDLayer* getLayerFocussedElement() const;
+   virtual std::optional<std::reference_wrapper<PSDLayer>> getLayerFirstElement() const;
+   virtual std::optional<std::reference_wrapper<PSDLayer>> getLayerDefaultElement() const;
+   virtual std::optional<std::reference_wrapper<PSDLayer>> getLayerLastElement() const;
+   virtual std::optional<std::reference_wrapper<PSDLayer>> getLayerGradientElement() const;
+   virtual std::optional<std::reference_wrapper<PSDLayer>> getLayerSelectedElement() const;
+   virtual std::optional<std::reference_wrapper<PSDLayer>> getLayerFocussedElement() const;
 
    //! getter for blend duration
    float getBlendDuration() const;
@@ -158,13 +160,13 @@ protected:
    void releaseShader();
 
    //! bind row texture (if present)
-   PSDLayer* bindRowTexture(int row, float& u, float& v, float& s, float& t);
+   void bindRowTexture(int row, float& u, float& v, float& s, float& t);
 
    //! generate a new item instance
    std::unique_ptr<MenuPageListItemElement> itemInstance();
 
    //! initialize item instance
-   void initializeItem(MenuPageListItemElement* element, int index);
+   void initializeItem(MenuPageListItemElement& element, int index);
 
    //! update table bounds
    virtual void updateTableBounds();
@@ -176,7 +178,7 @@ protected:
    virtual int getMaxTableWidth() const;
 
    //! set alpha value for given element
-   void selectAlpha(int row_toggle, MenuPageListItemElement* element);
+   void selectAlpha(int row_toggle, MenuPageListItemElement& element);
 
    //! update scrollbars depending on current offset
    void updateScrollbars();
@@ -218,13 +220,13 @@ protected:
    bool _scrolling_active = false;
    bool _highlighting_active = true;
 
-   // individual layers for elements (to be used by comboboxes etc), non-owning
-   PSDLayer* _layer_first_element = nullptr;
-   PSDLayer* _layer_default_element = nullptr;
-   PSDLayer* _layer_last_element = nullptr;
-   PSDLayer* _layer_gradient = nullptr;
-   PSDLayer* _layer_selected_element = nullptr;
-   PSDLayer* _layer_focussed_element = nullptr;
+   // individual layers for elements (to be used by comboboxes etc), they belong to the MenuPage
+   std::optional<std::reference_wrapper<PSDLayer>> _layer_first_element;
+   std::optional<std::reference_wrapper<PSDLayer>> _layer_default_element;
+   std::optional<std::reference_wrapper<PSDLayer>> _layer_last_element;
+   std::optional<std::reference_wrapper<PSDLayer>> _layer_gradient;
+   std::optional<std::reference_wrapper<PSDLayer>> _layer_selected_element;
+   std::optional<std::reference_wrapper<PSDLayer>> _layer_focussed_element;
 
    //! listhighlight shader and its uniform locations
    uint32_t _shader = 0;

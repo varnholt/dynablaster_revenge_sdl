@@ -41,7 +41,7 @@ protected:
 
    void paintDefaultCursor();
    void paintClickedCursor();
-   void paintCursor(PSDLayer* layer, float opacity = 1.0f);
+   void paintCursor(PSDLayer& layer, float opacity = 1.0f);
    void paintBusyIcon();
 
    // declared before the layers, which observe its PSD::Layers

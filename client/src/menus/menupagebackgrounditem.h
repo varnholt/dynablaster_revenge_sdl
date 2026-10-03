@@ -6,6 +6,8 @@
 
 #include <array>
 #include <cstdint>
+#include <functional>
+#include <optional>
 
 class MenuPageBackgroundItem : public MenuPageItem
 {
@@ -23,7 +25,7 @@ public:
 
    void initialize() override;
 
-   void addGradientLayer(PSDLayer* gradient, BackgroundColor color);
+   void addGradientLayer(PSDLayer& gradient, BackgroundColor color);
 
    void setBackgroundColor(BackgroundColor);
 
@@ -37,8 +39,8 @@ private:
    BackgroundColor _background_color = BackgroundColorBlue;
    BackgroundColor _background_color_previous = BackgroundColorBlue;
 
-   // non-owning, the layers belong to the MenuPage
-   std::array<PSDLayer*, BackgroundColorBlue + 1> _background_layers{};
+   // the layers belong to the MenuPage
+   std::array<std::optional<std::reference_wrapper<PSDLayer>>, BackgroundColorBlue + 1> _background_layers{};
 
    // the scrolling quad drawn directly (its texcoords animate every frame) - see draw()
    uint32_t _vertex_buffer = 0;

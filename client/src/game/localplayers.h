@@ -56,11 +56,12 @@ public:
 private:
    struct Slot
    {
+      uint32_t id = 0;
       std::optional<ControllerInput::Id> controller;
       std::unique_ptr<LocalPlayerClient> client;
    };
 
-   void remove(const LocalPlayerClient* client);
+   void remove(uint32_t slot_id);
    void removeController(ControllerInput::Id controller);
    void updateLocalPlayerIds();
    uint8_t readKeyboard() const;
@@ -68,6 +69,7 @@ private:
    ControllerInput& _controller_input;
    BombermanClient& _client;
    std::vector<Slot> _slots;
+   uint32_t _next_slot_id = 0;
    std::unordered_set<ControllerInput::Id> _excluded;
    Signal<ControllerInput::Id>::Connection _device_removed_connection = 0;
 };

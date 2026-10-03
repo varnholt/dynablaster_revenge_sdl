@@ -6,6 +6,7 @@
 #include "timer.h"
 
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <string>
 
@@ -42,8 +43,8 @@ private:
    void poll();
    void readData();
    bool packetAvailable();
-   void processPacket(Packet* packet);
-   void send(Packet* packet);
+   void processPacket(Packet& packet);
+   void send(Packet& packet);
    void sendKeys();
    void disconnect();
 
@@ -58,8 +59,18 @@ private:
    uint8_t _keys = 0;
    bool _bomb_released = true;
 
-   NET_Address* _address = nullptr;
-   NET_StreamSocket* _socket = nullptr;
+   struct AddressDeleter
+   {
+      void operator()(NET_Address* address) const;
+   };
+
+   struct SocketDeleter
+   {
+      void operator()(NET_StreamSocket* socket) const;
+   };
+
+   std::unique_ptr<NET_Address, AddressDeleter> _address;
+   std::unique_ptr<NET_StreamSocket, SocketDeleter> _socket;
    PacketStreamBuffer _buffer;
    uint16_t _block_size = 0;
    Timer _poll_timer;

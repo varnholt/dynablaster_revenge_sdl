@@ -8,7 +8,7 @@ MenuPageSliderItem::MenuPageSliderItem()
 
 void MenuPageSliderItem::mousePressed(int x, int y)
 {
-   _relative_to_x = x - _layer_active->getLeft();
+   _relative_to_x = x - _layer_active->get().getLeft();
 
    setActive(true);
    MenuPageItem::mousePressed(x, y);
@@ -26,16 +26,16 @@ void MenuPageSliderItem::mouseMoved(int x, int y)
 
    float width = _maximum - _minimum;
 
-   if (x > _maximum - _layer_active->getWidth())
+   if (x > _maximum - _layer_active->get().getWidth())
    {
-      x = _maximum - _layer_active->getWidth();
+      x = _maximum - _layer_active->get().getWidth();
    }
    else if (x < _minimum)
    {
       x = _minimum;
    }
 
-   _layer_active->getLayer()->setX(x);
+   _layer_active->get().getLayer().setX(x);
 
    _value = (x - _minimum) / width;
    valueChangedSignal(_value);
@@ -86,11 +86,11 @@ void MenuPageSliderItem::setValue(float value)
    float x = _minimum + width * _value;
 
    // the slider knob takes a few pixels, too => get rid of half of its width
-   x -= _layer_active->getLayer()->getWidth() * 0.5f;
+   x -= _layer_active->get().getLayer().getWidth() * 0.5f;
    if (x < _minimum)
    {
       x = _minimum;
    }
 
-   _layer_active->getLayer()->setX(x);
+   _layer_active->get().getLayer().setX(x);
 }

@@ -29,25 +29,25 @@ MenuPageListItem::~MenuPageListItem() = default;
 
 std::unique_ptr<MenuPageListItemElement> MenuPageListItem::itemInstance()
 {
-   return std::make_unique<MenuPageListItemElement>();
+   return std::make_unique<MenuPageListItemElement>(*this);
 }
 
-void MenuPageListItem::initializeItem(MenuPageListItemElement* element, int index)
+void MenuPageListItem::initializeItem(MenuPageListItemElement& element, int index)
 {
    if (_layer_active)
    {
       // set element properties
-      element->setIndex(index);
-      element->setHeight(_row_height);
-      element->setWidth(_layer_active->getWidth());
-      element->setX(0);
-      element->setY(index * _row_height + index * _vertical_spacing);
+      element.setIndex(index);
+      element.setHeight(_row_height);
+      element.setWidth(_layer_active->get().getWidth());
+      element.setX(0);
+      element.setY(index * _row_height + index * _vertical_spacing);
 
       // lineedit properties
-      element->setFontXOffset(_font_x_offset);
-      element->setFontYOffset(_font_y_offset);
-      element->setFieldWidth(_field_width);
-      element->setScale(_scale);
+      element.setFontXOffset(_font_x_offset);
+      element.setFontYOffset(_font_y_offset);
+      element.setFieldWidth(_field_width);
+      element.setScale(_scale);
    }
    else
    {
@@ -79,7 +79,6 @@ bool MenuPageListItem::isHighlightingEnabled() const
 void MenuPageListItem::appendItem(const std::string& text, const Color& color, bool override_alpha, const Color& outline_color)
 {
    auto element = itemInstance();
-   element->setParent(this);
 
    // set text and color
    element->setFontName(_font_name);
@@ -93,7 +92,7 @@ void MenuPageListItem::appendItem(const std::string& text, const Color& color, b
    }
 
    // set element properties
-   initializeItem(element.get(), static_cast<int>(_elements.size()));
+   initializeItem(*element, static_cast<int>(_elements.size()));
 
    // generate element's vertices
    element->initialize();
@@ -127,10 +126,10 @@ void MenuPageListItem::initialize()
    _vertical_spacing = 3;
 
    _clipper = std::make_unique<Clipper>(
-      static_cast<float>(_layer_active->getLeft()),
-      static_cast<float>(_layer_active->getTop()),
-      static_cast<float>(_layer_active->getLeft() + _layer_active->getWidth()),
-      static_cast<float>(_layer_active->getTop() + _layer_active->getHeight())
+      static_cast<float>(_layer_active->get().getLeft()),
+      static_cast<float>(_layer_active->get().getTop()),
+      static_cast<float>(_layer_active->get().getLeft() + _layer_active->get().getWidth()),
+      static_cast<float>(_layer_active->get().getTop() + _layer_active->get().getHeight())
    );
 
    _elapsed.start();
@@ -143,7 +142,7 @@ void MenuPageListItem::initialize()
 
 void MenuPageListItem::updateScrollbars()
 {
-   const float percent = _y / (-_height_all_elements + _layer_active->getHeight());
+   const float percent = _y / (-_height_all_elements + _layer_active->get().getHeight());
    scrollAnimationSignal(percent);
 }
 
@@ -153,9 +152,9 @@ void MenuPageListItem::limitY(float& y)
    {
       y = 0.0f;
    }
-   else if (_height_all_elements + y < _layer_active->getHeight() && _height_all_elements >= _layer_active->getHeight())
+   else if (_height_all_elements + y < _layer_active->get().getHeight() && _height_all_elements >= _layer_active->get().getHeight())
    {
-      y = _layer_active->getHeight() - _height_all_elements;
+      y = _layer_active->get().getHeight() - _height_all_elements;
    }
 }
 
@@ -184,7 +183,7 @@ void MenuPageListItem::animate(float /*time*/)
       updateScrollbars();
 
       // update the focussed element from the mouse position so the correct element is highlighted
-      int relative_y = _mouse_y - _layer_active->getTop();
+      int relative_y = _mouse_y - _layer_active->get().getTop();
       relative_y -= _y_destination;
       updateFocussedElement(relative_y);
    }
@@ -202,17 +201,17 @@ void MenuPageListItem::animate(float /*time*/)
    }
 }
 
-void MenuPageListItem::selectAlpha(int row_toggle, MenuPageListItemElement* element)
+void MenuPageListItem::selectAlpha(int row_toggle, MenuPageListItemElement& element)
 {
    float alpha = 0.0f;
 
    if (_highlighting_active)
    {
-      if (element->isFadingOut())
+      if (element.isFadingOut())
       {
-         alpha = (_row_alpha[row_toggle] + 30 * element->getFadeOutValue()) / 255.0f;
+         alpha = (_row_alpha[row_toggle] + 30 * element.getFadeOutValue()) / 255.0f;
       }
-      else if (element->isFocussed() || element->isActive())
+      else if (element.isFocussed() || element.isActive())
       {
          alpha = (_row_alpha[row_toggle] + 30) / 255.0f;
       }
@@ -284,9 +283,9 @@ void MenuPageListItem::releaseShader()
    }
 }
 
-PSDLayer* MenuPageListItem::bindRowTexture(int row, float& u, float& v, float& s, float& t)
+void MenuPageListItem::bindRowTexture(int row, float& u, float& v, float& s, float& t)
 {
-   PSDLayer* layer = nullptr;
+   std::optional<std::reference_wrapper<PSDLayer>> layer;
    const int last_row = static_cast<int>(_elements.size()) - 1;
 
    if (row == 0 && getLayerFirstElement())
@@ -306,9 +305,9 @@ PSDLayer* MenuPageListItem::bindRowTexture(int row, float& u, float& v, float& s
 
    if (layer)
    {
-      glBindTexture(GL_TEXTURE_2D, layer->getTexture());
-      u = layer->getU();
-      v = layer->getV();
+      glBindTexture(GL_TEXTURE_2D, layer->get().getTexture());
+      u = layer->get().getU();
+      v = layer->get().getV();
    }
    else
    {
@@ -320,11 +319,11 @@ PSDLayer* MenuPageListItem::bindRowTexture(int row, float& u, float& v, float& s
    // set selected element textures
    glActiveTexture(GL_TEXTURE1);
 
-   if (getLayerSelectedElement())
+   if (const auto selected = getLayerSelectedElement())
    {
-      glBindTexture(GL_TEXTURE_2D, getLayerSelectedElement()->getTexture());
-      s = getLayerSelectedElement()->getU();
-      t = getLayerSelectedElement()->getV();
+      glBindTexture(GL_TEXTURE_2D, selected->get().getTexture());
+      s = selected->get().getU();
+      t = selected->get().getV();
    }
    else
    {
@@ -334,8 +333,6 @@ PSDLayer* MenuPageListItem::bindRowTexture(int row, float& u, float& v, float& s
    }
 
    glActiveTexture(GL_TEXTURE0);
-
-   return layer;
 }
 
 void MenuPageListItem::drawText()
@@ -344,11 +341,11 @@ void MenuPageListItem::drawText()
    {
       const float opacity = (element->isFocussed() || element->isActive() || element->isOverrideAlphaActive()) ? 1.0f : 0.5882f;
 
-      std::vector<Vertex> bound = element->getBoundingRectVertices(_layer_active->getLeft(), _layer_active->getTop() + _y);
+      std::vector<Vertex> bound = element->getBoundingRectVertices(_layer_active->get().getLeft(), _layer_active->get().getTop() + _y);
 
       if (_clipper->enable(bound))
       {
-         element->draw(_layer_active->getLeft(), _layer_active->getTop() + _y, opacity);
+         element->draw(_layer_active->get().getLeft(), _layer_active->get().getTop() + _y, opacity);
 
          _clipper->disable();
       }
@@ -375,7 +372,8 @@ void MenuPageListItem::drawRows()
    int row = 0;
    for (const auto& element : _elements)
    {
-      std::vector<Vertex> bounding_rect = element->getBoundingRectVertices(_layer_active->getLeft(), _layer_active->getTop() + _y);
+      std::vector<Vertex> bounding_rect =
+         element->getBoundingRectVertices(_layer_active->get().getLeft(), _layer_active->get().getTop() + _y);
 
       if (_clipper->enable(bounding_rect))
       {
@@ -385,21 +383,21 @@ void MenuPageListItem::drawRows()
          float t = 0.0f;
          bindRowTexture(row, u, v, s, t);
 
-         selectAlpha(row_toggle, element.get());
+         selectAlpha(row_toggle, *element);
 
          std::array<float, order.size() * floats_per_vertex> quad{};
 
          for (size_t i = 0; i < order.size(); i++)
          {
             const Vertex& vertex = bounding_rect[order[i]];
-            float* destination = quad.data() + i * floats_per_vertex;
-            destination[0] = vertex.x;
-            destination[1] = vertex.y;
-            destination[2] = 0.0f;
-            destination[3] = vertex.u * u;
-            destination[4] = vertex.v * v;
-            destination[5] = vertex.u * s;
-            destination[6] = vertex.v * t;
+            const size_t offset = i * floats_per_vertex;
+            quad[offset + 0] = vertex.x;
+            quad[offset + 1] = vertex.y;
+            quad[offset + 2] = 0.0f;
+            quad[offset + 3] = vertex.u * u;
+            quad[offset + 4] = vertex.v * v;
+            quad[offset + 5] = vertex.u * s;
+            quad[offset + 6] = vertex.v * t;
          }
 
          const int quad_size = static_cast<int>(sizeof(float) * quad.size());
@@ -413,8 +411,7 @@ void MenuPageListItem::drawRows()
             activeDevice->allocateVertexBuffer(_row_vertex_buffer, quad_size, true);
          }
 
-         void* buffer = activeDevice->lockVertexBuffer(_row_vertex_buffer, quad_size);
-         std::memcpy(buffer, quad.data(), quad_size);
+         std::memcpy(activeDevice->lockVertexBuffer(_row_vertex_buffer, quad_size), quad.data(), quad_size);
          activeDevice->unlockVertexBuffer(_row_vertex_buffer);
 
          activeDevice->push(Matrix());
@@ -510,7 +507,7 @@ int MenuPageListItem::scrollSmoothToIndex(int index)
 
    // init distance and target position
    const float one_row_height = _row_height + _vertical_spacing;
-   const float table_vertical_center = _layer_active->getHeight() * 0.5f;
+   const float table_vertical_center = _layer_active->get().getHeight() * 0.5f;
 
    const float destination = table_vertical_center - _height_all_elements + ((element_count - index) * one_row_height);
 
@@ -528,8 +525,8 @@ int MenuPageListItem::scrollSmoothToIndex(int index)
    _y_destination = destination;
    limitY(_y_destination);
 
-   const int table_top = _layer_active->getTop();
-   const int table_height = _layer_active->getHeight();
+   const int table_top = _layer_active->get().getTop();
+   const int table_height = _layer_active->get().getHeight();
 
    const int row_height = one_row_height * index;
    int mouse_offset = 0;
@@ -555,7 +552,7 @@ int MenuPageListItem::scrollSmoothToIndex(int index)
 
 void MenuPageListItem::scrollToPercentage(float percent, bool clicked)
 {
-   _y = -_height_all_elements + _layer_active->getHeight();
+   _y = -_height_all_elements + _layer_active->get().getHeight();
    _y *= percent;
 
    if (!clicked)
@@ -612,7 +609,7 @@ void MenuPageListItem::mouseMoved(int /*x*/, int y)
       // store last mouse position
       _mouse_y = y;
 
-      int relative_y = y - _layer_active->getTop();
+      int relative_y = y - _layer_active->get().getTop();
       relative_y -= _y;
 
       updateFocussedElement(relative_y);
@@ -621,7 +618,7 @@ void MenuPageListItem::mouseMoved(int /*x*/, int y)
 
 void MenuPageListItem::mousePressed(int /*x*/, int y)
 {
-   int relative_y = y - _layer_active->getTop();
+   int relative_y = y - _layer_active->get().getTop();
    relative_y -= _y;
 
    const int active_element = static_cast<float>(relative_y) / (_vertical_spacing + _row_height);
@@ -640,9 +637,13 @@ void MenuPageListItem::mousePressed(int /*x*/, int y)
    }
 }
 
-MenuPageListItemElement* MenuPageListItem::getElementAt(int i) const
+std::optional<std::reference_wrapper<MenuPageListItemElement>> MenuPageListItem::getElementAt(int i) const
 {
-   return _elements.at(i).get();
+   if (i < 0 || static_cast<size_t>(i) >= _elements.size())
+   {
+      return std::nullopt;
+   }
+   return *_elements[static_cast<size_t>(i)];
 }
 
 const std::string& MenuPageListItem::getElementText(int element)
@@ -693,62 +694,62 @@ void MenuPageListItem::setElementFocussed(int element, bool focussed)
    }
 }
 
-void MenuPageListItem::setLayerFirstElement(PSDLayer* layer)
+void MenuPageListItem::setLayerFirstElement(PSDLayer& layer)
 {
    _layer_first_element = layer;
 }
 
-void MenuPageListItem::setLayerDefaultElement(PSDLayer* layer)
+void MenuPageListItem::setLayerDefaultElement(PSDLayer& layer)
 {
    _layer_default_element = layer;
 }
 
-void MenuPageListItem::setLayerLastElement(PSDLayer* layer)
+void MenuPageListItem::setLayerLastElement(PSDLayer& layer)
 {
    _layer_last_element = layer;
 }
 
-void MenuPageListItem::setLayerGradientElement(PSDLayer* layer)
+void MenuPageListItem::setLayerGradientElement(PSDLayer& layer)
 {
    _layer_gradient = layer;
 }
 
-void MenuPageListItem::setLayerSelectedElement(PSDLayer* layer)
+void MenuPageListItem::setLayerSelectedElement(PSDLayer& layer)
 {
    _layer_selected_element = layer;
 }
 
-void MenuPageListItem::setLayerFocussedElement(PSDLayer* layer)
+void MenuPageListItem::setLayerFocussedElement(PSDLayer& layer)
 {
    _layer_focussed_element = layer;
 }
 
-PSDLayer* MenuPageListItem::getLayerFirstElement() const
+std::optional<std::reference_wrapper<PSDLayer>> MenuPageListItem::getLayerFirstElement() const
 {
    return _layer_first_element;
 }
 
-PSDLayer* MenuPageListItem::getLayerDefaultElement() const
+std::optional<std::reference_wrapper<PSDLayer>> MenuPageListItem::getLayerDefaultElement() const
 {
    return _layer_default_element;
 }
 
-PSDLayer* MenuPageListItem::getLayerLastElement() const
+std::optional<std::reference_wrapper<PSDLayer>> MenuPageListItem::getLayerLastElement() const
 {
    return _layer_last_element;
 }
 
-PSDLayer* MenuPageListItem::getLayerGradientElement() const
+std::optional<std::reference_wrapper<PSDLayer>> MenuPageListItem::getLayerGradientElement() const
 {
    return _layer_gradient;
 }
 
-PSDLayer* MenuPageListItem::getLayerSelectedElement() const
+std::optional<std::reference_wrapper<PSDLayer>> MenuPageListItem::getLayerSelectedElement() const
 {
    return _layer_selected_element;
 }
 
-PSDLayer* MenuPageListItem::getLayerFocussedElement() const
+std::optional<std::reference_wrapper<PSDLayer>> MenuPageListItem::getLayerFocussedElement() const
 {
    return _layer_focussed_element;
 }

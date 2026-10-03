@@ -5,6 +5,10 @@
 #include "vertex.h"
 
 #include <cstdint>
+#include <optional>
+#include <span>
+#include <string>
+#include <string_view>
 #include <vector>
 
 /// \brief signed-distance-field bitmap font; tinted via setColor() and a uniform on the shared
@@ -25,8 +29,8 @@ public:
    };
 
    BitmapFont(
-      const char* filename,
-      Parameter* description,
+      const std::string& filename,
+      std::span<const Parameter> description,
       float size = 1.0f,
       float spacing = 0.0f,
       float distance_radius = 0.0f,
@@ -43,7 +47,7 @@ public:
    void setOutlineColor(float r, float g, float b, float a);
    void getOutlineColor(float& r, float& g, float& b, float& a);
    void setColor(float r, float g, float b, float a);
-   float buildVertices(float size, const char* text, float x, float y, float center_width = -1.0f, float center_height = -1.0f);
+   float buildVertices(float size, std::string_view text, float x, float y, float center_width = -1.0f, float center_height = -1.0f);
    const std::vector<Vertex>& getVertices() const;
    void draw(const std::vector<Vertex>& vertices, const Matrix& transform = Matrix());
    void draw();
@@ -52,7 +56,8 @@ public:
    //! getter cursor dimensions
    void getCursor(float scale, int cursor_position, float& left, float& right, float& top, float& bottom);
 
-   Parameter* getCharParameter(char c) const;
+   //! the glyph of a 7-bit ascii character
+   std::optional<Parameter> getCharParameter(char c) const;
 
 private:
    uint32_t _shader = 0;
@@ -65,8 +70,8 @@ private:
    int _param_thickness = 0;
    int _param_sample_offset = 0;
 
-   // non-owning, points into a static glyph table
-   Parameter* _description;
+   // a static glyph table
+   std::span<const Parameter> _description;
    float _size;
    float _spacing;
    float _radius;

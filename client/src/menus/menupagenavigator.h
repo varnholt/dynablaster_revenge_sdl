@@ -1,24 +1,24 @@
 #pragma once
 
-#include "hosthistory.h"
 #include "gamesignal.h"
+#include "hosthistory.h"
 
 #include <cstddef>
 #include <functional>
 #include <limits>
 #include <map>
+#include <optional>
 #include <string>
 #include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
-class MenuPage;
 class MenuPageTextEditItem;
 class PlayerInfo;
 
 /// \brief page navigation and BombermanClient wiring for the menu system: drives the
 /// login -> create game -> join game -> lounge chain and populates/reads the GAME_CREATE,
-/// OPTIONS_VIDEO, OPTIONS_AUDIO, OPTIONS_CONTROLS, OPTIONS_GAME and LOUNGE pages (mirrors the original GameMenuWorkflow/GameMenuInterface*).
+/// OPTIONS_VIDEO, OPTIONS_AUDIO, OPTIONS_CONTROLS, OPTIONS_GAME and LOUNGE pages (mirrors the original
+/// GameMenuWorkflow/GameMenuInterface*).
 ///
 /// Signal<> has no auto-disconnect: every connection capturing this is disconnected again in the
 /// destructor, so BombermanClient and the menu items must simply outlive this object.
@@ -75,7 +75,7 @@ private:
 
    //! mirrors GameMenuInterfaceLounge::playerInfoMapUpdated() - repopulates the lounge's player
    //! rows (nick/wins/rank/owner-icon) whenever the player set changes (join/leave/bot added).
-   void onPlayerInfoMapUpdated(std::map<int, PlayerInfo*>* player_info);
+   void onPlayerInfoMapUpdated(const std::map<int, PlayerInfo*>& player_info);
 
    //! mirrors GameMenuInterfaceOptions::applyVolumeMusic()/applyVolumeSfx() - forwards a dragged
    //! slider's value straight to SoundManager (live volume change, not yet persisted).
@@ -145,7 +145,7 @@ private:
    void restoreControlsDefaults();
 
    //! the key field that's being edited, if any
-   MenuPageTextEditItem* getActiveKeyField() const;
+   std::optional<std::reference_wrapper<MenuPageTextEditItem>> getActiveKeyField() const;
 
    //! mirrors GameMenuInterfaceOptions::deserializeAudioSettings() - seeds the audio options
    //! page's sliders from SoundManager's current volume whenever OPTIONS_AUDIO becomes current.
@@ -160,7 +160,7 @@ private:
 
    //! mirrors GameMenuInterfaceLounge::playerInfoMapUpdated() - the actual row-population logic,
    //! called both on the live signal and once on first reaching LOUNGE.
-   void updateLoungePlayerList(std::map<int, PlayerInfo*>* player_info);
+   void updateLoungePlayerList(const std::map<int, PlayerInfo*>& player_info);
 
    //! mirrors GameMenuInterfaceLounge::addLoungeMessage() - word-wraps and appends one chat line
    //! (already formatted as "nick: text" by the server) to the lounge's message table.
@@ -170,7 +170,7 @@ private:
 
    std::vector<std::string> _sorted_level_names;
    std::vector<std::string> _sorted_level_dir_names;
-   std::unordered_set<MenuPage*> _create_game_pages_initialized;
+   bool _create_game_options_initialized = false;
    std::unordered_map<int, int> _player_id_to_index_map;
    HostHistory _host_history;
 

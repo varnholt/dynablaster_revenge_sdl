@@ -6,8 +6,10 @@
 
 #include <cstdint>
 #include <deque>
+#include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 
 class MenuDrawable;
@@ -36,7 +38,7 @@ public:
    void update();
 
 private:
-   MenuControllerGraph* getCurrentGraph() const;
+   std::optional<std::reference_wrapper<MenuControllerGraph>> getCurrentGraph() const;
    void processButtonQueue();
 
    MenuDrawable& _menu;

@@ -12,9 +12,9 @@
 
 namespace
 {
-constexpr const char* LAYER_DEFAULT = "default";
-constexpr const char* LAYER_BUSY = "busy";
-constexpr const char* LAYER_CLICKED = "clicked";
+const std::string LAYER_DEFAULT = "default";
+const std::string LAYER_BUSY = "busy";
+const std::string LAYER_CLICKED = "clicked";
 }  // namespace
 
 MenuMouseCursor::MenuMouseCursor(RenderDevice* device, bool visible) : Drawable(device, visible)
@@ -92,16 +92,16 @@ void MenuMouseCursor::paintGL()
    cleanupGlParameters();
 }
 
-void MenuMouseCursor::paintCursor(PSDLayer* layer, float opacity)
+void MenuMouseCursor::paintCursor(PSDLayer& layer, float opacity)
 {
-   layer->render(_x, _y, opacity);
+   layer.render(_x, _y, opacity);
 }
 
 void MenuMouseCursor::paintDefaultCursor()
 {
    if (_default_layer)
    {
-      paintCursor(_default_layer.get());
+      paintCursor(*_default_layer);
    }
 }
 
@@ -116,7 +116,7 @@ void MenuMouseCursor::paintClickedCursor()
 
    if (opacity > 0.0f)
    {
-      paintCursor(_clicked_layer.get(), opacity);
+      paintCursor(*_clicked_layer, opacity);
    }
 }
 
@@ -158,7 +158,7 @@ void MenuMouseCursor::cleanupGlParameters()
 
 void MenuMouseCursor::initGlParameters()
 {
-   auto* device = static_cast<GLDevice*>(activeDevice);
+   auto& device = static_cast<GLDevice&>(*activeDevice);
 
    glEnable(GL_BLEND);
 
@@ -168,6 +168,6 @@ void MenuMouseCursor::initGlParameters()
    // shader and projection must be set before push(), which uploads the combined MVP immediately;
    // PSDLayer::render() needs the shared menu shader bound (shader 0 means "no program" in GLES3)
    activeDevice->setShader(getDefaultMenuShader());
-   device->setProjectionMatrix(Matrix::ortho(0.0f, 1920.0f, 1080.0f, 0.0f, -1.0f, 1.0f));
-   device->push(Matrix());
+   device.setProjectionMatrix(Matrix::ortho(0.0f, 1920.0f, 1080.0f, 0.0f, -1.0f, 1.0f));
+   device.push(Matrix());
 }

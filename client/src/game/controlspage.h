@@ -7,6 +7,8 @@
 #include <SDL3/SDL.h>
 
 #include <cstdint>
+#include <functional>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -47,7 +49,7 @@ public:
    void update();
 
 private:
-   MenuPage* getPage() const;
+   std::optional<std::reference_wrapper<MenuPage>> getPage() const;
    std::vector<std::string> getDefaultNames() const;
    void readNames();
    void refresh();
