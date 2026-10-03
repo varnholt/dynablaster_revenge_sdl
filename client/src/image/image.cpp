@@ -6,7 +6,7 @@
 #include <string>
 
 #include "tga.h"
-#include "tools/filestream.h"
+#include "tools/datapaths.h"
 
 // construct empty (black, transparent) image x*y
 Image::Image(int32_t x, int32_t y) : _pixels(std::make_shared<std::vector<uint32_t>>(static_cast<size_t>(x) * y)), _width(x), _height(y)
@@ -34,12 +34,10 @@ void Image::load(const char* filename)
    if (loaded)
    {
       const std::string name = std::string(filename) + ".tga";
-      FileStream stream;
-      if (stream.open(name))
+      if (const auto path = DataPaths::resolve(name))
       {
-         _path = stream.getPath();
+         _path = path->string();
          _filename = filename;
-         stream.close();
       }
    }
 }

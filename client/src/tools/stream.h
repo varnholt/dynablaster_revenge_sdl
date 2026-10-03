@@ -5,49 +5,59 @@
 #include <bit>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
+#include <istream>
+#include <ostream>
 #include <span>
 #include <string>
 #include <string_view>
+#include <variant>
 #include <vector>
+
+// binary reader/writer over a standard stream
 
 class Stream
 {
 public:
-   Stream() = default;
-   virtual ~Stream() = default;
+   explicit Stream(std::istream& input);
+   explicit Stream(std::ostream& output);
 
-   virtual const std::string& getPath() const;
+   Stream(const Stream&) = delete;
+   Stream& operator=(const Stream&) = delete;
+
+   std::istream& input();
+   std::ostream& output();
 
    int32_t getEndian() const;           // get current endian mode
    void setEndian(int32_t big_endian);  // set endian mode
 
-   virtual void getData(std::span<std::byte> destination) = 0;  // fill "destination"
-   virtual void writeData(std::span<const std::byte> source) = 0;
+   void getData(std::span<std::byte> destination);  // fill "destination"
+   void writeData(std::span<const std::byte> source);
 
-   virtual char getChar();           // get single character
-   virtual uint8_t getByte();        // get single byte
-   virtual int32_t getWord();        // get unsigned word (2 byte)
-   virtual int16_t getShort();       // get short (2 byte)
-   virtual int32_t getInt();         // get integer (4 byte)
-   virtual float getFloat();         // get float (4 byte)
-   virtual std::string getString();  // get string (0 terminated)
+   char getChar();           // get single character
+   uint8_t getByte();        // get single byte
+   int32_t getWord();        // get unsigned word (2 byte)
+   int16_t getShort();       // get short (2 byte)
+   int32_t getInt();         // get integer (4 byte)
+   float getFloat();         // get float (4 byte)
+   std::string getString();  // get string (0 terminated)
 
    // length byte followed by the characters, trailing \0 characters stripped
    std::string getPrefixedString();
 
-   virtual void writeChar(char);                     // write single character
-   virtual void writeByte(uint8_t);                  // write single byte
-   virtual void writeWord(uint16_t);                 // write word (2 byte)
-   virtual void writeShort(int16_t);                 // write short
-   virtual void writeInt(int32_t);                   // write integer (4 byte)
-   virtual void writeFloat(float);                   // write float (4 byte)
-   virtual void writeString(std::string_view text);  // write string (0 terminated)
+   void writeChar(char);                     // write single character
+   void writeByte(uint8_t);                  // write single byte
+   void writeWord(uint16_t);                 // write word (2 byte)
+   void writeShort(int16_t);                 // write short
+   void writeInt(int32_t);                   // write integer (4 byte)
+   void writeFloat(float);                   // write float (4 byte)
+   void writeString(std::string_view text);  // write string (0 terminated)
 
    // length byte (at most 255) followed by the characters
    void writePrefixedString(std::string_view text);
 
-   virtual int32_t pos() const;
-   virtual void skip(int32_t size);
+   int32_t pos() const;
+   void skip(int32_t size);
 
    // raw bytes of a trivially copyable value, no endian conversion
    template <class Value>
@@ -68,10 +78,8 @@ public:
 private:
    static constexpr int32_t kMachineEndian = (std::endian::native == std::endian::big) ? 1 : 0;
 
+   std::variant<std::reference_wrapper<std::istream>, std::reference_wrapper<std::ostream>> _stream;
    int32_t _endian = 0;
-
-protected:
-   int32_t _position = 0;
 };
 
 Stream& operator<<(Stream& stream, float&);

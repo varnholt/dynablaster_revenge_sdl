@@ -8,7 +8,8 @@
 
 #include "materials/material.h"
 #include "materials/materialfactory.h"
-#include "tools/filestream.h"
+#include "tools/datapaths.h"
+#include "tools/stream.h"
 
 #include "gldevice.h"
 
@@ -16,6 +17,7 @@
 #include <cmath>
 #include <cstdio>
 #include <format>
+#include <fstream>
 #include <string>
 
 namespace
@@ -330,7 +332,8 @@ void SceneGraph::writeNode(Stream& stream, Node* parent)
 
 int32_t SceneGraph::load(const std::string& name, MaterialFactory* materials, Node* parent)
 {
-   FileStream stream;
+   std::ifstream file = DataPaths::open(name);
+   Stream stream(file);
 
    _instance = this;
    if (!parent)
@@ -338,7 +341,7 @@ int32_t SceneGraph::load(const std::string& name, MaterialFactory* materials, No
       parent = this;
    }
 
-   if (!stream.open(name))
+   if (!file.is_open())
    {
       return 0;
    }
@@ -407,11 +410,12 @@ int32_t SceneGraph::load(const std::string& name, MaterialFactory* materials, No
 
 void SceneGraph::write(const std::string& name)
 {
-   FileStream stream;
+   std::ofstream file(name, std::ios::binary);
+   Stream stream(file);
 
    _instance = this;
 
-   if (!stream.open(name, true))
+   if (!file.is_open())
    {
       return;
    }
@@ -426,7 +430,7 @@ void SceneGraph::write(const std::string& name)
    }
 
    stream.writeInt(terminator_chunk_id);
-   stream.close();
+   file.close();
 }
 
 //! export scenegraph to obj

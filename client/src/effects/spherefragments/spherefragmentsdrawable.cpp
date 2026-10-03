@@ -11,7 +11,7 @@
 #include "nodes/node.h"
 #include "nodes/scenegraph.h"
 #include "render/geometry.h"
-#include "tools/filestream.h"
+#include "tools/datapaths.h"
 
 // spherefragments
 #include "blendquad.h"
@@ -50,10 +50,10 @@ SphereFragmentsDrawable::~SphereFragmentsDrawable() = default;
 
 void SphereFragmentsDrawable::initializeGL()
 {
-   FileStream::addPath("data/shaders");
-   FileStream::addPath("data/effects/spherefragments/shaders");
-   FileStream::addPath("data/effects/spherefragments/meshes");
-   FileStream::addPath("data/effects/spherefragments/images");
+   DataPaths::add("data/shaders");
+   DataPaths::add("data/effects/spherefragments/shaders");
+   DataPaths::add("data/effects/spherefragments/meshes");
+   DataPaths::add("data/effects/spherefragments/images");
 
    _alpha_duplicate = std::make_unique<DuplicateAlpha>();
    _blend_quad = std::make_unique<BlendQuad>();
@@ -90,7 +90,7 @@ void SphereFragmentsDrawable::initializeGL()
 
    _fragment_container = std::make_unique<SphereFragmentContainer>(_scene_graph_earth.get());
 
-   FileStream::removePath("data/effects/spherefragments/images");
+   DataPaths::remove("data/effects/spherefragments/images");
 }
 
 void SphereFragmentsDrawable::projectionSetup()

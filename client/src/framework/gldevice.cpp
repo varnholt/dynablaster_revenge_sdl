@@ -1,12 +1,13 @@
 #include "gldevice.h"
 
 #include "../gles3.h"
-#include "../tools/filestream.h"
+#include "../tools/datapaths.h"
 
 #include <SDL3/SDL.h>
 
 #include <cstdint>
-#include <span>
+#include <fstream>
+#include <iterator>
 #include <vector>
 
 namespace
@@ -37,18 +38,15 @@ GLuint compileStage(GLenum type, const char* source, int32_t length, const char*
 // reads a whole shader source file and compiles it, 0 if missing or broken
 GLuint loadStage(GLenum type, const char* filename)
 {
-   FileStream stream;
-   if (!stream.open(filename))
+   std::ifstream file = DataPaths::open(filename);
+   if (!file.is_open())
    {
       SDL_Log("shader file not found: %s", filename);
       return 0;
    }
 
-   const int32_t size = stream.size();
-   std::vector<char> source(static_cast<size_t>(size));
-   stream.getData(std::as_writable_bytes(std::span(source)));
-   stream.close();
-   return compileStage(type, source.data(), size, filename);
+   const std::vector<char> source{std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
+   return compileStage(type, source.data(), static_cast<int32_t>(source.size()), filename);
 }
 
 }  // namespace

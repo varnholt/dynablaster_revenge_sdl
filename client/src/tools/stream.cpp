@@ -1,12 +1,34 @@
 #include "stream.h"
 
 #include <algorithm>
-#include <array>
+#include <ios>
 
-const std::string& Stream::getPath() const
+Stream::Stream(std::istream& input) : _stream(std::ref(input))
 {
-   static const std::string dummy;
-   return dummy;
+}
+
+Stream::Stream(std::ostream& output) : _stream(std::ref(output))
+{
+}
+
+std::istream& Stream::input()
+{
+   return std::get<std::reference_wrapper<std::istream>>(_stream);
+}
+
+std::ostream& Stream::output()
+{
+   return std::get<std::reference_wrapper<std::ostream>>(_stream);
+}
+
+void Stream::getData(std::span<std::byte> destination)
+{
+   input().read(reinterpret_cast<char*>(destination.data()), static_cast<std::streamsize>(destination.size()));
+}
+
+void Stream::writeData(std::span<const std::byte> source)
+{
+   output().write(reinterpret_cast<const char*>(source.data()), static_cast<std::streamsize>(source.size()));
 }
 
 Stream& operator<<(Stream& stream, float& value)
@@ -100,18 +122,21 @@ std::string Stream::getPrefixedString()
 
 void Stream::skip(int32_t size)
 {
-   std::array<std::byte, 256> dummy{};
-   while (size > 0)
+   if (size > 0)
    {
-      const int32_t length = std::min<int32_t>(size, static_cast<int32_t>(dummy.size()));
-      getData(std::span(dummy).first(length));
-      size -= length;
+      input().seekg(size, std::ios::cur);
    }
 }
 
 int32_t Stream::pos() const
 {
-   return _position;
+   using Input = std::reference_wrapper<std::istream>;
+   using Output = std::reference_wrapper<std::ostream>;
+   if (std::holds_alternative<Input>(_stream))
+   {
+      return static_cast<int32_t>(std::get<Input>(_stream).get().tellg());
+   }
+   return static_cast<int32_t>(std::get<Output>(_stream).get().tellp());
 }
 
 void Stream::writeChar(char c)

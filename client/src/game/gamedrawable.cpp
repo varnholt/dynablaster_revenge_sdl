@@ -9,7 +9,6 @@
 #include "nodes/dummy.h"
 #include "nodes/mesh.h"
 #include "nodes/scenegraph.h"
-#include "tools/filestream.h"
 
 // game
 #include "animation/motionmixer.h"

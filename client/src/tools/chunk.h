@@ -7,16 +7,22 @@
 
 #pragma once
 
-#include <array>
 #include <cstdint>
-#include <memory>
+#include <functional>
+#include <sstream>
 #include <string>
-#include <vector>
 
 #include "objectname.h"
 #include "stream.h"
 
-class Chunk : public Stream, public ObjectName
+// write mode: data is collected here and flushed to the parent stream (with id, name and size) on destruction;
+// a base so it is constructed before the Stream base that writes into it
+struct ChunkBuffer
+{
+   std::ostringstream _buffer;
+};
+
+class Chunk : private ChunkBuffer, public Stream, public ObjectName
 {
 public:
    enum class AccessMode
@@ -27,13 +33,10 @@ public:
 
    explicit Chunk(Stream& stream);
    Chunk(Stream& stream, int32_t id, const std::string& name);
-   ~Chunk() override;
+   ~Chunk();
 
    Chunk(const Chunk&) = delete;
    Chunk& operator=(const Chunk&) = delete;
-
-   void getData(std::span<std::byte> destination) override;
-   void writeData(std::span<const std::byte> source) override;
 
    int32_t id() const;
 
@@ -41,17 +44,9 @@ public:
    void skip();
 
 private:
-   static constexpr int32_t kBufferSize = 3111;
-   using Buffer = std::array<std::byte, kBufferSize>;
-
-   Stream& _stream;
+   std::reference_wrapper<Stream> _stream;
    AccessMode _mode = AccessMode::Read;
    int32_t _id = 0;
    int32_t _size = 0;
    int32_t _chunk_position = 0;
-
-   // write mode: data is collected here and flushed to "_stream" (with id, name and size) on destruction
-   std::vector<std::unique_ptr<Buffer>> _buffers;
-   bool _buffer_open = false;  // last buffer still has free space
-   int32_t _buffer_position = 0;
 };

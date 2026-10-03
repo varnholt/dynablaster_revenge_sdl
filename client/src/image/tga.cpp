@@ -3,9 +3,11 @@
 #include "tga.h"
 
 #include <array>
+#include <fstream>
 #include <string>
 
-#include "tools/filestream.h"
+#include "tools/datapaths.h"
+#include "tools/stream.h"
 
 namespace
 {
@@ -157,9 +159,10 @@ int32_t loadtga(const char* fname, std::vector<uint32_t>& pixels, int32_t& width
    TGAHeader info;
    Palette palette{};
 
-   FileStream stream;
+   std::ifstream file = fname ? DataPaths::open(std::string(fname) + ".tga") : std::ifstream();
+   Stream stream(file);
 
-   if (!fname || !stream.open((std::string(fname) + ".tga").c_str()))
+   if (!file.is_open())
    {
       width = 1;
       height = 1;
@@ -288,10 +291,11 @@ int32_t loadtga(const char* fname, std::vector<uint32_t>& pixels, int32_t& width
 
 int32_t savetga(const char* fname, uint32_t* data, int32_t width, int32_t height)
 {
-   FileStream stream;
+   std::ofstream file(fname, std::ios::binary);
+   Stream stream(file);
    TGAHeader info(static_cast<uint16_t>(width), static_cast<uint16_t>(height), 32);
 
-   if (!stream.open(fname, true))
+   if (!file.is_open())
    {
       return 0;
    }
@@ -315,7 +319,7 @@ int32_t savetga(const char* fname, uint32_t* data, int32_t width, int32_t height
       }
    }
 
-   stream.close();
+   file.close();
 
    return 32;
 }

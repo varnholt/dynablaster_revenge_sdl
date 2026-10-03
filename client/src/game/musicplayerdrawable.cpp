@@ -15,7 +15,7 @@
 #include "soundmanager.h"
 
 #include "stringutils.h"
-#include "tools/filestream.h"
+#include "tools/datapaths.h"
 
 #include <cmath>
 
@@ -53,13 +53,13 @@ MusicPlayerDrawable::~MusicPlayerDrawable() = default;
 
 void MusicPlayerDrawable::initializeGL()
 {
-   FileStream::addPath("data/musicplayer");
+   DataPaths::add("data/musicplayer");
 
    initializeLayers();
 
    _font = &FontPool::Instance().get("default")->get();
 
-   FileStream::removePath("data/musicplayer");
+   DataPaths::remove("data/musicplayer");
 }
 
 void MusicPlayerDrawable::initializeLayers()
