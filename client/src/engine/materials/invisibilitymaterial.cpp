@@ -126,7 +126,7 @@ void InvisibilityMaterial::renderDiffuse()
             {
                bones[i] = Matrix();
             }
-            glUniformMatrix4fv(_param_bones, max_cluster_bones, false, reinterpret_cast<const float*>(bones.data()));
+            glUniformMatrix4fv(_param_bones, max_cluster_bones, false, bones.front().values().data());
 
             [[maybe_unused]] const int32_t start_vertex = end_vertex;  // unused on GLES (see gles3.h)
             end_vertex += static_cast<int32_t>(cluster->vertices.size());
