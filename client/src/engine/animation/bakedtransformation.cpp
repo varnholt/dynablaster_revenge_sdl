@@ -3,9 +3,9 @@
 #include <cstdint>
 #include "nodes/node.h"
 
-BakedTransformation::BakedTransformation(Node* node, float step_size) : _step_size(1.0f / step_size)
+BakedTransformation::BakedTransformation(Node& node, float step_size) : _step_size(1.0f / step_size)
 {
-   const int32_t max_frame = node->getAnimationLength();
+   const int32_t max_frame = node.getAnimationLength();
    int32_t keys = static_cast<int32_t>(std::ceil(max_frame / step_size));
    if (keys == 0)
    {
@@ -17,8 +17,8 @@ BakedTransformation::BakedTransformation(Node* node, float step_size) : _step_si
 
    for (int32_t i = 0; i < keys; i++)
    {
-      node->transform(i * step_size);
-      matrices->push_back(node->getTransform());
+      node.transform(i * step_size);
+      matrices->push_back(node.getTransform());
    }
 
    _matrices = std::move(matrices);

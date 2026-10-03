@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include "../render/renderbuffer.h"
 #include "../render/uv.h"
 #include "material.h"
 
@@ -15,12 +14,12 @@ public:
       UV uv;
    };
 
-   TextureMaterial(SceneGraph* scene);
-   TextureMaterial(SceneGraph* scene, const char* texture_map);
+   TextureMaterial();
+   TextureMaterial(const std::string& texture_map);
 
    void load(Stream& stream) override;
-   void addGeometry(Geometry* geometry) override;
-   void update(float frame, Node** node_list, const Matrix& camera) override;
+   void addGeometry(Geometry& geometry) override;
+   void update(float frame, const Matrix& camera) override;
 
    void renderDiffuse() override;
 

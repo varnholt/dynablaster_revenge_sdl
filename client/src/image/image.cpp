@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstring>
 #include <string>
 
 #include "tga.h"
@@ -14,17 +13,17 @@ Image::Image(int32_t x, int32_t y) : _pixels(std::make_shared<std::vector<uint32
 }
 
 // construct image from file
-Image::Image(const char* filename)
+Image::Image(const std::string& filename)
 {
    load(filename);
 }
 
-void Image::save(const char* filename)
+void Image::save(const std::string& filename)
 {
    savetga(filename, getData(), getWidth(), getHeight());
 }
 
-void Image::load(const char* filename)
+void Image::load(const std::string& filename)
 {
    // copies keep the previous pixels
    auto pixels = std::make_shared<std::vector<uint32_t>>();
@@ -33,7 +32,7 @@ void Image::load(const char* filename)
 
    if (loaded)
    {
-      const std::string name = std::string(filename) + ".tga";
+      const std::string name = filename + ".tga";
       if (const auto path = DataPaths::resolve(name))
       {
          _path = path->string();
@@ -52,14 +51,18 @@ int32_t Image::getHeight() const
    return _height;
 }
 
-uint32_t* Image::getScanline(int32_t y) const
+std::span<uint32_t> Image::getScanline(int32_t y) const
 {
-   return getData() + y * _width;
+   return getData().subspan(static_cast<size_t>(y) * _width, _width);
 }
 
-uint32_t* Image::getData() const
+std::span<uint32_t> Image::getData() const
 {
-   return (_pixels && !_pixels->empty()) ? _pixels->data() : nullptr;
+   if (!_pixels)
+   {
+      return {};
+   }
+   return *_pixels;
 }
 
 const std::string& Image::path() const
@@ -89,24 +92,24 @@ Image Image::downsample() const
 
    for (int32_t y = 0; y < next_height; y++)
    {
-      uint32_t* destination = image.getScanline(y);
+      const std::span<uint32_t> destination = image.getScanline(y);
 
-      const uint32_t* source1 = getScanline(y * 2);
-      const uint32_t* source2 = getScanline(y * 2 + 1);
+      const std::span<const uint32_t> source1 = getScanline(y * 2);
+      const std::span<const uint32_t> source2 = getScanline(y * 2 + 1);
 
       for (int32_t x = 0; x < next_width; x++)
       {
-         const uint32_t c1 = *source1++;
-         const uint32_t c2 = *source1++;
-         const uint32_t c3 = *source2++;
-         const uint32_t c4 = *source2++;
+         const uint32_t c1 = source1[x * 2];
+         const uint32_t c2 = source1[x * 2 + 1];
+         const uint32_t c3 = source2[x * 2];
+         const uint32_t c4 = source2[x * 2 + 1];
 
          const uint32_t a = ((c1 >> 24 & 0xff) + (c2 >> 24 & 0xff) + (c3 >> 24 & 0xff) + (c4 >> 24 & 0xff)) >> 2;
          const uint32_t r = ((c1 >> 16 & 0xff) + (c2 >> 16 & 0xff) + (c3 >> 16 & 0xff) + (c4 >> 16 & 0xff)) >> 2;
          const uint32_t g = ((c1 >> 8 & 0xff) + (c2 >> 8 & 0xff) + (c3 >> 8 & 0xff) + (c4 >> 8 & 0xff)) >> 2;
          const uint32_t b = ((c1 & 0xff) + (c2 & 0xff) + (c3 & 0xff) + (c4 & 0xff)) >> 2;
 
-         *destination++ = (a << 24) + (r << 16) + (g << 8) + b;
+         destination[x] = (a << 24) + (r << 16) + (g << 8) + b;
       }
    }
 
@@ -162,10 +165,10 @@ void Image::scaled(const Image& image) const
       const int32_t y = iy >> 16;
       const auto sy = static_cast<uint8_t>(iy >> 8 & 0xff);
 
-      uint32_t* destination = getScanline(destination_y);
-      const uint32_t* source1 = image.getScanline(y);
+      const std::span<uint32_t> destination = getScanline(destination_y);
+      const std::span<const uint32_t> source1 = image.getScanline(y);
       // do not exceed image boundaries
-      const uint32_t* source2 = (y == height - 1) ? image.getScanline(y) : image.getScanline(y + 1);
+      const std::span<const uint32_t> source2 = (y == height - 1) ? image.getScanline(y) : image.getScanline(y + 1);
 
       int32_t ix = 0;
       for (int32_t destination_x = 0; destination_x < _width - 1; destination_x++)
@@ -190,7 +193,7 @@ void Image::premultiplyAlpha()
 {
    for (int32_t y = 0; y < _height; y++)
    {
-      uint32_t* destination = getScanline(y);
+      const std::span<uint32_t> destination = getScanline(y);
 
       for (int32_t x = 0; x < _width; x++)
       {
@@ -221,8 +224,8 @@ void Image::minimum(const Image& image)
 
    for (int32_t y = 0; y < height; y++)
    {
-      uint32_t* destination = getScanline(y);
-      const uint32_t* source = image.getScanline(y);
+      const std::span<uint32_t> destination = getScanline(y);
+      const std::span<const uint32_t> source = image.getScanline(y);
 
       for (int32_t x = 0; x < width; x++)
       {
@@ -243,7 +246,7 @@ void Image::clear(uint32_t argb)
 {
    for (int32_t y = 0; y < _height; y++)
    {
-      std::fill_n(getScanline(y), _width, argb);
+      std::ranges::fill(getScanline(y), argb);
    }
 }
 
@@ -257,8 +260,8 @@ void Image::copy(int32_t position_x, int32_t position_y, const Image& image, int
 
    for (int32_t y = 0; y < height; y++)
    {
-      uint32_t* destination = getScanline(y + position_y) + position_x;
-      const uint32_t* source = image.getScanline(y);
+      const std::span<uint32_t> destination = getScanline(y + position_y).subspan(position_x);
+      const std::span<const uint32_t> source = image.getScanline(y);
 
       for (int32_t x = 0; x < width; x++)
       {
@@ -275,11 +278,10 @@ void Image::copy(int32_t position_x, int32_t position_y, const Image& image, int
    // replicate last scanline
    if (replicate > 0)
    {
-      const uint32_t* source = getScanline(height - 1);
+      const std::span<const uint32_t> source = getScanline(height - 1).first(end_x);
       for (int32_t y = 0; y < end_y - height && y < replicate; y++)
       {
-         uint32_t* destination = getScanline(y + height) + position_x;
-         std::memcpy(destination, source, end_x * sizeof(uint32_t));
+         std::ranges::copy(source, getScanline(y + height).subspan(position_x).begin());
       }
    }
 }
@@ -288,26 +290,23 @@ void Image::buildNormalMap(int32_t z)
 {
    const auto source_pixels = _pixels;
    auto target_pixels = std::make_shared<std::vector<uint32_t>>(static_cast<size_t>(_width) * _height);
-   const uint32_t* source = source_pixels->data();
-   const uint32_t* source0 = source + (_height - 1) * _width;
-   const uint32_t* source1 = source;
-   const uint32_t* source2 = source + _width;
-   uint32_t* destination = target_pixels->data();
+   const std::span<const uint32_t> source = *source_pixels;
+   const std::span<uint32_t> target = *target_pixels;
+   const auto row = [this](std::span<const uint32_t> pixels, int32_t y) { return pixels.subspan(static_cast<size_t>(y) * _width, _width); };
 
    for (int32_t y = 0; y < _height; y++)
    {
+      const std::span<const uint32_t> source0 = row(source, (y + _height - 1) % _height);
+      const std::span<const uint32_t> source1 = row(source, y);
+      const std::span<const uint32_t> source2 = row(source, (y + 1) % _height);
+      const std::span<uint32_t> destination = target.subspan(static_cast<size_t>(y) * _width, _width);
+
       destination[0] = calcNormal(z, source1[_width - 1], source1[1], source0[0], source2[0]);
       for (int32_t x = 1; x < _width - 1; x++)
       {
          destination[x] = calcNormal(z, source1[x - 1], source1[x + 1], source0[x], source2[x]);
       }
       destination[_width - 1] = calcNormal(z, source1[_width - 2], source1[0], source0[_width - 1], source2[_width - 1]);
-
-      destination += _width;
-      source0 = source1;
-      source1 = source2;
-      // wrap around to the first source row
-      source2 = (y < _height - 2) ? source2 + _width : source;
    }
 
    _pixels = std::move(target_pixels);
@@ -317,11 +316,9 @@ void Image::buildDeltaMap()
 {
    const auto source_pixels = _pixels;
    auto target_pixels = std::make_shared<std::vector<uint32_t>>(static_cast<size_t>(_width) * _height);
-   const uint32_t* source = source_pixels->data();
-   const uint32_t* source0 = source + (_height - 1) * _width;
-   const uint32_t* source1 = source;
-   const uint32_t* source2 = source + _width;
-   uint32_t* destination = target_pixels->data();
+   const std::span<const uint32_t> source = *source_pixels;
+   const std::span<uint32_t> target = *target_pixels;
+   const auto row = [this](std::span<const uint32_t> pixels, int32_t y) { return pixels.subspan(static_cast<size_t>(y) * _width, _width); };
    const uint32_t s = 2;
 
    const auto delta = [s](uint32_t left, uint32_t right, uint32_t up, uint32_t down)
@@ -329,18 +326,17 @@ void Image::buildDeltaMap()
 
    for (int32_t y = 0; y < _height; y++)
    {
+      const std::span<const uint32_t> source0 = row(source, (y + _height - 1) % _height);
+      const std::span<const uint32_t> source1 = row(source, y);
+      const std::span<const uint32_t> source2 = row(source, (y + 1) % _height);
+      const std::span<uint32_t> destination = target.subspan(static_cast<size_t>(y) * _width, _width);
+
       destination[0] = delta(source1[_width - 1], source1[1], source0[0], source2[0]);
       for (int32_t x = 1; x < _width - 1; x++)
       {
          destination[x] = delta(source1[x - 1], source1[x + 1], source0[x], source2[x]);
       }
       destination[_width - 1] = delta(source1[_width - 2], source1[0], source0[_width - 1], source2[_width - 1]);
-
-      destination += _width;
-      source0 = source1;
-      source1 = source2;
-      // wrap around to the first source row
-      source2 = (y < _height - 2) ? source2 + _width : source;
    }
 
    _pixels = std::move(target_pixels);

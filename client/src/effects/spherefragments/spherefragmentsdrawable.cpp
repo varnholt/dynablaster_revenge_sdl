@@ -42,7 +42,7 @@ void updateFrameBuffer(std::unique_ptr<FrameBuffer>& frame_buffer, int32_t width
 }
 }  // namespace
 
-SphereFragmentsDrawable::SphereFragmentsDrawable(RenderDevice* device, bool visible) : Drawable(device, visible)
+SphereFragmentsDrawable::SphereFragmentsDrawable(RenderDevice& device, bool visible) : Drawable(device, visible)
 {
 }
 
@@ -61,20 +61,20 @@ void SphereFragmentsDrawable::initializeGL()
    // earth
    _scene_graph_earth = std::make_unique<SceneGraph>();
    _scene_graph_earth->load("voronoisphere.hjb");
-   auto* sphere = static_cast<Mesh*>(_scene_graph_earth->getNode("inner_sphere"));
-   _bomb = std::make_unique<SphereGeometryVbo>(sphere->getPart(0));
+   const Mesh& sphere = _scene_graph_earth->findNode<Mesh>("inner_sphere").value();
+   _bomb = std::make_unique<SphereGeometryVbo>(sphere.getPart(0));
    _bomb->initialize();
 
    // bomb socket and fuze
    _scene_graph_bomb = std::make_unique<SceneGraph>();
    _scene_graph_bomb->load("fuze_socket.hjb");
 
-   auto* socket = static_cast<Mesh*>(_scene_graph_bomb->getNode("bomb_socket"));
-   _socket = std::make_unique<BombSocketGeometryVbo>(socket->getPart(0));
+   const Mesh& socket = _scene_graph_bomb->findNode<Mesh>("bomb_socket").value();
+   _socket = std::make_unique<BombSocketGeometryVbo>(socket.getPart(0));
    _socket->initialize();
 
-   auto* fuze = static_cast<Mesh*>(_scene_graph_bomb->getNode("bomb_fuze"));
-   _fuze = std::make_unique<BombFuzeGeometryVbo>(fuze->getPart(0));
+   const Mesh& fuze = _scene_graph_bomb->findNode<Mesh>("bomb_fuze").value();
+   _fuze = std::make_unique<BombFuzeGeometryVbo>(fuze.getPart(0));
    _fuze->initialize();
 
    removeFragments();
@@ -88,7 +88,7 @@ void SphereFragmentsDrawable::initializeGL()
    _blur = std::make_unique<BlurFilter>();
    _blur->init();
 
-   _fragment_container = std::make_unique<SphereFragmentContainer>(_scene_graph_earth.get());
+   _fragment_container = std::make_unique<SphereFragmentContainer>(*_scene_graph_earth);
 
    DataPaths::remove("data/effects/spherefragments/images");
 }
@@ -101,15 +101,15 @@ void SphereFragmentsDrawable::projectionSetup()
    projection = projection * Matrix::position(-_camera);
    projection = projection * Matrix::frustum(-1.0f, 1.0f, -aspect, aspect, 1.0f, 500.0f);
 
-   static_cast<GLDevice*>(activeDevice)->setProjectionMatrix(projection);
+   static_cast<GLDevice&>(activeDevice()).setProjectionMatrix(projection);
 }
 
 void SphereFragmentsDrawable::paintGL()
 {
-   _fragment_container->animate(GlobalTime::Instance()->getTime());
+   _fragment_container->animate(GlobalTime::Instance().getTime());
 
-   const auto width = static_cast<int32_t>(activeDevice->getWidth());
-   const auto height = static_cast<int32_t>(activeDevice->getHeight());
+   const auto width = static_cast<int32_t>(activeDevice().getWidth());
+   const auto height = static_cast<int32_t>(activeDevice().getHeight());
 
    updateFrameBuffer(_earth_fb, width, height);
    updateFrameBuffer(_aura_fb, width, height);
@@ -124,7 +124,7 @@ void SphereFragmentsDrawable::paintGL()
    // draw earth fragments once into a framebuffer, reuse later. clears to alpha=0: the alpha
    // channel drives the blend composite onto the menu below, so it must start fully transparent
    _earth_fb->bind();
-   static_cast<GLDevice*>(_device)->clear(0.0f, 0.0f, 0.0f, 0.0f);
+   static_cast<GLDevice&>(_device).clear(0.0f, 0.0f, 0.0f, 0.0f);
 
    // put bomb into zbuffer to black backside fragments
    _bomb->draw(Vector4(1, 1, 1, 0));
@@ -137,7 +137,7 @@ void SphereFragmentsDrawable::paintGL()
 
    // create white mask from alpha channel
    _aura_fb->bind();
-   static_cast<GLDevice*>(_device)->clear(0.0f, 0.0f, 0.0f, 0.0f);
+   static_cast<GLDevice&>(_device).clear(0.0f, 0.0f, 0.0f, 0.0f);
    _alpha_duplicate->process(_earth_fb->texture(), Vector4(1.0f, 1.0f, 1.0f, 1.0f));
 
    // blur white mask
@@ -147,7 +147,7 @@ void SphereFragmentsDrawable::paintGL()
 
    // lava glow pass
    _bomb_fb->bind();
-   static_cast<GLDevice*>(_device)->clear(0.0f, 0.0f, 0.0f, 0.0f);
+   static_cast<GLDevice&>(_device).clear(0.0f, 0.0f, 0.0f, 0.0f);
    _bomb->draw(Vector4(1, 1, 1, 1));
 
    // draw black fragments
@@ -209,8 +209,7 @@ void SphereFragmentsDrawable::removeFragments()
 {
    for (int32_t i = 0; i < _scene_graph_bomb->getChildCount(); i++)
    {
-      Node* node = _scene_graph_bomb->getChild(i);
-      const std::string& name = node->name();
+      const std::string& name = _scene_graph_bomb->getChild(i).name();
 
       // a trailing '_' does not separate a fragment name
       const auto index = name.find('_');
@@ -219,10 +218,10 @@ void SphereFragmentsDrawable::removeFragments()
          continue;
       }
 
-      Node* fragment = _scene_graph_earth->getChild(name.substr(0, index));
-      if (fragment && fragment->id() == Node::idMesh)
+      const auto fragment = _scene_graph_earth->findChild(name.substr(0, index));
+      if (fragment && fragment->get().id() == Node::idMesh)
       {
-         static_cast<Mesh*>(fragment)->setVisible(false);
+         fragment->get().setVisible(false);
       }
    }
 }

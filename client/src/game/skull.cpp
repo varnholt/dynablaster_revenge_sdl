@@ -15,7 +15,7 @@ Skull::Skull(Mesh* reference, float x, float y) : Mesh(*reference), _reference(r
    setAnimationFrame(0.0f);
 
    // animation start time
-   _start_time = GlobalTime::Instance()->getTime();
+   _start_time = GlobalTime::Instance().getTime();
 }
 
 Skull::~Skull()

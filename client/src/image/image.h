@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -10,20 +11,20 @@ class Image
 {
 public:
    Image() = default;
-   explicit Image(const char* filename);
+   explicit Image(const std::string& filename);
    Image(int32_t x, int32_t y);
 
    void clear(uint32_t argb);
 
-   void save(const char* filename);
+   void save(const std::string& filename);
 
    int32_t getWidth() const;
    int32_t getHeight() const;
-   uint32_t* getScanline(int32_t y) const;
-   uint32_t* getData() const;
+   std::span<uint32_t> getScanline(int32_t y) const;
+   std::span<uint32_t> getData() const;
    Image downsample() const;
    void scaled(const Image& image) const;
-   void load(const char* filename);
+   void load(const std::string& filename);
    void copy(int32_t x, int32_t y, const Image& source, int32_t clamp = 0);
    void premultiplyAlpha();
    void minimum(const Image& image);

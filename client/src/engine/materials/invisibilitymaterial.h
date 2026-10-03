@@ -8,7 +8,7 @@
 class InvisibilityMaterial : public PlayerMaterialBase
 {
 public:
-   InvisibilityMaterial(SceneGraph* scene);
+   InvisibilityMaterial();
 
    void load(Stream& stream) override;
    void renderDiffuse() override;

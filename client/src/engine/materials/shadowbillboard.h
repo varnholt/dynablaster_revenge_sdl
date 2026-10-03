@@ -1,8 +1,8 @@
 #pragma once
 
 #include <cstdint>
-#include <unordered_map>
-#include "../render/renderbuffer.h"
+#include <functional>
+#include <vector>
 #include "../render/uv.h"
 #include "material.h"
 #include "math/vector2.h"
@@ -22,12 +22,12 @@ public:
       Vector max;
    };
 
-   ShadowBillboard(SceneGraph* scene);
-   ShadowBillboard(SceneGraph* scene, const char* map);
+   ShadowBillboard();
+   ShadowBillboard(const std::string& map);
    void load(Stream& stream) override;
-   void addGeometry(Geometry* geometry) override;
+   void addGeometry(Geometry& geometry) override;
    void renderDiffuse() override;
-   void removeMesh(Mesh* mesh) override;
+   void removeMesh(const Mesh& mesh) override;
    void setOffset(float x, float y);
 
 private:
@@ -44,6 +44,12 @@ private:
    uint32_t _indices = 0;
 
    int32_t _param_texture = 0;
-   std::unordered_map<Geometry*, Bounding> _instances;
+   struct Instance
+   {
+      std::reference_wrapper<Geometry> geometry;
+      Bounding bound;
+   };
+
+   std::vector<Instance> _instances;
    Vector2 _offset{0.0f, 0.0f};
 };

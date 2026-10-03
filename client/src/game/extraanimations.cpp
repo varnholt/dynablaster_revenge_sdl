@@ -38,14 +38,14 @@ constexpr int32_t FLOATS_PER_VERTEX = 5;
 
 float nowMs()
 {
-   return GlobalTime::Instance()->getTime() * 1000.0f;
+   return GlobalTime::Instance().getTime() * 1000.0f;
 }
 
 uint32_t loadTexture(const char* name, int32_t flags)
 {
    Image image;
    image.load(name);
-   return activeDevice->createTexture(image.getData(), image.getWidth(), image.getHeight(), flags);
+   return activeDevice().createTexture(image.getData(), image.getWidth(), image.getHeight(), flags);
 }
 
 // appends one quad as two triangles, corners given counter-clockwise as (x, y, z, u, v)
@@ -63,18 +63,18 @@ ExtraAnimations::ExtraAnimations()
    _frustum_texture = loadTexture("data/game/extra_frustum", TEXTURE_LINEAR | TEXTURE_CLAMP);
    _ring_texture = loadTexture("data/game/extrasphere_full_red", TEXTURE_LINEAR);
 
-   _reveal_shader = activeDevice->loadShader("extrareveal-vert.glsl", "extrareveal-frag.glsl");
-   _reveal_color_param = activeDevice->getParameterIndex("color");
-   _reveal_scroll_param = activeDevice->getParameterIndex("textureScroll");
-   _reveal_texture_param = activeDevice->getParameterIndex("texturemap");
+   _reveal_shader = activeDevice().loadShader("extrareveal-vert.glsl", "extrareveal-frag.glsl");
+   _reveal_color_param = activeDevice().getParameterIndex("color");
+   _reveal_scroll_param = activeDevice().getParameterIndex("textureScroll");
+   _reveal_texture_param = activeDevice().getParameterIndex("texturemap");
 
    glGenBuffers(1, &_vertex_buffer);
 }
 
 ExtraAnimations::~ExtraAnimations()
 {
-   activeDevice->deleteTexture(_frustum_texture);
-   activeDevice->deleteTexture(_ring_texture);
+   activeDevice().deleteTexture(_frustum_texture);
+   activeDevice().deleteTexture(_ring_texture);
    glDeleteBuffers(1, &_vertex_buffer);
 }
 
@@ -108,7 +108,7 @@ void ExtraAnimations::render(float dt)
    renderDestroyed();
    renderReveals(dt);
 
-   activeDevice->setShader(0);
+   activeDevice().setShader(0);
 
    glDepthMask(GL_TRUE);
    glEnable(GL_DEPTH_TEST);
@@ -127,11 +127,11 @@ void ExtraAnimations::renderDestroyed()
    glEnable(GL_BLEND);
    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 
-   activeDevice->setShader(getDefaultMenuShader());
+   activeDevice().setShader(getDefaultMenuShader());
 
    // world space vertices, the camera lives in the projection matrix - push() uploads the
    // transform to the bound shader, so it has to follow setShader()
-   activeDevice->push(Matrix());
+   activeDevice().push(Matrix());
    glActiveTexture(GL_TEXTURE0);
    glBindTexture(GL_TEXTURE_2D, _ring_texture);
 
@@ -144,7 +144,7 @@ void ExtraAnimations::renderDestroyed()
       const float scale = 0.5f * quad_size;
       const float z = quad_size * 0.4f;
 
-      activeDevice->setParameter(getDefaultMenuShaderAlphaParam(), 1.0f - normalized_time);
+      activeDevice().setParameter(getDefaultMenuShaderAlphaParam(), 1.0f - normalized_time);
 
       std::vector<float> vertices;
       appendQuad(
@@ -159,7 +159,7 @@ void ExtraAnimations::renderDestroyed()
       drawTriangles(vertices.data(), static_cast<int32_t>(vertices.size() / FLOATS_PER_VERTEX));
    }
 
-   activeDevice->pop();
+   activeDevice().pop();
 }
 
 void ExtraAnimations::renderReveals(float dt)
@@ -175,13 +175,13 @@ void ExtraAnimations::renderReveals(float dt)
    glDepthMask(GL_FALSE);
 
    // all four frustum sides are visible from outside and inside
-   activeDevice->setCulling(false);
+   activeDevice().setCulling(false);
 
-   activeDevice->setShader(_reveal_shader);
-   activeDevice->push(Matrix());
+   activeDevice().setShader(_reveal_shader);
+   activeDevice().push(Matrix());
    glActiveTexture(GL_TEXTURE0);
    glBindTexture(GL_TEXTURE_2D, _frustum_texture);
-   activeDevice->bindSampler(_reveal_texture_param, 0);
+   activeDevice().bindSampler(_reveal_texture_param, 0);
 
    for (auto& reveal : _reveals)
    {
@@ -204,8 +204,8 @@ void ExtraAnimations::renderReveals(float dt)
          alpha = 0.5f * (1.0f + std::cos(alpha * std::numbers::pi_v<float>));
       }
 
-      activeDevice->setParameter(_reveal_color_param, Vector4(1.0f, 1.0f, 1.0f, alpha));
-      activeDevice->setParameter(_reveal_scroll_param, Vector(reveal.elapsed, -reveal.elapsed, 0.0f) * 0.005f);
+      activeDevice().setParameter(_reveal_color_param, Vector4(1.0f, 1.0f, 1.0f, alpha));
+      activeDevice().setParameter(_reveal_scroll_param, Vector(reveal.elapsed, -reveal.elapsed, 0.0f) * 0.005f);
 
       // the four sides of the frustum, in the tile's local space (y and z are flipped)
       const float ox = static_cast<float>(reveal.x);
@@ -233,8 +233,8 @@ void ExtraAnimations::renderReveals(float dt)
       drawTriangles(vertices.data(), static_cast<int32_t>(vertices.size() / FLOATS_PER_VERTEX));
    }
 
-   activeDevice->pop();
-   activeDevice->setCulling(true);
+   activeDevice().pop();
+   activeDevice().setCulling(true);
 }
 
 void ExtraAnimations::drawTriangles(const float* vertices, int32_t vertex_count)

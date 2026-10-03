@@ -7,11 +7,9 @@
 #include "stdlib.h"
 #endif
 
-Extra::Extra(Constants::ExtraType type, Geometry* object, float x, float y) : Mesh(), _type(type)
+Extra::Extra(Constants::ExtraType type, const Geometry& object, float x, float y) : Mesh(), _type(type)
 {
-   Geometry* geo = new Geometry(this);
-   geo->copy(*object);
-   add(geo);
+   addPart().copy(object);
    setUserTransformable(true);
 
    _position.identity();

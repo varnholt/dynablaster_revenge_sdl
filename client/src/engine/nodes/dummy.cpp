@@ -1,7 +1,7 @@
 #include "dummy.h"
 #include "tools/stream.h"
 
-Dummy::Dummy(Node* parent) : Node(Node::idDummy, parent)
+Dummy::Dummy() : Node(Node::idDummy)
 {
 }
 

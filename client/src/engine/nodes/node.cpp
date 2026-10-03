@@ -3,13 +3,13 @@
 #include "scenegraph.h"
 #include "tools/stream.h"
 
-Node::Node(Node::ID id, Node* parent) : _id(id)
+Node::Node(Node::ID id) : _id(id)
 {
-   setParent(parent);
 }
 
-Node::Node(const Node& node, Node* parent)
-    : ObjectName(node),
+Node::Node(const Node& node)
+    : Streamable(node),
+      ObjectName(node),
       _id(node.id()),
       _has_skinning(node.hasSkinning()),
       _user_transform(node.getUserTransformable()),
@@ -21,39 +21,22 @@ Node::Node(const Node& node, Node* parent)
       _visibility_track(node.getVisibilityTrack()),
       _bake(node.getBakedAnimation())
 {
-   if (parent)
-   {
-      setParent(parent);
-   }
-   else
-   {
-      setParent(node.parent());
-   }
-}
-
-Node::~Node()
-{
-   SceneGraph* scene = getRoot();
-   if (scene && scene != this)
-   {
-      scene->removeNode(this);
-   }
 }
 
 // get root node (scene)
-SceneGraph* Node::getRoot() const
+std::optional<std::reference_wrapper<SceneGraph>> Node::getRoot()
 {
-   const Node* root = this;
-   while (root->parent())
+   std::reference_wrapper<Node> root = *this;
+   while (root.get()._parent)
    {
-      root = root->parent();
+      root = *root.get()._parent;
    }
 
-   if (root->id() == Node::idRoot)
+   if (root.get().id() == Node::idRoot)
    {
-      return static_cast<SceneGraph*>(const_cast<Node*>(root));
+      return static_cast<SceneGraph&>(root.get());
    }
-   return nullptr;
+   return std::nullopt;
 }
 
 Node::ID Node::id() const
@@ -61,18 +44,15 @@ Node::ID Node::id() const
    return _id;
 }
 
-void Node::addChild(Node* node)
+void Node::linkChild(Node& child)
 {
-   _children.push_back(node);
-   Node* root = this;
-   while (root && root->id() != idRoot)
-   {
-      root = root->parent();
-   }
-   if (root)
-   {
-      static_cast<SceneGraph*>(root)->addNode(node);
-   }
+   child._parent = *this;
+   _children.emplace_back(child);
+}
+
+void Node::unlinkChild(const Node& child)
+{
+   std::erase_if(_children, [&child](const Node& candidate) { return &candidate == &child; });
 }
 
 int32_t Node::getChildCount() const
@@ -80,19 +60,19 @@ int32_t Node::getChildCount() const
    return static_cast<int32_t>(_children.size());
 }
 
-Node* Node::getChild(int32_t index) const
+Node& Node::getChild(int32_t index) const
 {
-   if (index >= 0 && index < getChildCount())
-   {
-      return _children[index];
-   }
-   return nullptr;
+   return _children[index];
 }
 
-Node* Node::getChild(const std::string& name) const
+std::optional<std::reference_wrapper<Node>> Node::findChild(const std::string& name) const
 {
-   const auto child = std::ranges::find_if(_children, [&name](const Node* node) { return node->name() == name; });
-   return (child != _children.end()) ? *child : nullptr;
+   const auto child = std::ranges::find_if(_children, [&name](const Node& node) { return node.name() == name; });
+   if (child != _children.end())
+   {
+      return *child;
+   }
+   return std::nullopt;
 }
 
 bool Node::visible() const
@@ -125,27 +105,16 @@ int32_t Node::getAnimationLength() const
    return std::max({0, _position_track.getAnimationLength(), _rotation_track.getAnimationLength(), _scale_track.getAnimationLength()});
 }
 
-void Node::setParent(Node* parent)
-{
-   _parent = parent;
-   if (parent)
-   {
-      parent->addChild(this);
-   }
-}
-
-Node* Node::parent() const
+std::optional<std::reference_wrapper<Node>> Node::parent() const
 {
    return _parent;
 }
 
 int32_t Node::getDepth() const
 {
-   int32_t depth = 0;
-   const Node* node = this;
-   while (node)
+   int32_t depth = 1;
+   for (auto node = _parent; node; node = node->get()._parent)
    {
-      node = node->parent();
       depth++;
    }
    return depth;
@@ -227,14 +196,14 @@ void Node::transform(float time)
 
       _transform = stm * rtm * ftm * ptm;
 
-      if (parent())
+      if (_parent)
       {
-         _transform = _transform * parent()->getTransform();
+         _transform = _transform * _parent->get().getTransform();
       }
    }
    else
    {
-      _transform = _bake.interpolate(time) * parent()->getTransform();
+      _transform = _bake.interpolate(time) * _parent.value().get().getTransform();
    }
 }
 
@@ -255,5 +224,5 @@ const BakedTransformation& Node::getBakedAnimation() const
 
 void Node::bakeAnimationTrack(float step)
 {
-   _bake = BakedTransformation(this, step);
+   _bake = BakedTransformation(*this, step);
 }

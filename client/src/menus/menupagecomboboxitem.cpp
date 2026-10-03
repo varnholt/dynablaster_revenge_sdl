@@ -80,18 +80,18 @@ void MenuPageComboBoxItem::drawQuad(const PSDLayer& layer, float x, float y, flo
 
    if (_quad_vertex_buffer == 0)
    {
-      _quad_vertex_buffer = activeDevice->createVertexBuffer(quad_size, true);
+      _quad_vertex_buffer = activeDevice().createVertexBuffer(quad_size, true);
    }
    else
    {
-      activeDevice->allocateVertexBuffer(_quad_vertex_buffer, quad_size, true);
+      activeDevice().allocateVertexBuffer(_quad_vertex_buffer, quad_size, true);
    }
 
-   std::memcpy(activeDevice->lockVertexBuffer(_quad_vertex_buffer, quad_size), quad.data(), quad_size);
-   activeDevice->unlockVertexBuffer(_quad_vertex_buffer);
+   std::ranges::copy(quad, activeDevice().lockVertexBuffer<float>(_quad_vertex_buffer, quad_size).begin());
+   activeDevice().unlockVertexBuffer(_quad_vertex_buffer);
 
-   activeDevice->push(Matrix());
-   activeDevice->setParameter(activeDevice->getParameterIndex("alpha"), opacity / 255.0f);
+   activeDevice().push(Matrix());
+   activeDevice().setParameter(activeDevice().getParameterIndex("alpha"), opacity / 255.0f);
 
    glBindBuffer(GL_ARRAY_BUFFER, _quad_vertex_buffer);
    glEnableVertexAttribArray(0);
@@ -104,7 +104,7 @@ void MenuPageComboBoxItem::drawQuad(const PSDLayer& layer, float x, float y, flo
    glDisableVertexAttribArray(0);
    glDisableVertexAttribArray(1);
 
-   activeDevice->pop();
+   activeDevice().pop();
 }
 
 void MenuPageComboBoxItem::updateTableBounds()

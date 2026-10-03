@@ -61,12 +61,12 @@ void MenuPageScrollImageItem::reset()
    _relative_time_previous = 0.0f;
    _y = 0.0f;
    _move_up = false;
-   _start_time = GlobalTime::Instance()->getTime();
+   _start_time = GlobalTime::Instance().getTime();
 }
 
 void MenuPageScrollImageItem::animate(float /*time*/)
 {
-   _animation_time = GlobalTime::Instance()->getTime();
+   _animation_time = GlobalTime::Instance().getTime();
 
    const float relative_time = std::fmod(_animation_time - _start_time, LIM_5);
 

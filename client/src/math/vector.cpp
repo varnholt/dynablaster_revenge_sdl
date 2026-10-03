@@ -175,9 +175,14 @@ void Vector::write(Stream& stream)
    stream.writeFloat(z);
 }
 
-float* Vector::data() const
+std::span<const float, 3> Vector::values() const
 {
-   return (float*)&x;
+   return std::span<const float, 3>(&x, 3);
+}
+
+std::span<float, 3> Vector::values()
+{
+   return std::span<float, 3>(&x, 3);
 }
 
 int Vector::maxIndex() const

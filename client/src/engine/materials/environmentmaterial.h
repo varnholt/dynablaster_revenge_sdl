@@ -14,13 +14,13 @@ public:
       Vector normal;
    };
 
-   EnvironmentMaterial(SceneGraph* scene);
-   EnvironmentMaterial(SceneGraph* scene, const char* specular_map);
+   EnvironmentMaterial();
+   EnvironmentMaterial(const std::string& specular_map);
 
    void init() override;
-   void update(float frame, Node** node_list, const Matrix& camera) override;
+   void update(float frame, const Matrix& camera) override;
    void load(Stream& stream) override;
-   void addGeometry(Geometry* geometry) override;
+   void addGeometry(Geometry& geometry) override;
    void begin() override;
    void end() override;
    void renderDiffuse() override;

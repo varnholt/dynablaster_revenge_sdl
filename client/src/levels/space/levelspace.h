@@ -19,7 +19,7 @@ public:
    void animate(float dt) override;
    std::string getLensFlareKey() const override;
 
-   Material* createMaterial(SceneGraph* scene, int id) const override;
+   std::unique_ptr<Material> createMaterial(int32_t id) const override;
 
 private:
    std::unique_ptr<SpaceBackground> _background;

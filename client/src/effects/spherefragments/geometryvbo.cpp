@@ -6,9 +6,11 @@
 #include "render/geometry.h"
 #include "render/uv.h"
 
+#include <algorithm>
 #include <cstddef>
+#include <span>
 
-GeometryVbo::GeometryVbo(Geometry* geometry) : _geometry(geometry)
+GeometryVbo::GeometryVbo(const Geometry& geometry) : _geometry(geometry)
 {
 }
 
@@ -16,17 +18,16 @@ GeometryVbo::GeometryVbo(Geometry* geometry) : _geometry(geometry)
 void GeometryVbo::initialize()
 {
    // create vertex and index buffer
-   _vertex_buffer = activeDevice->createVertexBuffer(_geometry->getVertexCount() * sizeof(Vertex3D));
-   _index_buffer = activeDevice->createIndexBuffer(_geometry->getIndexCount() * sizeof(uint16_t));
+   _vertex_buffer = activeDevice().createVertexBuffer(_geometry.getVertexCount() * sizeof(Vertex3D));
+   _index_buffer = activeDevice().createIndexBuffer(_geometry.getIndexCount() * sizeof(uint16_t));
 
-   const Vector* vertices = _geometry->getVertices();
-   const Vector* normals = _geometry->getNormals();
-   const UV* uvs = _geometry->getUV(1);
-   const uint16_t* indices = _geometry->getIndices();
+   const std::span<const Vector> vertices = _geometry.getVertices();
+   const std::span<const Vector> normals = _geometry.getNormals();
+   const std::span<const UV> uvs = _geometry.getUV(1);
 
    // fill vertex buffer
-   auto* vertex = static_cast<Vertex3D*>(activeDevice->lockVertexBuffer(_vertex_buffer));
-   for (int32_t i = 0; i < _geometry->getVertexCount(); i++)
+   const std::span<Vertex3D> vertex = activeDevice().lockVertexBuffer<Vertex3D>(_vertex_buffer);
+   for (int32_t i = 0; i < _geometry.getVertexCount(); i++)
    {
       vertex[i].position = vertices[i];
       vertex[i].normal = normals[i];
@@ -34,15 +35,11 @@ void GeometryVbo::initialize()
       vertex[i].v = uvs[i].v;
       vertex[i].index = 0.0f;
    }
-   activeDevice->unlockVertexBuffer(_vertex_buffer);
+   activeDevice().unlockVertexBuffer(_vertex_buffer);
 
    // fill index buffer
-   auto* index = static_cast<uint16_t*>(activeDevice->lockIndexBuffer(_index_buffer));
-   for (int32_t i = 0; i < _geometry->getIndexCount(); i++)
-   {
-      *index++ = indices[i];
-   }
-   activeDevice->unlockIndexBuffer(_index_buffer);
+   std::ranges::copy(_geometry.getIndices(), activeDevice().lockIndexBuffer<uint16_t>(_index_buffer).begin());
+   activeDevice().unlockIndexBuffer(_index_buffer);
 }
 
 void GeometryVbo::drawGeometry()
@@ -57,7 +54,7 @@ void GeometryVbo::drawGeometry()
    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex3D), reinterpret_cast<const void*>(offsetof(Vertex3D, u)));
 
    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _index_buffer);
-   glDrawElements(GL_TRIANGLES, _geometry->getIndexCount(), GL_UNSIGNED_SHORT, nullptr);
+   glDrawElements(GL_TRIANGLES, _geometry.getIndexCount(), GL_UNSIGNED_SHORT, nullptr);
 
    glDisableVertexAttribArray(0);
    glDisableVertexAttribArray(1);

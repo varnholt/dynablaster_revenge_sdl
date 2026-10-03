@@ -9,7 +9,7 @@ class Geometry;
 class GeometryVbo
 {
 public:
-   explicit GeometryVbo(Geometry* geometry);
+   explicit GeometryVbo(const Geometry& geometry);
    virtual ~GeometryVbo() = default;
 
    virtual void initialize();
@@ -21,5 +21,5 @@ protected:
    uint32_t _vertex_buffer = 0;
    uint32_t _index_buffer = 0;
 
-   Geometry* _geometry = nullptr;
+   const Geometry& _geometry;
 };

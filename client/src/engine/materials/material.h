@@ -1,7 +1,10 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <memory>
+#include <optional>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -34,18 +37,18 @@ constexpr int32_t MAP_REFLECT = 512;
 constexpr int32_t MAP_REFRACT = 1024;
 constexpr int32_t MAP_DISPLACE = 2048;
 
-// a material registers itself with the given scene, which then owns (and deletes) it
+// materials are owned by the scene graph they are added to (SceneGraph::addMaterial())
 class Material : public ObjectName
 {
 public:
-   // non-owning: the vertex buffer is owned by the material's pool
+   // the geometry is owned by its mesh, the vertex buffer by the material's pool
    struct Buffer
    {
-      Geometry* geometry = nullptr;
-      VertexBuffer* vertex_buffer = nullptr;
+      std::reference_wrapper<Geometry> geometry;
+      std::reference_wrapper<VertexBuffer> vertex_buffer;
    };
 
-   Material(SceneGraph* scene, int32_t id);
+   explicit Material(int32_t id);
    ~Material() override;
 
    virtual void init() = 0;
@@ -56,16 +59,14 @@ public:
       Stream& stream,
       const std::string& name,
       const Matrix& transform,
-      Vector* vertices,
-      Vector* normals,
-      UV* texcoords,
-      int32_t vertex_count,
-      uint16_t* indices,
-      int32_t index_count,
+      std::span<const Vector> vertices,
+      std::span<const Vector> normals,
+      std::span<const UV> texcoords,
+      std::span<const uint16_t> indices,
       int32_t index_offset
    );
-   virtual void addGeometry(Geometry* geometry) = 0;
-   Geometry* getGeometry(int32_t index) const;
+   virtual void addGeometry(Geometry& geometry) = 0;
+   std::optional<std::reference_wrapper<Geometry>> getGeometry(int32_t index) const;
 
    virtual void load(Stream& stream);
    virtual void write(Stream& stream);
@@ -75,7 +76,7 @@ public:
 
    void prepare();
 
-   void add(Geometry* geometry);
+   void add(Geometry& geometry);
    int32_t size() const;
    void clear();
 
@@ -87,12 +88,13 @@ public:
    void addTexture(Texture& texture, std::unique_ptr<Image> image, int32_t flags = 1 | 2 | 4);
    void addTexture(Texture& texture, const std::string& filename, int32_t flags = 1 | 2 | 4);
 
-   virtual void update(float frame, Node** node_list, const Matrix& camera);
+   virtual void update(float frame, const Matrix& camera);
    virtual void renderDiffuse();
-   virtual void addMesh(Mesh* mesh);
-   virtual void removeMesh(Mesh* mesh);
+   virtual void addMesh(Mesh& mesh);
+   virtual void removeMesh(const Mesh& mesh);
 
-   TextureSlot* getTextureSlot(int32_t index) const;
+   const TextureSlot& getTextureSlot(int32_t index) const;
+   int32_t getTextureSlotCount() const;
 
    int32_t getDebug() const;
    void setDebug(int32_t value);
@@ -106,7 +108,7 @@ protected:
    {
       std::unique_ptr<Image> image;
       int32_t flags = 0;
-      Texture* texture = nullptr;
+      std::reference_wrapper<Texture> texture;
    };
 
    int32_t _id;
@@ -123,7 +125,7 @@ protected:
    float _ior = 0.0f;
    int32_t _flags = 0;
    std::vector<std::unique_ptr<TextureSlot>> _slots;
-   std::vector<Geometry*> _geometry_queue;
+   std::vector<std::reference_wrapper<Geometry>> _geometry_queue;
    std::vector<PendingTexture> _texture_queue;
    int32_t _debug = 0;
 };

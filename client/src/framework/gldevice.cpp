@@ -5,18 +5,32 @@
 
 #include <SDL3/SDL.h>
 
+#include <cstddef>
 #include <cstdint>
 #include <fstream>
 #include <iterator>
+#include <span>
+#include <string>
 #include <vector>
 
 namespace
 {
+// a failed mapping yields an empty span
+std::span<std::byte> mappedBytes(void* mapped, int32_t length)
+{
+   if (!mapped)
+   {
+      return {};
+   }
+   return {static_cast<std::byte*>(mapped), static_cast<size_t>(length)};
+}
 
-GLuint compileStage(GLenum type, const char* source, int32_t length, const char* filename)
+GLuint compileStage(GLenum type, std::span<const char> source, const std::string& filename)
 {
    GLuint shader = glCreateShader(type);
-   glShaderSource(shader, 1, &source, &length);
+   const GLchar* source_data = source.data();
+   const auto length = static_cast<GLint>(source.size());
+   glShaderSource(shader, 1, &source_data, &length);
    glCompileShader(shader);
 
    GLint status = GL_FALSE;
@@ -27,7 +41,7 @@ GLuint compileStage(GLenum type, const char* source, int32_t length, const char*
       glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &log_length);
       std::vector<char> log(static_cast<size_t>(log_length) + 1, '\0');
       glGetShaderInfoLog(shader, log_length, nullptr, log.data());
-      SDL_Log("shader compile error in %s:\n%s", filename, log.data());
+      SDL_Log("shader compile error in %s:\n%s", filename.c_str(), log.data());
       glDeleteShader(shader);
       return 0;
    }
@@ -36,17 +50,17 @@ GLuint compileStage(GLenum type, const char* source, int32_t length, const char*
 }
 
 // reads a whole shader source file and compiles it, 0 if missing or broken
-GLuint loadStage(GLenum type, const char* filename)
+GLuint loadStage(GLenum type, const std::string& filename)
 {
    std::ifstream file = DataPaths::open(filename);
    if (!file.is_open())
    {
-      SDL_Log("shader file not found: %s", filename);
+      SDL_Log("shader file not found: %s", filename.c_str());
       return 0;
    }
 
    const std::vector<char> source{std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
-   return compileStage(type, source.data(), static_cast<int32_t>(source.size()), filename);
+   return compileStage(type, source, filename);
 }
 
 }  // namespace
@@ -98,32 +112,17 @@ void GLDevice::setViewPort(int32_t x, int32_t y, int32_t width, int32_t height)
    glViewport(x, y, width, height);
 }
 
-void GLDevice::getViewPort(int32_t* x, int32_t* y, int32_t* width, int32_t* height)
+RenderDevice::ViewPort GLDevice::getViewPort() const
 {
-   if (x)
-   {
-      *x = _viewport_x;
-   }
-   if (y)
-   {
-      *y = _viewport_y;
-   }
-   if (width)
-   {
-      *width = _viewport_width;
-   }
-   if (height)
-   {
-      *height = _viewport_height;
-   }
+   return {_viewport_x, _viewport_y, _viewport_width, _viewport_height};
 }
 
-void GLDevice::convertFromViewPort(int32_t* x, int32_t* y, int32_t target_width, int32_t target_height)
+void GLDevice::convertFromViewPort(int32_t& x, int32_t& y, int32_t target_width, int32_t target_height)
 {
-   *x -= _viewport_x;
-   *y -= _viewport_y;
-   *x = (*x * target_width) / _viewport_width;
-   *y = (*y * target_height) / _viewport_height;
+   x -= _viewport_x;
+   y -= _viewport_y;
+   x = (x * target_width) / _viewport_width;
+   y = (y * target_height) / _viewport_height;
 }
 
 void GLDevice::clear()
@@ -190,25 +189,25 @@ void GLDevice::uploadTransformUniforms()
 
    if (info.model_view_location >= 0)
    {
-      glUniformMatrix4fv(info.model_view_location, 1, GL_FALSE, _world_transform.data());
+      glUniformMatrix4fv(info.model_view_location, 1, GL_FALSE, _world_transform.values().data());
    }
 
    if (info.projection_location >= 0)
    {
-      glUniformMatrix4fv(info.projection_location, 1, GL_FALSE, _projection_matrix.data());
+      glUniformMatrix4fv(info.projection_location, 1, GL_FALSE, _projection_matrix.values().data());
    }
 
    if (info.model_view_projection_location >= 0)
    {
       const Matrix model_view_projection = _world_transform * _projection_matrix;
-      glUniformMatrix4fv(info.model_view_projection_location, 1, GL_FALSE, model_view_projection.data());
+      glUniformMatrix4fv(info.model_view_projection_location, 1, GL_FALSE, model_view_projection.values().data());
    }
 
    if (info.normal_matrix_location >= 0)
    {
       // uploaded as mat4, shaders read the rotation part via mat3(u_normalMatrix)
       const Matrix normal_matrix = _world_transform.get3x3().adjointTranspose();
-      glUniformMatrix4fv(info.normal_matrix_location, 1, GL_FALSE, normal_matrix.data());
+      glUniformMatrix4fv(info.normal_matrix_location, 1, GL_FALSE, normal_matrix.values().data());
    }
 }
 
@@ -238,13 +237,12 @@ void GLDevice::allocateVertexBuffer(uint32_t buffer, int32_t size, bool dynamic)
    _last_vertex_buffer_size = size;
 }
 
-void* GLDevice::lockVertexBuffer(uint32_t buffer, int32_t size)
+std::span<std::byte> GLDevice::mapVertexBuffer(uint32_t buffer, int32_t size)
 {
    glBindBuffer(GL_ARRAY_BUFFER, buffer);
    // WebGL2 rejects GL_MAP_WRITE_BIT alone; INVALIDATE_BUFFER matches the always-overwrite-everything usage
-   return glMapBufferRange(
-      GL_ARRAY_BUFFER, 0, size != 0 ? size : _last_vertex_buffer_size, GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT
-   );
+   const int32_t length = size != 0 ? size : _last_vertex_buffer_size;
+   return mappedBytes(glMapBufferRange(GL_ARRAY_BUFFER, 0, length, GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT), length);
 }
 
 void GLDevice::unlockVertexBuffer(uint32_t buffer)
@@ -267,12 +265,11 @@ void GLDevice::allocateIndexBuffer(uint32_t buffer, int32_t size, bool dynamic)
    _last_index_buffer_size = size;
 }
 
-void* GLDevice::lockIndexBuffer(uint32_t buffer, int32_t size)
+std::span<std::byte> GLDevice::mapIndexBuffer(uint32_t buffer, int32_t size)
 {
    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer);
-   return glMapBufferRange(
-      GL_ELEMENT_ARRAY_BUFFER, 0, size != 0 ? size : _last_index_buffer_size, GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT
-   );
+   const int32_t length = size != 0 ? size : _last_index_buffer_size;
+   return mappedBytes(glMapBufferRange(GL_ELEMENT_ARRAY_BUFFER, 0, length, GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT), length);
 }
 
 void GLDevice::unlockIndexBuffer(uint32_t buffer)
@@ -298,12 +295,7 @@ void GLDevice::setMaterial(const Vector&, const Vector&, const Vector&, float)
    // fixed-function per-vertex lighting (glMaterialfv) has no GLES equivalent
 }
 
-void GLDevice::drawLine(Vector*)
-{
-   // no live callers
-}
-
-uint32_t GLDevice::createTexture(void* data, int32_t x, int32_t y, int32_t flags)
+uint32_t GLDevice::createTexture(std::span<const uint32_t> data, int32_t x, int32_t y, int32_t flags)
 {
    GLuint texture = 0;
    glGenTextures(1, &texture);
@@ -318,7 +310,7 @@ void GLDevice::deleteTexture(uint32_t texture_id)
    glDeleteTextures(1, &texture);
 }
 
-void GLDevice::updateTexture(void* data, int32_t x, int32_t y, int32_t flags)
+void GLDevice::updateTexture(std::span<const uint32_t> data, int32_t x, int32_t y, int32_t flags)
 {
    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, (flags & 1) ? GL_LINEAR : GL_NEAREST);
    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, (flags & 2) ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR);
@@ -339,10 +331,9 @@ void GLDevice::updateTexture(void* data, int32_t x, int32_t y, int32_t flags)
    // asset data is laid out BGRA; GLES has no guaranteed BGRA format, so the channels are swapped
    // once up front, and the mip-chain averaging below (same-position byte lanes only) keeps them
    std::vector<uint32_t> pixels(static_cast<size_t>(x) * y);
-   const auto* source = static_cast<const uint32_t*>(data);
    for (size_t i = 0; i < pixels.size(); ++i)
    {
-      const uint32_t pixel = source[i];
+      const uint32_t pixel = data[i];
       const uint32_t a = (pixel >> 24) & 0xff;
       const uint32_t r = (pixel >> 16) & 0xff;
       const uint32_t g = (pixel >> 8) & 0xff;
@@ -366,29 +357,29 @@ void GLDevice::updateTexture(void* data, int32_t x, int32_t y, int32_t flags)
       const int32_t next_x = (x >> 1) == 0 ? 1 : (x >> 1);
       const int32_t next_y = (y >> 1) == 0 ? 1 : (y >> 1);
 
-      uint32_t* destination = pixels.data();
+      size_t destination = 0;
 
       // a 1 pixel wide level has no second column to average with
       const int32_t column_step = (x > 1) ? 1 : 0;
 
       for (int32_t i = 0; i < next_y; ++i)
       {
-         const uint32_t* source1 = pixels.data() + static_cast<size_t>(i) * 2 * x;
-         const uint32_t* source2 = (next_y > 1) ? source1 + x : source1;
+         const size_t source1 = static_cast<size_t>(i) * 2 * x;
+         const size_t source2 = (next_y > 1) ? source1 + x : source1;
 
          for (int32_t j = 0; j < next_x; ++j)
          {
-            const uint32_t c1 = source1[2 * j];
-            const uint32_t c2 = source1[2 * j + column_step];
-            const uint32_t c3 = source2[2 * j];
-            const uint32_t c4 = source2[2 * j + column_step];
+            const uint32_t c1 = pixels[source1 + 2 * j];
+            const uint32_t c2 = pixels[source1 + 2 * j + column_step];
+            const uint32_t c3 = pixels[source2 + 2 * j];
+            const uint32_t c4 = pixels[source2 + 2 * j + column_step];
 
             const uint32_t a = ((c1 >> 24 & 0xff) + (c2 >> 24 & 0xff) + (c3 >> 24 & 0xff) + (c4 >> 24 & 0xff)) >> 2;
             const uint32_t r = ((c1 >> 16 & 0xff) + (c2 >> 16 & 0xff) + (c3 >> 16 & 0xff) + (c4 >> 16 & 0xff)) >> 2;
             const uint32_t g = ((c1 >> 8 & 0xff) + (c2 >> 8 & 0xff) + (c3 >> 8 & 0xff) + (c4 >> 8 & 0xff)) >> 2;
             const uint32_t b = ((c1 & 0xff) + (c2 & 0xff) + (c3 & 0xff) + (c4 & 0xff)) >> 2;
 
-            *destination++ = (a << 24) | (r << 16) | (g << 8) | b;
+            pixels[destination++] = (a << 24) | (r << 16) | (g << 8) | b;
          }
       }
 
@@ -398,13 +389,7 @@ void GLDevice::updateTexture(void* data, int32_t x, int32_t y, int32_t flags)
    } while ((x != 0 || y != 0) && (flags & 2));
 }
 
-uint32_t GLDevice::uploadTexture1D(void*, int32_t, int32_t)
-{
-   // GLES has no 1D textures, no live callers
-   return 0;
-}
-
-uint32_t GLDevice::loadShader(const char* vertex_name, const char* fragment_name)
+uint32_t GLDevice::loadShader(const std::string& vertex_name, const std::string& fragment_name)
 {
    const GLuint vertex_shader = loadStage(GL_VERTEX_SHADER, vertex_name);
    const GLuint fragment_shader = loadStage(GL_FRAGMENT_SHADER, fragment_name);
@@ -431,7 +416,7 @@ uint32_t GLDevice::loadShader(const char* vertex_name, const char* fragment_name
       glGetProgramiv(info.program, GL_INFO_LOG_LENGTH, &log_length);
       std::vector<char> log(static_cast<size_t>(log_length) + 1, '\0');
       glGetProgramInfoLog(info.program, log_length, nullptr, log.data());
-      SDL_Log("shader link error (%s / %s):\n%s", vertex_name, fragment_name, log.data());
+      SDL_Log("shader link error (%s / %s):\n%s", vertex_name.c_str(), fragment_name.c_str(), log.data());
    }
 
    if (vertex_shader != 0)
@@ -465,7 +450,7 @@ void GLDevice::setShader(uint32_t shader)
    }
 }
 
-int32_t GLDevice::getParameterIndex(const char* name)
+int32_t GLDevice::getParameterIndex(const std::string& name)
 {
    const auto info = _shader_table.find(_current_shader);
    if (info == _shader_table.end())
@@ -473,7 +458,7 @@ int32_t GLDevice::getParameterIndex(const char* name)
       return -1;
    }
 
-   return glGetUniformLocation(info->second.program, name);
+   return glGetUniformLocation(info->second.program, name.c_str());
 }
 
 void GLDevice::bindSampler(int32_t position, int32_t unit)
@@ -481,34 +466,34 @@ void GLDevice::bindSampler(int32_t position, int32_t unit)
    glUniform1i(position, unit);
 }
 
-void GLDevice::setParameter(int32_t position, float* data, int32_t size)
+void GLDevice::setParameter(int32_t position, std::span<const float> data)
 {
-   glUniform1fv(position, size, data);
+   glUniform1fv(position, static_cast<GLsizei>(data.size()), data.data());
 }
 
 void GLDevice::setParameter(int32_t position, const Vector4& vector)
 {
-   glUniform4fv(position, 1, vector.data());
+   glUniform4fv(position, 1, vector.values().data());
 }
 
 void GLDevice::setParameter(int32_t position, const Vector& vector)
 {
-   glUniform3fv(position, 1, vector.data());
+   glUniform3fv(position, 1, vector.values().data());
 }
 
 void GLDevice::setParameter(int32_t position, const Vector2& vector)
 {
-   glUniform2fv(position, 1, vector.data());
+   glUniform2fv(position, 1, vector.values().data());
 }
 
 void GLDevice::setParameter(int32_t position, const Matrix& matrix)
 {
-   glUniformMatrix4fv(position, 1, GL_FALSE, matrix.data());
+   glUniformMatrix4fv(position, 1, GL_FALSE, matrix.values().data());
 }
 
-void GLDevice::setParameter(int32_t position, const Matrix* matrix, int32_t count)
+void GLDevice::setParameter(int32_t position, std::span<const Matrix> matrices)
 {
-   glUniformMatrix4fv(position, count, GL_FALSE, matrix->data());
+   glUniformMatrix4fv(position, static_cast<GLsizei>(matrices.size()), GL_FALSE, matrices.front().values().data());
 }
 
 void GLDevice::setParameter(int32_t position, float value)

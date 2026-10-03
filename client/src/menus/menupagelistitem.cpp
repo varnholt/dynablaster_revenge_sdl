@@ -134,10 +134,10 @@ void MenuPageListItem::initialize()
 
    _elapsed.start();
 
-   _shader = activeDevice->loadShader("data/shaders/listhighlight-vert.glsl", "data/shaders/listhighlight-frag.glsl");
-   _param_texture_clamp = activeDevice->getParameterIndex("textureClamp");
-   _param_texture_highlight = activeDevice->getParameterIndex("textureHighlight");
-   _param_row_alpha = activeDevice->getParameterIndex("rowAlpha");
+   _shader = activeDevice().loadShader("data/shaders/listhighlight-vert.glsl", "data/shaders/listhighlight-frag.glsl");
+   _param_texture_clamp = activeDevice().getParameterIndex("textureClamp");
+   _param_texture_highlight = activeDevice().getParameterIndex("textureHighlight");
+   _param_row_alpha = activeDevice().getParameterIndex("rowAlpha");
 }
 
 void MenuPageListItem::updateScrollbars()
@@ -225,7 +225,7 @@ void MenuPageListItem::selectAlpha(int row_toggle, MenuPageListItemElement& elem
       alpha = _row_alpha[0] / 255.0f;
    }
 
-   activeDevice->setParameter(_param_row_alpha, alpha);
+   activeDevice().setParameter(_param_row_alpha, alpha);
 }
 
 float MenuPageListItem::getYOffsetDest() const
@@ -267,10 +267,10 @@ void MenuPageListItem::bindShader()
 {
    if (getLayerFirstElement() || getLayerLastElement())
    {
-      activeDevice->setShader(_shader);
+      activeDevice().setShader(_shader);
 
-      activeDevice->bindSampler(_param_texture_clamp, 0);
-      activeDevice->bindSampler(_param_texture_highlight, 1);
+      activeDevice().bindSampler(_param_texture_clamp, 0);
+      activeDevice().bindSampler(_param_texture_highlight, 1);
    }
 }
 
@@ -279,7 +279,7 @@ void MenuPageListItem::releaseShader()
    if (getLayerFirstElement() || getLayerLastElement())
    {
       // restore the shared menu shader rather than "no shader" - see defaultshader.h
-      activeDevice->setShader(getDefaultMenuShader());
+      activeDevice().setShader(getDefaultMenuShader());
    }
 }
 
@@ -404,17 +404,17 @@ void MenuPageListItem::drawRows()
 
          if (_row_vertex_buffer == 0)
          {
-            _row_vertex_buffer = activeDevice->createVertexBuffer(quad_size, true);
+            _row_vertex_buffer = activeDevice().createVertexBuffer(quad_size, true);
          }
          else
          {
-            activeDevice->allocateVertexBuffer(_row_vertex_buffer, quad_size, true);
+            activeDevice().allocateVertexBuffer(_row_vertex_buffer, quad_size, true);
          }
 
-         std::memcpy(activeDevice->lockVertexBuffer(_row_vertex_buffer, quad_size), quad.data(), quad_size);
-         activeDevice->unlockVertexBuffer(_row_vertex_buffer);
+         std::ranges::copy(quad, activeDevice().lockVertexBuffer<float>(_row_vertex_buffer, quad_size).begin());
+         activeDevice().unlockVertexBuffer(_row_vertex_buffer);
 
-         activeDevice->push(Matrix());
+         activeDevice().push(Matrix());
 
          glBindBuffer(GL_ARRAY_BUFFER, _row_vertex_buffer);
          glEnableVertexAttribArray(0);
@@ -430,7 +430,7 @@ void MenuPageListItem::drawRows()
          glDisableVertexAttribArray(1);
          glDisableVertexAttribArray(2);
 
-         activeDevice->pop();
+         activeDevice().pop();
 
          if (element->isFadingOut() && element->getFadeOutValue() < 0.1f)
          {

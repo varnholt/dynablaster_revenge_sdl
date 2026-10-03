@@ -20,10 +20,6 @@ public:
    Vector4(float x, float y = 0.0f, float z = 0.0f, float w = 1.0f);
    Vector4(Stream& stream);
 
-   operator const float*() const
-   {
-      return &x;
-   }  // cast to float*
    Vector4 operator+(const Vector4& other) const;  // add two vectors
    void operator+=(const Vector4& other);          // add another vector
    Vector4 operator-(const Vector4& other) const;  // subtract two vectors
@@ -34,7 +30,8 @@ public:
    void operator*=(const float scalar);            // multiply by scalar
 
    void set(float x = 0.0f, float y = 0.0f, float z = 0.0f, float w = 0.0f);  // set components
-   float* data() const;                                                       // get float[4] pointer to components
+   std::span<const float, 4> values() const;                                  // components as float[4]
+   std::span<float, 4> values();
    unsigned int rgba() const;
    Vector4 linear(const Vector4& other, float interpolationFactor) const;
 

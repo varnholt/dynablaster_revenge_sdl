@@ -5,6 +5,8 @@
 // do not derive from Streamable here!
 // The pointer to the virtual function table will increase the size of "Vector" and we want it be exactly float[3]
 
+#include <span>
+
 class Stream;
 
 class Vector
@@ -20,10 +22,6 @@ public:
 
    static Vector normalize(const Vector& other);
 
-   operator const float*() const
-   {
-      return &x;
-   }  // cast to float*
    bool operator==(const Vector& other) const;   // equal
    bool operator!=(const Vector& other) const;   // not equal
    Vector operator+(const Vector& other) const;  // add two vectors
@@ -41,11 +39,12 @@ public:
    void set(float x = 0, float y = 0, float z = 0);  // set components
    void normalize(float length = 1.0f);              // scale to length
    float length() const;                             // get length
-   float* data() const;                              // get float[3] pointer to components
-   int maxIndex() const;                             // get index of maximum component (0=x, 1=y, 2=z)
-   int absMaxIndex() const;                          // get index of absolute maximum component
-   void minimum(const Vector& other);                // component-wise minimum (1,2,3,4).minimum( (3,2,1,0) ) = (1,2,1,0)
-   void maximum(const Vector& other);                // component-wise maximum
+   std::span<const float, 3> values() const;         // components as float[3]
+   std::span<float, 3> values();
+   int maxIndex() const;               // get index of maximum component (0=x, 1=y, 2=z)
+   int absMaxIndex() const;            // get index of absolute maximum component
+   void minimum(const Vector& other);  // component-wise minimum (1,2,3,4).minimum( (3,2,1,0) ) = (1,2,1,0)
+   void maximum(const Vector& other);  // component-wise maximum
 
    void operator<<(Stream& stream);  // stream operator
    void operator>>(Stream& stream);  // stream operator

@@ -5,28 +5,27 @@
 #include "gldevice.h"
 #include "image/image.h"
 #include "nodes/mesh.h"
-#include "render/renderbuffer.h"
 #include "render/texturepool.h"
 #include "render/uv.h"
 #include "render/vertexbuffer.h"
 #include "textureslot.h"
 #include "tools/stream.h"
 
-InvisibilityMaterial::InvisibilityMaterial(SceneGraph* scene) : PlayerMaterialBase(scene, MAP_DIFFUSE | MAP_REFLECT)
+InvisibilityMaterial::InvisibilityMaterial() : PlayerMaterialBase(MAP_DIFFUSE | MAP_REFLECT)
 {
    addTexture(_gradient_map, "invisble-mask");
 }
 
 void InvisibilityMaterial::init()
 {
-   _shader = activeDevice->loadShader("invisibility-vert.glsl", "invisibility-frag.glsl");
+   _shader = activeDevice().loadShader("invisibility-vert.glsl", "invisibility-frag.glsl");
 
-   _param_texture = activeDevice->getParameterIndex("texturemap");
-   _param_gradient = activeDevice->getParameterIndex("gradientmap");
-   _param_fade_threshold = activeDevice->getParameterIndex("fadeThreshold");
+   _param_texture = activeDevice().getParameterIndex("texturemap");
+   _param_gradient = activeDevice().getParameterIndex("gradientmap");
+   _param_fade_threshold = activeDevice().getParameterIndex("fadeThreshold");
 
-   _param_camera = activeDevice->getParameterIndex("camera");
-   _param_bones = activeDevice->getParameterIndex("bones");
+   _param_camera = activeDevice().getParameterIndex("camera");
+   _param_bones = activeDevice().getParameterIndex("bones");
 }
 
 void InvisibilityMaterial::load(Stream& stream)
@@ -40,13 +39,13 @@ void InvisibilityMaterial::begin()
 
    glActiveTexture(GL_TEXTURE0);
    glBindTexture(GL_TEXTURE_2D, _texture_map);
-   activeDevice->bindSampler(_param_texture, 0);
+   activeDevice().bindSampler(_param_texture, 0);
 
    glActiveTexture(GL_TEXTURE1);
    glBindTexture(GL_TEXTURE_2D, _gradient_map);
-   activeDevice->bindSampler(_param_gradient, 1);
+   activeDevice().bindSampler(_param_gradient, 1);
 
-   activeDevice->setShader(_shader);
+   activeDevice().setShader(_shader);
 
    // enable required vertex arrays
    glEnableVertexAttribArray(0);  // vertex data
@@ -64,7 +63,7 @@ void InvisibilityMaterial::begin()
 
 void InvisibilityMaterial::end()
 {
-   activeDevice->setShader(0);
+   activeDevice().setShader(0);
 
    glDisableVertexAttribArray(0);  // vertex data
    glDisableVertexAttribArray(1);
@@ -84,26 +83,26 @@ void InvisibilityMaterial::renderDiffuse()
    std::array<Matrix, max_cluster_bones> bones;
    for (const Buffer& buffer : _buffers)
    {
-      VertexBuffer* vertex_buffer = buffer.vertex_buffer;
-      Geometry* geometry = buffer.geometry;
+      const VertexBuffer& vertex_buffer = buffer.vertex_buffer;
+      Geometry& geometry = buffer.geometry;
 
-      if (geometry->isVisible())
+      if (geometry.isVisible())
       {
-         const Mesh* mesh = static_cast<const Mesh*>(geometry->getParent());
-         const float time = mesh->getRenderParameter(1);
-         activeDevice->setParameter(_param_fade_threshold, time);
+         const Mesh& mesh = geometry.getParent();
+         const float time = mesh.getRenderParameter(1);
+         activeDevice().setParameter(_param_fade_threshold, time);
 
-         const MotionMixer* mixer = mesh->getMotionMixer();
+         const auto mixer = mesh.getMotionMixer();
 
-         const Matrix inverse_view = (geometry->getTransform() * _camera).invert();
+         const Matrix inverse_view = (geometry.getTransform() * _camera).invert();
          const Vector object_space_camera = inverse_view.translation();
 
-         activeDevice->setParameter(_param_camera, object_space_camera);
+         activeDevice().setParameter(_param_camera, object_space_camera);
 
-         activeDevice->push(geometry->getTransform());
+         activeDevice().push(geometry.getTransform());
 
          // draw mesh
-         glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer->getVertexBuffer());
+         glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer.getVertexBuffer());
          glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), nullptr);
          glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const GLvoid*>(sizeof(Vector)));
 
@@ -111,7 +110,7 @@ void InvisibilityMaterial::renderDiffuse()
          glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const GLvoid*>(sizeof(Vector) * 2 + 2 * 4));
          glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const GLvoid*>(sizeof(Vector) * 2 + 6 * 4));
 
-         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vertex_buffer->getIndexBuffer());
+         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vertex_buffer.getIndexBuffer());
 
          // render all clusters from the same vertex buffer
          size_t index_offset = 0;
@@ -121,13 +120,13 @@ void InvisibilityMaterial::renderDiffuse()
             const int32_t bone_count = cluster->boneCount();
             for (int32_t i = 0; i < bone_count; i++)
             {
-               bones[i] = mixer->getNode(cluster->bones[i])->getTransform();
+               bones[i] = mixer->get().getNode(cluster->bones[i]).getTransform();
             }
             for (int32_t i = bone_count; i < max_cluster_bones; i++)
             {
                bones[i] = Matrix();
             }
-            glUniformMatrix4fv(_param_bones, max_cluster_bones, false, reinterpret_cast<const float*>(bones.data()));
+            glUniformMatrix4fv(_param_bones, max_cluster_bones, false, bones.front().values().data());
 
             [[maybe_unused]] const int32_t start_vertex = end_vertex;  // unused on GLES (see gles3.h)
             end_vertex += static_cast<int32_t>(cluster->vertices.size());
@@ -143,7 +142,7 @@ void InvisibilityMaterial::renderDiffuse()
             index_offset += cluster->indices.size();
          }
 
-         activeDevice->pop();
+         activeDevice().pop();
       }
    }
 

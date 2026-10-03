@@ -50,16 +50,16 @@ namespace
 class CupMaterialFactory : public MaterialFactory
 {
 public:
-   Material* createMaterial(SceneGraph* scene, int id) const override
+   std::unique_ptr<Material> createMaterial(int32_t id) const override
    {
-      Material* mat = nullptr;
+      std::unique_ptr<Material> mat;
       switch (id)
       {
          case (MAP_AMBIENT | MAP_REFLECT):
-            mat = new EnvironmentAmbientMaterial(scene);
+            mat = std::make_unique<EnvironmentAmbientMaterial>();
             break;
          case (MAP_AMBIENT | MAP_DIFFUSE | MAP_REFLECT):
-            mat = new EnvironmentAmbientDiffuseMaterial(scene);
+            mat = std::make_unique<EnvironmentAmbientDiffuseMaterial>();
             break;
          default:
             break;
@@ -69,7 +69,7 @@ public:
 };
 }  // namespace
 
-GameWinDrawable::GameWinDrawable(RenderDevice* dev, bool visible) : Drawable(dev, visible)
+GameWinDrawable::GameWinDrawable(RenderDevice* dev, bool visible) : Drawable(*dev, visible)
 {
    _filename = "data/game/results.psd";
 
@@ -78,10 +78,8 @@ GameWinDrawable::GameWinDrawable(RenderDevice* dev, bool visible) : Drawable(dev
 
 GameWinDrawable::~GameWinDrawable()
 {
-   // deletes _player_mesh too
+   // _player_mesh and _player_material belong to _scene
    delete _player_item;
-   delete _motion_mixer;
-   delete _player_material;
 }
 
 void GameWinDrawable::initializeGL()
@@ -93,12 +91,12 @@ void GameWinDrawable::initializeGL()
 
    _scene = new SceneGraph();
    CupMaterialFactory factory;
-   _scene->load("cup.hjb", &factory);
+   _scene->load("cup.hjb", factory);
 
-   Node* node = _scene->getNode("Cup");
+   Node* node = &_scene->findNode("Cup")->get();
    node->setUserTransformable(true);
 
-   _scene->getCamera()->setUserTransformable(true);
+   _scene->getCamera()->get().setUserTransformable(true);
 
    _scene->render();
 
@@ -307,8 +305,8 @@ float GameWinDrawable::getRadius() const
 
 void GameWinDrawable::drawBackBuffer(float alpha)
 {
-   const int width = activeDevice->getWidth();
-   const int height = activeDevice->getHeight();
+   const int width = activeDevice().getWidth();
+   const int height = activeDevice().getHeight();
 
    // snapshot the just-rendered frame into a plain (non-FBO-attached) texture - BlurFilter reads
    // from this while writing its result into _backdrop_fb below; sampling and writing the same
@@ -338,13 +336,13 @@ void GameWinDrawable::drawBackBuffer(float alpha)
    glEnable(GL_BLEND);
    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-   activeDevice->setShader(getFramebufferBlitShader());
-   static_cast<GLDevice*>(activeDevice)->setProjectionMatrix(Matrix());
-   activeDevice->push(Matrix());
-   activeDevice->setParameter(getFramebufferBlitShaderAlphaParam(), alpha);
+   activeDevice().setShader(getFramebufferBlitShader());
+   static_cast<GLDevice&>(activeDevice()).setProjectionMatrix(Matrix());
+   activeDevice().push(Matrix());
+   activeDevice().setParameter(getFramebufferBlitShaderAlphaParam(), alpha);
    _backdrop_fb->draw(alpha);
-   activeDevice->pop();
-   activeDevice->setShader(0);
+   activeDevice().pop();
+   activeDevice().setShader(0);
 
    glDisable(GL_BLEND);
 }
@@ -368,8 +366,8 @@ void GameWinDrawable::drawScene()
 
 void GameWinDrawable::drawSceneToFramebuffer(float alpha)
 {
-   const int width = activeDevice->getWidth();
-   const int height = activeDevice->getHeight();
+   const int width = activeDevice().getWidth();
+   const int height = activeDevice().getHeight();
 
    if (!_scene_fb)
       _scene_fb = std::make_unique<FrameBuffer>(width, height, 0, 0);
@@ -387,13 +385,13 @@ void GameWinDrawable::drawSceneToFramebuffer(float alpha)
    glEnable(GL_BLEND);
    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-   activeDevice->setShader(getDefaultMenuShader());
-   static_cast<GLDevice*>(activeDevice)->setProjectionMatrix(Matrix());
-   activeDevice->push(Matrix());
-   activeDevice->setParameter(getDefaultMenuShaderAlphaParam(), alpha);
+   activeDevice().setShader(getDefaultMenuShader());
+   static_cast<GLDevice&>(activeDevice()).setProjectionMatrix(Matrix());
+   activeDevice().push(Matrix());
+   activeDevice().setParameter(getDefaultMenuShaderAlphaParam(), alpha);
    _scene_fb->draw(alpha);
-   activeDevice->pop();
-   activeDevice->setShader(0);
+   activeDevice().pop();
+   activeDevice().setShader(0);
 
    glDisable(GL_BLEND);
 }
@@ -443,7 +441,7 @@ void GameWinDrawable::animate(float time)
 
    _player_item->animate(_render_time, _delta_time);
 
-   Matrix cup_transform = _scene->getNode("Cup")->getTransform();
+   Matrix cup_transform = _scene->findNode("Cup")->get().getTransform();
 
    // move player elsewhere
    cup_transform.xw = 200.0f;
@@ -452,7 +450,7 @@ void GameWinDrawable::animate(float time)
    cup_transform.ww = 1.0f;
    Matrix rotzc = Matrix::rotateZ(0.005f * std::sin(0.01f * time));
    Matrix rotyc = Matrix::rotateY(0.001f * std::sin(0.01f * time));
-   _scene->getNode("Cup")->setTransform(rotyc * rotzc * cup_transform);
+   _scene->findNode("Cup")->get().setTransform(rotyc * rotzc * cup_transform);
 
    float scale = 365;
    Matrix player_matrix = Matrix::scale(scale, scale, scale);
@@ -560,7 +558,7 @@ void GameWinDrawable::stateChanged()
 void GameWinDrawable::initGlParameters()
 {
    Matrix ortho = Matrix::ortho(0, 1920, 1080, 0, -1.0f, 1.0f);
-   static_cast<GLDevice*>(activeDevice)->setProjectionMatrix(ortho);
+   static_cast<GLDevice&>(activeDevice()).setProjectionMatrix(ortho);
 
    glEnable(GL_BLEND);
    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -568,7 +566,7 @@ void GameWinDrawable::initGlParameters()
    glDisable(GL_DEPTH_TEST);
    glDepthMask(GL_FALSE);
 
-   activeDevice->setShader(0);
+   activeDevice().setShader(0);
 }
 
 void GameWinDrawable::cleanupGlParameters()
@@ -674,18 +672,17 @@ void GameWinDrawable::initializeLayers()
 
 void GameWinDrawable::initializeWinnerScene()
 {
-   Mesh* mesh = MotionMixer::getMesh("bomberman");
-   mesh->setUserTransformable(true);
+   Mesh& mesh = MotionMixer::getMesh("bomberman").value();
+   mesh.setUserTransformable(true);
 
-   _player_mesh = new Mesh(_scene);
-   _player_mesh->copy(*mesh);
+   _player_mesh = &_scene->addNode(std::make_unique<Mesh>());
+   _player_mesh->copy(mesh);
 
-   _motion_mixer = new MotionMixer();
-   _player_mesh->setMotionMixer(_motion_mixer);
+   _player_mesh->setMotionMixer(std::make_unique<MotionMixer>());
    _player_mesh->setVisible(true);
    _player_mesh->setUserTransformable(true);
 
-   _player_material->addMesh(_player_mesh);
+   _player_material->addMesh(*_player_mesh);
 
    _player_item = new PlayerItem(0, "winner", Constants::ColorCyan);
    _player_item->setMesh(_player_mesh);
@@ -695,13 +692,17 @@ void GameWinDrawable::initializeWinnerScene()
 
 void GameWinDrawable::initializePlayerMaterial()
 {
-   delete _player_material;
-   _player_material = nullptr;
+   if (_player_material)
+   {
+      _scene->removeMaterial(*_player_material);
+      _player_material = nullptr;
+   }
 
    DataPaths::add("data/winner");
 
    const auto material_texture_name = std::format("player_{}", static_cast<int>(Constants::ColorCyan));
-   _player_material = new PlayerMaterial(_scene, material_texture_name.c_str(), "diffuse_level", "specular_level", "player-ao");
+   _player_material =
+      &_scene->addMaterial(std::make_unique<PlayerMaterial>(material_texture_name, "diffuse_level", "specular_level", "player-ao"));
 
    TexturePool& pool = TexturePool::Instance();
    for (int i = 0; i < 10; i++)

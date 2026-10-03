@@ -17,7 +17,7 @@ const std::string LAYER_BUSY = "busy";
 const std::string LAYER_CLICKED = "clicked";
 }  // namespace
 
-MenuMouseCursor::MenuMouseCursor(RenderDevice* device, bool visible) : Drawable(device, visible)
+MenuMouseCursor::MenuMouseCursor(RenderDevice* device, bool visible) : Drawable(*device, visible)
 {
 }
 
@@ -142,11 +142,11 @@ void MenuMouseCursor::paintBusyIcon()
    post.translate(Vector(_x + _busy_x + 0.5f * w, _y + _busy_y + 0.5f * h, 0.0f));
 
    const Matrix world = pre * rotation * post;
-   activeDevice->push(world);
+   activeDevice().push(world);
 
    _busy_layer->render();
 
-   activeDevice->pop();
+   activeDevice().pop();
 }
 
 void MenuMouseCursor::cleanupGlParameters()
@@ -158,7 +158,7 @@ void MenuMouseCursor::cleanupGlParameters()
 
 void MenuMouseCursor::initGlParameters()
 {
-   auto& device = static_cast<GLDevice&>(*activeDevice);
+   auto& device = static_cast<GLDevice&>(activeDevice());
 
    glEnable(GL_BLEND);
 
@@ -167,7 +167,7 @@ void MenuMouseCursor::initGlParameters()
 
    // shader and projection must be set before push(), which uploads the combined MVP immediately;
    // PSDLayer::render() needs the shared menu shader bound (shader 0 means "no program" in GLES3)
-   activeDevice->setShader(getDefaultMenuShader());
+   activeDevice().setShader(getDefaultMenuShader());
    device.setProjectionMatrix(Matrix::ortho(0.0f, 1920.0f, 1080.0f, 0.0f, -1.0f, 1.0f));
    device.push(Matrix());
 }

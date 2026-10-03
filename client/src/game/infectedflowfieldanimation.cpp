@@ -154,7 +154,7 @@ void InfectedFlowFieldAnimation::initialize()
    glBindFramebuffer(GL_FRAMEBUFFER, _color_target);
    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, _vertex_color_texture, 0);
    // transparent until a particle respawns and picks up a color (original's clear color)
-   static_cast<GLDevice*>(activeDevice)->clear(0.0f, 0.0f, 0.0f, 0.0f);
+   static_cast<GLDevice&>(activeDevice()).clear(0.0f, 0.0f, 0.0f, 0.0f);
    glBindFramebuffer(GL_FRAMEBUFFER, FrameBuffer::screenTarget());
 
    for (int i = 0; i < 2; i++)
@@ -291,7 +291,7 @@ void InfectedFlowFieldAnimation::updateColors()
 
 void InfectedFlowFieldAnimation::draw()
 {
-   FrameBuffer* prev = FrameBuffer::Instance();
+   const auto prev = FrameBuffer::Instance();
 
    glBindFramebuffer(GL_FRAMEBUFFER, _color_target);
    glViewport(0, 0, _width, _height);
@@ -307,13 +307,13 @@ void InfectedFlowFieldAnimation::draw()
 
    if (prev)
    {
-      glBindFramebuffer(GL_FRAMEBUFFER, prev->target());
-      glViewport(0, 0, prev->width(), prev->height());
+      glBindFramebuffer(GL_FRAMEBUFFER, prev->get().target());
+      glViewport(0, 0, prev->get().width(), prev->get().height());
    }
    else
    {
       glBindFramebuffer(GL_FRAMEBUFFER, FrameBuffer::screenTarget());
-      glViewport(activeDevice->getBorderLeft(), activeDevice->getBorderBottom(), activeDevice->getWidth(), activeDevice->getHeight());
+      glViewport(activeDevice().getBorderLeft(), activeDevice().getBorderBottom(), activeDevice().getWidth(), activeDevice().getHeight());
    }
 
    glBindBuffer(GL_ARRAY_BUFFER, _vertex_pos_buffer);

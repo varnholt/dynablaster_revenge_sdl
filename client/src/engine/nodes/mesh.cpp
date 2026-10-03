@@ -4,42 +4,35 @@
 #include "renderdevice.h"
 #include "tools/stream.h"
 
-Mesh::Mesh(Node* parent) : Node(Node::idMesh, parent)
+Mesh::Mesh() : Node(Node::idMesh)
 {
 }
 
-Mesh::Mesh(const Mesh& mesh, Node* parent) : Node(mesh, parent), _skeleton(mesh.getSkeleton()), _motion_mixer(mesh.getMotionMixer())
+Mesh::Mesh(const Mesh& mesh) : Node(mesh), _skeleton(mesh.getSkeleton())
 {
-   for (int32_t i = 0; i < mesh.getPartCount(); i++)
+   for (const auto& geometry : mesh._geometry)
    {
-      Geometry* geometry = new Geometry(*mesh.getPart(i));
-      geometry->setParent(this);
-      add(geometry);
+      _geometry.push_back(std::make_unique<Geometry>(*geometry, *this));
    }
 
    setUserTransformable(true);
 }
 
+Mesh::~Mesh() = default;
+
 void Mesh::copy(const Mesh& mesh)
 {
-   if (!_parent)
-   {
-      _parent = mesh.parent();
-   }
    _has_skinning = mesh.hasSkinning();
    _user_transform = mesh.getUserTransformable();
    _frame = mesh.getFrame();
    _animation_frame = mesh.getAnimationFrame();
    _skeleton = mesh.getSkeleton();
-   _motion_mixer = mesh.getMotionMixer();
 
    _bake = mesh.getBakedAnimation();
 
-   for (int32_t i = 0; i < mesh.getPartCount(); i++)
+   for (const auto& geometry : mesh._geometry)
    {
-      Geometry* geometry = new Geometry(this);
-      geometry->copy(*(mesh.getPart(i)));
-      add(geometry);
+      addPart().copy(*geometry);
    }
 }
 
@@ -53,9 +46,9 @@ float Mesh::getAnimationFrame() const
    return _animation_frame;
 }
 
-void Mesh::add(Geometry* geometry)
+Geometry& Mesh::addPart()
 {
-   _geometry.push_back(geometry);
+   return *_geometry.emplace_back(std::make_unique<Geometry>(*this));
 }
 
 int32_t Mesh::getPartCount() const
@@ -63,41 +56,52 @@ int32_t Mesh::getPartCount() const
    return static_cast<int32_t>(_geometry.size());
 }
 
-Geometry* Mesh::getPart(int32_t index) const
+Geometry& Mesh::getPart(int32_t index) const
 {
-   return _geometry[index];
+   return *_geometry[index];
 }
 
-Node* Mesh::getSkeleton() const
+std::optional<std::reference_wrapper<Node>> Mesh::getSkeleton() const
 {
    return _skeleton;
 }
 
-void Mesh::setSkeleton(Node* node)
+void Mesh::setSkeleton(Node& node)
 {
    _skeleton = node;
 }
 
-MotionMixer* Mesh::getMotionMixer() const
+std::optional<std::reference_wrapper<MotionMixer>> Mesh::getMotionMixer() const
 {
-   return _motion_mixer;
+   if (_motion_mixer)
+   {
+      return *_motion_mixer;
+   }
+   return std::nullopt;
 }
 
-void Mesh::setMotionMixer(MotionMixer* mixer)
+void Mesh::setMotionMixer(std::unique_ptr<MotionMixer> mixer)
 {
-   _motion_mixer = mixer;
+   _motion_mixer = std::move(mixer);
+}
+
+void Mesh::offsetIds(int32_t material_offset, int32_t node_offset)
+{
+   for (const auto& geometry : _geometry)
+   {
+      geometry->offsetIds(material_offset, node_offset);
+   }
 }
 
 void Mesh::transform(float frame)
 {
    Node::transform(frame);
-   MotionMixer* mixer = getMotionMixer();
-   if (!mixer)
+   if (!_motion_mixer)
    {
       return;
    }
 
-   mixer->animate(getFrame());
+   _motion_mixer->animate(getFrame());
 }
 
 uint32_t Mesh::getRenderFlags() const
@@ -132,9 +136,7 @@ void Mesh::load(Stream& stream)
    _geometry.reserve(geometry_count);
    for (int32_t i = 0; i < geometry_count; i++)
    {
-      Geometry* geometry = new Geometry(this);
-      geometry->load(stream);
-      _geometry.push_back(geometry);
+      addPart().load(stream);
    }
 
    // read tracks
@@ -154,7 +156,7 @@ void Mesh::write(Stream& stream)
    stream.writeInt(flags);
 
    stream.writeInt(getPartCount());
-   for (Geometry* geometry : _geometry)
+   for (const auto& geometry : _geometry)
    {
       geometry->write(stream);
    }
@@ -170,7 +172,7 @@ void Mesh::write(Stream& stream)
 
 void Mesh::createBoxMapping(bool unwrap, const Vector& min, const Vector& max, const Matrix& gizmo)
 {
-   for (Geometry* geometry : _geometry)
+   for (const auto& geometry : _geometry)
    {
       geometry->createBoxMapping(unwrap, min, max, getTransform(), gizmo);
    }

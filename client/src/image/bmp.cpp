@@ -42,7 +42,7 @@ static_assert(sizeof(BMPInfoHeader) == 40);
 static_assert(sizeof(BMPFileHeader) == 14);
 }  // namespace
 
-int32_t saveBmp(char* filename, uint32_t* data, int32_t width, int32_t height)
+int32_t saveBmp(const std::string& filename, std::span<const uint32_t> data, int32_t width, int32_t height)
 {
    std::ofstream file(filename, std::ios::binary);
    Stream stream(file);
@@ -57,7 +57,7 @@ int32_t saveBmp(char* filename, uint32_t* data, int32_t width, int32_t height)
 
    for (int32_t y = 0; y < height; y++)
    {
-      const uint32_t* source = data + y * width;
+      const std::span<const uint32_t> source = data.subspan(static_cast<size_t>(y) * width, width);
       for (int32_t x = 0; x < width; x++)
       {
          const uint32_t color = source[x];

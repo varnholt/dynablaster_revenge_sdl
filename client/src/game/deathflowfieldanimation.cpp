@@ -312,7 +312,7 @@ void DeathFlowFieldAnimation::update(float delta)
 
 void DeathFlowFieldAnimation::draw()
 {
-   FrameBuffer* prev = FrameBuffer::Instance();
+   const auto prev = FrameBuffer::Instance();
 
    // read the GPU-computed positions straight back into _vertex_pos_buffer - no transform feedback
    // in this GL version, so this manually does what transform feedback would.
@@ -324,15 +324,15 @@ void DeathFlowFieldAnimation::draw()
 
    if (prev)
    {
-      glBindFramebuffer(GL_FRAMEBUFFER, prev->target());
-      glViewport(0, 0, prev->width(), prev->height());
+      glBindFramebuffer(GL_FRAMEBUFFER, prev->get().target());
+      glViewport(0, 0, prev->get().width(), prev->get().height());
    }
    else
    {
       // nothing bound (the harness draws straight to the window) - restore the full viewport
       // instead of leaving it at the particle texture size, like FrameBuffer::pop()
       glBindFramebuffer(GL_FRAMEBUFFER, FrameBuffer::screenTarget());
-      glViewport(activeDevice->getBorderLeft(), activeDevice->getBorderBottom(), activeDevice->getWidth(), activeDevice->getHeight());
+      glViewport(activeDevice().getBorderLeft(), activeDevice().getBorderBottom(), activeDevice().getWidth(), activeDevice().getHeight());
    }
 
    glBindBuffer(GL_ARRAY_BUFFER, _vertex_pos_buffer);

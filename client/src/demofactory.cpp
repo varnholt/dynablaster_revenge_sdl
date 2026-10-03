@@ -7,20 +7,20 @@
 #include "engine/materials/material.h"
 #include "engine/materials/texturematerial.h"
 
-Material* DemoMaterialFactory::createMaterial(SceneGraph* scene, int materialId) const
+std::unique_ptr<Material> DemoMaterialFactory::createMaterial(int32_t material_id) const
 {
-   switch (materialId)
+   switch (material_id)
    {
       case MAP_DIFFUSE:
-         return new TextureMaterial(scene);
+         return std::make_unique<TextureMaterial>();
       case MAP_REFLECT:
-         return new EnvironmentMaterial(scene);
+         return std::make_unique<EnvironmentMaterial>();
       case (MAP_DIFFUSE | MAP_REFLECT):
-         return new EnvironmentTextureMaterial(scene);
+         return std::make_unique<EnvironmentTextureMaterial>();
       case (MAP_AMBIENT | MAP_DIFFUSE | MAP_REFLECT):
-         return new EnvironmentAmbientDiffuseMaterial(scene);
+         return std::make_unique<EnvironmentAmbientDiffuseMaterial>();
       case (MAP_DIFFUSE | MAP_DISPLACE):
-         return new DisplacementMaterial(scene);
+         return std::make_unique<DisplacementMaterial>();
       default:
          return nullptr;
    }

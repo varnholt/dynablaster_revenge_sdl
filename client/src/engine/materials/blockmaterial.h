@@ -18,25 +18,24 @@ public:
       UV uv;
    };
 
-   BlockMaterial(SceneGraph* scene);
+   BlockMaterial();
    BlockMaterial(
-      SceneGraph* scene,
-      const char* color_map,
-      const char* diffuse_map,
-      const char* specular_map,
-      const char* shadow_map,
-      Camera* shadow_camera,
+      const std::string& color_map,
+      const std::string& diffuse_map,
+      const std::string& specular_map,
+      const std::string& shadow_map,
+      Camera& shadow_camera,
       bool ambient = true
    );
 
-   void update(float frame, Node** node_list, const Matrix& camera) override;
+   void update(float frame, const Matrix& camera) override;
    void load(Stream& stream) override;
-   void addGeometry(Geometry* geometry) override;
+   void addGeometry(Geometry& geometry) override;
    void renderDiffuse() override;
 
 private:
    void putImage(Image& target, int32_t x_position, int32_t y_position, const Image& source);
-   void putScanline(uint32_t* destination, const uint32_t* source, int32_t width);
+   void putScanline(std::span<uint32_t> destination, std::span<const uint32_t> source);
 
    void init() override;
    void begin() override;
@@ -58,6 +57,6 @@ private:
    int32_t _param_shadow_camera = 0;
    int32_t _param_offset = 0;
 
-   Camera* _shadow_camera = nullptr;
+   std::optional<std::reference_wrapper<Camera>> _shadow_camera;
    Matrix _camera;
 };

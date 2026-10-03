@@ -44,7 +44,7 @@ constexpr int TRACK_LINE_2_CORRECTION_OFFSET_X = 0;
 constexpr int TRACK_LINE_2_CORRECTION_OFFSET_Y = 2;
 }  // namespace
 
-MusicPlayerDrawable::MusicPlayerDrawable(RenderDevice* dev) : Drawable(dev)
+MusicPlayerDrawable::MusicPlayerDrawable(RenderDevice* dev) : Drawable(*dev)
 {
    _filename = "data/musicplayer/player.psd";
 }
@@ -104,8 +104,8 @@ void MusicPlayerDrawable::initializeLayers()
 
 void MusicPlayerDrawable::initGlParameters()
 {
-   static_cast<GLDevice*>(_device)->pushProjection();
-   static_cast<GLDevice*>(_device)->setProjectionMatrix(
+   static_cast<GLDevice&>(_device).pushProjection();
+   static_cast<GLDevice&>(_device).setProjectionMatrix(
       Matrix::ortho(0.0f, (float)_psd.getWidth(), (float)_psd.getHeight(), 0.0f, -1.0f, 1.0f)
    );
 
@@ -114,18 +114,18 @@ void MusicPlayerDrawable::initGlParameters()
    glDisable(GL_DEPTH_TEST);
    glDepthMask(GL_FALSE);
 
-   activeDevice->setShader(getDefaultMenuShader());
+   activeDevice().setShader(getDefaultMenuShader());
 }
 
 void MusicPlayerDrawable::cleanupGlParameters()
 {
-   activeDevice->setShader(0);
+   activeDevice().setShader(0);
 
    glDisable(GL_BLEND);
    glEnable(GL_DEPTH_TEST);
    glDepthMask(GL_TRUE);
 
-   static_cast<GLDevice*>(_device)->popProjection();
+   static_cast<GLDevice&>(_device).popProjection();
 }
 
 void MusicPlayerDrawable::paintGL()

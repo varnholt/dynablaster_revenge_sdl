@@ -1,6 +1,6 @@
 #include "light.h"
 
-Light::Light(Node::ID id, Node* parent) : Node(id, parent)
+Light::Light(Node::ID id) : Node(id)
 {
 }
 

@@ -5,5 +5,5 @@
 class DirLight : public Light
 {
 public:
-   DirLight(Node* parent = nullptr);
+   DirLight();
 };

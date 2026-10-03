@@ -675,8 +675,8 @@ Matrix Matrix::invert4x4() const
 {
    Matrix result;
 
-   float* inv = result.data();
-   const float* mat = this->data();
+   const std::span<float, 16> inv = result.values();
+   const std::span<const float, 16> mat = values();
 
    inv[0] = mat[5] * mat[10] * mat[15] - mat[5] * mat[11] * mat[14] - mat[9] * mat[6] * mat[15] + mat[9] * mat[7] * mat[14] +
             mat[13] * mat[6] * mat[11] - mat[13] * mat[7] * mat[10];
@@ -720,9 +720,14 @@ Matrix Matrix::invert4x4() const
    return result;
 }
 
-float* Matrix::data() const
+std::span<const float, 16> Matrix::values() const
 {
-   return const_cast<float*>(&xx);
+   return std::span<const float, 16>(&xx, 16);
+}
+
+std::span<float, 16> Matrix::values()
+{
+   return std::span<float, 16>(&xx, 16);
 }
 
 void Matrix::print() const
@@ -1025,7 +1030,7 @@ Vector Matrix::spectralDecompose(Matrix& U) const
 
             for (int j = 2; j >= 0; j--)
             {
-               float* mat = static_cast<float*>(&U.xx + j * 4);
+               const std::span<float> mat = U.values().subspan(j * 4, 4);
                a = mat[p];
                b = mat[q];
                mat[p] -= static_cast<float>(s * (b + tau * a));

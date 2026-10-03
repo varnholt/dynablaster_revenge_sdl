@@ -3,6 +3,7 @@
 #include <SDL3/SDL.h>
 
 #include <cstdint>
+#include <memory>
 #include <string>
 
 /// \brief owns the SDL window and its GLES 3.0 context.
@@ -43,12 +44,29 @@ public:
 
    SDL_Window* window() const
    {
-      return _window;
+      return _window.get();
    }
 
 private:
-   SDL_Window* _window = nullptr;
-   SDL_GLContext _context = nullptr;
+   struct WindowDeleter
+   {
+      void operator()(SDL_Window* window) const
+      {
+         SDL_DestroyWindow(window);
+      }
+   };
+
+   struct ContextDeleter
+   {
+      void operator()(SDL_GLContext context) const
+      {
+         SDL_GL_DestroyContext(context);
+      }
+   };
+
+   // the context is released before the window
+   std::unique_ptr<SDL_Window, WindowDeleter> _window;
+   std::unique_ptr<SDL_GLContextState, ContextDeleter> _context;
    int _width = 0;
    int _height = 0;
 };

@@ -27,7 +27,7 @@
 #define FADE_IN_LENGTH 80.0f
 #define FADE_OUT_LENGTH 80.0f
 
-GameLogoDrawable::GameLogoDrawable(RenderDevice* dev, bool visible) : SphereFragmentsDrawable(dev, visible)
+GameLogoDrawable::GameLogoDrawable(RenderDevice* dev, bool visible) : SphereFragmentsDrawable(*dev, visible)
 {
    _filename = "data/logo/logo.psd";
 }
@@ -179,14 +179,14 @@ void GameLogoDrawable::updateFadeAlpha()
 
 void GameLogoDrawable::initOrthoGlParameters()
 {
-   static_cast<GLDevice*>(_device)->setProjectionMatrix(
+   static_cast<GLDevice&>(_device).setProjectionMatrix(
       Matrix::ortho(0.0f, (float)_psd.getWidth(), (float)_psd.getHeight(), 0.0f, 300.0f, -300.0f)
    );
 
    // PSDLayer::render() (see menus/psdlayer.cpp) draws through whichever shader the caller has
    // already bound - matches the same convention MenuDrawable/MenuPage established for every
    // other PSD-backed item draw.
-   _device->setShader(getDefaultMenuShader());
+   _device.setShader(getDefaultMenuShader());
 
    // enable blending
    glEnable(GL_BLEND);
@@ -210,7 +210,7 @@ void GameLogoDrawable::initPointSpriteGlParameters()
    float xmax = ymax * aspect;
    float xmin = ymin * aspect;
 
-   static_cast<GLDevice*>(_device)->setProjectionMatrix(Matrix::frustum(xmin, xmax, ymin, ymax, znear, zfar));
+   static_cast<GLDevice&>(_device).setProjectionMatrix(Matrix::frustum(xmin, xmax, ymin, ymax, znear, zfar));
 
    // init blending (additive glow)
    glDisable(GL_DEPTH_TEST);
@@ -219,7 +219,7 @@ void GameLogoDrawable::initPointSpriteGlParameters()
    glBlendFunc(GL_ONE, GL_ONE);
 
    // GameLogoPointSprite::draw() binds its own shader.
-   _device->setShader(0);
+   _device.setShader(0);
 }
 
 void GameLogoDrawable::cleanupGlParameters()

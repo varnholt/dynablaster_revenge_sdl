@@ -7,7 +7,6 @@
 #include "image/psd.h"
 #include "nodes/camera.h"
 #include "nodes/mesh.h"
-#include "render/renderbuffer.h"
 #include "render/texturepool.h"
 #include "render/uv.h"
 #include "render/vertexbuffer.h"
@@ -30,19 +29,18 @@
  the main directions make up 2^4=16 possible combinations stored as a 4x4 matrix in the texture
 */
 
-SkullMaterial::SkullMaterial(SceneGraph* scene) : Material(scene, MAP_DIFFUSE | MAP_REFLECT)
+SkullMaterial::SkullMaterial() : Material(MAP_DIFFUSE | MAP_REFLECT)
 {
 }
 
 SkullMaterial::SkullMaterial(
-   SceneGraph* scene,
-   const char* color_map,
-   const char* diffuse_map,
-   const char* specular_map,
-   const char* shadow_map,
-   Camera* shadow_camera
+   const std::string& color_map,
+   const std::string& diffuse_map,
+   const std::string& specular_map,
+   const std::string& shadow_map,
+   Camera& shadow_camera
 )
-    : Material(scene, MAP_DIFFUSE | MAP_REFLECT), _shadow_camera(shadow_camera)
+    : Material(MAP_DIFFUSE | MAP_REFLECT), _shadow_camera(shadow_camera)
 {
    addTexture(_specular_map, specular_map);
    addTexture(_diffuse_map, diffuse_map);
@@ -54,40 +52,41 @@ void SkullMaterial::load(Stream& stream)
 {
    Material::load(stream);
 
-   addTexture(_color_map, getTextureSlot(0)->name());
-   addTexture(_specular_map, getTextureSlot(1)->name());
+   addTexture(_color_map, getTextureSlot(0).name());
+   addTexture(_specular_map, getTextureSlot(1).name());
 
    init();
 }
 
 void SkullMaterial::init()
 {
-   _shader = activeDevice->loadShader("skullmaterial-vert.glsl", "skullmaterial-frag.glsl");
+   _shader = activeDevice().loadShader("skullmaterial-vert.glsl", "skullmaterial-frag.glsl");
 
-   _param_specular = activeDevice->getParameterIndex("specularmap");
-   _param_diffuse = activeDevice->getParameterIndex("diffusemap");
-   _param_shadow = activeDevice->getParameterIndex("shadowmap");
-   _param_texture = activeDevice->getParameterIndex("texturemap");
+   _param_specular = activeDevice().getParameterIndex("specularmap");
+   _param_diffuse = activeDevice().getParameterIndex("diffusemap");
+   _param_shadow = activeDevice().getParameterIndex("shadowmap");
+   _param_texture = activeDevice().getParameterIndex("texturemap");
 
-   _param_camera = activeDevice->getParameterIndex("camera");
-   _param_shadow_camera = activeDevice->getParameterIndex("shadowCamera");
-   _param_offset = activeDevice->getParameterIndex("uvOffset");
+   _param_camera = activeDevice().getParameterIndex("camera");
+   _param_shadow_camera = activeDevice().getParameterIndex("shadowCamera");
+   _param_offset = activeDevice().getParameterIndex("uvOffset");
 }
 
-void SkullMaterial::addGeometry(Geometry* geometry)
+void SkullMaterial::addGeometry(Geometry& geometry)
 {
-   VertexBuffer* vertex_buffer = _pool->get(geometry);
-   if (!vertex_buffer)
+   std::optional<std::reference_wrapper<VertexBuffer>> pooled = _pool->get(geometry);
+   if (!pooled)
    {
-      vertex_buffer = _pool->add(geometry);
+      VertexBuffer& vertex_buffer = _pool->add(geometry);
+      pooled = vertex_buffer;
 
-      const Vector* vertices = geometry->getVertices();
-      const Vector* normals = geometry->getNormals();
-      const UV* uv = geometry->getUV(1);
+      const std::span<const Vector> vertices = geometry.getVertices();
+      const std::span<const Vector> normals = geometry.getNormals();
+      const std::span<const UV> uv = geometry.getUV(1);
 
-      activeDevice->allocateVertexBuffer(vertex_buffer->getVertexBuffer(), sizeof(Vertex) * geometry->getVertexCount());
-      volatile Vertex* destination = static_cast<Vertex*>(activeDevice->lockVertexBuffer(vertex_buffer->getVertexBuffer()));
-      for (int32_t i = 0; i < geometry->getVertexCount(); i++)
+      activeDevice().allocateVertexBuffer(vertex_buffer.getVertexBuffer(), sizeof(Vertex) * geometry.getVertexCount());
+      const std::span<Vertex> destination = activeDevice().lockVertexBuffer<Vertex>(vertex_buffer.getVertexBuffer());
+      for (int32_t i = 0; i < geometry.getVertexCount(); i++)
       {
          destination[i].position.x = vertices[i].x;
          destination[i].position.y = vertices[i].y;
@@ -100,12 +99,12 @@ void SkullMaterial::addGeometry(Geometry* geometry)
          destination[i].uv.u = uv[i].u;
          destination[i].uv.v = uv[i].v;
       }
-      activeDevice->unlockVertexBuffer(vertex_buffer->getVertexBuffer());
+      activeDevice().unlockVertexBuffer(vertex_buffer.getVertexBuffer());
 
-      vertex_buffer->setIndexBuffer(geometry->getIndices(), geometry->getIndexCount());
+      vertex_buffer.setIndexBuffer(geometry.getIndices());
    }
 
-   _buffers.push_back({geometry, vertex_buffer});
+   _buffers.push_back({geometry, *pooled});
 }
 
 void SkullMaterial::begin()
@@ -123,11 +122,11 @@ void SkullMaterial::begin()
    glActiveTexture(GL_TEXTURE3_ARB);
    glBindTexture(GL_TEXTURE_2D, _specular_map);
 
-   activeDevice->setShader(_shader);
-   activeDevice->bindSampler(_param_diffuse, 0);
-   activeDevice->bindSampler(_param_texture, 1);
-   activeDevice->bindSampler(_param_shadow, 2);
-   activeDevice->bindSampler(_param_specular, 3);
+   activeDevice().setShader(_shader);
+   activeDevice().bindSampler(_param_diffuse, 0);
+   activeDevice().bindSampler(_param_texture, 1);
+   activeDevice().bindSampler(_param_shadow, 2);
+   activeDevice().bindSampler(_param_specular, 3);
 
    // enable required vertex arrays
    glEnableVertexAttribArray(0);  // vertex data
@@ -137,22 +136,22 @@ void SkullMaterial::begin()
    Matrix camera;
    if (_shadow_camera)
    {
-      GLDevice* device = static_cast<GLDevice*>(activeDevice);
-      device->pushProjection();
+      auto& device = static_cast<GLDevice&>(activeDevice());
+      device.pushProjection();
 
-      camera = _shadow_camera->getTransform().getView();
-      float fov = _shadow_camera->getFOV();
+      camera = _shadow_camera->get().getTransform().getView();
+      float fov = _shadow_camera->get().getFOV();
       fov = std::tan(fov * 0.5) * 0.75;
-      const float z_near = _shadow_camera->getNear();
-      const float z_far = _shadow_camera->getFar();
+      const float z_near = _shadow_camera->get().getNear();
+      const float z_far = _shadow_camera->get().getFar();
 
-      activeDevice->setCamera(camera, fov, z_near, z_far, _shadow_camera->getPerspectiveMode());
+      activeDevice().setCamera(camera, fov, z_near, z_far, _shadow_camera->get().getPerspectiveMode());
 
-      camera = device->getProjectionMatrix();
+      camera = device.getProjectionMatrix();
       camera.normalizeZ();
-      device->popProjection();
+      device.popProjection();
    }
-   activeDevice->setParameter(_param_shadow_camera, camera);
+   activeDevice().setParameter(_param_shadow_camera, camera);
 }
 
 void SkullMaterial::end()
@@ -163,7 +162,7 @@ void SkullMaterial::end()
 
    glActiveTexture(GL_TEXTURE0);
 
-   activeDevice->setShader(0);
+   activeDevice().setShader(0);
 }
 
 void SkullMaterial::renderDiffuse()
@@ -172,45 +171,45 @@ void SkullMaterial::renderDiffuse()
 
    for (const Buffer& buffer : _buffers)
    {
-      VertexBuffer* vertex_buffer = buffer.vertex_buffer;
-      Geometry* geometry = buffer.geometry;
+      const VertexBuffer& vertex_buffer = buffer.vertex_buffer;
+      Geometry& geometry = buffer.geometry;
 
-      if (geometry->isVisible())
+      if (geometry.isVisible())
       {
-         const Mesh* mesh = static_cast<const Mesh*>(geometry->getParent());
+         const Mesh& mesh = geometry.getParent();
 
-         const int32_t top = mesh->getRenderFlags() >> 1 & 1;
-         const int32_t left = mesh->getRenderFlags() >> 3 & 1;
-         const int32_t right = mesh->getRenderFlags() >> 5 & 1;
-         const int32_t bottom = mesh->getRenderFlags() >> 7 & 1;
+         const int32_t top = mesh.getRenderFlags() >> 1 & 1;
+         const int32_t left = mesh.getRenderFlags() >> 3 & 1;
+         const int32_t right = mesh.getRenderFlags() >> 5 & 1;
+         const int32_t bottom = mesh.getRenderFlags() >> 7 & 1;
          const int32_t flags = (top) | (left << 1) | (right << 2) | (bottom << 3);
          const int32_t x = flags & 3;
          const int32_t y = (flags >> 2) & 3;
 
-         const Matrix inverse_view = (geometry->getTransform() * _camera).invert();
+         const Matrix inverse_view = (geometry.getTransform() * _camera).invert();
          const Vector object_space_camera = inverse_view.translation();
-         activeDevice->setParameter(_param_camera, object_space_camera);
-         activeDevice->setParameter(_param_offset, Vector(x, y));
+         activeDevice().setParameter(_param_camera, object_space_camera);
+         activeDevice().setParameter(_param_offset, Vector(x, y));
 
-         activeDevice->push(geometry->getTransform());
+         activeDevice().push(geometry.getTransform());
 
          // draw mesh
-         glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer->getVertexBuffer());
+         glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer.getVertexBuffer());
          glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), nullptr);
          glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const GLvoid*>(sizeof(Vector)));
          glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const GLvoid*>(sizeof(Vector) * 2));
 
-         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vertex_buffer->getIndexBuffer());
-         glDrawElements(GL_TRIANGLES, vertex_buffer->getIndexCount(), GL_UNSIGNED_SHORT, nullptr);  // render
+         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vertex_buffer.getIndexBuffer());
+         glDrawElements(GL_TRIANGLES, vertex_buffer.getIndexCount(), GL_UNSIGNED_SHORT, nullptr);  // render
 
-         activeDevice->pop();
+         activeDevice().pop();
       }
    }
 
    end();
 }
 
-void SkullMaterial::update(float /*frame*/, Node** /*node_list*/, const Matrix& camera)
+void SkullMaterial::update(float /*frame*/, const Matrix& camera)
 {
    _camera = camera;
 }

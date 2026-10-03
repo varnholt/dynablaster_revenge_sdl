@@ -9,10 +9,11 @@ public:
    GlobalTime();
    virtual ~GlobalTime();
 
-   static GlobalTime* Instance();
+   GlobalTime(const GlobalTime&) = delete;
+   GlobalTime& operator=(const GlobalTime&) = delete;
+
+   // the most recently constructed time source, only valid while one exists
+   static GlobalTime& Instance();
 
    virtual float getTime() const = 0;
-
-private:
-   static GlobalTime* _instance;
 };

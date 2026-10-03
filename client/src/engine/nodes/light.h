@@ -13,7 +13,7 @@ class Stream;
 class Light : public Node
 {
 public:
-   Light(Node::ID id, Node* parent = nullptr);
+   explicit Light(Node::ID id);
    Vector getColor() const;
    void transform(float frame) override;
    void load(Stream& stream) override;

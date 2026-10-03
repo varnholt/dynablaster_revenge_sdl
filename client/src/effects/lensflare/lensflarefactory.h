@@ -25,7 +25,7 @@ public:
 
 private:
    std::map<std::string, std::unique_ptr<LensFlare>> _lens_flares;
-   LensFlare* _active = nullptr;
+   std::map<std::string, std::unique_ptr<LensFlare>>::const_iterator _active = _lens_flares.end();  // end() if none
 
    uint32_t _shader = 0;
    int32_t _time_param = -1;

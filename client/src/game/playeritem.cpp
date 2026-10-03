@@ -9,8 +9,6 @@ PlayerItem::PlayerItem(int id, const std::string& nick, Constants::Color color) 
 
 PlayerItem::~PlayerItem()
 {
-   if (_mesh)
-      delete _mesh;
 }
 
 void PlayerItem::kill()
@@ -177,14 +175,14 @@ void PlayerItem::animate(float /*time*/, float delta)
       }
    }
 
-   MotionMixer* mixer = _mesh->getMotionMixer();
+   const auto mixer = _mesh->getMotionMixer();
    if (mixer)
    {
       if (_killed)
-         mixer->setAnimation(3, 3, 1.0f, 3, 0.0f);
+         mixer->get().setAnimation(3, 3, 1.0f, 3, 0.0f);
       else if (_win)
-         mixer->setAnimation(4, 4, 1.0f, 4, 0.0f);
+         mixer->get().setAnimation(4, 4, 1.0f, 4, 0.0f);
       else
-         mixer->setAnimation(1, 2, 1.0f - _anim_blend, 0, _stand_blend);
+         mixer->get().setAnimation(1, 2, 1.0f - _anim_blend, 0, _stand_blend);
    }
 }

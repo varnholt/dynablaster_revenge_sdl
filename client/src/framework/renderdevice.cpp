@@ -1,11 +1,29 @@
 #include "renderdevice.h"
 
-// static render-device object
-RenderDevice* activeDevice = nullptr;
+#include <functional>
+#include <optional>
+
+namespace
+{
+std::optional<std::reference_wrapper<RenderDevice>> active_device;
+}  // namespace
+
+RenderDevice& activeDevice()
+{
+   return active_device.value();
+}
 
 RenderDevice::RenderDevice()
 {
-   activeDevice = this;
+   active_device = *this;
+}
+
+RenderDevice::~RenderDevice()
+{
+   if (active_device && &active_device->get() == this)
+   {
+      active_device.reset();
+   }
 }
 
 int32_t RenderDevice::getBorderLeft() const

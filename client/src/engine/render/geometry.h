@@ -13,19 +13,23 @@
 #include "uvchannel.h"
 
 #include <cstdint>
+#include <functional>
 #include <memory>
+#include <span>
 #include <vector>
 
 class Stream;
-class Node;
+class Mesh;
 
 class Geometry
 {
 public:
-   Geometry(Node* parent);
+   explicit Geometry(Mesh& mesh);
 
    // copies share id and vertex data (and with that the vertex buffer of the materials)
-   Geometry(const Geometry& geometry) = default;
+   Geometry(const Geometry& geometry, Mesh& mesh);
+   Geometry(const Geometry&) = delete;
+   Geometry& operator=(const Geometry&) = delete;
 
    // deep copy of the vertex data of "geometry"
    void copy(const Geometry& geometry);
@@ -41,7 +45,7 @@ public:
    const std::vector<Bone>& getBoneList() const;
    std::vector<Bone>& getBoneList();
    const std::vector<Edge>& getEdgeList() const;
-   const int32_t* getVertexMap() const;
+   std::span<const int32_t> getVertexMap() const;
 
    int32_t getID() const;  // unique id
    bool isVisible() const;
@@ -52,27 +56,29 @@ public:
    void load(Stream& stream);
    void write(Stream& stream);
 
-   void setParent(Node* node);  // link geometry to originating mesh-node
-   Node* getParent() const;     // originating mesh
+   Mesh& getParent() const;  // originating mesh
+
+   // adds the scene's start indices to the loaded material and bone ids
+   void offsetIds(int32_t material_offset, int32_t node_offset);
 
    int32_t getIndexCount() const;  // number of indices (triangles*3)
    int32_t getVertexCount() const;
    int32_t getBoneCount() const;  // number of weighted vertices
    int32_t getEdgeCount() const;
 
-   uint16_t* getIndices() const;
+   std::span<const uint16_t> getIndices() const;
 
-   Edge* getEdges() const;
+   std::span<const Edge> getEdges() const;
 
-   Vector* getVertices() const;
+   std::span<const Vector> getVertices() const;
    std::vector<Vector> getSkinVertices() const;
-   Bone* getBones() const;
+   std::span<const Bone> getBones() const;
    const Bone& getBone(int32_t index) const;
-   Vector* getNormals() const;
-   Vector* getColors() const;
-   UV* getUV(int32_t channel) const;    // vertex-texcoord set "channel"
-   int32_t getMaterial() const;         // material id
-   const Matrix& getTransform() const;  // transformation matrix from mesh
+   std::span<const Vector> getNormals() const;
+   std::span<const Vector> getColors() const;
+   std::span<const UV> getUV(int32_t channel) const;  // vertex-texcoord set "channel", empty if missing
+   int32_t getMaterial() const;                       // material id
+   const Matrix& getTransform() const;                // transformation matrix from mesh
 
    void calcBoundingBox(Vector& min, Vector& max);
 
@@ -94,7 +100,7 @@ private:
    void calcNormals();
 
    int32_t _id = 0;
-   Node* _parent = nullptr;  // link to mesh node
+   std::reference_wrapper<Mesh> _parent;  // originating mesh
    bool _visible = true;
    int32_t _material_id = 0;
 

@@ -4,7 +4,9 @@
 #include "math/matrix.h"
 
 #include <cstdint>
+#include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -12,6 +14,7 @@ class Camera;
 class SceneGraph;
 class Material;
 class Node;
+class PlayerInfo;
 
 constexpr int32_t MAX_PLAYERS = 10;
 
@@ -47,59 +50,63 @@ public:
    virtual std::string getLensFlareKey() const;
 
    std::string path() const;
-   SceneGraph* getScene() const;
-   SceneGraph* getLevel() const;
-   SceneGraph* getPlayers() const;
-   Material* getKickExtra() const;
-   Material* getSpeedupExtra() const;
-   Material* getBombExtra() const;
-   Material* getFlameExtra() const;
-   Material* getSkullExtra() const;
+   SceneGraph& getScene() const;
+   SceneGraph& getLevel() const;
+   SceneGraph& getPlayers() const;
+   Material& getKickExtra() const;
+   Material& getSpeedupExtra() const;
+   Material& getBombExtra() const;
+   Material& getFlameExtra() const;
+   Material& getSkullExtra() const;
 
-   const std::vector<Node*>& getDestructions() const;
-   Material* getShadowBillboard() const;
-   Material* getShadowBlockBillboard() const;
-   Material* getBombMaterial() const;
-   Material* getSkullMaterial() const;
-   Material* getStoneMaterial() const;
-   Material* getBlockMaterial() const;
-   Material* getDestructionMaterial() const;
+   // the four destruction animations, owned by the level
+   const std::vector<std::reference_wrapper<Node>>& getDestructions() const;
+   Material& getShadowBillboard() const;
+   Material& getShadowBlockBillboard() const;
+   Material& getBombMaterial() const;
+   Material& getSkullMaterial() const;
+   Material& getStoneMaterial() const;
+   Material& getBlockMaterial() const;
+   Material& getDestructionMaterial() const;
 
    bool isPlayerMapEmpty() const;
    void resetPlayerPositions();
    void startPositionUpdate(float width, float height, float dt);
-   void addPlayerPosition(PlayerInfo* player);
+   void addPlayerPosition(const PlayerInfo& player);
    void endPlayerPositionUpdate();
    Matrix getCameraMatrix(float time, float scale = 1.0f);
 
 protected:
+   using MaterialRef = std::optional<std::reference_wrapper<Material>>;
+
    //! creates _destruction and fills _destruct_anim
-   void loadDestructions(Camera* shadow_camera);
+   void loadDestructions(Camera& shadow_camera);
 
    LevelType _level_type;
    bool _aborted = false;
 
-   // declared in reverse destruction order: level, scene, players
+   // declared in reverse destruction order: level, scene, players, destruction templates, their sources
+   std::vector<std::unique_ptr<SceneGraph>> _destruction_sources;  // the template meshes keep their skeletons
+   std::unique_ptr<SceneGraph> _destruction_templates;
    std::unique_ptr<SceneGraph> _players;
    std::unique_ptr<SceneGraph> _scene;
    std::unique_ptr<SceneGraph> _level;
    std::unique_ptr<CameraInterpolation> _camera_interpolation;
 
-   // the nodes are deleted by whoever takes getDestructions()
-   std::vector<Node*> _destruct_anim;
+   // root nodes of the destruction templates
+   std::vector<std::reference_wrapper<Node>> _destruct_anim;
 
    // materials are owned by the scene graph they were created for
-   Material* _stones = nullptr;
-   Material* _blocks = nullptr;
-   Material* _skulls = nullptr;
-   Material* _destruction = nullptr;
-   Material* _extra_flame = nullptr;
-   Material* _extra_bomb = nullptr;
-   Material* _extra_speedup = nullptr;
-   Material* _extra_kick = nullptr;
-   Material* _extra_skull = nullptr;
-   Material* _outlines = nullptr;
-   Material* _bombs = nullptr;
-   Material* _shadow_billboards = nullptr;
-   Material* _shadow_blocks = nullptr;
+   MaterialRef _stones;
+   MaterialRef _blocks;
+   MaterialRef _skulls;
+   MaterialRef _destruction;
+   MaterialRef _extra_flame;
+   MaterialRef _extra_bomb;
+   MaterialRef _extra_speedup;
+   MaterialRef _extra_kick;
+   MaterialRef _extra_skull;
+   MaterialRef _bombs;
+   MaterialRef _shadow_billboards;
+   MaterialRef _shadow_blocks;
 };

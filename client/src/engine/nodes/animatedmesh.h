@@ -6,8 +6,8 @@
 class AnimatedMesh : public Mesh
 {
 public:
-   AnimatedMesh(Node* parent = nullptr);
+   AnimatedMesh();
 
    int32_t getFrameCount() const;
-   Geometry* getFrame(int32_t frame);
+   Geometry& getFrame(int32_t frame);
 };

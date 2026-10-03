@@ -27,7 +27,7 @@ PositionInterpolation::~PositionInterpolation() = default;
 
 void PositionInterpolation::update()
 {
-   float cur_time = GlobalTime::Instance()->getTime();
+   float cur_time = GlobalTime::Instance().getTime();
 
    float client_delta = cur_time - _time;
 

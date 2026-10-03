@@ -249,15 +249,15 @@ void Clipper::enable()
 
    int width = 0;
    int height = 0;
-   if (FrameBuffer::Instance())
+   if (const auto frame_buffer = FrameBuffer::Instance())
    {
-      width = FrameBuffer::Instance()->width();
-      height = FrameBuffer::Instance()->height();
+      width = frame_buffer->get().width();
+      height = frame_buffer->get().height();
    }
    else
    {
-      width = static_cast<int>(activeDevice->getWidth());
-      height = static_cast<int>(activeDevice->getHeight());
+      width = static_cast<int>(activeDevice().getWidth());
+      height = static_cast<int>(activeDevice().getHeight());
    }
 
    glScissor(
@@ -275,6 +275,6 @@ void Clipper::disable()
    {
       _enabled = false;
       glDisable(GL_SCISSOR_TEST);
-      glScissor(0, 0, static_cast<int>(activeDevice->getWidth()), static_cast<int>(activeDevice->getHeight()));
+      glScissor(0, 0, static_cast<int>(activeDevice().getWidth()), static_cast<int>(activeDevice().getHeight()));
    }
 }

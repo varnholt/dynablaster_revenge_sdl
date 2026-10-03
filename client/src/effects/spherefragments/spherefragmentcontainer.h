@@ -14,7 +14,7 @@ class Node;
 class SphereFragmentContainer
 {
 public:
-   explicit SphereFragmentContainer(Node* root);
+   explicit SphereFragmentContainer(const Node& root);
    virtual ~SphereFragmentContainer();
 
    void animate(float time);

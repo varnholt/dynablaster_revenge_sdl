@@ -1,19 +1,23 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
+#include <memory>
+#include <optional>
 #include <unordered_map>
 
-class Geometry;
-class VertexBuffer;
+#include "vertexbuffer.h"
 
+class Geometry;
+
+// one vertex buffer per geometry id, shared by all geometry copies with that id
 class VertexBufferPool
 {
 public:
-   bool contains(Geometry* geometry) const;
-   VertexBuffer* add(Geometry* geometry);
-   VertexBuffer* get(Geometry* geometry);
+   bool contains(const Geometry& geometry) const;
+   VertexBuffer& add(const Geometry& geometry);
+   std::optional<std::reference_wrapper<VertexBuffer>> get(const Geometry& geometry);
 
 private:
-   // entries intentionally never freed: that would add GL buffer deletes on Material teardown
-   std::unordered_map<int32_t, VertexBuffer*> _pool;
+   std::unordered_map<int32_t, std::unique_ptr<VertexBuffer>> _pool;
 };

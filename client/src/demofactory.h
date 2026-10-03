@@ -7,5 +7,5 @@
 class DemoMaterialFactory : public MaterialFactory
 {
 public:
-   Material* createMaterial(SceneGraph* scene, int materialId) const override;
+   std::unique_ptr<Material> createMaterial(int32_t material_id) const override;
 };

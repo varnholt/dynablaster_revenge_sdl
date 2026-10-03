@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
+#include <optional>
 #include <vector>
 
 // offscreen render target (color texture plus optional depth renderbuffer or sampleable depth texture),
@@ -20,12 +22,16 @@ public:
    FrameBuffer(const FrameBuffer&) = delete;
    FrameBuffer& operator=(const FrameBuffer&) = delete;
 
-   static void push(FrameBuffer* frame_buffer = nullptr);
+   // remembers the bound frame buffer for pop(), binds "frame_buffer" if given
+   static void push();
+   static void push(FrameBuffer& frame_buffer);
    static void pop();
-   static FrameBuffer* Instance();
+   // the bound frame buffer, empty while drawing to the screen
+   static std::optional<std::reference_wrapper<FrameBuffer>> Instance();
 
    // the frame everything is drawn into before it's presented, unbind() and pop() return to it
-   static void setScreen(FrameBuffer* frame_buffer);
+   static void setScreen(FrameBuffer& frame_buffer);
+   static void clearScreen();
    static uint32_t screenTarget();
 
    // glCopyTexImage2D() of the bound framebuffer into the bound texture, resolving a multisampled one first
@@ -68,9 +74,9 @@ private:
    int32_t _requested_samples = 0;
    int32_t _samples = 1;
 
-   static inline FrameBuffer* _instance = nullptr;
-   static inline FrameBuffer* _screen = nullptr;
-   static inline std::vector<FrameBuffer*> _stack;
+   static inline std::optional<std::reference_wrapper<FrameBuffer>> _instance;
+   static inline std::optional<std::reference_wrapper<FrameBuffer>> _screen;
+   static inline std::vector<std::optional<std::reference_wrapper<FrameBuffer>>> _stack;
 
    // full-screen quad used by draw(), lazily created, kept for the process lifetime
    static inline uint32_t _quad_vertex_buffer = 0;

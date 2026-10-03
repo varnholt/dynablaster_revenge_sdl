@@ -11,7 +11,7 @@
 
 #define FADE_FACTOR 0.009f
 
-CountdownDrawable::CountdownDrawable(RenderDevice* dev) : Drawable(dev)
+CountdownDrawable::CountdownDrawable(RenderDevice* dev) : Drawable(*dev)
 {
    _filename = "data/menus/countdown.psd";
 }
@@ -83,7 +83,7 @@ void CountdownDrawable::countdown(int left)
 void CountdownDrawable::initGlParameters()
 {
    Matrix ortho = Matrix::ortho(0.0f, _psd.getWidth(), _psd.getHeight(), 0.0f, -1.0f, 1.0f);
-   static_cast<GLDevice*>(activeDevice)->setProjectionMatrix(ortho);
+   static_cast<GLDevice&>(activeDevice()).setProjectionMatrix(ortho);
 
    glEnable(GL_BLEND);
    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -91,7 +91,7 @@ void CountdownDrawable::initGlParameters()
    glDisable(GL_DEPTH_TEST);
    glDepthMask(GL_FALSE);
 
-   activeDevice->setShader(_shader);
+   activeDevice().setShader(_shader);
 }
 
 void CountdownDrawable::cleanupGlParameters()

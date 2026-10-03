@@ -1,25 +1,24 @@
 #include "vertexbufferpool.h"
 #include "geometry.h"
-#include "vertexbuffer.h"
 
-bool VertexBufferPool::contains(Geometry* geometry) const
+bool VertexBufferPool::contains(const Geometry& geometry) const
 {
-   return _pool.contains(geometry->getID());
+   return _pool.contains(geometry.getID());
 }
 
-VertexBuffer* VertexBufferPool::get(Geometry* geometry)
+std::optional<std::reference_wrapper<VertexBuffer>> VertexBufferPool::get(const Geometry& geometry)
 {
-   const auto iterator = _pool.find(geometry->getID());
+   const auto iterator = _pool.find(geometry.getID());
    if (iterator != _pool.end())
    {
-      return iterator->second;
+      return *iterator->second;
    }
-   return nullptr;
+   return std::nullopt;
 }
 
-VertexBuffer* VertexBufferPool::add(Geometry* geometry)
+VertexBuffer& VertexBufferPool::add(const Geometry& geometry)
 {
-   auto* buffer = new VertexBuffer(geometry);
-   _pool[geometry->getID()] = buffer;
-   return buffer;
+   auto& buffer = _pool[geometry.getID()];
+   buffer = std::make_unique<VertexBuffer>();
+   return *buffer;
 }

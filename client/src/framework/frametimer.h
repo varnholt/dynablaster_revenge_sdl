@@ -41,5 +41,5 @@ private:
    bool _single_shot = false;
    float _start_time = 0.0f;  // seconds
    float _interval = 0.0f;    // seconds
-   bool _delete = false;      // owned by TimerHandler, deleted once it fired
+   bool _delete = false;      // owned by TimerHandler, destroyed once it fired
 };

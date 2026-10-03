@@ -8,6 +8,8 @@
 
 #include <array>
 #include <numbers>
+#include <string>
+#include <string_view>
 
 namespace
 {
@@ -64,7 +66,7 @@ void Level::draw()
 
 void Level::drawBackground()
 {
-   activeDevice->clear();
+   activeDevice().clear();
 }
 
 void Level::animate(float /*dt*/)
@@ -96,7 +98,7 @@ void Level::startPositionUpdate(float width, float height, float dt)
    }
 }
 
-void Level::addPlayerPosition(PlayerInfo* player)
+void Level::addPlayerPosition(const PlayerInfo& player)
 {
    if (_camera_interpolation)
    {
@@ -157,140 +159,145 @@ std::string Level::getLevelName(Level::LevelType level_type)
    }
 }
 
-Material* Level::getFlameExtra() const
+Material& Level::getFlameExtra() const
 {
-   return _extra_flame;
+   return _extra_flame.value();
 }
 
-Material* Level::getBombExtra() const
+Material& Level::getBombExtra() const
 {
-   return _extra_bomb;
+   return _extra_bomb.value();
 }
 
-Material* Level::getSpeedupExtra() const
+Material& Level::getSpeedupExtra() const
 {
-   return _extra_speedup;
+   return _extra_speedup.value();
 }
 
-Material* Level::getKickExtra() const
+Material& Level::getKickExtra() const
 {
-   return _extra_kick;
+   return _extra_kick.value();
 }
 
-Material* Level::getSkullExtra() const
+Material& Level::getSkullExtra() const
 {
-   return _extra_skull;
+   return _extra_skull.value();
 }
 
-SceneGraph* Level::getLevel() const
+SceneGraph& Level::getLevel() const
 {
-   return _level.get();
+   return *_level;
 }
 
-SceneGraph* Level::getScene() const
+SceneGraph& Level::getScene() const
 {
-   return _scene.get();
+   return *_scene;
 }
 
-SceneGraph* Level::getPlayers() const
+SceneGraph& Level::getPlayers() const
 {
-   return _players.get();
+   return *_players;
 }
 
-const std::vector<Node*>& Level::getDestructions() const
+const std::vector<std::reference_wrapper<Node>>& Level::getDestructions() const
 {
    return _destruct_anim;
 }
 
-Material* Level::getShadowBillboard() const
+Material& Level::getShadowBillboard() const
 {
-   return _shadow_billboards;
+   return _shadow_billboards.value();
 }
 
-Material* Level::getShadowBlockBillboard() const
+Material& Level::getShadowBlockBillboard() const
 {
-   return _shadow_blocks;
+   return _shadow_blocks.value();
 }
 
-Material* Level::getBombMaterial() const
+Material& Level::getBombMaterial() const
 {
-   return _bombs;
+   return _bombs.value();
 }
 
-Material* Level::getSkullMaterial() const
+Material& Level::getSkullMaterial() const
 {
-   return _skulls;
+   return _skulls.value();
 }
 
-Material* Level::getStoneMaterial() const
+Material& Level::getStoneMaterial() const
 {
-   return _stones;
+   return _stones.value();
 }
 
-Material* Level::getBlockMaterial() const
+Material& Level::getBlockMaterial() const
 {
-   return _blocks;
+   return _blocks.value();
 }
 
-Material* Level::getDestructionMaterial() const
+Material& Level::getDestructionMaterial() const
 {
-   return _destruction;
+   return _destruction.value();
 }
 
 // loads the four block destruction animations, each as four copies rotated by 90 degrees
-void Level::loadDestructions(Camera* shadow_camera)
+void Level::loadDestructions(Camera& shadow_camera)
 {
-   _destruction = new DestructionMaterial(_scene.get(), "stone-unwrap", "diffuse_level", "specular_level", "shadow-cookie", shadow_camera);
+   Material& destruction_material = _scene->addMaterial(
+      std::make_unique<DestructionMaterial>("stone-unwrap", "diffuse_level", "specular_level", "shadow-cookie", shadow_camera)
+   );
+   _destruction = destruction_material;
 
-   constexpr std::array<const char*, 4> destructions = {
+   _destruction_templates = std::make_unique<SceneGraph>();
+
+   constexpr std::array<std::string_view, 4> destructions = {
       "block-destruct0.hjb",
       "block-destruct1.hjb",
       "block-destruct2.hjb",
       "block-destruct.hjb",
    };
 
-   for (const auto* destruction : destructions)
+   for (const std::string_view destruction : destructions)
    {
-      // never deleted, the mesh copies below keep pointers to its baked animation and motion mixer
-      auto* scene = new SceneGraph();
-      if (!scene->load(destruction))
+      auto source = std::make_unique<SceneGraph>();
+      if (!source->load(std::string(destruction)))
       {
-         delete scene;
          continue;
       }
 
+      SceneGraph& scene = *_destruction_sources.emplace_back(std::move(source));
+
       // precalc tracks
-      for (int32_t i = 0; i < scene->getChildCount(); i++)
+      for (int32_t i = 0; i < scene.getChildCount(); i++)
       {
-         scene->getChild(i)->bakeAnimationTrack(160.0f);
+         scene.getChild(i).bakeAnimationTrack(160.0f);
       }
 
       // four copies, each rotated by 90 degrees
-      auto* node = new Dummy(nullptr);
+      Dummy& node = _destruction_templates->addNode(std::make_unique<Dummy>());
       for (int32_t rotation = 0; rotation < 4; rotation++)
       {
          const float angle = (rotation - 1) * std::numbers::pi_v<float> * 0.5f;
          const Matrix transform = Matrix::rotateZ(angle);
 
-         auto* dummy = new Dummy(node);
+         Dummy& dummy = _destruction_templates->addNode(std::make_unique<Dummy>(), node);
 
-         for (int32_t i = 0; i < scene->getChildCount(); i++)
+         for (int32_t i = 0; i < scene.getChildCount(); i++)
          {
-            Node* child = scene->getChild(i);
-            if (child->id() != Node::idMesh)
+            const Node& child = scene.getChild(i);
+            if (child.id() != Node::idMesh)
             {
                continue;
             }
 
-            auto* mesh = new Mesh(dummy);
-            mesh->copy(*static_cast<Mesh*>(child));
-            mesh->transform(0.0f);
-            mesh->createBoxMapping(true, Vector(-0.5f, -0.5f, 0.0f), Vector(0.5f, 0.5f, 1.0f), transform);
-            mesh->setFrame(0.0f);
-            _destruction->addMesh(mesh);
+            Mesh& mesh = _destruction_templates->addNode(std::make_unique<Mesh>(), dummy);
+            mesh.copy(static_cast<const Mesh&>(child));
+            mesh.transform(0.0f);
+            mesh.createBoxMapping(true, Vector(-0.5f, -0.5f, 0.0f), Vector(0.5f, 0.5f, 1.0f), transform);
+            mesh.setFrame(0.0f);
+            destruction_material.addMesh(mesh);
          }
       }
 
-      _destruct_anim.push_back(node);
+      _destruct_anim.emplace_back(node);
    }
 }

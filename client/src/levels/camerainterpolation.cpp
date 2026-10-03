@@ -7,8 +7,8 @@
 #include <cmath>
 #include <numbers>
 
-CameraInterpolation::CameraInterpolation(Camera* center, Camera* upper, Camera* lower)
-    : _center(center), _upper(upper), _lower(lower), _time(GlobalTime::Instance()->getTime())
+CameraInterpolation::CameraInterpolation(CameraRef center, CameraRef upper, CameraRef lower)
+    : _center(center), _upper(upper), _lower(lower), _time(GlobalTime::Instance().getTime())
 {
    for (auto& position : _previous_positions)
    {
@@ -36,14 +36,14 @@ void CameraInterpolation::startPositionUpdate(float width, float height, float d
    _current_position.set(0.0f, 0.0f);
 }
 
-void CameraInterpolation::addPlayerPosition(PlayerInfo* player)
+void CameraInterpolation::addPlayerPosition(const PlayerInfo& player)
 {
    float fade = 1.0f;
 
-   const auto entry = _players.find(player);
+   const auto entry = _players.find(player.getId());
    if (entry != _players.end())
    {
-      if (player->isKilled())
+      if (player.isKilled())
       {
          fade = std::max(entry->second - _delta_time, 0.0f);
          entry->second = fade;
@@ -51,13 +51,13 @@ void CameraInterpolation::addPlayerPosition(PlayerInfo* player)
    }
    else
    {
-      _players[player] = 1.0f;
+      _players[player.getId()] = 1.0f;
    }
 
    if (fade > 0.0f)
    {
-      const float x = player->getX() * _inverse_width;
-      const float y = player->getY() * _inverse_height;
+      const float x = player.getX() * _inverse_width;
+      const float y = player.getY() * _inverse_height;
       _current_position += Vector2(x, y) * fade;
       _active_players++;
    }
@@ -66,7 +66,7 @@ void CameraInterpolation::addPlayerPosition(PlayerInfo* player)
 void CameraInterpolation::endPlayerPositionUpdate()
 {
    const float time_step = 1.0f / 60.0f;
-   const float time = GlobalTime::Instance()->getTime();
+   const float time = GlobalTime::Instance().getTime();
 
    if (_active_players > 0)
    {
@@ -103,18 +103,19 @@ Matrix CameraInterpolation::getCameraMatrix(float time, float scale)
 
    if (_center)
    {
-      _center->transform(time);
-      fov = 1.0f / (static_cast<float>(std::tan(_center->getFOV() * 0.5)) * 0.75f);
-      camera = _center->getTransform();
+      Camera& center = *_center;
+      center.transform(time);
+      fov = 1.0f / (static_cast<float>(std::tan(center.getFOV() * 0.5)) * 0.75f);
+      camera = center.getTransform();
    }
 
    if (_upper && _lower)
    {
-      _upper->transform(_interpolated_positions[0].x * 16000.0f);  // 100 frame a 160 ticks
-      _lower->transform(_interpolated_positions[0].x * 16000.0f);
+      _upper->get().transform(_interpolated_positions[0].x * 16000.0f);  // 100 frame a 160 ticks
+      _lower->get().transform(_interpolated_positions[0].x * 16000.0f);
 
-      const Matrix upper = _upper->getTransform();
-      const Matrix lower = _lower->getTransform();
+      const Matrix upper = _upper->get().getTransform();
+      const Matrix lower = _lower->get().getTransform();
 
       const Matrix blended = Matrix::blend(upper, lower, _interpolated_positions[0].y);
 

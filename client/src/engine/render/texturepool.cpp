@@ -38,7 +38,7 @@ void TexturePool::update()
    {
       const uint32_t texture_id = _removal.back();
       _removal.pop_back();
-      activeDevice->deleteTexture(texture_id);
+      activeDevice().deleteTexture(texture_id);
    }
 }
 

@@ -294,8 +294,8 @@ void MenuPageTextEditItem::drawCursor()
 
    if (_cursor_texture == 0)
    {
-      uint32_t white = 0xFFFFFFFF;
-      _cursor_texture = activeDevice->createTexture(&white, 1, 1, 0);
+      const std::array<uint32_t, 1> white = {0xFFFFFFFF};
+      _cursor_texture = activeDevice().createTexture(white, 1, 1, 0);
    }
 
    glBindTexture(GL_TEXTURE_2D, _cursor_texture);
@@ -316,18 +316,18 @@ void MenuPageTextEditItem::drawCursor()
 
    if (_cursor_vertex_buffer == 0)
    {
-      _cursor_vertex_buffer = activeDevice->createVertexBuffer(quad_size, true);
+      _cursor_vertex_buffer = activeDevice().createVertexBuffer(quad_size, true);
    }
    else
    {
-      activeDevice->allocateVertexBuffer(_cursor_vertex_buffer, quad_size, true);
+      activeDevice().allocateVertexBuffer(_cursor_vertex_buffer, quad_size, true);
    }
 
-   std::memcpy(activeDevice->lockVertexBuffer(_cursor_vertex_buffer, quad_size), quad.data(), quad_size);
-   activeDevice->unlockVertexBuffer(_cursor_vertex_buffer);
+   std::ranges::copy(quad, activeDevice().lockVertexBuffer<float>(_cursor_vertex_buffer, quad_size).begin());
+   activeDevice().unlockVertexBuffer(_cursor_vertex_buffer);
 
-   activeDevice->push(Matrix());
-   activeDevice->setParameter(activeDevice->getParameterIndex("alpha"), (128.0f / 255.0f) * alpha_factor);
+   activeDevice().push(Matrix());
+   activeDevice().setParameter(activeDevice().getParameterIndex("alpha"), (128.0f / 255.0f) * alpha_factor);
 
    glBindBuffer(GL_ARRAY_BUFFER, _cursor_vertex_buffer);
    glEnableVertexAttribArray(0);
@@ -340,7 +340,7 @@ void MenuPageTextEditItem::drawCursor()
    glDisableVertexAttribArray(0);
    glDisableVertexAttribArray(1);
 
-   activeDevice->pop();
+   activeDevice().pop();
 
    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }

@@ -8,7 +8,7 @@ class Stream;
 class Spot : public Light
 {
 public:
-   Spot(Node* parent = nullptr);
+   Spot();
    void load(Stream& stream) override;
    void write(Stream& stream) override;
 

@@ -13,7 +13,7 @@ class BakedTransformation
 {
 public:
    BakedTransformation() = default;
-   BakedTransformation(Node* node, float step_size);
+   BakedTransformation(Node& node, float step_size);
 
    Matrix interpolate(float frame) const;
    int32_t size() const;

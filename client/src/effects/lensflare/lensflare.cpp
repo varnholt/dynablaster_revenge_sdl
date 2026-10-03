@@ -255,9 +255,9 @@ void LensFlare::draw(const Vector2& sun_2d, int32_t time_param, int32_t sun_para
    glActiveTexture(GL_TEXTURE0);
    glBindTexture(GL_TEXTURE_2D, _texture.getTexture());
 
-   activeDevice->setParameter(time_param, GlobalTime::Instance()->getTime());
-   activeDevice->setParameter(sun_param, sun_2d);
-   activeDevice->setParameter(length_param, length);
+   activeDevice().setParameter(time_param, GlobalTime::Instance().getTime());
+   activeDevice().setParameter(sun_param, sun_2d);
+   activeDevice().setParameter(length_param, length);
 
    glBindBuffer(GL_ARRAY_BUFFER, _vertex_buffer);
    glEnableVertexAttribArray(0);
