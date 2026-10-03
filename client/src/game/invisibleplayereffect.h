@@ -1,9 +1,12 @@
 #pragma once
 
 #include <cstdint>
-#include <unordered_map>
+#include <functional>
+#include <map>
+#include <optional>
 
 class InvisibilityMaterial;
+class Mesh;
 class PlayerItem;
 class SceneGraph;
 
@@ -17,10 +20,10 @@ public:
    InvisiblePlayerEffect(const InvisiblePlayerEffect&) = delete;
    InvisiblePlayerEffect& operator=(const InvisiblePlayerEffect&) = delete;
 
-   void setPlayerScene(SceneGraph* players);
+   void setPlayerScene(std::optional<std::reference_wrapper<SceneGraph>> players);
 
-   void addPlayer(PlayerItem* player);
-   void removePlayer(PlayerItem* player);
+   void addPlayer(const PlayerItem& player);
+   void removePlayer(const PlayerItem& player);
    void removeAllPlayers();
 
    void update(float global_time);
@@ -29,9 +32,16 @@ public:
    void captureBackground();
 
 private:
-   InvisibilityMaterial* getMaterial() const;
+   struct InvisiblePlayer
+   {
+      std::reference_wrapper<Mesh> _mesh;
+      float _start_time = 0.0f;
+   };
 
-   SceneGraph* _scene = nullptr;
-   std::unordered_map<PlayerItem*, float> _start_times;
+   std::optional<std::reference_wrapper<InvisibilityMaterial>> getMaterial() const;
+   void removePlayer(int32_t id);
+
+   std::optional<std::reference_wrapper<SceneGraph>> _scene;
+   std::map<int32_t, InvisiblePlayer> _players;
    uint32_t _background_texture = 0;
 };

@@ -4,12 +4,12 @@ PlayerBoundingRect::PlayerBoundingRect()
 {
 }
 
-void PlayerBoundingRect::setPlayerItem(PlayerItem* item)
+void PlayerBoundingRect::setPlayerId(int32_t id)
 {
-   _player_item = item;
+   _player_id = id;
 }
 
-PlayerItem* PlayerBoundingRect::getPlayerItem() const
+int32_t PlayerBoundingRect::getPlayerId() const
 {
-   return _player_item;
+   return _player_id;
 }

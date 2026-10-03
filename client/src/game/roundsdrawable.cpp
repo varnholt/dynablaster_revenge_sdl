@@ -20,7 +20,7 @@ constexpr float FADE_OUT_DURATION = 1.0f * 62.5f;
 constexpr float BLUR_FACTOR = 0.15f;
 }  // namespace
 
-RoundsDrawable::RoundsDrawable(RenderDevice* dev) : Drawable(*dev)
+RoundsDrawable::RoundsDrawable(RenderDevice& dev) : Drawable(dev)
 {
    _filename = "data/game/rounds.psd";
    _motion_blur_filter = std::make_unique<MotionBlurFilter>();
@@ -73,22 +73,25 @@ void RoundsDrawable::paintGL()
    speed *= std::fabs(speed);
    x = 0.75f * -speed * _psd.getWidth();
 
-   GameInformation* info = BombermanClient::getInstance()->getCurrentGameInformation();
+   const auto game_information = BombermanClient::getInstance().getCurrentGameInformation();
 
-   if (info && info->getRoundCount() > 1)
+   if (game_information && game_information->get().getRoundCount() > 1)
    {
-      if (info->getCurrentRound() == info->getRoundCount() - 1)
+      const GameInformation& info = *game_information;
+
+      if (info.getCurrentRound() == info.getRoundCount() - 1)
       {
-         float scale = 1.0f / (_layer_round_final->getWidth() / _max_layer_width);
+         PSDLayer& layer_round_final = *_layer_round_final;
+         float scale = 1.0f / (layer_round_final.getWidth() / _max_layer_width);
          _motion_blur_filter->setMotionDir(Vector2(speed * scale * BLUR_FACTOR, 0.0f));
          _motion_blur_filter->process(0, 0, 0);
-         _layer_round_final->render(x, y, alpha);
+         layer_round_final.render(x, y, alpha);
       }
       else
       {
-         PSDLayer* current_layer = nullptr;
+         std::optional<std::reference_wrapper<PSDLayer>> current_layer;
 
-         switch (info->getCurrentRound())
+         switch (info.getCurrentRound())
          {
             case 0:
                current_layer = _layer_round1;
@@ -114,17 +117,19 @@ void RoundsDrawable::paintGL()
             current_layer = _layer_round1;
          }
 
-         float scale = 1.0f / (_layer_round->getWidth() / _max_layer_width);
+         PSDLayer& layer_round = *_layer_round;
+         float scale = 1.0f / (layer_round.getWidth() / _max_layer_width);
          _motion_blur_filter->setMotionDir(Vector2(speed * scale * BLUR_FACTOR, 0.0f));
          _motion_blur_filter->process(0, 0, 0);
-         _layer_round->render(x, y, alpha);
+         layer_round.render(x, y, alpha);
 
          if (current_layer)
          {
-            scale = 1.0f / (current_layer->getWidth() / _max_layer_width);
+            PSDLayer& layer = *current_layer;
+            scale = 1.0f / (layer.getWidth() / _max_layer_width);
             _motion_blur_filter->setMotionDir(Vector2(speed * scale * BLUR_FACTOR, 0.0f));
             _motion_blur_filter->process(0, 0, 0);
-            current_layer->render(x, y, alpha);
+            layer.render(x, y, alpha);
          }
       }
    }
@@ -192,31 +197,31 @@ void RoundsDrawable::initializeLayers()
 
       if (psd_layer.getName() == "round_label")
       {
-         _layer_round = layer.get();
+         _layer_round = *layer;
       }
       else if (psd_layer.getName() == "finalround_label")
       {
-         _layer_round_final = layer.get();
+         _layer_round_final = *layer;
       }
       else if (psd_layer.getName() == "r1")
       {
-         _layer_round1 = layer.get();
+         _layer_round1 = *layer;
       }
       else if (psd_layer.getName() == "r2")
       {
-         _layer_round2 = layer.get();
+         _layer_round2 = *layer;
       }
       else if (psd_layer.getName() == "r3")
       {
-         _layer_round3 = layer.get();
+         _layer_round3 = *layer;
       }
       else if (psd_layer.getName() == "r4")
       {
-         _layer_round4 = layer.get();
+         _layer_round4 = *layer;
       }
       else if (psd_layer.getName() == "r5")
       {
-         _layer_round5 = layer.get();
+         _layer_round5 = *layer;
       }
 
       _psd_layers.push_back(std::move(layer));

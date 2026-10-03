@@ -17,7 +17,7 @@ const std::string LAYER_BUSY = "busy";
 const std::string LAYER_CLICKED = "clicked";
 }  // namespace
 
-MenuMouseCursor::MenuMouseCursor(RenderDevice* device, bool visible) : Drawable(*device, visible)
+MenuMouseCursor::MenuMouseCursor(RenderDevice& device, bool visible) : Drawable(device, visible)
 {
 }
 

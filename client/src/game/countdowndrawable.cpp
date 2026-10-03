@@ -11,7 +11,7 @@
 
 #define FADE_FACTOR 0.009f
 
-CountdownDrawable::CountdownDrawable(RenderDevice* dev) : Drawable(*dev)
+CountdownDrawable::CountdownDrawable(RenderDevice& dev) : Drawable(dev)
 {
    _filename = "data/menus/countdown.psd";
 }

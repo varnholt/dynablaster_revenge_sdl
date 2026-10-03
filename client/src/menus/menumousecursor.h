@@ -20,7 +20,7 @@ public:
       Busy
    };
 
-   MenuMouseCursor(RenderDevice* device, bool visible = false);
+   explicit MenuMouseCursor(RenderDevice& device, bool visible = false);
    ~MenuMouseCursor() override;
 
    void initializeGL() override;

@@ -1,11 +1,13 @@
 #ifndef GAMEDRAWABLE_H
 #define GAMEDRAWABLE_H
 
+#include <cstdint>
+#include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 // tools
@@ -20,6 +22,9 @@
 #include "math/matrix.h"
 
 // shared
+#include "mapitem.h"
+
+// shared
 #include "gamesignal.h"
 
 // forward declarations
@@ -28,7 +33,6 @@ class ExtraMapItem;
 class FuseParticleSystem;
 class GamePlayerNameDisplay;
 class Level;
-class MapItem;
 class Material;
 class InvisiblePlayerEffect;
 class ExtraAnimations;
@@ -56,7 +60,7 @@ class GameDrawable : public Drawable
 {
 public:
    //! constructor
-   GameDrawable(RenderDevice*);
+   explicit GameDrawable(RenderDevice& device);
 
    //! destructor
    ~GameDrawable() override;
@@ -106,9 +110,9 @@ public:
    void setPlayfieldScale(float x_scale = 1.0, float y_scale = 1.0f);
    void setPlayfieldSize(int width, int height);
 
-   void createMapItem(MapItem* item);
-   void removeMapItem(MapItem* item);
-   void destroyMapItem(MapItem* item, float flame_count);
+   void createMapItem(const MapItem& item);
+   void removeMapItem(const MapItem& item);
+   void destroyMapItem(const MapItem& item, float flame_count);
    void addDetonation(int x, int y, int up, int down, int left, int right, float intense);
    void loadLevel(const std::string& level);
 
@@ -120,13 +124,13 @@ public:
 
    //! effect lab: suppress the player name tags
    void setPlayerNamesEnabled(bool enabled);
-   void setMapItemPosition(MapItem*, float x, float y, float z);
+   void setMapItemPosition(int32_t item_id, float x, float y, float z);
 
    //! extra has been removed
    void extraRemoved(int x, int y, bool destroyed, Constants::ExtraType extra, int player_id);
 
    //! shake a block
-   void shakeBlock(MapItem* item);
+   void shakeBlock(const MapItem& item);
 
    //! a player has been infected
    void playerInfected(int id, Constants::SkullType, int infector_id, int extra_x, int extra_y);
@@ -140,22 +144,32 @@ private:
 
    void playWinAnimation();
 
+   //! what the drawable knows about a map item, by unique id
+   struct TrackedItem
+   {
+      MapItem::ItemType _type = MapItem::Unknown;
+      int32_t _x = 0;
+      int32_t _y = 0;
+   };
+
    //! getter for player
-   PlayerItem* getPlayer(int id) const;
+   std::optional<std::reference_wrapper<PlayerItem>> getPlayer(int id) const;
 
    //! getter for level dimensions
    Constants::Dimension getDimensions(float& width, float& height) const;
 
-   Mesh* getMesh(MapItem* item) const;
-   Mesh* getSkullMesh(MapItem* item) const;
+   std::optional<std::reference_wrapper<Mesh>> getMesh(std::optional<int32_t> item_id) const;
+   Material& getExtraMaterial(Constants::ExtraType type) const;
+   void removeMapItem(int32_t item_id);
    void updateNeighbouringBlocks(int item_x, int item_y);
-   void addBlock(MapItem* item);
-   Mesh* createBlock(SceneGraph* scene, Material* mat, float x, float y, float scale);
-   Mesh* createBomb(MapItem* item);
-   Mesh* createSkull(MapItem* item);
-   Mesh* createExtra(ExtraMapItem* extra);
-   void removeBlock(MapItem* item);
-   Node* createDestruction(SceneGraph* scene, float x, float y, Constants::Direction direction, float flame_count);
+   void addBlock(int32_t item_id, int32_t x, int32_t y);
+   Mesh& createBlock(SceneGraph& scene, Material& mat, float x, float y, float scale);
+   std::optional<std::reference_wrapper<Mesh>> createBomb(const MapItem& item);
+   Skull& createSkull(const MapItem& item);
+   Mesh& createExtra(const ExtraMapItem& extra);
+   void removeBlock(int32_t x, int32_t y);
+   std::optional<std::reference_wrapper<Node>>
+   createDestruction(SceneGraph& scene, float x, float y, Constants::Direction direction, float flame_count);
    void shakeBoxes(float delta);
    void animateSkulls(float frame);
 
@@ -166,9 +180,6 @@ private:
    void deleteMesh(Mesh& mesh);
 
    std::unique_ptr<Level> _level;
-   SceneGraph* _playfield = nullptr;
-   SceneGraph* _level_scene_graph = nullptr;
-   SceneGraph* _players = nullptr;
    std::vector<std::reference_wrapper<Node>> _destruct_anim;
    std::unique_ptr<DetonationManager> _detonations;
    std::unique_ptr<PlayerDeathEffect> _player_death_effect;
@@ -188,34 +199,21 @@ private:
    float _time = 0.0f;
    float _time_prev = 0.0f;
 
-   std::unordered_set<MapItem*> _map_items;
-   std::vector<MapItem*> _stone_list;
-   std::map<int, PlayerItem*> _player_list;
-   std::unordered_map<MapItem*, Mesh*> _meshes;
-   std::unordered_map<MapItem*, Skull*> _skull_map;
-   std::unordered_map<int, Material*> _extra_materials;
-   std::unordered_map<MapItem*, float> _shaking_boxes;
+   // map items by unique id
+   std::unordered_map<int32_t, TrackedItem> _map_items;
+   std::map<int, std::unique_ptr<PlayerItem>> _player_list;
+   std::unordered_map<int32_t, std::reference_wrapper<Mesh>> _meshes;
+   std::unordered_map<int32_t, std::reference_wrapper<Skull>> _skull_map;
+   std::unordered_map<int32_t, float> _shaking_boxes;
 
-   Material* _stones = nullptr;
-   Material* _blocks = nullptr;
-   Material* _skulls = nullptr;
-   Material* _destruction = nullptr;
-   Material* _extra_flame = nullptr;
-   Material* _extra_bomb = nullptr;
-   Material* _extra_speedup = nullptr;
-   Material* _extra_kick = nullptr;
-   Material* _extra_skull = nullptr;
-   Material* _bombs = nullptr;
-   Material* _shadow_billboards = nullptr;
-   Material* _shadow_blocks = nullptr;
-
-   std::vector<Node*> _destructions;
+   std::vector<std::reference_wrapper<Node>> _destructions;
    int _player_id = -1;
    float _bounce = 0.0;
    std::string _level_path;
    float _playfield_scale_x = 1.0;
    float _playfield_scale_y = 1.0;
-   Map2d<MapItem*> _map;
+   // ids of the blocks and stones on the map
+   Map2d<std::optional<int32_t>> _map;
 
    float _camera_anim = 0.0f;
    float _camera_zoom = 1.0f;

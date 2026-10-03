@@ -64,7 +64,7 @@ void FuseParticleSystem::resetParticle(Particle& particle, const Vector& origin)
    particle.started = false;
 }
 
-void FuseParticleSystem::addEmitter(MapItem* item, const Vector& origin)
+void FuseParticleSystem::addEmitter(int32_t item_id, const Vector& origin)
 {
    Emitter emitter;
    emitter.origin = origin;
@@ -77,12 +77,12 @@ void FuseParticleSystem::addEmitter(MapItem* item, const Vector& origin)
       resetParticle(particle, origin);
    }
 
-   _emitters[item] = std::move(emitter);
+   _emitters[item_id] = std::move(emitter);
 }
 
-void FuseParticleSystem::setEmitterPosition(MapItem* item, const Vector& origin)
+void FuseParticleSystem::setEmitterPosition(int32_t item_id, const Vector& origin)
 {
-   auto it = _emitters.find(item);
+   auto it = _emitters.find(item_id);
    if (it == _emitters.end())
    {
       return;
@@ -96,9 +96,9 @@ void FuseParticleSystem::setEmitterPosition(MapItem* item, const Vector& origin)
    }
 }
 
-void FuseParticleSystem::removeEmitter(MapItem* item)
+void FuseParticleSystem::removeEmitter(int32_t item_id)
 {
-   auto it = _emitters.find(item);
+   auto it = _emitters.find(item_id);
    if (it != _emitters.end())
    {
       it->second.removing = true;
@@ -217,7 +217,7 @@ void FuseParticleSystem::render()
    activeDevice().bindSampler(_texture, 0);
 
    glEnableVertexAttribArray(0);
-   glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, static_cast<GLsizei>(sizeof(float) * 4), (GLvoid*)0);
+   glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, static_cast<GLsizei>(sizeof(float) * 4), nullptr);
 
    glDrawArrays(GL_POINTS, 0, static_cast<int>(_upload_buffer.size() / 4));
 

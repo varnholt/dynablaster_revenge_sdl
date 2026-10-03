@@ -69,32 +69,27 @@ public:
 };
 }  // namespace
 
-GameWinDrawable::GameWinDrawable(RenderDevice* dev, bool visible) : Drawable(*dev, visible)
+GameWinDrawable::GameWinDrawable(RenderDevice& dev, bool visible) : Drawable(dev, visible)
 {
    _filename = "data/game/results.psd";
 
-   GameStateMachine::getInstance()->stateChangedSignal.connect([this]() { stateChanged(); });
+   GameStateMachine::getInstance().stateChangedSignal.connect([this]() { stateChanged(); });
 }
 
-GameWinDrawable::~GameWinDrawable()
-{
-   // _player_mesh and _player_material belong to _scene
-   delete _player_item;
-}
+GameWinDrawable::~GameWinDrawable() = default;
 
 void GameWinDrawable::initializeGL()
 {
    DataPaths::add("data/cup");
 
-   _large_font = &FontPool::Instance().get("large")->get();
-   _default_font = &FontPool::Instance().get("large-outlined")->get();
+   _large_font = FontPool::Instance().get("large").value();
+   _default_font = FontPool::Instance().get("large-outlined").value();
 
-   _scene = new SceneGraph();
+   _scene = std::make_unique<SceneGraph>();
    CupMaterialFactory factory;
    _scene->load("cup.hjb", factory);
 
-   Node* node = &_scene->findNode("Cup")->get();
-   node->setUserTransformable(true);
+   _scene->findNode("Cup")->get().setUserTransformable(true);
 
    _scene->getCamera()->get().setUserTransformable(true);
 
@@ -157,11 +152,11 @@ void GameWinDrawable::hideLayers()
 {
    for (int i = 0; i < 10; i++)
    {
-      _ranks[i]->getLayer().setVisible(false);
-      _icons[i]->getLayer().setVisible(false);
-      _names[i]->getLayer().setVisible(false);
-      _points[i]->getLayer().setVisible(false);
-      _bars[i]->getLayer().setVisible(false);
+      _psd_layers[_ranks[i]]->getLayer().setVisible(false);
+      _psd_layers[_icons[i]]->getLayer().setVisible(false);
+      _psd_layers[_names[i]]->getLayer().setVisible(false);
+      _psd_layers[_points[i]]->getLayer().setVisible(false);
+      _psd_layers[_bars[i]]->getLayer().setVisible(false);
    }
 }
 
@@ -172,32 +167,30 @@ void GameWinDrawable::drawWinnerText()
 
    const float font_size = 0.7f;
 
-   _large_font->setColor(1.0f, 1.0f, 1.0f, alpha);
+   BitmapFont& large_font = *_large_font;
+   large_font.setColor(1.0f, 1.0f, 1.0f, alpha);
 
    if (isDrawGame())
    {
-      _large_font->buildVertices(font_size, "draw game", 0.0f, 0.15f * 1080.0f + y_offset, 1920.0f);
-      _large_font->draw();
+      large_font.buildVertices(font_size, "draw game", 0.0f, 0.15f * 1080.0f + y_offset, 1920.0f);
+      large_font.draw();
    }
    else
    {
       std::string win_text = std::format("{} wins!", getWinnerName());
-      _large_font->buildVertices(font_size, win_text.c_str(), 0.0f, 0.15f * 1080.0f + y_offset, 1920.0f);
-      _large_font->draw();
+      large_font.buildVertices(font_size, win_text, 0.0f, 0.15f * 1080.0f + y_offset, 1920.0f);
+      large_font.draw();
    }
 }
 
 void GameWinDrawable::initGameData()
 {
-   _game_information = BombermanClient::getInstance()->getCurrentGameInformation();
-
    _player_scores.clear();
-   std::vector<PlayerInfo*> info_list = BombermanClient::getInstance()->getPlayerInfoList();
 
-   for (PlayerInfo* info : info_list)
+   for (const PlayerInfo& info : BombermanClient::getInstance().getPlayerInfoList())
    {
-      Weighted<PlayerInfo*, int> w(info, computeScore(info));
-      _player_scores.push_back(w);
+      const int score = computeScore(info);
+      _player_scores.emplace_back(PlayerScore{info.getNick(), info.getColor(), score}, score);
    }
 
    std::sort(_player_scores.begin(), _player_scores.end());
@@ -205,24 +198,23 @@ void GameWinDrawable::initGameData()
    hideLayers();
 
    int row = 0;
-   for (const Weighted<PlayerInfo*, int>& w : _player_scores)
+   for (const Weighted<PlayerScore, int>& w : _player_scores)
    {
-      PlayerInfo* info = w.getObject();
-      Constants::Color color = info->getColor();
-      int color_index = color - 1;
+      const PlayerScore player = w.getObject();
+      int color_index = player._color - 1;
 
-      qDebug("GameWinDrawable::initGameData(): #%d: %s", w.getWeight(), info->getNick().c_str());
+      qDebug("GameWinDrawable::initGameData(): #%d: %s", w.getWeight(), player._nick.c_str());
 
-      PSDLayer* rank_layer = _ranks[row];
-      PSDLayer* name_layer = _names[row];
-      PSDLayer* bar_layer = _bars[row];
-      PSDLayer* icon_layer = _icons[color_index];
+      PSDLayer& rank_layer = *_psd_layers[_ranks[row]];
+      PSDLayer& name_layer = *_psd_layers[_names[row]];
+      PSDLayer& bar_layer = *_psd_layers[_bars[row]];
+      PSDLayer& icon_layer = *_psd_layers[_icons[color_index]];
 
-      icon_layer->getLayer().setY(name_layer->getTop() + OFFSET_Y_ICON);
+      icon_layer.getLayer().setY(name_layer.getTop() + OFFSET_Y_ICON);
 
-      rank_layer->getLayer().setVisible(true);
-      bar_layer->getLayer().setVisible(true);
-      icon_layer->getLayer().setVisible(true);
+      rank_layer.getLayer().setVisible(true);
+      bar_layer.getLayer().setVisible(true);
+      icon_layer.getLayer().setVisible(true);
 
       row++;
    }
@@ -230,9 +222,9 @@ void GameWinDrawable::initGameData()
    std::memset(_player_scores_animated, 0, 10 * sizeof(float));
 }
 
-int GameWinDrawable::computeScore(PlayerInfo* info) const
+int GameWinDrawable::computeScore(const PlayerInfo& info) const
 {
-   PlayerStats ps = info->getRoundStats();
+   PlayerStats ps = info.getRoundStats();
 
    float score = 500.0f * ps.getWins() + 10.0f * ps.getKills() + 5.0f * ps.getExtrasCollected() + 0.25f * ps.getSurvivalTime();
 
@@ -243,31 +235,29 @@ int GameWinDrawable::computeScore(PlayerInfo* info) const
 
 void GameWinDrawable::drawGameData()
 {
+   BitmapFont& default_font = *_default_font;
+
    int row = 0;
-   for (const Weighted<PlayerInfo*, int>& w : _player_scores)
+   for (const Weighted<PlayerScore, int>& w : _player_scores)
    {
-      PlayerInfo* info = w.getObject();
+      const PlayerScore player = w.getObject();
 
-      PSDLayer* name_layer = _names[row];
-      PSDLayer* points_layer = _points[row];
+      const PSDLayer& name_layer = *_psd_layers[_names[row]];
+      const PSDLayer& points_layer = *_psd_layers[_points[row]];
 
-      _default_font->setColor(1.0f, 1.0f, 1.0f, 1.0f);
-      _default_font->buildVertices(0.27f, info->getNick().c_str(), name_layer->getLeft(), name_layer->getBottom() + OFFSET_Y_NAME);
-      _default_font->draw();
+      default_font.setColor(1.0f, 1.0f, 1.0f, 1.0f);
+      default_font.buildVertices(0.27f, player._nick, name_layer.getLeft(), name_layer.getBottom() + OFFSET_Y_NAME);
+      default_font.draw();
 
-      const int color_index = static_cast<int32_t>(info->getColor()) - 1;
+      const int color_index = static_cast<int32_t>(player._color) - 1;
       _player_scores_animated[color_index] += _delta_time;
-      const int score = static_cast<int32_t>(std::min(_player_scores_animated[color_index], static_cast<float>(computeScore(info))));
+      const int score = static_cast<int32_t>(std::min(_player_scores_animated[color_index], static_cast<float>(player._score)));
 
       const auto score_text = std::to_string(score);
-      _default_font->buildVertices(
-         0.27f,
-         score_text.c_str(),
-         points_layer->getLeft() + OFFSET_X_POINTS,
-         points_layer->getBottom() + OFFSET_Y_POINTS,
-         CENTER_WIDTH_SCORE
+      default_font.buildVertices(
+         0.27f, score_text, points_layer.getLeft() + OFFSET_X_POINTS, points_layer.getBottom() + OFFSET_Y_POINTS, CENTER_WIDTH_SCORE
       );
-      _default_font->draw();
+      default_font.draw();
 
       row++;
    }
@@ -355,7 +345,7 @@ void GameWinDrawable::drawScene()
       // used - so after setting a different color map earlier, it reverts to the one it was
       // created with. resetting the color map after we know the material has been used is the
       // simplest workaround.
-      _player_material->setColorMap(_player_textures[getColorEnum() - 1]);
+      _player_material->get().setColorMap(_player_textures[getColorEnum() - 1]);
 
       // after the fov was fixed to match the 3dsmax settings, it's too narrow in this scene -
       // compensate manually.
@@ -463,8 +453,9 @@ void GameWinDrawable::animate(float time)
    Matrix rotx = Matrix::rotateY(0.11f);
    player_matrix = player_matrix * rotz * rotx;
 
-   _player_mesh->setUserTransformable(true);
-   _player_mesh->setTransform(player_matrix);
+   Mesh& player_mesh = _player_item->getMesh();
+   player_mesh.setUserTransformable(true);
+   player_mesh.setTransform(player_matrix);
 }
 
 void GameWinDrawable::setColor(const Color& color)
@@ -517,27 +508,27 @@ void GameWinDrawable::playSound()
 
 void GameWinDrawable::stateChanged()
 {
-   if (GameStateMachine::getInstance()->getState() == Constants::GameStopped)
+   if (GameStateMachine::getInstance().getState() == Constants::GameStopped)
    {
       // if the player pressed ESC, there's no valid game id anymore - and no results screen to show.
-      if (BombermanClient::getInstance()->isGameIdValid())
+      if (BombermanClient::getInstance().isGameIdValid())
       {
          SoundManager::getInstance().fadeOut(1000);
 
-         std::vector<PlayerInfo*> player_alive;
-         std::vector<PlayerInfo*> player_list = BombermanClient::getInstance()->getPlayerInfoList();
+         std::vector<std::reference_wrapper<const PlayerInfo>> player_alive;
 
-         for (PlayerInfo* player : player_list)
+         for (const PlayerInfo& player : BombermanClient::getInstance().getPlayerInfoList())
          {
-            if (!player->isKilled())
-               player_alive.push_back(player);
+            if (!player.isKilled())
+               player_alive.emplace_back(player);
          }
 
          if (player_alive.size() == 1)
          {
-            setWinnerName(player_alive[0]->getNick());
+            const PlayerInfo& winner = player_alive[0];
+            setWinnerName(winner.getNick());
 
-            Constants::Color color = player_alive[0]->getColor();
+            Constants::Color color = winner.getColor();
             setColorEnum(color);
             setColor(GameSettings::getInstance().getStyleSettings().getColor(color));
          }
@@ -642,11 +633,9 @@ void GameWinDrawable::initializeLayers()
 
    for (auto& psd_layer : _psd.getLayers())
    {
-      auto owned_layer = std::make_unique<PSDLayer>(psd_layer);
-      PSDLayer* layer = owned_layer.get();
-      std::string layer_name = layer->getLayer().getName();
-
-      _psd_layers.push_back(std::move(owned_layer));
+      const size_t layer = _psd_layers.size();
+      _psd_layers.push_back(std::make_unique<PSDLayer>(psd_layer));
+      std::string layer_name = _psd_layers.back()->getLayer().getName();
 
       auto rank_iterator = ranks.find(layer_name);
       if (rank_iterator != ranks.end())
@@ -675,17 +664,16 @@ void GameWinDrawable::initializeWinnerScene()
    Mesh& mesh = MotionMixer::getMesh("bomberman").value();
    mesh.setUserTransformable(true);
 
-   _player_mesh = &_scene->addNode(std::make_unique<Mesh>());
-   _player_mesh->copy(mesh);
+   Mesh& player_mesh = _scene->addNode(std::make_unique<Mesh>());
+   player_mesh.copy(mesh);
 
-   _player_mesh->setMotionMixer(std::make_unique<MotionMixer>());
-   _player_mesh->setVisible(true);
-   _player_mesh->setUserTransformable(true);
+   player_mesh.setMotionMixer(std::make_unique<MotionMixer>());
+   player_mesh.setVisible(true);
+   player_mesh.setUserTransformable(true);
 
-   _player_material->addMesh(*_player_mesh);
+   _player_material->get().addMesh(player_mesh);
 
-   _player_item = new PlayerItem(0, "winner", Constants::ColorCyan);
-   _player_item->setMesh(_player_mesh);
+   _player_item = std::make_unique<PlayerItem>(0, "winner", Constants::ColorCyan, player_mesh);
    _player_item->setPosition(0.0f, 0.0f);
    _player_item->setKilled(false);
 }
@@ -694,15 +682,15 @@ void GameWinDrawable::initializePlayerMaterial()
 {
    if (_player_material)
    {
-      _scene->removeMaterial(*_player_material);
-      _player_material = nullptr;
+      _scene->removeMaterial(_player_material->get());
+      _player_material.reset();
    }
 
    DataPaths::add("data/winner");
 
    const auto material_texture_name = std::format("player_{}", static_cast<int>(Constants::ColorCyan));
    _player_material =
-      &_scene->addMaterial(std::make_unique<PlayerMaterial>(material_texture_name, "diffuse_level", "specular_level", "player-ao"));
+      _scene->addMaterial(std::make_unique<PlayerMaterial>(material_texture_name, "diffuse_level", "specular_level", "player-ao"));
 
    TexturePool& pool = TexturePool::Instance();
    for (int i = 0; i < 10; i++)

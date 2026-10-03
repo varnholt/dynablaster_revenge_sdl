@@ -2,20 +2,22 @@
 #define BOMBERMANCLIENT_H
 
 // shared
+#include "gamesignal.h"
 #include "nethandles.h"
 #include "packetstreambuffer.h"
-#include "gamesignal.h"
 #include "timer.h"
 
 // framework
 #include "framework/keyevent.h"
 
+#include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <unordered_map>
-#include <optional>
 #include <vector>
 
 // game
@@ -63,8 +65,11 @@ public:
    //! destructor
    virtual ~BombermanClient();
 
-   //! static getter for singleton instance
-   static BombermanClient* getInstance();
+   //! the client that is alive right now, only valid while hasInstance()
+   static BombermanClient& getInstance();
+
+   //! true while a client exists
+   static bool hasInstance();
 
    //! initialize client
    void initialize();
@@ -88,7 +93,8 @@ public:
    void setLoginAfterConnect(bool login_after_connect);
 
    //! getter for list of games
-   std::vector<GameInformation>* getGames() const;
+   std::vector<GameInformation>& getGames();
+   const std::vector<GameInformation>& getGames() const;
 
    //! setter for game id
    void setGameId(int id);
@@ -100,10 +106,11 @@ public:
    bool isGameIdValid() const;
 
    //! getter for game information
-   GameInformation* getGameInformation(int id) const;
+   std::optional<std::reference_wrapper<GameInformation>> getGameInformation(int id);
+   std::optional<std::reference_wrapper<const GameInformation>> getGameInformation(int id) const;
 
    //! getter for current game information
-   GameInformation* getCurrentGameInformation() const;
+   std::optional<std::reference_wrapper<const GameInformation>> getCurrentGameInformation() const;
 
    //! setter for player id
    void setPlayerId(int);
@@ -117,29 +124,31 @@ public:
    //! getter for player color by player id
    Constants::Color getColor(int player_id) const;
 
-   //! get list of players
-   std::vector<PlayerInfo*> getPlayerInfoList() const;
+   //! get list of players, ordered by id
+   std::vector<std::reference_wrapper<const PlayerInfo>> getPlayerInfoList() const;
 
    //! get map of player
-   std::map<int, PlayerInfo*>* getPlayerInfoMap() const;
+   std::map<int, PlayerInfo>& getPlayerInfoMap();
+   const std::map<int, PlayerInfo>& getPlayerInfoMap() const;
 
-   //! add player info to map
-   void addPlayerInfo(int id, PlayerInfo* info);
+   //! add an empty player info to the map, an existing one is replaced
+   PlayerInfo& addPlayerInfo(int id);
 
    //! remove player info
    void removePlayerInfo(int id);
 
    //! get info object for given player id
-   PlayerInfo* getPlayerInfo(int id) const;
+   std::optional<std::reference_wrapper<PlayerInfo>> getPlayerInfo(int id);
+   std::optional<std::reference_wrapper<const PlayerInfo>> getPlayerInfo(int id) const;
 
    //! getter for position interpolation
-   PositionInterpolation* getPositionInterpolation() const;
+   PositionInterpolation& getPositionInterpolation() const;
 
-   //! setter for current player info
-   void setCurrentPlayerInfo(PlayerInfo* info);
+   //! setter for the id of the current player info, none if there is no current player
+   void setCurrentPlayerId(std::optional<int> id);
 
    //! getter for current player info
-   PlayerInfo* getCurrentPlayerInfo() const;
+   std::optional<std::reference_wrapper<const PlayerInfo>> getCurrentPlayerInfo() const;
 
    //! the other players on this machine (see LocalPlayers)
    void setLocalPlayerIds(const std::vector<int>& ids);
@@ -182,9 +191,9 @@ public:
 
    Signal<int, float, float, float> setPlayerPositionSignal;
    Signal<int, float, float, float> setPlayerSpeedSignal;
-   Signal<MapItem*> createMapItemSignal;
-   Signal<MapItem*> removeMapItemSignal;
-   Signal<MapItem*, float> destroyMapItemSignal;
+   Signal<const MapItem&> createMapItemSignal;
+   Signal<const MapItem&> removeMapItemSignal;
+   Signal<const MapItem&, float> destroyMapItemSignal;
    Signal<int, int, int, int, int, int, float> detonationSignal;
    Signal<int, const std::string&, Constants::Color> addPlayerSignal;
    Signal<int> removePlayerSignal;
@@ -192,7 +201,7 @@ public:
    Signal<float, float> playfieldScaleSignal;
    Signal<int, int> playfieldSizeSignal;
    Signal<const std::string&> loadLevelSignal;
-   Signal<MapItem*> shakeBlockSignal;
+   Signal<const MapItem&> shakeBlockSignal;
    Signal<int, Constants::SkullType, int, int, int> playerInfectedSignal;
    Signal<> connectedSignal;
    Signal<> disconnectedSignal;
@@ -203,7 +212,7 @@ public:
    Signal<> gameStoppedSignal;
    Signal<int, const std::string&, bool> messageReceivedSignal;
    Signal<int> countdownSignal;
-   Signal<std::map<int, PlayerInfo*>*> playerInfoMapUpdatedSignal;
+   Signal<const std::map<int, PlayerInfo>&> playerInfoMapUpdatedSignal;
    Signal<> showGameSignal;
    Signal<> showMenuSignal;
    Signal<> showMainMenuSignal;
@@ -211,7 +220,7 @@ public:
 
    Signal<bool> zoomInSignal;
    Signal<bool> zoomOutSignal;
-   Signal<MapItem*, Constants::Direction, float, int, int> moveMapItemSignal;
+   Signal<const MapItem&, Constants::Direction, float, int, int> moveMapItemSignal;
    Signal<const std::vector<GameInformation>&> gamesListUpdatedSignal;
    Signal<float, int> rumbleSignal;
    Signal<int, int> timeChangedSignal;
@@ -372,10 +381,13 @@ private:
    void disconnectFromServer();
 
    //! show a generic connection-failure message to the user
-   void reportConnectionError(const char* reason);
+   void reportConnectionError(std::string_view reason);
 
    //! get mapitem by mapitem id
-   MapItem* getMapItem(int id) const;
+   std::optional<std::reference_wrapper<MapItem>> getMapItem(int id) const;
+
+   //! remove all map items, telling everyone about it
+   void clearMapItems();
 
    //! broadcast data about added players
    void broadcastAddPlayerData();
@@ -447,8 +459,8 @@ private:
    //! player alive
    bool _dead = true;
 
-   //! map items
-   std::unordered_map<int, MapItem*> _map_items;
+   //! map items by unique id
+   std::unordered_map<int, std::unique_ptr<MapItem>> _map_items;
 
    //! host name
    std::string _host;
@@ -466,7 +478,7 @@ private:
    std::string _nick;
 
    //! list of games available
-   mutable std::vector<GameInformation> _games;
+   std::vector<GameInformation> _games;
 
    //! connected flag
    bool _connected = false;
@@ -484,15 +496,13 @@ private:
    std::string _message;
 
    //! map id <-> player info object
-   mutable std::map<int, PlayerInfo*> _player_info;
+   std::map<int, PlayerInfo> _player_info;
 
-   //! current player info - raw, non-owning: _player_info owns it. clearPlayerInfoMap()/
-   //! removePlayerInfo() explicitly null this out if they're about to delete the object it
-   //! points at, same explicit-invalidation pattern as Game::_spectators.
-   PlayerInfo* _current_player_info = nullptr;
+   //! id of the current player info in _player_info
+   std::optional<int> _current_player_id;
 
-   //! getter for client singleton
-   static BombermanClient* _instance;
+   //! the client that is alive right now
+   static std::optional<std::reference_wrapper<BombermanClient>> _instance;
 
    //! position interpolation
    std::unique_ptr<PositionInterpolation> _position_interpolation;

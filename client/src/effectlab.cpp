@@ -28,7 +28,6 @@
 #include <format>
 #include <functional>
 #include <map>
-#include <memory>
 #include <vector>
 
 namespace
@@ -81,13 +80,13 @@ const std::map<std::string, Trigger>& triggers()
        {
           // never removed, so it lives until the process exits
           static BombMapItem bomb(LOCAL_PLAYER_ID, 2, 100, 8, 5);
-          game.createMapItem(&bomb);
+          game.createMapItem(bomb);
        }},
       {"extrareveal",
        [](GameDrawable& game)
        {
           static ExtraMapItem extra(101, Constants::ExtraFlame, 8, 5);
-          game.createMapItem(&extra);
+          game.createMapItem(extra);
        }},
       {"extradestroy", [](GameDrawable& game) { game.extraRemoved(8, 5, true, Constants::ExtraFlame, -1); }},
    };
@@ -95,14 +94,13 @@ const std::map<std::string, Trigger>& triggers()
    return effects;
 }
 
-std::unique_ptr<PlayerInfo> makePlayerInfo(int32_t id, const std::string& nick, Constants::Color color, float x, float y)
+void addPlayerInfo(BombermanClient& client, int32_t id, const std::string& nick, Constants::Color color, float x, float y)
 {
-   auto info = std::make_unique<PlayerInfo>();
-   info->setId(id);
-   info->setNick(nick);
-   info->setColor(color);
-   info->setPosition(x, y, 0.0f);
-   return info;
+   PlayerInfo& info = client.addPlayerInfo(id);
+   info.setId(id);
+   info.setNick(nick);
+   info.setColor(color);
+   info.setPosition(x, y, 0.0f);
 }
 }  // namespace
 
@@ -138,17 +136,15 @@ int runEffectLab(const std::string& effect, const std::string& out_dir, const st
 
    // stands in for the state the server would normally have sent
    BombermanClient client;
-   client.getGames()->emplace_back(0, 2, 10, "lab", level, LOCAL_PLAYER_ID, Constants::Dimension13x11, 0, 0, 0, 0, 1, false);
+   client.getGames().emplace_back(0, 2, 10, "lab", level, LOCAL_PLAYER_ID, Constants::Dimension13x11, 0, 0, 0, 0, 1, false);
    client.setGameId(0);
    client.setPlayerId(LOCAL_PLAYER_ID);
 
-   auto local_info = makePlayerInfo(LOCAL_PLAYER_ID, "lab", Constants::ColorWhite, 6.5f, 5.5f);
-   auto other_info = makePlayerInfo(OTHER_PLAYER_ID, "bot", Constants::ColorRed, 4.5f, 5.5f);
-   (*client.getPlayerInfoMap())[LOCAL_PLAYER_ID] = local_info.get();
-   (*client.getPlayerInfoMap())[OTHER_PLAYER_ID] = other_info.get();
-   client.setCurrentPlayerInfo(local_info.get());
+   addPlayerInfo(client, LOCAL_PLAYER_ID, "lab", Constants::ColorWhite, 6.5f, 5.5f);
+   addPlayerInfo(client, OTHER_PLAYER_ID, "bot", Constants::ColorRed, 4.5f, 5.5f);
+   client.setCurrentPlayerId(LOCAL_PLAYER_ID);
 
-   GameDrawable game(&device);
+   GameDrawable game(device);
    game.initializeGL();
    game.setVisible(true);
    game.setPlayerNamesEnabled(false);
@@ -225,9 +221,6 @@ int runEffectLab(const std::string& effect, const std::string& out_dir, const st
 
       context.swap();
    }
-
-   client.getPlayerInfoMap()->clear();
-   client.setCurrentPlayerInfo(nullptr);
 
    return 0;
 }

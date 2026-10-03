@@ -20,7 +20,7 @@ PositionInterpolation::PositionInterpolation()
 {
    _timer.timeoutSignal.connect([this]() { update(); });
 
-   GameStateMachine::getInstance()->stateChangedSignal.connect([this]() { gameStateChanged(); });
+   GameStateMachine::getInstance().stateChangedSignal.connect([this]() { gameStateChanged(); });
 }
 
 PositionInterpolation::~PositionInterpolation() = default;
@@ -41,64 +41,61 @@ void PositionInterpolation::update()
    _time = cur_time;
 }
 
-void PositionInterpolation::moveMapItem(MapItem* item, Constants::Direction dir, float speed, int nominal_x, int nominal_y)
+void PositionInterpolation::moveMapItem(const MapItem& item, Constants::Direction dir, float speed, int nominal_x, int nominal_y)
 {
+   const int32_t id = item.getUniqueId();
+
    // animation stopped
    if (dir == Constants::DirectionUnknown)
    {
-      auto iter = _map_item_animations.find(item);
+      auto iter = _map_item_animations.find(id);
 
       // relocate bomb map item at its nominal position
       if (iter != _map_item_animations.end())
       {
-         MapItemAnimation* anim = iter->second.get();
-         anim->_nominal_x = nominal_x;
-         anim->_nominal_y = nominal_y;
-         anim->_direction = dir;
+         MapItemAnimation& anim = *iter->second;
+         anim._nominal_x = nominal_x;
+         anim._nominal_y = nominal_y;
+         anim._direction = dir;
       }
    }
    else
    {
-      MapItemAnimation* animation = nullptr;
-
-      if (std::find(_map_items.begin(), _map_items.end(), item) != _map_items.end())
+      if (std::ranges::find(_map_items, id, &AnimatedItem::_id) != _map_items.end())
       {
-         animation = _map_item_animations[item].get();
-         animation->reset();
-         animation->_direction = dir;
-         animation->_speed = speed;
+         MapItemAnimation& animation = *_map_item_animations[id];
+         animation.reset();
+         animation._direction = dir;
+         animation._speed = speed;
       }
       else
       {
-         auto owned_animation = std::make_unique<MapItemAnimation>(dir, speed);
-         animation = owned_animation.get();
+         auto animation = std::make_unique<MapItemAnimation>(dir, speed);
 
          // pass bounce signals
          animation->bounce_signal.connect([this]() { bounceSignal(); });
 
          // store item data
-         _map_items.push_back(item);
-         _map_item_animations[item] = std::move(owned_animation);
+         _map_items.push_back({id, item.getX(), item.getY()});
+         _map_item_animations[id] = std::move(animation);
       }
    }
 }
 
-void PositionInterpolation::removeMapItem(MapItem* item)
+void PositionInterpolation::removeMapItem(const MapItem& item)
 {
-   auto it = std::find(_map_items.begin(), _map_items.end(), item);
+   const int32_t id = item.getUniqueId();
+
+   auto it = std::ranges::find(_map_items, id, &AnimatedItem::_id);
    if (it != _map_items.end())
       _map_items.erase(it);
 
-   auto anim_it = _map_item_animations.find(item);
-   if (anim_it != _map_item_animations.end())
-   {
-      _map_item_animations.erase(anim_it);
-   }
+   _map_item_animations.erase(id);
 }
 
 void PositionInterpolation::interpolatePlayerPositions(float delta)
 {
-   const auto* players = BombermanClient::getInstance()->getPlayerInfoMap();
+   auto& players = BombermanClient::getInstance().getPlayerInfoMap();
 
    float x = 0.0f;
    float y = 0.0f;
@@ -108,15 +105,15 @@ void PositionInterpolation::interpolatePlayerPositions(float delta)
    float dy = 0.0f;
    float dr = 0.0f;
 
-   for (const auto& [id, player] : *players)
+   for (auto& [id, player] : players)
    {
-      x = player->getX();
-      y = player->getY();
-      r = player->getAngle();
+      x = player.getX();
+      y = player.getY();
+      r = player.getAngle();
 
-      dx = player->getDeltaX();
-      dy = player->getDeltaY();
-      dr = player->getAngleDelta();
+      dx = player.getDeltaX();
+      dy = player.getDeltaY();
+      dr = player.getAngleDelta();
 
       //      qDebug("interpolation %d (%f): %f, %f, %f ", dx,dy,dr);
 
@@ -124,63 +121,63 @@ void PositionInterpolation::interpolatePlayerPositions(float delta)
       y += dy * delta;
       r += dr * delta;
 
-      player->setPosition(x, y, r);
+      player.setPosition(x, y, r);
 
-      setPlayerPositionSignal(player->getId(), x, y, r);
+      setPlayerPositionSignal(player.getId(), x, y, r);
 
-      setPlayerSpeedSignal(player->getId(), dx, dy, dr);
+      setPlayerSpeedSignal(player.getId(), dx, dy, dr);
    }
 }
 
 void PositionInterpolation::interpolateMapItemPositions(float dt)
 {
-   for (MapItem* item : _map_items)
+   for (const AnimatedItem& item : _map_items)
    {
-      MapItemAnimation* animation = _map_item_animations[item].get();
+      MapItemAnimation& animation = *_map_item_animations[item._id];
 
-      animation->animate(dt);
+      animation.animate(dt);
 
-      switch (animation->_direction)
+      switch (animation._direction)
       {
          case Constants::DirectionUp:
-            animation->_y -= animation->_speed * dt;
+            animation._y -= animation._speed * dt;
             break;
          case Constants::DirectionDown:
-            animation->_y += animation->_speed * dt;
+            animation._y += animation._speed * dt;
             break;
          case Constants::DirectionLeft:
-            animation->_x -= animation->_speed * dt;
+            animation._x -= animation._speed * dt;
             break;
          case Constants::DirectionRight:
-            animation->_x += animation->_speed * dt;
+            animation._x += animation._speed * dt;
             break;
          default:
             break;
       }
 
-      float x = item->getX() + animation->_x;
-      float y = item->getY() + animation->_y;
-      float z = animation->_z;
+      float x = item._x + animation._x;
+      float y = item._y + animation._y;
+      float z = animation._z;
 
-      if (animation->_direction == Constants::DirectionUnknown)
+      if (animation._direction == Constants::DirectionUnknown)
       {
-         float diff_x = x - animation->_nominal_x;
-         float diff_y = y - animation->_nominal_y;
+         float diff_x = x - animation._nominal_x;
+         float diff_y = y - animation._nominal_y;
 
          if ((std::fabs(diff_x) > MAP_ITEM_MOVE_EPSILON) || (std::fabs(diff_y) > MAP_ITEM_MOVE_EPSILON))
          {
-            animation->_x -= 0.1 * diff_x;
-            animation->_y -= 0.1 * diff_y;
+            animation._x -= 0.1 * diff_x;
+            animation._y -= 0.1 * diff_y;
 
             // stop bouncing
-            float factor = animation->_factor;
+            float factor = animation._factor;
             factor -= 0.1f;
-            animation->_factor = std::max(factor, 0.0f);
+            animation._factor = std::max(factor, 0.0f);
 
             //            qDebug(
             //               "anim: %f, %f, diff: %f, %f, pos: %f, %f",
-            //               animation->_x,
-            //               animation->_y,
+            //               animation._x,
+            //               animation._y,
             //               diffX,
             //               diffY,
             //               x,
@@ -189,13 +186,13 @@ void PositionInterpolation::interpolateMapItemPositions(float dt)
          }
       }
 
-      setMapItemPositionSignal(item, x, y, z);
+      setMapItemPositionSignal(item._id, x, y, z);
    }
 }
 
 void PositionInterpolation::gameStateChanged()
 {
-   Constants::GameState state = GameStateMachine::getInstance()->getState();
+   Constants::GameState state = GameStateMachine::getInstance().getState();
 
    switch (state)
    {

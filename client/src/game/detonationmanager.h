@@ -23,7 +23,7 @@ public:
    void render();
 
 private:
-   void drawExplosion(Detonation* det, float time);
+   void drawExplosion(const Detonation& det, float time);
    void drawBox(float x, float y, float z, float left, float right, float bottom, float top, int sides);
 
    float _time = 0.0f;

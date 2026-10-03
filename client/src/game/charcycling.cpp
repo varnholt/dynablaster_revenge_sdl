@@ -2,13 +2,12 @@
 
 #include <algorithm>
 #include <cctype>
-#include <cstring>
 
 namespace
 {
-int32_t charCount(const char* chars)
+int32_t charCount(std::string_view chars)
 {
-   return static_cast<int32_t>(std::strlen(chars));
+   return static_cast<int32_t>(chars.size());
 }
 }  // namespace
 

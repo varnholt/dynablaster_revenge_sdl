@@ -4,6 +4,8 @@
 #include "constants.h"
 #include "math/vector.h"
 
+#include <functional>
+#include <optional>
 #include <string>
 
 class Material;
@@ -12,18 +14,18 @@ class Mesh;
 class PlayerItem
 {
 public:
-   PlayerItem(int id, const std::string& nick, Constants::Color color);
+   PlayerItem(int id, const std::string& nick, Constants::Color color, Mesh& mesh);
    ~PlayerItem();
 
    int getID() const;
    Constants::Color getColor() const;
    const std::string& getNick() const;
 
-   void setMaterial(Material* mat);
-   Material* getMaterial() const;
+   void setMaterial(Material& mat);
+   //! only valid once a material was set
+   Material& getMaterial() const;
 
-   void setMesh(Mesh* mesh);
-   Mesh* getMesh() const;
+   Mesh& getMesh() const;
 
    void setRotation(float rot);
    void setPosition(float x, float y);
@@ -47,8 +49,8 @@ private:
    int _id;
    Constants::Color _color;
    std::string _nick;
-   Mesh* _mesh = nullptr;
-   Material* _material = nullptr;
+   std::reference_wrapper<Mesh> _mesh;
+   std::optional<std::reference_wrapper<Material>> _material;
    Vector _pos;
    float _rot = 0;
    float _speed = 0.0f;

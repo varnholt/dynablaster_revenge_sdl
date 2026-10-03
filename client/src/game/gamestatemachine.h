@@ -8,7 +8,11 @@
 class GameStateMachine
 {
 public:
-   static GameStateMachine* getInstance();
+   //! constructor, use getInstance()
+   GameStateMachine() = default;
+
+   //! instance getter, the instance is never destroyed
+   static GameStateMachine& getInstance();
 
    void setState(Constants::GameState next_state);
 
@@ -17,11 +21,7 @@ public:
    Signal<> stateChangedSignal;
 
 protected:
-   GameStateMachine();
-
    Constants::GameState _state = Constants::GameStopped;
-
-   static GameStateMachine* s_instance;
 };
 
 #endif  // GAMESTATEMACHINE_H

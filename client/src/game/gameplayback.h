@@ -12,9 +12,11 @@ class Packet;
 class GamePlayback
 {
 public:
-   GamePlayback();
+   //! constructor, use getInstance()
+   GamePlayback() = default;
 
-   static GamePlayback* getInstance();
+   //! instance getter, the instance is never destroyed
+   static GamePlayback& getInstance();
 
    bool isReplaying() const;
    void setReplaying(bool value);
@@ -27,8 +29,6 @@ public:
    void setPlayerId(int id);
 
 protected:
-   static GamePlayback* s_instance;
-
    bool _recording = false;
    bool _replaying = false;
 };

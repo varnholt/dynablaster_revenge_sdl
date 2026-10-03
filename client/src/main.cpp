@@ -204,11 +204,11 @@ int main(int /*argc*/, char** /*argv*/)
 
    registerGameFonts();
 
-   MenuDrawable menu_drawable(&device);
+   MenuDrawable menu_drawable(device);
    menu_drawable.initializeGL();
    menu_drawable.setVisible(true);
 
-   MenuMouseCursor menu_cursor(&device);
+   MenuMouseCursor menu_cursor(device);
    menu_cursor.initializeGL();
    menu_cursor.setVisible(true);
 
@@ -217,7 +217,7 @@ int main(int /*argc*/, char** /*argv*/)
    SDL_HideCursor();
 
    // the animated main-menu logo, only visible on the main menu page (see GameLogoDrawable::pageChanged())
-   GameLogoDrawable logo_drawable(&device);
+   GameLogoDrawable logo_drawable(device);
    logo_drawable.initializeGL();
    logo_drawable.setVisible(true);
    menu_drawable.pageChangedSignal.connect([&](const std::string& page) { logo_drawable.pageChanged(page); });
@@ -242,29 +242,29 @@ int main(int /*argc*/, char** /*argv*/)
    menu_drawable.pageChangedSignal.connect([](const std::string& page) { SoundManager::getInstance().playSoundMouseClick(page); });
 
    // in-game rendering, starts hidden; showGame/showMenu below toggle it against the menu
-   GameDrawable game_drawable(&device);
+   GameDrawable game_drawable(device);
    game_drawable.initializeGL();
    game_drawable.setVisible(false);
 
    // in-game chat, toggled together with the game drawable
-   GameMessagingDrawable game_messaging_drawable(&device);
+   GameMessagingDrawable game_messaging_drawable(device);
    game_messaging_drawable.initializeGL();
    game_messaging_drawable.setVisible(false);
 
    // pre-round countdown overlay, drawn on top of the game scene
-   CountdownDrawable countdown_drawable(&device);
+   CountdownDrawable countdown_drawable(device);
    countdown_drawable.initializeGL();
 
    // "ROUND X" slide-in text, shown at the start of each round
-   RoundsDrawable rounds_drawable(&device);
+   RoundsDrawable rounds_drawable(device);
    rounds_drawable.initializeGL();
 
    // win/trophy screen, drives its own visibility off GameStateMachine's state changes
-   GameWinDrawable game_win_drawable(&device);
+   GameWinDrawable game_win_drawable(device);
    game_win_drawable.initializeGL();
 
    // "now playing" notification, drives its own visibility off its fade timers
-   MusicPlayerDrawable music_player_drawable(&device);
+   MusicPlayerDrawable music_player_drawable(device);
    music_player_drawable.initializeGL();
 
    // client <-> game wiring
@@ -272,25 +272,26 @@ int main(int /*argc*/, char** /*argv*/)
                                                           { music_player_drawable.showCurrentlyPlaying(artist, album, track); });
    game_drawable.level_loaded_signal.connect([&](const std::string& path) { bomberman_client.levelLoaded(path); });
    bomberman_client.loadLevelSignal.connect([&](const std::string& level) { game_drawable.loadLevel(level); });
-   bomberman_client.shakeBlockSignal.connect([&](MapItem* item) { game_drawable.shakeBlock(item); });
+   bomberman_client.shakeBlockSignal.connect([&](const MapItem& item) { game_drawable.shakeBlock(item); });
    bomberman_client.setPlayerPositionSignal.connect([&](int id, float x, float y, float ang)
                                                     { game_drawable.setPlayerPosition(id, x, y, ang); });
    bomberman_client.setPlayerSpeedSignal.connect([&](int id, float x, float y, float ang) { game_drawable.setPlayerSpeed(id, x, y, ang); });
-   bomberman_client.getPositionInterpolation()->setPlayerPositionSignal.connect([&](int id, float x, float y, float ang)
-                                                                                { game_drawable.setPlayerPosition(id, x, y, ang); });
-   bomberman_client.getPositionInterpolation()->setPlayerSpeedSignal.connect([&](int id, float x, float y, float ang)
-                                                                             { game_drawable.setPlayerSpeed(id, x, y, ang); });
-   bomberman_client.getPositionInterpolation()->setMapItemPositionSignal.connect([&](MapItem* item, float x, float y, float z)
-                                                                                 { game_drawable.setMapItemPosition(item, x, y, z); });
-   bomberman_client.removeMapItemSignal.connect([&](MapItem* item) { bomberman_client.getPositionInterpolation()->removeMapItem(item); });
+   PositionInterpolation& position_interpolation = bomberman_client.getPositionInterpolation();
+   position_interpolation.setPlayerPositionSignal.connect([&](int id, float x, float y, float ang)
+                                                          { game_drawable.setPlayerPosition(id, x, y, ang); });
+   position_interpolation.setPlayerSpeedSignal.connect([&](int id, float x, float y, float ang)
+                                                       { game_drawable.setPlayerSpeed(id, x, y, ang); });
+   position_interpolation.setMapItemPositionSignal.connect([&](int32_t item_id, float x, float y, float z)
+                                                           { game_drawable.setMapItemPosition(item_id, x, y, z); });
+   bomberman_client.removeMapItemSignal.connect([&](const MapItem& item) { position_interpolation.removeMapItem(item); });
    bomberman_client.playfieldScaleSignal.connect([&](float x, float y) { game_drawable.setPlayfieldScale(x, y); });
    bomberman_client.playfieldSizeSignal.connect([&](int width, int height) { game_drawable.setPlayfieldSize(width, height); });
    game_drawable.key_pressed_signal.connect([&](const KeyEvent& event) { bomberman_client.keyPressed(event); });
    game_drawable.key_released_signal.connect([&](const KeyEvent& event) { bomberman_client.keyReleased(event); });
-   bomberman_client.createMapItemSignal.connect([&](MapItem* item) { game_drawable.createMapItem(item); });
-   bomberman_client.removeMapItemSignal.connect([&](MapItem* item) { game_drawable.removeMapItem(item); });
-   bomberman_client.destroyMapItemSignal.connect([&](MapItem* item, float flame_count) { game_drawable.destroyMapItem(item, flame_count); }
-   );
+   bomberman_client.createMapItemSignal.connect([&](const MapItem& item) { game_drawable.createMapItem(item); });
+   bomberman_client.removeMapItemSignal.connect([&](const MapItem& item) { game_drawable.removeMapItem(item); });
+   bomberman_client.destroyMapItemSignal.connect([&](const MapItem& item, float flame_count)
+                                                 { game_drawable.destroyMapItem(item, flame_count); });
    bomberman_client.addPlayerSignal.connect([&](int id, const std::string& nick, Constants::Color color)
                                             { game_drawable.addPlayer(id, nick, color); });
    bomberman_client.removePlayerSignal.connect([&](int id) { game_drawable.removePlayer(id); });
@@ -610,6 +611,7 @@ int main(int /*argc*/, char** /*argv*/)
 #ifdef __EMSCRIPTEN__
    // simulate_infinite_loop=true unwinds main()'s stack here and drives frame() off
    // requestAnimationFrame instead - the return below never actually runs in this build.
+   // the C callback only takes a function pointer and a void* user data
    emscripten_set_main_loop_arg([](void* arg) { (*static_cast<std::function<void()>*>(arg))(); }, &frame, 0, true);
 #else
    while (running)

@@ -47,6 +47,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <memory>
+#include <span>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -196,7 +197,8 @@ void dumpLayerPixels(const Image& image)
 
 int main(int argc, char** argv)
 {
-   const std::vector<std::string> args(argv + 1, argv + argc);
+   const auto arguments = std::span(argv, static_cast<size_t>(argc));
+   const std::vector<std::string> args(arguments.begin() + 1, arguments.end());
    const bool selftest = hasFlag(args, "--selftest");
    const bool menu_mode = hasFlag(args, "--menu");
    // isolated view of the sphere-fragments "exploding earth/bomb" effect
@@ -299,11 +301,11 @@ int main(int argc, char** argv)
    {
       registerGameFonts();
 
-      menu_drawable = std::make_unique<MenuDrawable>(&device);
+      menu_drawable = std::make_unique<MenuDrawable>(device);
       menu_drawable->initializeGL();
       menu_drawable->setVisible(true);
 
-      menu_cursor = std::make_unique<MenuMouseCursor>(&device);
+      menu_cursor = std::make_unique<MenuMouseCursor>(device);
       menu_cursor->initializeGL();
       menu_cursor->setVisible(true);
 
@@ -312,10 +314,10 @@ int main(int argc, char** argv)
       SDL_HideCursor();
 
       // the animated main-menu logo, only visible on the main menu page (see GameLogoDrawable::pageChanged())
-      logo_drawable = std::make_unique<GameLogoDrawable>(&device);
+      logo_drawable = std::make_unique<GameLogoDrawable>(device);
       logo_drawable->initializeGL();
       logo_drawable->setVisible(true);
-      menu_drawable->pageChangedSignal.connect([logo = logo_drawable.get()](const std::string& page) { logo->pageChanged(page); });
+      menu_drawable->pageChangedSignal.connect([&logo = *logo_drawable](const std::string& page) { logo.pageChanged(page); });
 
       // --page=<psd path>: jump straight to a page for a static verification screenshot. flips
       // isActive() directly, a static screenshot doesn't need the page transition.
@@ -422,7 +424,9 @@ int main(int argc, char** argv)
    const auto controller_script = parseControllerScript(argValue(args, "--controller="));
    std::unique_ptr<ControllerInput> controller_input;
    std::unique_ptr<MenuControllerHandler> menu_controller_handler;
-   SDL_Joystick* virtual_controller = nullptr;
+   using JoystickHandle = std::unique_ptr<SDL_Joystick, decltype(&SDL_CloseJoystick)>;
+   JoystickHandle virtual_controller{nullptr, &SDL_CloseJoystick};
+   std::vector<JoystickHandle> further_controllers;
 
    // --controls [--pads=n] (menu mode): opens the controls page as if joining a game, with n
    // virtual controllers (default 1); --controller= steps are pressed on the first one
@@ -449,11 +453,11 @@ int main(int argc, char** argv)
          desc.name = "harness controller";
          if (pad_count > 0)
          {
-            virtual_controller = SDL_OpenJoystick(SDL_AttachVirtualJoystick(&desc));
+            virtual_controller.reset(SDL_OpenJoystick(SDL_AttachVirtualJoystick(&desc)));
          }
          for (int32_t pad = 1; pad < pad_count; pad++)
          {
-            SDL_OpenJoystick(SDL_AttachVirtualJoystick(&desc));
+            further_controllers.emplace_back(SDL_OpenJoystick(SDL_AttachVirtualJoystick(&desc)), &SDL_CloseJoystick);
          }
       }
 
@@ -462,24 +466,23 @@ int main(int argc, char** argv)
          bomberman_client = std::make_unique<BombermanClient>();
          local_players = std::make_unique<LocalPlayers>(*controller_input, *bomberman_client);
          controls_page = std::make_unique<ControlsPage>(*menu_drawable, *controller_input, *local_players, *bomberman_client);
-         menu_drawable->getMenu().actionRequestSignal.connect([page = controls_page.get()](
-                                                                 const std::string& page_name, const std::string& action
-                                                              ) { page->onActionRequest(page_name, action); });
-         controller_input->buttonPressedSignal.connect([page = controls_page.get()](ControllerInput::Id id, ControllerInput::Button button)
-                                                       { page->onControllerButtonPressed(id, button); });
+         menu_drawable->getMenu().actionRequestSignal.connect(
+            [&page = *controls_page](const std::string& page_name, const std::string& action) { page.onActionRequest(page_name, action); }
+         );
+         controller_input->buttonPressedSignal.connect([&page = *controls_page](ControllerInput::Id id, ControllerInput::Button button)
+                                                       { page.onControllerButtonPressed(id, button); });
       }
 
       menu_controller_handler = std::make_unique<MenuControllerHandler>(*menu_drawable, *menu_cursor, *controller_input);
       menu_controller_handler->initialize();
       controller_input->buttonPressedSignal.connect(
-         [handler = menu_controller_handler.get()](ControllerInput::Id, ControllerInput::Button button)
+         [&handler = *menu_controller_handler](ControllerInput::Id, ControllerInput::Button button)
          {
             SDL_Log("controller: button 0x%x pressed", button);
-            handler->buttonPressed(button);
+            handler.buttonPressed(button);
          }
       );
-      menu_drawable->pageChangedSignal.connect([handler = menu_controller_handler.get()](const std::string&)
-                                               { handler->focusDefaultItem(); });
+      menu_drawable->pageChangedSignal.connect([&handler = *menu_controller_handler](const std::string&) { handler.focusDefaultItem(); });
    }
 
    const std::string realclick_arg = argValue(args, "--realclick=");
@@ -600,13 +603,13 @@ int main(int argc, char** argv)
          const uint64_t now_ms = SDL_GetTicks();
          if (controller_held)
          {
-            SDL_SetJoystickVirtualButton(virtual_controller, controller_script[controller_step], false);
+            SDL_SetJoystickVirtualButton(virtual_controller.get(), controller_script[controller_step], false);
             controller_held = false;
             ++controller_step;
          }
          else if (now_ms - controller_step_start_ms >= controller_step_ms)
          {
-            SDL_SetJoystickVirtualButton(virtual_controller, controller_script[controller_step], true);
+            SDL_SetJoystickVirtualButton(virtual_controller.get(), controller_script[controller_step], true);
             controller_held = true;
             controller_step_start_ms = now_ms;
          }
@@ -726,10 +729,10 @@ int main(int argc, char** argv)
          for (size_t i = 0; i < columns.size(); i++)
          {
             const auto& column = columns[i];
-            const char* type = column.device.type == ControlsSetup::DeviceType::Keyboard     ? "keyboard"
-                               : column.device.type == ControlsSetup::DeviceType::Controller ? "controller"
-                                                                                             : "none";
-            SDL_Log("controls: column %zu %s %u color %d", i + 1, type, column.device.id, static_cast<int>(column.color));
+            const std::string type = column.device.type == ControlsSetup::DeviceType::Keyboard     ? "keyboard"
+                                     : column.device.type == ControlsSetup::DeviceType::Controller ? "controller"
+                                                                                                   : "none";
+            SDL_Log("controls: column %zu %s %u color %d", i + 1, type.c_str(), column.device.id, static_cast<int>(column.color));
          }
       }
 

@@ -7,7 +7,10 @@
 #include "render/texture.h"
 
 #include <cstdint>
+#include <functional>
 #include <map>
+#include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -21,7 +24,7 @@ public:
 
    bool isActive() const;
 
-   void setPlayerData(std::map<int, PlayerItem*>& players);
+   void setPlayerData(const std::map<int, std::unique_ptr<PlayerItem>>& players);
    void draw() const;
    void drawPlayTexts() const;
    void drawArrow() const;
@@ -37,7 +40,7 @@ private:
    FrameTimer _active_time;
    std::vector<Vector> _positions;
    std::vector<std::string> _names;
-   BitmapFont* _font = nullptr;
+   std::optional<std::reference_wrapper<BitmapFont>> _font;
    bool _show_arrow = false;
    Texture _arrow_texture;
    Vector _arrow_position;

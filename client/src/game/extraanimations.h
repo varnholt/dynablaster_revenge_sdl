@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <span>
 #include <vector>
 
 // the two short extra flourishes: a glowing frustum growing out of the floor when an extra is
@@ -38,7 +39,7 @@ private:
 
    void renderReveals(float dt);
    void renderDestroyed();
-   void drawTriangles(const float* vertices, int32_t vertex_count);
+   void drawTriangles(std::span<const float> vertices);
 
    std::vector<Reveal> _reveals;
    std::vector<Destroyed> _destroyed;

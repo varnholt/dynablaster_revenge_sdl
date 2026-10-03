@@ -24,7 +24,7 @@ std::string unquoted(const std::string& text)
 
 bool isInMenu()
 {
-   return GameStateMachine::getInstance()->getState() == Constants::GameStopped;
+   return GameStateMachine::getInstance().getState() == Constants::GameStopped;
 }
 }  // namespace
 

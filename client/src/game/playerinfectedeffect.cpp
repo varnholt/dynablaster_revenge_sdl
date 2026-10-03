@@ -65,24 +65,16 @@ void PlayerInfectedEffect::clear()
    _flow_animations.clear();
 }
 
-void PlayerInfectedEffect::add(Material* material)
+void PlayerInfectedEffect::add(Material& material)
 {
-   if (!material)
-   {
-      return;
-   }
-
-   Flow flow;
-   flow.animation = std::make_unique<InfectedFlowFieldAnimation>();
-   flow.material = material;
-   _flow_animations.push_back(std::move(flow));
+   _flow_animations.push_back({std::make_unique<InfectedFlowFieldAnimation>(), material});
 }
 
-void PlayerInfectedEffect::remove(Material* material)
+void PlayerInfectedEffect::remove(const Material& material)
 {
    for (auto& flow : _flow_animations)
    {
-      if (flow.material == material)
+      if (&flow.material.get() == &material)
       {
          flow.animation->stop();
       }
@@ -117,10 +109,7 @@ void PlayerInfectedEffect::render()
 
    for (auto& flow : _flow_animations)
    {
-      if (!flow.material)
-      {
-         continue;
-      }
+      Material& material = flow.material;
 
       // re-capture the infected player's current silhouette every frame - unlike PlayerDeathEffect
       // (a frozen one-shot capture), an infected player is still alive and moving. Depth writes
@@ -132,11 +121,11 @@ void PlayerInfectedEffect::render()
 
       Vector min;
       Vector max;
-      flow.material->getBoundingRect(min, max, proj);
-      Vector center = flow.material->getGeometry(0)->get().getTransform().translation();
+      material.getBoundingRect(min, max, proj);
+      Vector center = material.getGeometry(0)->get().getTransform().translation();
       flow.animation->setCenter(center);
 
-      flow.material->renderDiffuse();
+      material.renderDiffuse();
 
       FrameBuffer::pop();
 

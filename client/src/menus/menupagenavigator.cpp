@@ -185,7 +185,7 @@ MenuPageNavigator::MenuPageNavigator()
    // BombermanClient must already be constructed+initialize()'d by main.cpp before this runs -
    // getInstance() doesn't self-construct (matches the real client/src/game/bombermanclientgui.cpp
    // construction order).
-   BombermanClient& client = *BombermanClient::getInstance();
+   BombermanClient& client = BombermanClient::getInstance();
    _login_response_connection = client.loginResponseSignal.connect([this](bool granted) { onLoginResponse(granted); });
    _create_game_response_connection = client.createGameResponseSignal.connect([this](bool granted, int game_id, bool owner)
                                                                               { onCreateGameResponse(granted, game_id, owner); });
@@ -195,15 +195,8 @@ MenuPageNavigator::MenuPageNavigator()
    // matches GameMenuInterfaceLounge's constructor connection - keeps the lounge's player rows
    // (nick/wins/rank/owner-icon) live-updated whenever the player set changes (join/leave/bot
    // added). Without this, bots that join after the lounge page is already showing never appear.
-   _player_info_map_updated_connection = client.playerInfoMapUpdatedSignal.connect(
-      [this](std::map<int, PlayerInfo*>* info_map)
-      {
-         if (info_map)
-         {
-            onPlayerInfoMapUpdated(*info_map);
-         }
-      }
-   );
+   _player_info_map_updated_connection =
+      client.playerInfoMapUpdatedSignal.connect([this](const std::map<int, PlayerInfo>& info_map) { onPlayerInfoMapUpdated(info_map); });
 
    // matches GameMenuWorkflow's own connection to BombermanClient::messageReceived - lounge chat.
    _message_received_connection = client.messageReceivedSignal.connect([this](int sender_id, const std::string& message, bool finished)
@@ -223,9 +216,9 @@ MenuPageNavigator::~MenuPageNavigator()
    setMonitorVideoSettingsEnabled(false);
    setMonitorAudioSettingsEnabled(false);
 
-   if (BombermanClient::getInstance())
+   if (BombermanClient::hasInstance())
    {
-      BombermanClient& client = *BombermanClient::getInstance();
+      BombermanClient& client = BombermanClient::getInstance();
       client.loginResponseSignal.disconnect(_login_response_connection);
       client.createGameResponseSignal.disconnect(_create_game_response_connection);
       client.joinGameResponseSignal.disconnect(_join_game_response_connection);
@@ -260,24 +253,24 @@ void MenuPageNavigator::onActionRequest(const std::string& page, const std::stri
       {
          // matches GameMenuWorkflow's MAINMENU_ACTION_SINGLE handler exactly: single player
          // always hosts an in-process server and logs into it over loopback.
-         BombermanClient::getInstance()->setGameMode(Constants::GameModeSinglePlayer);
-         BombermanClient::getInstance()->host();
-         BombermanClient::getInstance()->loginRequest("127.0.0.1", GameSettings::getInstance().getLoginSettings().getNick());
+         BombermanClient::getInstance().setGameMode(Constants::GameModeSinglePlayer);
+         BombermanClient::getInstance().host();
+         BombermanClient::getInstance().loginRequest("127.0.0.1", GameSettings::getInstance().getLoginSettings().getNick());
       }
       else if (action == kMainMenuActionMulti)
       {
          // matches GameMenuWorkflow's MAINMENU_ACTION_MULTI handler: only hosts if the
          // configured host is actually this machine, always logs in to whatever host is set.
-         BombermanClient::getInstance()->setGameMode(Constants::GameModeMultiPlayer);
+         BombermanClient::getInstance().setGameMode(Constants::GameModeMultiPlayer);
 
          const std::string host = GameSettings::getInstance().getLoginSettings().getHost();
 
          if (isHostLocal(host))
          {
-            BombermanClient::getInstance()->host();
+            BombermanClient::getInstance().host();
          }
 
-         BombermanClient::getInstance()->loginRequest(host, GameSettings::getInstance().getLoginSettings().getNick());
+         BombermanClient::getInstance().loginRequest(host, GameSettings::getInstance().getLoginSettings().getNick());
       }
       else
       {
@@ -300,10 +293,10 @@ void MenuPageNavigator::onActionRequest(const std::string& page, const std::stri
          // table (GameMenuInterfaceSelect::getSelectedGame()) - that table selection isn't wired
          // in this port yet, so this joins the first known game instead. Real enough to prove the
          // join->lounge chain; picking a specific game is a later refinement.
-         const std::vector<GameInformation>* games = BombermanClient::getInstance()->getGames();
-         if (games && !games->empty())
+         const std::vector<GameInformation>& games = BombermanClient::getInstance().getGames();
+         if (!games.empty())
          {
-            requestJoin(games->front().getId(), kGameSelect);
+            requestJoin(games.front().getId(), kGameSelect);
          }
          else
          {
@@ -452,11 +445,11 @@ void MenuPageNavigator::onActionRequest(const std::string& page, const std::stri
    {
       if (action == kLoungeActionStart)
       {
-         BombermanClient::getInstance()->startGame(BombermanClient::getInstance()->getGameId());
+         BombermanClient::getInstance().startGame(BombermanClient::getInstance().getGameId());
       }
       else if (action == kLoungeActionBack)
       {
-         BombermanClient::getInstance()->leaveGameRequest();
+         BombermanClient::getInstance().leaveGameRequest();
          pageChangeRequestSignal(kGameSelect);
       }
       else if (action == kLoungeLineeditSay)
@@ -475,7 +468,7 @@ void MenuPageNavigator::onActionRequest(const std::string& page, const std::stri
             if (!StringUtils::trim(message).empty())
             {
                // lounge chat always broadcasts to everyone (receiverId -1)
-               BombermanClient::getInstance()->sendMessage(message, true);
+               BombermanClient::getInstance().sendMessage(message, true);
                say_item->get().setText("");
             }
          }
@@ -497,7 +490,7 @@ void MenuPageNavigator::onLoginResponse(bool granted)
    // (create-and-join is automatic from there), multiplayer goes to GAME_SELECT to pick/create.
    if (granted)
    {
-      const Constants::GameMode mode = BombermanClient::getInstance()->getGameMode();
+      const Constants::GameMode mode = BombermanClient::getInstance().getGameMode();
       pageChangeRequestSignal(mode == Constants::GameModeMultiPlayer ? kGameSelect : kGameCreate);
    }
    else
@@ -571,10 +564,7 @@ void MenuPageNavigator::onPageChanged(const std::string& page)
       // mGameMenuInterfaceLounge->playerInfoMapUpdated(...) directly once, on top of the live
       // signal connection - populates the rows immediately instead of waiting for the next
       // join/leave to trigger a redraw.
-      if (BombermanClient::getInstance()->getPlayerInfoMap())
-      {
-         updateLoungePlayerList(*BombermanClient::getInstance()->getPlayerInfoMap());
-      }
+      updateLoungePlayerList(BombermanClient::getInstance().getPlayerInfoMap());
 
       // players on this machine are set up on the controls page before joining
       if (const auto add_player = Menu::getInstance().getPageByName(kLounge)->get().getPageItem(kLoungeAddPlayer))
@@ -679,23 +669,23 @@ void MenuPageNavigator::initializeBots(int32_t remaining_tries)
       return;
    }
 
-   BombermanClient::getInstance()->initializeBots();
+   BombermanClient::getInstance().initializeBots();
 }
 
 void MenuPageNavigator::requestJoin(int game_id, const std::string& return_page)
 {
    if (!_join_handler || !_join_handler(game_id, return_page))
    {
-      BombermanClient::getInstance()->joinGame(game_id);
+      BombermanClient::getInstance().joinGame(game_id);
    }
 }
 
-void MenuPageNavigator::onPlayerInfoMapUpdated(const std::map<int, PlayerInfo*>& player_info)
+void MenuPageNavigator::onPlayerInfoMapUpdated(const std::map<int, PlayerInfo>& player_info)
 {
    updateLoungePlayerList(player_info);
 }
 
-void MenuPageNavigator::updateLoungePlayerList(const std::map<int, PlayerInfo*>& player_info)
+void MenuPageNavigator::updateLoungePlayerList(const std::map<int, PlayerInfo>& player_info)
 {
    // matches GameMenuInterfaceLounge::playerInfoMapUpdated() - only touches the UI while the
    // lounge page is actually the one showing (mirrors the original's own current_page == page
@@ -714,14 +704,14 @@ void MenuPageNavigator::updateLoungePlayerList(const std::map<int, PlayerInfo*>&
 
    struct ScoreEntry
    {
-      std::reference_wrapper<PlayerInfo> player;
+      std::reference_wrapper<const PlayerInfo> player;
       int score;
    };
 
    std::vector<ScoreEntry> score_list;
    for (const auto& [id, info] : player_info)
    {
-      score_list.push_back({*info, static_cast<int>(info->getOverallStats().getWins())});
+      score_list.push_back({info, static_cast<int>(info.getOverallStats().getWins())});
    }
 
    std::sort(score_list.begin(), score_list.end(), [](const ScoreEntry& a, const ScoreEntry& b) { return a.score > b.score; });
@@ -766,8 +756,8 @@ void MenuPageNavigator::updateLoungePlayerList(const std::map<int, PlayerInfo*>&
 
       const PlayerInfo& player = entry.player;
       const int color = static_cast<int>(player.getColor());
-      const auto game_info = BombermanClient::getInstance()->getCurrentGameInformation();
-      const bool owner = game_info && (player.getId() == game_info->getCreatorId());
+      const auto game_info = BombermanClient::getInstance().getCurrentGameInformation();
+      const bool owner = game_info && (player.getId() == game_info->get().getCreatorId());
 
       // note: the original also nudges player_item's active-layer Y to align with active_box_item's
       // top (player_item->getCurrentLayer()->setY(...)) - PSDLayer::setY() isn't ported in this
@@ -839,7 +829,7 @@ void MenuPageNavigator::addLoungeMessage(int sender_id, const std::string& messa
       nick = message.substr(0, nick_end);
    }
 
-   const Constants::Color player_color = BombermanClient::getInstance()->getColor(sender_id);
+   const Constants::Color player_color = BombermanClient::getInstance().getColor(sender_id);
    Color color = GameSettings::getInstance().getStyleSettings().getColor(player_color);
    const Color outline_color(0, 0, 0, 255);
 
@@ -1012,7 +1002,7 @@ void MenuPageNavigator::initializeCreateGameOptions()
       _create_game_options_initialized = true;
    }
 
-   GameSettings::CreateGameSettings& create_game_settings = BombermanClient::getInstance()->isSinglePlayer()
+   GameSettings::CreateGameSettings& create_game_settings = BombermanClient::getInstance().isSinglePlayer()
                                                                ? GameSettings::getInstance().getCreateGameSettingsSingle()
                                                                : GameSettings::getInstance().getCreateGameSettingsMulti();
 
@@ -1448,7 +1438,7 @@ void MenuPageNavigator::createGame()
 
    const Constants::Dimension dimension = (max_players <= 5) ? Constants::Dimension13x11 : Constants::Dimension19x17;
 
-   GameSettings::CreateGameSettings& create_game_settings = BombermanClient::getInstance()->isSinglePlayer()
+   GameSettings::CreateGameSettings& create_game_settings = BombermanClient::getInstance().isSinglePlayer()
                                                                ? GameSettings::getInstance().getCreateGameSettingsSingle()
                                                                : GameSettings::getInstance().getCreateGameSettingsMulti();
 
@@ -1466,7 +1456,7 @@ void MenuPageNavigator::createGame()
    create_game_settings.setBotCount(bot_count);
    create_game_settings.serialize();
 
-   BombermanClient::getInstance()->createGame(
+   BombermanClient::getInstance().createGame(
       game_name,
       level_dir_name,
       rounds,

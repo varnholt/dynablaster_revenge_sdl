@@ -1,18 +1,10 @@
 #include "gameplayback.h"
 
-GamePlayback* GamePlayback::s_instance = nullptr;
+#include "tools/singleton.h"
 
-GamePlayback::GamePlayback()
+GamePlayback& GamePlayback::getInstance()
 {
-   s_instance = this;
-}
-
-GamePlayback* GamePlayback::getInstance()
-{
-   if (!s_instance)
-      new GamePlayback();
-
-   return s_instance;
+   return Singleton<GamePlayback>::Instance();
 }
 
 bool GamePlayback::isReplaying() const

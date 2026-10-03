@@ -41,7 +41,7 @@ bool GamePlayerNameDisplay::isActive() const
    return (_active_time.elapsed() < (FONT_DISPLAY_DURATION + FONT_DISPLAY_FADE_DURATION));
 }
 
-void GamePlayerNameDisplay::setPlayerData(std::map<int, PlayerItem*>& players)
+void GamePlayerNameDisplay::setPlayerData(const std::map<int, std::unique_ptr<PlayerItem>>& players)
 {
    Matrix proj_mat = static_cast<GLDevice&>(activeDevice()).getProjectionMatrix();
 
@@ -55,7 +55,7 @@ void GamePlayerNameDisplay::setPlayerData(std::map<int, PlayerItem*>& players)
    {
       if (!player->isKilled())
       {
-         Matrix mat = player->getMesh()->getTransform() * proj_mat;
+         Matrix mat = player->getMesh().getTransform() * proj_mat;
          mat = mat.xyw();
 
          Vector v = mat * Vector(0.0f, 0.0f, 0.0f);
@@ -70,7 +70,7 @@ void GamePlayerNameDisplay::setPlayerData(std::map<int, PlayerItem*>& players)
          _positions.push_back(v);
          _names.push_back(player->getNick());
 
-         if (player->getID() == BombermanClient::getInstance()->getPlayerId())
+         if (player->getID() == BombermanClient::getInstance().getPlayerId())
          {
             _arrow_position = player->getPosition();
          }
@@ -84,9 +84,9 @@ void GamePlayerNameDisplay::start()
 
    // show arrow only in large maps
    _show_arrow = false;
-   GameInformation* info = BombermanClient::getInstance()->getCurrentGameInformation();
+   const GameInformation& info = BombermanClient::getInstance().getCurrentGameInformation().value();
 
-   switch (info->getMapDimensions())
+   switch (info.getMapDimensions())
    {
       case Constants::Dimension19x17:
       case Constants::Dimension25x21:
@@ -100,7 +100,7 @@ void GamePlayerNameDisplay::start()
 
 void GamePlayerNameDisplay::initialize()
 {
-   _font = &FontPool::Instance().get("outlined")->get();
+   _font = FontPool::Instance().get("outlined").value();
 
    TexturePool& pool = TexturePool::Instance();
    _arrow_texture = pool.getTexture("data/game/arrow");
@@ -196,9 +196,10 @@ void GamePlayerNameDisplay::drawPlayTexts() const
       const Vector& pos = _positions[i];
       const std::string& name = _names[i];
 
-      _font->setColor(1.0f, 1.0f, 1.0f, computeFontAlpha());
-      _font->buildVertices(0.1f, name.c_str(), pos.x, pos.y + FONT_Y_OFFSET, 0.0f);
-      _font->draw();
+      BitmapFont& font = *_font;
+      font.setColor(1.0f, 1.0f, 1.0f, computeFontAlpha());
+      font.buildVertices(0.1f, name, pos.x, pos.y + FONT_Y_OFFSET, 0.0f);
+      font.draw();
    }
 
    device.popProjection();
@@ -206,7 +207,7 @@ void GamePlayerNameDisplay::drawPlayTexts() const
 
 void GamePlayerNameDisplay::drawArrow() const
 {
-   if (!BombermanClient::getInstance()->getCurrentPlayerInfo()->isKilled())
+   if (!BombermanClient::getInstance().getCurrentPlayerInfo().value().get().isKilled())
    {
       const float offset_z = 4.0f + std::sin(GlobalTime::Instance().getTime() * 4.5f) * 0.5f;
 
@@ -221,8 +222,8 @@ void GamePlayerNameDisplay::drawArrow() const
       glBindBuffer(GL_ARRAY_BUFFER, _arrow_vertex_buffer);
       glEnableVertexAttribArray(0);
       glEnableVertexAttribArray(1);
-      glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(ArrowVertex), (GLvoid*)0);
-      glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(ArrowVertex), (GLvoid*)(3 * sizeof(float)));
+      glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(ArrowVertex), nullptr);
+      glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(ArrowVertex), reinterpret_cast<const GLvoid*>(3 * sizeof(float)));
 
       glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _arrow_index_buffer);
       glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0);

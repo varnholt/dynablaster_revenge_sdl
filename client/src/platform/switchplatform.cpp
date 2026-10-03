@@ -13,50 +13,61 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <algorithm>
+#include <array>
 #include <cerrno>
 #include <cstdio>
 #include <cstdlib>
+#include <memory>
+#include <string>
 
 namespace
 {
-constexpr const char* settings_path = "sdmc:/switch/dynablaster_revenge/game.ini";
+const std::string settings_path = "sdmc:/switch/dynablaster_revenge/game.ini";
 
-bool makeDirectory(const char* path)
+struct FileCloser
 {
-   return mkdir(path, 0777) == 0 || errno == EEXIST;
+   void operator()(FILE* file) const
+   {
+      std::fclose(file);
+   }
+};
+
+using FileHandle = std::unique_ptr<FILE, FileCloser>;
+
+bool makeDirectory(const std::string& path)
+{
+   return mkdir(path.c_str(), 0777) == 0 || errno == EEXIST;
 }
 
 bool seedSettings()
 {
-   if (FILE* existing = std::fopen(settings_path, "rb"))
+   if (FileHandle existing{std::fopen(settings_path.c_str(), "rb")})
    {
-      std::fclose(existing);
       return true;
    }
-   FILE* source = std::fopen("data/game.ini", "rb");
+   FileHandle source{std::fopen("data/game.ini", "rb")};
    if (!source)
       return false;
-   FILE* destination = std::fopen(settings_path, "wb");
+   FileHandle destination{std::fopen(settings_path.c_str(), "wb")};
    if (!destination)
    {
-      std::fclose(source);
       return false;
    }
    std::array<char, 4096> buffer;
    bool ok = true;
-   while (const size_t count = std::fread(buffer.data(), 1, buffer.size(), source))
+   while (const size_t count = std::fread(buffer.data(), 1, buffer.size(), source.get()))
    {
-      if (std::fwrite(buffer.data(), 1, count, destination) != count)
+      if (std::fwrite(buffer.data(), 1, count, destination.get()) != count)
       {
          ok = false;
          break;
       }
    }
-   ok = !std::ferror(source) && ok;
-   std::fclose(source);
-   ok = std::fclose(destination) == 0 && ok;
+   ok = !std::ferror(source.get()) && ok;
+   source.reset();
+   ok = std::fclose(destination.release()) == 0 && ok;
    if (!ok)
-      std::remove(settings_path);
+      std::remove(settings_path.c_str());
    return ok;
 }
 }  // namespace

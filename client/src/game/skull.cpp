@@ -4,7 +4,7 @@
 // framework
 #include "globaltime.h"
 
-Skull::Skull(Mesh* reference, float x, float y) : Mesh(*reference), _reference(reference)
+Skull::Skull(Mesh& reference, float x, float y) : Mesh(reference), _reference(reference)
 {
    setUserTransformable(true);
 
@@ -22,7 +22,7 @@ Skull::~Skull()
 {
 }
 
-Mesh* Skull::getReference() const
+Mesh& Skull::getReference() const
 {
    return _reference;
 }

@@ -80,13 +80,10 @@ void PlayerDeathEffect::clear()
    _flow_animations.clear();
 }
 
-void PlayerDeathEffect::add(Material* material)
+void PlayerDeathEffect::add(Material& material)
 {
    Vector min;
    Vector max;
-
-   if (!material)
-      return;
 
    const int width = activeDevice().getWidth();
    const int height = activeDevice().getHeight();
@@ -106,17 +103,17 @@ void PlayerDeathEffect::add(Material* material)
    Matrix proj = static_cast<GLDevice&>(activeDevice()).getProjectionMatrix();
    Matrix inv_proj = proj.invert4x4();
 
-   material->renderDiffuse();
+   material.renderDiffuse();
 
    // get pivot in world space
-   Vector center = material->getGeometry(0)->get().getTransform().translation();
+   Vector center = material.getGeometry(0)->get().getTransform().translation();
 
-   material->getBoundingRect(min, max, proj);
+   material.getBoundingRect(min, max, proj);
 
    auto animation = std::make_unique<DeathFlowFieldAnimation>();
    animation->setCenter(center);
 
-   animation->initialize(_deferred_buffer.get(), min, max);
+   animation->initialize(*_deferred_buffer, min, max);
 
    activeDevice().setShader(_flow_init_pos_shader);
    activeDevice().bindSampler(_flow_init_pos_depth, 0);
@@ -158,18 +155,18 @@ void PlayerDeathEffect::animate(float delta)
 
    for (auto it = _flow_animations.begin(); it != _flow_animations.end();)
    {
-      DeathFlowFieldAnimation* flow = it->get();
-      if (flow->isElapsed())
+      DeathFlowFieldAnimation& flow = **it;
+      if (flow.isElapsed())
       {
          it = _flow_animations.erase(it);
       }
       else
       {
-         activeDevice().setParameter(_flow_center, flow->getCenter());
-         activeDevice().setParameter(_flow_field_scale, flow->getScale());
+         activeDevice().setParameter(_flow_center, flow.getCenter());
+         activeDevice().setParameter(_flow_field_scale, flow.getScale());
          activeDevice().setParameter(_flow_time_delta, delta);
 
-         flow->update(delta);
+         flow.update(delta);
          ++it;
       }
    }
