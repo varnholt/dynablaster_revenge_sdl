@@ -14,8 +14,7 @@ public:
 
    HelpManager();
 
-   // no live consumer ported yet - client/src/game/gamehelpdrawable.cpp (the toast HUD
-   // that subscribed to this) hasn't been ported to client-sdl.
+   // shown by GameHelpDrawable
    Signal<const std::string&, const std::string&, Constants::HelpSeverity, Constants::HelpLocation, int> messageAddedSignal;
 
    void addMessage(

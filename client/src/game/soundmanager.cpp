@@ -127,6 +127,8 @@ void SoundManager::initializeSamples()
    loadSample(SampleMouseClick, "data/sfx/mouse_click.wav");
    loadSample(SampleGameWin, "data/sfx/win.wav");
    loadSample(SampleGameDraw, "data/sfx/draw.wav");
+   loadSample(SampleError, "data/sfx/error.wav");
+   loadSample(SampleInfo, "data/sfx/info.wav");
 }
 
 void SoundManager::StreamDeleter::operator()(SDL_AudioStream* stream) const
@@ -375,6 +377,16 @@ void SoundManager::playSoundGameWin()
 void SoundManager::playSoundGameDraw()
 {
    play(SampleGameDraw);
+}
+
+void SoundManager::playSoundError()
+{
+   play(SampleError);
+}
+
+void SoundManager::playSoundInfo()
+{
+   play(SampleInfo);
 }
 
 void SoundManager::playSoundStart()

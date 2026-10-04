@@ -61,6 +61,8 @@ public:
    void playSkullSound(Constants::SkullType skull_type);
    void playSoundGameWin();
    void playSoundGameDraw();
+   void playSoundError();
+   void playSoundInfo();
 
    void playSoundMouseOver(const std::string& page, const std::string& item);
    void playSoundMouseClick(const std::string& page);
@@ -99,6 +101,8 @@ protected:
       SampleMouseClick,
       SampleGameWin,
       SampleGameDraw,
+      SampleError,
+      SampleInfo,
       SampleCount
    };
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "image/psd.h"
+#include "math/matrix.h"
 #include "render/texture.h"
 
 #include <cstdint>
@@ -36,6 +37,9 @@ public:
    void setOpacity(float opacity);
 
    void render(float x = 0.0f, float y = 0.0f, float alpha = 1.0f);
+
+   //! renders the layer's quad (0,0)-(width,height) through  world instead of its PSD position
+   void render(const Matrix& world, float alpha);
 
    float getU() const;
    float getV() const;

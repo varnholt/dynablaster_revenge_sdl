@@ -20,6 +20,7 @@
 #define TEXT_CREATE_GAME_DEFINE "Define a game name,;level and extras,;then click OK."
 #define TEXT_LOUNGE_START_GAME "Click the start;button to begin;the game."
 #define TEXT_LOUNGE_CHAT "Click the field below;the chat window;to send messages."
+#define TEXT_OPTIONS_CONTROLLER "To calibrate the;controller rotate;its sticks around."
 #define TEXT_OPTIONS_KEYBOARD "Assign your keys by;paying attention to;keyboard ghosting."
 
 #endif  // GAMEHELPTEXTS_H
