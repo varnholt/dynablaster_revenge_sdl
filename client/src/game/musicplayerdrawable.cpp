@@ -242,9 +242,9 @@ void MusicPlayerDrawable::startAnimation()
 
 void MusicPlayerDrawable::showCurrentlyPlaying(const std::string& artist, const std::string& album, const std::string& track)
 {
-   // matches the original's guard, minus isMusicMuted() - this port's SoundManager has no
-   // separate mute flag, only a volume slider (see project memory on the F2/F3 shortcuts).
-   if (SoundManager::getInstance().getVolumeMusic() <= 0.0f || !GameSettings::getInstance().getAudioSettings().isMusicPlayerVisibile())
+   // nothing to announce while the music is muted or silent
+   if (SoundManager::getInstance().isMusicMuted() || SoundManager::getInstance().getVolumeMusic() <= 0.0f ||
+       !GameSettings::getInstance().getAudioSettings().isMusicPlayerVisibile())
       return;
 
    _artist = artist;
