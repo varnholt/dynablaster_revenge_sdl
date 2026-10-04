@@ -19,6 +19,7 @@
 #include "game/gamedrawable.h"
 #include "game/gamelogodrawable.h"
 #include "game/gamemessagingdrawable.h"
+#include "game/gamestatsdrawable.h"
 #include "game/gamesettings.h"
 #include "game/gamewindrawable.h"
 #include "game/localplayers.h"
@@ -251,6 +252,11 @@ int main(int /*argc*/, char** /*argv*/)
    game_messaging_drawable.initializeGL();
    game_messaging_drawable.setVisible(false);
 
+   // the HUD: clock, skull countdown, player stats and mute icons
+   GameStatsDrawable game_stats_drawable(device);
+   game_stats_drawable.initializeGL();
+   game_stats_drawable.setVisible(false);
+
    // pre-round countdown overlay, drawn on top of the game scene
    CountdownDrawable countdown_drawable(device);
    countdown_drawable.initializeGL();
@@ -300,7 +306,11 @@ int main(int /*argc*/, char** /*argv*/)
    bomberman_client.detonationSignal.connect([&](int x, int y, int up, int down, int left, int right, float intense)
                                              { game_drawable.addDetonation(x, y, up, down, left, right, intense); });
    bomberman_client.playerInfectedSignal.connect([&](int id, Constants::SkullType skull, int infector_id, int extra_x, int extra_y)
-                                                 { game_drawable.playerInfected(id, skull, infector_id, extra_x, extra_y); });
+                                                 {
+                                                    game_drawable.playerInfected(id, skull, infector_id, extra_x, extra_y);
+                                                    game_stats_drawable.playerInfected(id, skull, infector_id, extra_x, extra_y);
+                                                 });
+   bomberman_client.timeChangedSignal.connect([&](int time_left, int duration) { game_stats_drawable.setGameTimeLeft(time_left, duration); });
    bomberman_client.playerIdSignal.connect([&](int id) { game_drawable.setPlayerId(id); });
    bomberman_client.countdownSignal.connect([&](int left) { countdown_drawable.countdown(left); });
    bomberman_client.messageReceivedSignal.connect([&](int sender_id, const std::string& message, bool finished)
@@ -315,6 +325,7 @@ int main(int /*argc*/, char** /*argv*/)
          menu_cursor.setVisible(false);
          game_drawable.setVisible(true);
          game_messaging_drawable.setVisible(true);
+         game_stats_drawable.setVisible(true);
          music_player_drawable.setInGame(true);
          rounds_drawable.showGame();
       }
@@ -323,6 +334,7 @@ int main(int /*argc*/, char** /*argv*/)
    {
       game_drawable.setVisible(false);
       game_messaging_drawable.setVisible(false);
+      game_stats_drawable.setVisible(false);
       countdown_drawable.setVisible(false);
       rounds_drawable.setVisible(false);
       menu_drawable.setVisible(true);
@@ -385,17 +397,18 @@ int main(int /*argc*/, char** /*argv*/)
    // the frame is drawn offscreen at the video options' resolution, then shown 16:9 with their brightness
    VideoOutput video_output(device);
 
-   const std::array<std::reference_wrapper<Drawable>, 6> animated_drawables{
-      logo_drawable, game_drawable, countdown_drawable, rounds_drawable, game_win_drawable, music_player_drawable
+   const std::array<std::reference_wrapper<Drawable>, 7> animated_drawables{
+      logo_drawable, game_drawable, game_stats_drawable, countdown_drawable, rounds_drawable, game_win_drawable, music_player_drawable
    };
 
    // in drawing order
-   const std::array<std::reference_wrapper<Drawable>, 9> painted_drawables{
+   const std::array<std::reference_wrapper<Drawable>, 10> painted_drawables{
       menu_drawable,
       menu_cursor,
       logo_drawable,
       game_drawable,
       game_messaging_drawable,
+      game_stats_drawable,
       countdown_drawable,
       rounds_drawable,
       game_win_drawable,
@@ -434,6 +447,20 @@ int main(int /*argc*/, char** /*argv*/)
          {
             video_options.toggleFullscreen();
             continue;  // don't also forward the plain Return key to the menu/game below
+         }
+
+         // F2/F3 mute music and sound effects, in the menu as well as in the game
+         if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat && (event.key.key == SDLK_F2 || event.key.key == SDLK_F3))
+         {
+            if (event.key.key == SDLK_F2)
+            {
+               SoundManager::getInstance().toggleMuteMusic();
+            }
+            else
+            {
+               SoundManager::getInstance().toggleMuteSfx();
+            }
+            continue;
          }
 
          // follow fullscreen toggles and window resizes

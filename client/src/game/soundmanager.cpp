@@ -72,7 +72,7 @@ SoundManager::SoundManager()
 
    _volume_music = GameSettings::getInstance().getAudioSettings().getVolumeMusic();
    _volume_sfx = GameSettings::getInstance().getAudioSettings().getVolumeSfx();
-   SDL_SetAudioStreamGain(_music_stream.get(), _volume_music);
+   SDL_SetAudioStreamGain(_music_stream.get(), getMusicGain());
 
    _music_timer.timeoutSignal.connect([this]() { updateMusic(); });
    _music_timer.start(50);
@@ -164,7 +164,7 @@ void SoundManager::play(SampleId id)
    _next_channel = (_next_channel + 1) % channel_count;
 
    SDL_ClearAudioStream(channel.get());
-   SDL_SetAudioStreamGain(channel.get(), _volume_sfx);
+   SDL_SetAudioStreamGain(channel.get(), getSfxGain());
    SDL_SetAudioStreamFormat(channel.get(), &sample.spec, nullptr);
    SDL_PutAudioStreamData(channel.get(), sample.buffer.get(), static_cast<int>(sample.length));
 }
@@ -189,7 +189,7 @@ void SoundManager::restartPlayListAfterFadeOut(int delay)
       delay,
       [this]()
       {
-         SDL_SetAudioStreamGain(_music_stream.get(), _volume_music);
+         SDL_SetAudioStreamGain(_music_stream.get(), getMusicGain());
          playNextTrack();
       }
    );
@@ -210,12 +210,45 @@ void SoundManager::setVolumeMusic(float volume)
    _volume_music = volume;
 
    if (_music_stream && !_fading)
-      SDL_SetAudioStreamGain(_music_stream.get(), _volume_music);
+      SDL_SetAudioStreamGain(_music_stream.get(), getMusicGain());
 }
 
 void SoundManager::setVolumeSfx(float volume)
 {
    _volume_sfx = volume;
+}
+
+bool SoundManager::isMusicMuted() const
+{
+   return _music_muted;
+}
+
+bool SoundManager::isSfxMuted() const
+{
+   return _sfx_muted;
+}
+
+void SoundManager::toggleMuteMusic()
+{
+   _music_muted = !_music_muted;
+
+   if (_music_stream && !_fading)
+      SDL_SetAudioStreamGain(_music_stream.get(), getMusicGain());
+}
+
+void SoundManager::toggleMuteSfx()
+{
+   _sfx_muted = !_sfx_muted;
+}
+
+float SoundManager::getMusicGain() const
+{
+   return _music_muted ? 0.0f : _volume_music;
+}
+
+float SoundManager::getSfxGain() const
+{
+   return _sfx_muted ? 0.0f : _volume_sfx;
 }
 
 void SoundManager::startPlaylist()

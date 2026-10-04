@@ -37,6 +37,12 @@ public:
    void setVolumeMusic(float volume);
    void setVolumeSfx(float volume);
 
+   // F2/F3, shown by the HUD's mute icons; the configured volumes stay as they are
+   bool isMusicMuted() const;
+   bool isSfxMuted() const;
+   void toggleMuteMusic();
+   void toggleMuteSfx();
+
    void playSoundKilled();
    void playSoundBomb();
    void playSoundStart();
@@ -121,6 +127,9 @@ protected:
    // decodes the whole track up front via minimp3 and queues it in one go.
    void playTrack(std::size_t index);
 
+   float getMusicGain() const;
+   float getSfxGain() const;
+
    static constexpr int channel_count = 8;
 
    SDL_AudioDeviceID _device = 0;
@@ -133,6 +142,8 @@ protected:
 
    float _volume_music = 1.0f;
    float _volume_sfx = 1.0f;
+   bool _music_muted = false;
+   bool _sfx_muted = false;
 
    Stream _music_stream;
    std::vector<std::filesystem::path> _playlist;
