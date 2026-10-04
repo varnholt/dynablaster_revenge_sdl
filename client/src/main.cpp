@@ -22,6 +22,7 @@
 #include "game/gamestatsdrawable.h"
 #include "game/gamesettings.h"
 #include "game/gamewindrawable.h"
+#include "game/hotkeydrawable.h"
 #include "game/localplayers.h"
 #include "game/menucontrollerhandler.h"
 #include "game/musicplayerdrawable.h"
@@ -270,6 +271,10 @@ int main(int /*argc*/, char** /*argv*/)
    game_win_drawable.initializeGL();
 
    // "now playing" notification, drives its own visibility off its fade timers
+   // F1 overview of the hotkeys and extras, on top of everything
+   HotkeyDrawable hotkey_drawable(device);
+   hotkey_drawable.initializeGL();
+
    MusicPlayerDrawable music_player_drawable(device);
    music_player_drawable.initializeGL();
 
@@ -402,7 +407,7 @@ int main(int /*argc*/, char** /*argv*/)
    };
 
    // in drawing order
-   const std::array<std::reference_wrapper<Drawable>, 10> painted_drawables{
+   const std::array<std::reference_wrapper<Drawable>, 11> painted_drawables{
       menu_drawable,
       menu_cursor,
       logo_drawable,
@@ -412,7 +417,8 @@ int main(int /*argc*/, char** /*argv*/)
       countdown_drawable,
       rounds_drawable,
       game_win_drawable,
-      music_player_drawable
+      music_player_drawable,
+      hotkey_drawable
    };
 
    // a std::function so Emscripten can drive it from requestAnimationFrame, a blocking loop
@@ -449,18 +455,51 @@ int main(int /*argc*/, char** /*argv*/)
             continue;  // don't also forward the plain Return key to the menu/game below
          }
 
-         // F2/F3 mute music and sound effects, in the menu as well as in the game
-         if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat && (event.key.key == SDLK_F2 || event.key.key == SDLK_F3))
+         // the hotkeys of the F1 overview, in the menu as well as in the game
+         if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat)
          {
-            if (event.key.key == SDLK_F2)
+            bool handled = true;
+            switch (event.key.key)
             {
-               SoundManager::getInstance().toggleMuteMusic();
+               case SDLK_F1:
+                  hotkey_drawable.toggle();
+                  break;
+               case SDLK_F2:
+                  SoundManager::getInstance().toggleMuteMusic();
+                  break;
+               case SDLK_F3:
+                  SoundManager::getInstance().toggleMuteSfx();
+                  break;
+               case SDLK_PAGEDOWN:
+                  SoundManager::getInstance().playNextTrack();
+                  break;
+               case SDLK_PAGEUP:
+                  SoundManager::getInstance().playPreviousTrack();
+                  break;
+               default:
+                  handled = false;
+                  break;
             }
-            else
+
+            if (handled)
             {
-               SoundManager::getInstance().toggleMuteSfx();
+               continue;
             }
-            continue;
+         }
+
+         // while the F1 overview is up, any other key or click only closes it
+         if (hotkey_drawable.isVisible() && hotkey_drawable.isShown())
+         {
+            if (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_MOUSE_BUTTON_DOWN)
+            {
+               hotkey_drawable.setVisible(false);
+               continue;
+            }
+
+            if (event.type == SDL_EVENT_TEXT_INPUT)
+            {
+               continue;
+            }
          }
 
          // follow fullscreen toggles and window resizes

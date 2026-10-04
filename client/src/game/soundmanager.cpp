@@ -286,6 +286,18 @@ void SoundManager::playNextTrack()
    playTrack(_track_index);
 }
 
+void SoundManager::playPreviousTrack()
+{
+   if (_playlist.empty())
+   {
+      startPlaylist();
+      return;
+   }
+
+   _track_index = (_track_index + _playlist.size() - 1) % _playlist.size();
+   playTrack(_track_index);
+}
+
 void SoundManager::playTrack(std::size_t index)
 {
    if (!_music_stream || _playlist.empty())
