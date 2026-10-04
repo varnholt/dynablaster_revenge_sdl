@@ -17,7 +17,9 @@
 #include "game/controlspage.h"
 #include "game/countdowndrawable.h"
 #include "game/gamedrawable.h"
+#include "game/gamehelpdrawable.h"
 #include "game/gamelogodrawable.h"
+#include "game/gamemenuhelp.h"
 #include "game/gamemessagingdrawable.h"
 #include "game/gamestatsdrawable.h"
 #include "game/gamesettings.h"
@@ -271,6 +273,19 @@ int main(int /*argc*/, char** /*argv*/)
    game_win_drawable.initializeGL();
 
    // "now playing" notification, drives its own visibility off its fade timers
+   // help and error toasts of the menu, with the pages' hints
+   GameHelpDrawable game_help_drawable(device);
+   game_help_drawable.initializeGL();
+   game_help_drawable.setVisible(true);
+   GameMenuHelp game_menu_help;
+   menu_drawable.pageChangedSignal.connect(
+      [&](const std::string& page)
+      {
+         game_help_drawable.pageChanged(page);
+         game_menu_help.pageChanged(page);
+      }
+   );
+
    // F1 overview of the hotkeys and extras, on top of everything
    HotkeyDrawable hotkey_drawable(device);
    hotkey_drawable.initializeGL();
@@ -331,6 +346,7 @@ int main(int /*argc*/, char** /*argv*/)
          game_drawable.setVisible(true);
          game_messaging_drawable.setVisible(true);
          game_stats_drawable.setVisible(true);
+         game_help_drawable.setVisible(false);
          music_player_drawable.setInGame(true);
          rounds_drawable.showGame();
       }
@@ -340,6 +356,7 @@ int main(int /*argc*/, char** /*argv*/)
       game_drawable.setVisible(false);
       game_messaging_drawable.setVisible(false);
       game_stats_drawable.setVisible(false);
+      game_help_drawable.setVisible(true);
       countdown_drawable.setVisible(false);
       rounds_drawable.setVisible(false);
       menu_drawable.setVisible(true);
@@ -393,6 +410,9 @@ int main(int /*argc*/, char** /*argv*/)
 #endif
    };
 
+   // everything is connected now, tell it which page the menu starts on
+   menu_drawable.initializationFinished();
+
    // background music
    SoundManager::getInstance().startPlaylist();
 
@@ -407,7 +427,7 @@ int main(int /*argc*/, char** /*argv*/)
    };
 
    // in drawing order
-   const std::array<std::reference_wrapper<Drawable>, 11> painted_drawables{
+   const std::array<std::reference_wrapper<Drawable>, 12> painted_drawables{
       menu_drawable,
       menu_cursor,
       logo_drawable,
@@ -418,6 +438,7 @@ int main(int /*argc*/, char** /*argv*/)
       rounds_drawable,
       game_win_drawable,
       music_player_drawable,
+      game_help_drawable,
       hotkey_drawable
    };
 
@@ -469,6 +490,9 @@ int main(int /*argc*/, char** /*argv*/)
                   break;
                case SDLK_F3:
                   SoundManager::getInstance().toggleMuteSfx();
+                  break;
+               case SDLK_F4:
+                  bomberman_client.showIps();
                   break;
                case SDLK_PAGEDOWN:
                   SoundManager::getInstance().playNextTrack();

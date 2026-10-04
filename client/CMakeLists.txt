@@ -433,6 +433,12 @@ add_library(dynablaster_core STATIC
     src/game/gamestatsdrawable.h
     src/game/hotkeydrawable.cpp
     src/game/hotkeydrawable.h
+    src/game/gamehelpdrawable.cpp
+    src/game/gamehelpdrawable.h
+    src/game/gamemenuhelp.cpp
+    src/game/gamemenuhelp.h
+    src/game/helpelement.cpp
+    src/game/helpelement.h
     src/game/gamedrawable.cpp
     src/game/gamedrawable.h
     src/game/countdowndrawable.cpp

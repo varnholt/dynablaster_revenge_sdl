@@ -127,6 +127,11 @@ void PSDLayer::render(float x, float y, float alpha)
 {
    Matrix world;
    world.translate(Vector(_layer.get().getLeft() + x, _layer.get().getTop() + y, 0.0f));
+   render(world, alpha);
+}
+
+void PSDLayer::render(const Matrix& world, float alpha)
+{
    activeDevice().push(world);
 
    glBindTexture(GL_TEXTURE_2D, _texture);
