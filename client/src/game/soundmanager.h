@@ -31,6 +31,7 @@ public:
 
    void startPlaylist();
    void playNextTrack();
+   void playPreviousTrack();
 
    float getVolumeMusic() const;
    float getVolumeSfx() const;
