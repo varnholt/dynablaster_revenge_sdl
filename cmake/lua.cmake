@@ -24,8 +24,10 @@ add_library(lua STATIC ${DYNABLASTER_LUA_SOURCES})
 set_target_properties(lua PROPERTIES LINKER_LANGUAGE C)
 target_include_directories(lua PUBLIC ${lua_SOURCE_DIR})
 
+# newlib doesn't give C++ the long long limits luaconf.h checks for; Lua 5.4 then wants C89 numbers, which
+# it only takes via LUA_USE_C89 (long is 64 bits on the Switch's aarch64)
 if(NINTENDO_SWITCH)
-    target_compile_definitions(lua PUBLIC LUA_C89_NUMBERS=1)
+    target_compile_definitions(lua PUBLIC LUA_USE_C89)
 endif()
 
 if(MSVC)
