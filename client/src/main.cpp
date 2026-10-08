@@ -29,6 +29,8 @@
 #include "game/menucontrollerhandler.h"
 #include "game/musicplayerdrawable.h"
 #include "game/roundsdrawable.h"
+#include "game/story/storyhuddrawable.h"
+#include "devscript.h"
 #include "game/soundmanager.h"
 #include "game/videooptions.h"
 #include "game/videooutput.h"
@@ -46,6 +48,8 @@
 #include "game/positioninterpolation.h"
 
 #include <SDL3/SDL.h>
+
+#include <cstdlib>
 #include <SDL3_net/SDL_net.h>
 
 #include <array>
@@ -175,10 +179,23 @@ int main(int /*argc*/, char** /*argv*/)
    const int window_width = video_settings.getWidth() > 0 ? video_settings.getWidth() : 1024;
    const int window_height = video_settings.getHeight() > 0 ? video_settings.getHeight() : 576;
 
+   // scripted test runs stay out of the way of whatever is on screen
+   const bool dev_script_run = std::getenv("DYNABLASTER_DEV_SCRIPT") != nullptr;
+   if (dev_script_run)
+   {
+      SDL_SetHint(SDL_HINT_WINDOW_ACTIVATE_WHEN_SHOWN, "0");
+   }
+
    GlesContext context;
    if (!context.init("Dynablaster Revenge", window_width, window_height))
    {
       return 1;
+   }
+
+   if (dev_script_run)
+   {
+      SDL_SetWindowPosition(context.window(), 0, 0);
+      SDL_SetWindowAlwaysOnTop(context.window(), false);
    }
 
    // needed for SDL_EVENT_TEXT_INPUT - off by default in SDL3.
@@ -268,6 +285,10 @@ int main(int /*argc*/, char** /*argv*/)
    RoundsDrawable rounds_drawable(device);
    rounds_drawable.initializeGL();
 
+   // story mode: stage, lives, score and the banners between stages
+   StoryHudDrawable story_hud_drawable(device);
+   story_hud_drawable.initializeGL();
+
    // win/trophy screen, drives its own visibility off GameStateMachine's state changes
    GameWinDrawable game_win_drawable(device);
    game_win_drawable.initializeGL();
@@ -333,6 +354,21 @@ int main(int /*argc*/, char** /*argv*/)
    bomberman_client.timeChangedSignal.connect([&](int time_left, int duration) { game_stats_drawable.setGameTimeLeft(time_left, duration); });
    bomberman_client.playerIdSignal.connect([&](int id) { game_drawable.setPlayerId(id); });
    bomberman_client.countdownSignal.connect([&](int left) { countdown_drawable.countdown(left); });
+
+   // story mode enemies and progress
+   bomberman_client.enemyCreatedSignal.connect([&](int id, EnemyType type, float x, float y, float angle)
+                                               { game_drawable.addEnemy(id, type, x, y, angle); });
+   bomberman_client.enemyPositionSignal.connect([&](int id, float x, float y, float angle, float dx, float dy, int flags)
+                                                { game_drawable.setEnemyPosition(id, x, y, angle, dx, dy, flags); });
+   bomberman_client.enemyHitSignal.connect([&](int id, int) { game_drawable.enemyHit(id); });
+   bomberman_client.enemyKilledSignal.connect([&](int id, bool removed) { game_drawable.enemyKilled(id, removed); });
+   bomberman_client.storyStateSignal.connect(
+      [&](int stage, int lives, int score, int state, int enemies_left)
+      {
+         game_drawable.setStoryStage(stage);
+         story_hud_drawable.setState(stage, lives, score, state, enemies_left);
+      }
+   );
    bomberman_client.messageReceivedSignal.connect([&](int sender_id, const std::string& message, bool finished)
                                                   { game_messaging_drawable.messageReceived(sender_id, message, finished); });
 
@@ -348,7 +384,16 @@ int main(int /*argc*/, char** /*argv*/)
          game_stats_drawable.setVisible(true);
          game_help_drawable.setVisible(false);
          music_player_drawable.setInGame(true);
-         rounds_drawable.showGame();
+
+         // the story mode announces its stages itself
+         if (bomberman_client.getGameMode() == Constants::GameModeStory)
+         {
+            story_hud_drawable.setVisible(true);
+         }
+         else
+         {
+            rounds_drawable.showGame();
+         }
       }
    );
    auto show_menu_again = [&]()
@@ -359,6 +404,7 @@ int main(int /*argc*/, char** /*argv*/)
       game_help_drawable.setVisible(true);
       countdown_drawable.setVisible(false);
       rounds_drawable.setVisible(false);
+      story_hud_drawable.setVisible(false);
       menu_drawable.setVisible(true);
       logo_drawable.setVisible(true);
       menu_cursor.setVisible(true);
@@ -419,15 +465,31 @@ int main(int /*argc*/, char** /*argv*/)
    bool running = true;
    navigator.quitRequestSignal.connect([&running]() { running = false; });
 
+   // scripted test runs, see DevScript
+   DevScript dev_script;
+   dev_script._click = [&](int32_t x, int32_t y)
+   {
+      menu_drawable.mousePressEvent(x, y);
+      menu_drawable.mouseReleaseEvent();
+   };
+   dev_script._quit = [&running]() { running = false; };
+
    // the frame is drawn offscreen at the video options' resolution, then shown 16:9 with their brightness
    VideoOutput video_output(device);
 
-   const std::array<std::reference_wrapper<Drawable>, 7> animated_drawables{
-      logo_drawable, game_drawable, game_stats_drawable, countdown_drawable, rounds_drawable, game_win_drawable, music_player_drawable
+   const std::array<std::reference_wrapper<Drawable>, 8> animated_drawables{
+      logo_drawable,
+      game_drawable,
+      game_stats_drawable,
+      countdown_drawable,
+      rounds_drawable,
+      story_hud_drawable,
+      game_win_drawable,
+      music_player_drawable
    };
 
    // in drawing order
-   const std::array<std::reference_wrapper<Drawable>, 12> painted_drawables{
+   const std::array<std::reference_wrapper<Drawable>, 13> painted_drawables{
       menu_drawable,
       menu_cursor,
       logo_drawable,
@@ -436,6 +498,7 @@ int main(int /*argc*/, char** /*argv*/)
       game_stats_drawable,
       countdown_drawable,
       rounds_drawable,
+      story_hud_drawable,
       game_win_drawable,
       music_player_drawable,
       game_help_drawable,
@@ -650,6 +713,11 @@ int main(int /*argc*/, char** /*argv*/)
       local_players.update(game_drawable.isVisible());
 #endif
 
+      if (dev_script.isActive())
+      {
+         dev_script.update(SDL_GetTicks());
+      }
+
       // Timer::update() drives Server's/BombermanClient's own poll() plus every other Timer.
       Timer::update();
 
@@ -693,6 +761,8 @@ int main(int /*argc*/, char** /*argv*/)
       }
 
       video_output.endFrame();
+
+      dev_script.frameDrawn(context.width(), context.height());
 
       context.swap();
       video_options.frameSwapped();

@@ -35,6 +35,9 @@ public:
    [[nodiscard]] std::string getName() const;
    [[nodiscard]] CreateGameData getData() const;
 
+   //! makes this a story mode game starting at the given stage
+   void setStory(int32_t first_stage);
+
 private:
    CreateGameData _data;
 };

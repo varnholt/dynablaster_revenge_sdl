@@ -26,6 +26,8 @@ CollisionDetection::CollisionDetection(Game& game) : _game(game)
 
 void CollisionDetection::process(Player& player)
 {
+   _player = &player;
+
    int keys_pressed = player.getKeysPressed();
    bool moved = false;
    float desired_x_position = player.getX();
@@ -493,7 +495,7 @@ bool CollisionDetection::isPositionBlocked(
    {
       const auto& item = getMap().getItem(field_x_position, field_y_position);
 
-      if (item && item->isBlocking() && !(item->getX() == field_x && item->getY() == field_y))
+      if (item && item->isBlocking() && !isPassable(*item) && !(item->getX() == field_x && item->getY() == field_y))
       {
          blocking_item = item;
          blocked = true;
@@ -588,13 +590,24 @@ bool CollisionDetection::isFieldBlocked(const std::array<int32_t, 2>& field) con
    {
       const auto& item = getMap().getItem(x, y);
 
-      if (item && item->isBlocking())
+      if (item && item->isBlocking() && !isPassable(*item))
       {
          blocked = true;
       }
    }
 
    return blocked;
+}
+
+bool CollisionDetection::isPassable(const MapItem& item) const
+{
+   if (!_player)
+   {
+      return false;
+   }
+
+   // story mode: walking through soft blocks and bombs
+   return (item.getType() == MapItem::Stone && _player->hasWallPass()) || (item.getType() == MapItem::Bomb && _player->hasBombPass());
 }
 
 Game& CollisionDetection::getGame() const

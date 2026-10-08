@@ -34,6 +34,7 @@ class MapItemCreatedPacket;
 class Player;
 class PlayerDisease;
 class PlayerInfectedPacket;
+class StoryMode;
 
 class Game
 {
@@ -175,6 +176,15 @@ public:
 
    //! add packet to list of outgoing packets
    void addOutgoingPacket(std::unique_ptr<Packet> packet);
+
+   //! story mode campaign, empty for battles
+   [[nodiscard]] StoryMode* getStory() const;
+
+   //! a story mode enemy got the player
+   void killPlayerByEnemy(Player& player);
+
+   //! puts a ticking bomb on the field, returns false if the tile is taken
+   bool placeBomb(int8_t owner_id, int32_t flames, int32_t x, int32_t y);
 
    //! player was killed
    Signal<int> playerKilledSignal;
@@ -467,6 +477,12 @@ private:
 
    //! extra spawning enabled
    bool _extra_spawn_enabled = false;
+
+   //! the story mode campaign, only set for story games
+   std::unique_ptr<StoryMode> _story;
+
+   //! remote controlled bombs in the order they were dropped
+   std::vector<std::weak_ptr<BombMapItem>> _remote_bombs;
 };
 
 #endif

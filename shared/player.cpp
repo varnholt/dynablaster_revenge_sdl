@@ -17,6 +17,10 @@ void Player::reset()
    _flame_count = SERVER_DEFAULT_FLAMECOUNT;
    _speed = SERVER_DEFAULT_SPEED;
    _kick_enabled = false;
+   _wall_pass = false;
+   _bomb_pass = false;
+   _remote_control = false;
+   _vest_time = 0;
    _player_rotation.reset();
    _disease.reset();
 
@@ -281,7 +285,47 @@ bool Player::isInfected() const
 
 bool Player::isInvincible() const
 {
-   return isInfected() && getDisease().getType() == Constants::SkullInvincible;
+   return _vest_time > 0 || (isInfected() && getDisease().getType() == Constants::SkullInvincible);
+}
+
+void Player::setWallPass(bool enabled)
+{
+   _wall_pass = enabled;
+}
+
+bool Player::hasWallPass() const
+{
+   return _wall_pass;
+}
+
+void Player::setBombPass(bool enabled)
+{
+   _bomb_pass = enabled;
+}
+
+bool Player::hasBombPass() const
+{
+   return _bomb_pass;
+}
+
+void Player::setRemoteControl(bool enabled)
+{
+   _remote_control = enabled;
+}
+
+bool Player::hasRemoteControl() const
+{
+   return _remote_control;
+}
+
+void Player::setVestTime(int32_t ms)
+{
+   _vest_time = ms;
+}
+
+int32_t Player::getVestTime() const
+{
+   return _vest_time;
 }
 
 PlayerDisease& Player::getDisease() const

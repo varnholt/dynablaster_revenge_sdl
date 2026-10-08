@@ -10,6 +10,10 @@
 #include "creategamerequestpacket.h"
 #include "creategameresponsepacket.h"
 #include "detonationpacket.h"
+#include "enemycreatedpacket.h"
+#include "enemyhitpacket.h"
+#include "enemykilledpacket.h"
+#include "enemypositionpacket.h"
 #include "errorpacket.h"
 #include "extramapitem.h"
 #include "extramapitemcreatedpacket.h"
@@ -49,6 +53,7 @@
 #include "startgameresponsepacket.h"
 #include "stopgamerequestpacket.h"
 #include "stopgameresponsepacket.h"
+#include "storystatepacket.h"
 #include "stringutils.h"
 #include "timepacket.h"
 #include "tools/stream.h"
@@ -567,28 +572,7 @@ void BombermanClient::processJoinGameResponse(const JoinGameResponsePacket& resp
 
          const GameInformation& game_information = getGameInformation(getGameId()).value();
 
-         int width = 0;
-         int height = 0;
-         switch (game_information.getMapDimensions())
-         {
-            case Constants::Dimension13x11:
-               width = 13;
-               height = 11;
-               break;
-            case Constants::Dimension19x17:
-               width = 19;
-               height = 17;
-               break;
-            case Constants::Dimension25x21:
-               width = 25;
-               height = 21;
-               break;
-
-            default:
-               break;
-         }
-
-         playfieldSizeSignal(width, height);
+         playfieldSizeSignal(game_information.getFieldWidth(), game_information.getFieldHeight());
          playfieldScaleSignal(game_information.getMapScaleX(), game_information.getMapScaleY());
          loadLevelSignal(game_information.getLevelName());
          joinGameResponseSignal(true);
@@ -624,7 +608,15 @@ void BombermanClient::processListGameResponse(const ListGamesResponsePacket& lis
    {
       for (const GameInformation& info : list.getGames())
       {
-         getGameInformation(info.getId()).value().get() = info;
+         GameInformation& known = getGameInformation(info.getId()).value().get();
+         const bool resized = known.getFieldWidth() != info.getFieldWidth() || known.getFieldHeight() != info.getFieldHeight();
+         known = info;
+
+         // story stages come in different sizes
+         if (resized && info.getId() == getGameId())
+         {
+            playfieldSizeSignal(info.getFieldWidth(), info.getFieldHeight());
+         }
       }
    }
    else
@@ -1389,6 +1381,43 @@ void BombermanClient::processPacket(const Packet& packet)
          break;
       }
 
+      case Packet::ENEMYCREATED:
+      {
+         const auto& created = static_cast<const EnemyCreatedPacket&>(packet);
+         enemyCreatedSignal(created.getId(), static_cast<EnemyType>(created.getType()), created.getX(), created.getY(), created.getAngle());
+         break;
+      }
+
+      case Packet::ENEMYPOSITION:
+      {
+         const auto& position = static_cast<const EnemyPositionPacket&>(packet);
+         enemyPositionSignal(
+            position.getId(), position.getX(), position.getY(), position.getAngle(), position.getDx(), position.getDy(), position.getFlags()
+         );
+         break;
+      }
+
+      case Packet::ENEMYKILLED:
+      {
+         const auto& killed = static_cast<const EnemyKilledPacket&>(packet);
+         enemyKilledSignal(killed.getId(), killed.getReason() == EnemyKilledPacket::ReasonRemoved);
+         break;
+      }
+
+      case Packet::ENEMYHIT:
+      {
+         const auto& hit = static_cast<const EnemyHitPacket&>(packet);
+         enemyHitSignal(hit.getId(), hit.getHitPoints());
+         break;
+      }
+
+      case Packet::STORYSTATE:
+      {
+         const auto& state = static_cast<const StoryStatePacket&>(packet);
+         storyStateSignal(state.getStage(), state.getLives(), state.getScore(), state.getState(), state.getEnemiesLeft());
+         break;
+      }
+
       case Packet::INVALID:
       {
          qWarning("BombermanClient::data: Packet::INVALID received");
@@ -2025,6 +2054,29 @@ void BombermanClient::setPreferredColor(std::optional<Constants::Color> color)
 
 //-----------------------------------------------------------------------------
 /*!
+   \param first_stage stage index to begin with
+*/
+void BombermanClient::createStoryGame(int first_stage)
+{
+   CreateGameRequestPacket packet(
+      "story", Level::getLevelDirectoryName(Level::LevelCastle), 1, STORY_STAGE_TIME, 1, false, false, false, false, false,
+      Constants::Dimension13x11
+   );
+   packet.setStory(first_stage);
+   send(packet);
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+bool BombermanClient::isStory() const
+{
+   const auto info = getCurrentGameInformation();
+   return info && info->get().isStory();
+}
+
+//-----------------------------------------------------------------------------
+/*!
    \param game game to start
 */
 void BombermanClient::startGame(int game)
@@ -2183,7 +2235,7 @@ void BombermanClient::host()
  */
 void BombermanClient::initializeBots()
 {
-   if (isPlayerOwner())
+   if (isPlayerOwner() && getGameMode() != Constants::GameModeStory)
    {
       // pass relevant data to bot factory
       _bot_factory->setHostname(getHost());

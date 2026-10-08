@@ -35,8 +35,11 @@
 #include "sdlglobaltime.h"
 #include "skull.h"
 #include "startalersfactory.h"
+#include "story/enemyrenderer.h"
+#include "story/storyfield.h"
 
 // std
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <numbers>
@@ -297,6 +300,8 @@ void GameDrawable::loadLevel(const std::string& level_path)
  */
 void GameDrawable::initializeGL()
 {
+   _enemies = std::make_unique<EnemyRenderer>();
+   _story_field = std::make_unique<StoryField>();
    _detonations = std::make_unique<DetonationManager>();
    _detonations->init();
 
@@ -355,7 +360,12 @@ Material& GameDrawable::getExtraMaterial(Constants::ExtraType type) const
       case Constants::ExtraSkull:
          return _level->getSkullExtra();
       case Constants::ExtraFlame:
+         return _level->getFlameExtra();
       default:
+         if (const auto story_extra = _level->getStoryExtra(type))
+         {
+            return *story_extra;
+         }
          return _level->getFlameExtra();
    }
 }
@@ -928,30 +938,10 @@ Constants::Dimension GameDrawable::getDimensions(float& width, float& height) co
       return Constants::DimensionInvalid;
    }
 
-   Constants::Dimension dimensions = info->get().getMapDimensions();
+   width = static_cast<float>(info->get().getFieldWidth());
+   height = static_cast<float>(info->get().getFieldHeight());
 
-   switch (dimensions)
-   {
-      case Constants::Dimension13x11:
-         width = 13.0f;
-         height = 11.0f;
-         break;
-
-      case Constants::Dimension19x17:
-         width = 19.0f;
-         height = 17.0f;
-         break;
-
-      case Constants::Dimension25x21:
-         width = 25.0f;
-         height = 21.0f;
-         break;
-
-      default:
-         break;
-   }
-
-   return dimensions;
+   return info->get().getMapDimensions();
 }
 
 //-----------------------------------------------------------------------------
@@ -1027,8 +1017,8 @@ void GameDrawable::removePlayer(int id)
       _mushroom_animation->abort();
    }
 
-   // check for survivors
-   if (_player_list.size() > 1)
+   // check for survivors, the story mode's enemies don't count
+   if (_player_list.size() > 1 && !BombermanClient::getInstance().isStory())
    {
       int alive = 0;
       for (const auto& [player_id, p] : _player_list)
@@ -1190,7 +1180,81 @@ void GameDrawable::animate(float time)
    if (_level)
       _level->animate(delta);
 
+   if (_enemies)
+      _enemies->animate(delta * 0.016f);
+
    animateSkulls(time);
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+void GameDrawable::addEnemy(int id, EnemyType type, float x, float y, float angle)
+{
+   if (EnemyRenderer::isBomberman(type))
+   {
+      // black bomberman and his henchmen look like players
+      static constexpr std::array<Constants::Color, 4> henchmen{
+         Constants::ColorRed, Constants::ColorBlue, Constants::ColorGreen, Constants::ColorYellow
+      };
+      const Constants::Color color = type == EnemyType::BlackBomberman ? Constants::ColorBlack : henchmen[static_cast<size_t>(id) % 4];
+      addPlayer(id + ENEMY_PLAYER_ID_OFFSET, "", color);
+      setPlayerPosition(id + ENEMY_PLAYER_ID_OFFSET, x, y, angle);
+      return;
+   }
+
+   _enemies->add(id, type, x, y, angle);
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+void GameDrawable::setEnemyPosition(int id, float x, float y, float angle, float dx, float dy, int flags)
+{
+   if (getPlayer(id + ENEMY_PLAYER_ID_OFFSET))
+   {
+      setPlayerPosition(id + ENEMY_PLAYER_ID_OFFSET, x, y, angle);
+      setPlayerSpeed(id + ENEMY_PLAYER_ID_OFFSET, dx, dy, 0.0f);
+      return;
+   }
+
+   _enemies->setPosition(id, x, y, angle, dx, dy, flags);
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+void GameDrawable::enemyHit(int id)
+{
+   if (const auto player = getPlayer(id + ENEMY_PLAYER_ID_OFFSET))
+   {
+      player->get().setFlash(1.0f);
+      return;
+   }
+
+   _enemies->hit(id);
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+void GameDrawable::enemyKilled(int id, bool removed)
+{
+   if (getPlayer(id + ENEMY_PLAYER_ID_OFFSET))
+   {
+      removePlayer(id + ENEMY_PLAYER_ID_OFFSET);
+      return;
+   }
+
+   _enemies->kill(id, removed);
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+void GameDrawable::setStoryStage(int stage)
+{
+   _story_field->setWorld(stage / 8 + 1);
 }
 
 //-----------------------------------------------------------------------------
@@ -1261,7 +1325,39 @@ void GameDrawable::paintGL()
 
    Matrix view;
 
-   if (_level)
+   const bool story = BombermanClient::getInstance().isStory();
+
+   if (_level && story)
+   {
+      // one screen of the field is framed like the arena, it scrolls over larger stages
+      const BombermanClient& client = BombermanClient::getInstance();
+      _story_field->setSize(static_cast<int>(width), static_cast<int>(height));
+
+      if (const auto local = client.getPlayerInfoMap().find(_player_id); local != client.getPlayerInfoMap().end())
+      {
+         _story_field->follow(local->second.getX(), local->second.getY(), dt * 0.016f);
+      }
+
+      const float offset_x = _story_field->getOffsetX();
+      const float offset_y = _story_field->getOffsetY();
+
+      _level->startPositionUpdate(StoryField::SCREEN_WIDTH, StoryField::SCREEN_HEIGHT, dt);
+      for (const auto& [player_id, player] : client.getPlayerInfoMap())
+      {
+         if (client.isLocalPlayer(player_id))
+         {
+            PlayerInfo shifted;
+            shifted.setId(player.getId());
+            shifted.setKilled(player.isKilled());
+            shifted.setPosition(player.getX() - offset_x, player.getY() - offset_y, player.getAngle());
+            _level->addPlayerPosition(shifted);
+         }
+      }
+      _level->endPlayerPositionUpdate();
+
+      view = Matrix::position(-offset_x, offset_y, 0.0f) * _level->getCameraMatrix(_camera_anim, _camera_zoom);
+   }
+   else if (_level)
    {
       _level->startPositionUpdate(width, height, dt);
 
@@ -1301,10 +1397,25 @@ void GameDrawable::paintGL()
    // render scene
    if (_level)
    {
-      _level->getLevel().render(_camera_anim, shake);
+      if (story)
+      {
+         // the stage is built from the world's kit instead of the arena, with the arena's camera
+         _level->getScene().setupCamera(shake);
+         _story_field->render();
+      }
+      else
+      {
+         _level->getLevel().render(_camera_anim, shake);
+      }
+
       _level->getScene().render(0.0, shake);
       _invisible_player_effect->captureBackground();
       _level->getPlayers().render(0.0, shake);
+
+      if (story)
+      {
+         _enemies->render();
+      }
    }
 
    _detonations->render();

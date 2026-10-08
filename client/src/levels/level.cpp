@@ -119,6 +119,12 @@ bool Level::isPlayerMapEmpty() const
    return _camera_interpolation ? _camera_interpolation->isPlayerMapEmpty() : false;
 }
 
+std::optional<std::reference_wrapper<Material>> Level::getStoryExtra(int32_t type) const
+{
+   const auto it = _story_extras.find(type);
+   return it != _story_extras.end() ? it->second : std::nullopt;
+}
+
 Matrix Level::getCameraMatrix(float time, float scale)
 {
    if (_camera_interpolation)

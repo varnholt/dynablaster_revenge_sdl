@@ -67,6 +67,9 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(minimp3)
 
+# story mode enemy behaviour scripts, shared with the standalone server
+include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/lua.cmake)
+
 # networking for the client<->server protocol. Not yet linked into any target; the
 # socket-handling rewrite lands separately.
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
@@ -97,6 +100,7 @@ file(GLOB_RECURSE DYNABLASTER_ENGINE_SOURCES
     src/math/*.cpp src/math/*.h
     src/engine/render/*.cpp src/engine/render/*.h
     src/engine/nodes/*.cpp src/engine/nodes/*.h
+    src/engine/gltf/*.cpp src/engine/gltf/*.h
     src/engine/animation/*.cpp src/engine/animation/*.h
     src/engine/materials/*.cpp src/engine/materials/*.h
     src/framework/gldevice.cpp src/framework/gldevice.h
@@ -140,6 +144,15 @@ set(DYNABLASTER_SERVER_SOURCES
     ../server/src/server.cpp
     ../server/src/server.h
     ../server/src/serverversion.h
+    ../server/src/enemies/enemy.cpp
+    ../server/src/enemies/enemy.h
+    ../server/src/enemies/enemyfactory.cpp
+    ../server/src/enemies/enemyfactory.h
+    ../server/src/enemies/enemyworld.h
+    ../server/src/enemies/scriptedenemy.cpp
+    ../server/src/enemies/scriptedenemy.h
+    ../server/src/story/storymode.cpp
+    ../server/src/story/storymode.h
 )
 
 # ../ai - the bot AI (A* pathfinding + bot behaviour), headless BotClients embedded in the client.
@@ -197,6 +210,10 @@ set(DYNABLASTER_AI_SOURCES
 add_library(dynablaster_core STATIC
     src/gles3.cpp
     src/gles3.h
+    src/devscript.cpp
+    src/devscript.h
+    src/screenshot.cpp
+    src/screenshot.h
     src/glescontext.cpp
     src/glescontext.h
     src/shader.cpp
@@ -430,6 +447,12 @@ add_library(dynablaster_core STATIC
     src/game/gamemessagingdrawable.cpp
     src/game/gamemessagingdrawable.h
     src/game/gamestatsdrawable.cpp
+    src/game/story/enemyrenderer.cpp
+    src/game/story/enemyrenderer.h
+    src/game/story/storyfield.cpp
+    src/game/story/storyfield.h
+    src/game/story/storyhuddrawable.cpp
+    src/game/story/storyhuddrawable.h
     src/game/gamestatsdrawable.h
     src/game/hotkeydrawable.cpp
     src/game/hotkeydrawable.h
@@ -473,7 +496,7 @@ target_include_directories(dynablaster_core PUBLIC
     ../ai
     ${minimp3_SOURCE_DIR}
 )
-target_link_libraries(dynablaster_core PUBLIC SDL3_net::SDL3_net SDL3::SDL3)
+target_link_libraries(dynablaster_core PUBLIC SDL3_net::SDL3_net SDL3::SDL3 lua)
 if(NINTENDO_SWITCH)
     target_include_directories(dynablaster_core PRIVATE ${DEVKITPRO}/portlibs/switch/include)
 endif()
@@ -539,8 +562,6 @@ add_executable(dynablaster_revenge_harness
     src/main_harness.cpp
     src/effectlab.cpp
     src/effectlab.h
-    src/screenshot.cpp
-    src/screenshot.h
     src/inputinjector.cpp
     src/inputinjector.h
     src/demofactory.cpp

@@ -105,6 +105,9 @@ const std::string kLoungeLineeditSay = "lineedit_say";
 const std::string kLoungeTableMain = "table_lounge_main";
 
 const std::string kMainMenuActionSingle = "button_single_active";
+
+// the orange led of the login window, a hidden way into the story mode
+const std::string kMainMenuActionStory = "led_orange";
 const std::string kMainMenuActionMulti = "button_multi_active";
 const std::string kMainMenuActionPouet = "button_pouet_active";
 const std::string kMainMenuActionFacebook = "button_facebook_active";
@@ -254,6 +257,13 @@ void MenuPageNavigator::onActionRequest(const std::string& page, const std::stri
          // matches GameMenuWorkflow's MAINMENU_ACTION_SINGLE handler exactly: single player
          // always hosts an in-process server and logs into it over loopback.
          BombermanClient::getInstance().setGameMode(Constants::GameModeSinglePlayer);
+         BombermanClient::getInstance().host();
+         BombermanClient::getInstance().loginRequest("127.0.0.1", GameSettings::getInstance().getLoginSettings().getNick());
+      }
+      else if (action == kMainMenuActionStory)
+      {
+         // a single player game against the original's 64 stages, also on an in-process server
+         BombermanClient::getInstance().setGameMode(Constants::GameModeStory);
          BombermanClient::getInstance().host();
          BombermanClient::getInstance().loginRequest("127.0.0.1", GameSettings::getInstance().getLoginSettings().getNick());
       }
@@ -491,6 +501,16 @@ void MenuPageNavigator::onLoginResponse(bool granted)
    if (granted)
    {
       const Constants::GameMode mode = BombermanClient::getInstance().getGameMode();
+
+      // story games have nothing to set up
+      if (mode == Constants::GameModeStory)
+      {
+         // development runs may start at a later stage
+         const char* first_stage = std::getenv("DYNABLASTER_STORY_STAGE");
+         BombermanClient::getInstance().createStoryGame(first_stage ? std::atoi(first_stage) : 0);
+         return;
+      }
+
       pageChangeRequestSignal(mode == Constants::GameModeMultiPlayer ? kGameSelect : kGameCreate);
    }
    else
@@ -503,7 +523,11 @@ void MenuPageNavigator::onCreateGameResponse(bool granted, int game_id, bool own
 {
    // matches GameMenuWorkflow::createGameResponse(): the creator auto-joins the game they just
    // made; everyone else (broadcast of the same response) just sees the updated game list.
-   if (granted && owner)
+   if (granted && owner && BombermanClient::getInstance().getGameMode() == Constants::GameModeStory)
+   {
+      BombermanClient::getInstance().joinGame(game_id);
+   }
+   else if (granted && owner)
    {
       requestJoin(game_id, kGameCreate);
    }
@@ -515,6 +539,13 @@ void MenuPageNavigator::onCreateGameResponse(bool granted, int game_id, bool own
 
 void MenuPageNavigator::onJoinGameResponse(bool success)
 {
+   // no lounge for the story mode, the server waits for the level to be loaded
+   if (success && BombermanClient::getInstance().getGameMode() == Constants::GameModeStory)
+   {
+      BombermanClient::getInstance().startGame(BombermanClient::getInstance().getGameId());
+      return;
+   }
+
    if (success)
    {
       pageChangeRequestSignal(kLounge);
