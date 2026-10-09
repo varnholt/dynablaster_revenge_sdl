@@ -32,6 +32,7 @@
 class DetonationManager;
 class EnemyRenderer;
 class StoryField;
+class ExitPortal;
 class ExtraMapItem;
 class FuseParticleSystem;
 class GamePlayerNameDisplay;
@@ -147,6 +148,8 @@ public:
    void enemyHit(int id);
    void enemyKilled(int id, bool removed);
    void setStoryStage(int stage);
+   //! opens the exit once every enemy is gone, closes it again when bombing it releases new ones
+   void setStoryEnemiesLeft(int enemies_left);
 
 private:
    //! game state was changed
@@ -206,6 +209,8 @@ private:
    std::unique_ptr<LensFlareFactory> _lens_flare_factory;
    std::unique_ptr<EnemyRenderer> _enemies;
    std::unique_ptr<StoryField> _story_field;
+   std::unique_ptr<ExitPortal> _exit_portal;
+   int _story_enemies_left = -1;
 
    //! bomberman shaped enemies are drawn as players with ids from here on
    static constexpr int ENEMY_PLAYER_ID_OFFSET = 1000;

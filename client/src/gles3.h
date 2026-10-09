@@ -134,6 +134,7 @@ using GLsizeiptr = intptr_t;
 // real blending on top for the same visual effect.
 #define GL_ALPHA_TEST 0x0BC0
 #define GL_LEQUAL 0x0203
+#define GL_ALWAYS 0x0207
 #define GL_BLEND 0x0BE2
 #define GL_FRAMEBUFFER_SRGB_EXT 0x8DB9  // GL_EXT_sRGB_write_control
 #define GL_ZERO 0

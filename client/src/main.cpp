@@ -366,6 +366,7 @@ int main(int /*argc*/, char** /*argv*/)
       [&](int stage, int lives, int score, int state, int enemies_left)
       {
          game_drawable.setStoryStage(stage);
+         game_drawable.setStoryEnemiesLeft(enemies_left);
          story_hud_drawable.setState(stage, lives, score, state, enemies_left);
       }
    );

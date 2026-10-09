@@ -18,6 +18,7 @@
 #include "effects/ribbons/ribbonanimationfactory.h"
 #include "extra.h"
 #include "extraanimations.h"
+#include "soundmanager.h"
 #include "extramapitem.h"
 #include "fuseparticlesystem.h"
 #include "gameplayernamedisplay.h"
@@ -36,6 +37,7 @@
 #include "skull.h"
 #include "startalersfactory.h"
 #include "story/enemyrenderer.h"
+#include "story/exitportal.h"
 #include "story/storyfield.h"
 
 // std
@@ -302,6 +304,7 @@ void GameDrawable::initializeGL()
 {
    _enemies = std::make_unique<EnemyRenderer>();
    _story_field = std::make_unique<StoryField>();
+   _exit_portal = std::make_unique<ExitPortal>();
    _detonations = std::make_unique<DetonationManager>();
    _detonations->init();
 
@@ -638,9 +641,20 @@ void GameDrawable::createMapItem(const MapItem& item)
 
             // skulls are tracked in _skull_map, not _meshes
             if (extra.getExtraType() == Constants::ExtraSkull)
+            {
                createSkull(item);
+            }
+            else if (extra.getExtraType() == Constants::ExtraExit)
+            {
+               // the exit is a portal in the floor, not a floating extra
+               _exit_portal->show(extra.getX(), extra.getY());
+               _exit_portal->setOpen(_story_enemies_left == 0);
+               _extra_animations->addReveal(extra.getX(), extra.getY());
+            }
             else
+            {
                mesh = createExtra(extra);
+            }
 
             break;
          }
@@ -721,6 +735,11 @@ void GameDrawable::removeMapItem(int32_t item_id)
             _skull_map.erase(si);
             deleteMesh(skull_mesh);
          }
+      }
+
+      if (item._type == MapItem::Extra && _exit_portal && _exit_portal->isAt(item._x, item._y))
+      {
+         _exit_portal->hide();
       }
 
       _map_items.erase(it);
@@ -1257,6 +1276,17 @@ void GameDrawable::setStoryStage(int stage)
    _story_field->setWorld(stage / 8 + 1);
 }
 
+void GameDrawable::setStoryEnemiesLeft(int enemies_left)
+{
+   _story_enemies_left = enemies_left;
+
+   if (_exit_portal->setOpen(enemies_left == 0))
+   {
+      _extra_animations->addReveal(_exit_portal->getX(), _exit_portal->getY());
+      SoundManager::getInstance().playSoundExtraRevealed();
+   }
+}
+
 //-----------------------------------------------------------------------------
 /*!
  */
@@ -1407,6 +1437,8 @@ void GameDrawable::paintGL()
       {
          _level->getLevel().render(_camera_anim, shake);
       }
+
+      _exit_portal->render(dt);
 
       _level->getScene().render(0.0, shake);
       _invisible_player_effect->captureBackground();

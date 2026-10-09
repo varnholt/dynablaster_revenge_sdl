@@ -449,6 +449,8 @@ add_library(dynablaster_core STATIC
     src/game/gamestatsdrawable.cpp
     src/game/story/enemyrenderer.cpp
     src/game/story/enemyrenderer.h
+    src/game/story/exitportal.cpp
+    src/game/story/exitportal.h
     src/game/story/storyfield.cpp
     src/game/story/storyfield.h
     src/game/story/storyhuddrawable.cpp

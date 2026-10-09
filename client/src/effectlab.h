@@ -4,4 +4,5 @@
 
 //! renders one effect in a fixed, deterministic scene and writes PNG captures - see
 //! tools/effect-lab/SPEC.md for the scenario shared with the old client
-int runEffectLab(const std::string& effect, const std::string& out_dir, const std::string& level);
+//! \param live full screen in real time instead of captures, until escape is pressed
+int runEffectLab(const std::string& effect, const std::string& out_dir, const std::string& level, bool live = false);

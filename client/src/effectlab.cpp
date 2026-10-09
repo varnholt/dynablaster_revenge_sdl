@@ -22,7 +22,9 @@
 
 #include <SDL3/SDL.h>
 
+#include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdint>
 #include <filesystem>
 #include <format>
@@ -41,6 +43,10 @@ constexpr std::array<int32_t, 6> CAPTURE_OFFSETS = {6, 30, 60, 120, 180, 300};
 constexpr std::array<int32_t, 4> SHORT_CAPTURE_OFFSETS = {3, 9, 15, 21};
 // snow only shows once flakes have fallen through and respawned after the countdown
 constexpr std::array<int32_t, 3> LONG_CAPTURE_OFFSETS = {600, 900, 1200};
+
+// live view: the exit portal stays sealed, then opens, then starts over
+constexpr float EXIT_CYCLE_SECONDS = 10.0f;
+constexpr float EXIT_SEALED_SECONDS = 3.0f;
 
 constexpr int32_t LOCAL_PLAYER_ID = 0;
 constexpr int32_t OTHER_PLAYER_ID = 1;
@@ -89,6 +95,21 @@ const std::map<std::string, Trigger>& triggers()
           static ExtraMapItem extra(101, Constants::ExtraFlame, 8, 5);
           game.createMapItem(extra);
        }},
+      {"exitsealed",
+       [](GameDrawable& game)
+       {
+          static ExtraMapItem exit(102, Constants::ExtraExit, 8, 5);
+          game.setStoryEnemiesLeft(3);
+          game.createMapItem(exit);
+       }},
+      {"exitopen",
+       [](GameDrawable& game)
+       {
+          static ExtraMapItem exit(102, Constants::ExtraExit, 8, 5);
+          game.setStoryEnemiesLeft(3);
+          game.createMapItem(exit);
+          game.setStoryEnemiesLeft(0);
+       }},
       {"extradestroy", [](GameDrawable& game) { game.extraRemoved(8, 5, true, Constants::ExtraFlame, -1); }},
    };
 
@@ -105,7 +126,7 @@ void addPlayerInfo(BombermanClient& client, int32_t id, const std::string& nick,
 }
 }  // namespace
 
-int runEffectLab(const std::string& effect, const std::string& out_dir, const std::string& level)
+int runEffectLab(const std::string& effect, const std::string& out_dir, const std::string& level, bool live)
 {
    const auto trigger = triggers().find(effect);
    if (trigger == triggers().end())
@@ -120,6 +141,13 @@ int runEffectLab(const std::string& effect, const std::string& out_dir, const st
    if (!context.init("dynablaster effect lab", WIDTH, HEIGHT))
    {
       return 1;
+   }
+
+   if (live)
+   {
+      SDL_SetWindowFullscreen(context.window(), true);
+      SDL_SyncWindow(context.window());
+      context.updateSize();
    }
 
    DataPaths::add("data/shaders");
@@ -167,23 +195,45 @@ int runEffectLab(const std::string& effect, const std::string& out_dir, const st
 
    const int32_t last_frame = TRIGGER_FRAME + (effect == "snow" ? LONG_CAPTURE_OFFSETS.back() : CAPTURE_OFFSETS.back());
 
-   for (int32_t frame = 0; frame <= last_frame; ++frame)
+   const uint64_t start_ms = SDL_GetTicks();
+   bool triggered = false;
+
+   for (int32_t frame = 0; live || frame <= last_frame; ++frame)
    {
       SDL_Event event;
       while (SDL_PollEvent(&event))
       {
-         if (event.type == SDL_EVENT_QUIT)
+         if (event.type == SDL_EVENT_QUIT || (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_ESCAPE))
          {
-            return 1;
+            return live ? 0 : 1;
+         }
+
+         if (event.type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED)
+         {
+            context.updateSize();
+            device.resize(context.width(), context.height());
+         }
+      }
+
+      if (live)
+      {
+         // real time; the trigger frame still comes first, so frames may get skipped
+         frame = std::max(frame, static_cast<int32_t>(static_cast<float>(SDL_GetTicks() - start_ms) * FPS / 1000.0f));
+
+         if (effect.starts_with("exit") && triggered)
+         {
+            const float seconds = static_cast<float>(frame - TRIGGER_FRAME) / FPS;
+            game.setStoryEnemiesLeft(std::fmod(seconds, EXIT_CYCLE_SECONDS) < EXIT_SEALED_SECONDS ? 1 : 0);
          }
       }
 
       global_time.setFrame(frame);
       TimerHandler::Instance().update();
 
-      if (frame == TRIGGER_FRAME)
+      if (!triggered && frame >= TRIGGER_FRAME)
       {
          trigger->second(game);
+         triggered = true;
       }
 
       const float time_ms = static_cast<float>(frame) / FPS * 1000.0f;
@@ -211,7 +261,7 @@ int runEffectLab(const std::string& effect, const std::string& out_dir, const st
 
       for (const auto offset : offsets)
       {
-         if (frame == TRIGGER_FRAME + offset)
+         if (!live && frame == TRIGGER_FRAME + offset)
          {
             const auto ms = static_cast<int32_t>(static_cast<float>(offset) / FPS * 1000.0f + 0.5f);
             const auto path = std::format("{}/{}_{}.png", out_dir, effect, ms);
