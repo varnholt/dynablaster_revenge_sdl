@@ -646,10 +646,13 @@ void GameDrawable::createMapItem(const MapItem& item)
             }
             else if (extra.getExtraType() == Constants::ExtraExit)
             {
-               // the exit is a portal in the floor, not a floating extra
+               // the exit is a portal in the floor, not a floating extra; the blue box only
+               // comes up when it opens, right away if every enemy is gone already
                _exit_portal->show(extra.getX(), extra.getY());
-               _exit_portal->setOpen(_story_enemies_left == 0);
-               _extra_animations->addReveal(extra.getX(), extra.getY());
+               if (_story_enemies_left == 0 && _exit_portal->open())
+               {
+                  _extra_animations->addReveal(extra.getX(), extra.getY());
+               }
             }
             else
             {
@@ -1280,7 +1283,7 @@ void GameDrawable::setStoryEnemiesLeft(int enemies_left)
 {
    _story_enemies_left = enemies_left;
 
-   if (_exit_portal->setOpen(enemies_left == 0))
+   if (enemies_left == 0 && _exit_portal->open())
    {
       _extra_animations->addReveal(_exit_portal->getX(), _exit_portal->getY());
       SoundManager::getInstance().playSoundExtraRevealed();

@@ -66,4 +66,4 @@ Environment variable `DYNA_EFFECT_LAB=<effect>` (old client) / harness flag
 `--effect=<effect>` (new client). Output dir via `DYNA_EFFECT_LAB_OUT` / `--out=`.
 
 `--live` (new client only) shows the effect full screen in real time instead of writing captures,
-until escape is pressed; the exit scenarios then loop 3 s sealed, 7 s open.
+until escape is pressed; exitsealed then opens after 3 s.

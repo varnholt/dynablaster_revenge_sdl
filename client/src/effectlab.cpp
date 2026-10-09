@@ -44,8 +44,7 @@ constexpr std::array<int32_t, 4> SHORT_CAPTURE_OFFSETS = {3, 9, 15, 21};
 // snow only shows once flakes have fallen through and respawned after the countdown
 constexpr std::array<int32_t, 3> LONG_CAPTURE_OFFSETS = {600, 900, 1200};
 
-// live view: the exit portal stays sealed, then opens, then starts over
-constexpr float EXIT_CYCLE_SECONDS = 10.0f;
+// live view: the sealed exit portal opens after a while
 constexpr float EXIT_SEALED_SECONDS = 3.0f;
 
 constexpr int32_t LOCAL_PLAYER_ID = 0;
@@ -223,7 +222,7 @@ int runEffectLab(const std::string& effect, const std::string& out_dir, const st
          if (effect.starts_with("exit") && triggered)
          {
             const float seconds = static_cast<float>(frame - TRIGGER_FRAME) / FPS;
-            game.setStoryEnemiesLeft(std::fmod(seconds, EXIT_CYCLE_SECONDS) < EXIT_SEALED_SECONDS ? 1 : 0);
+            game.setStoryEnemiesLeft(seconds < EXIT_SEALED_SECONDS ? 1 : 0);
          }
       }
 

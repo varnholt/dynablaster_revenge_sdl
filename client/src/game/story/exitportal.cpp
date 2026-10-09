@@ -167,7 +167,8 @@ void ExitPortal::show(int32_t x, int32_t y)
    _shown = true;
    _x = x;
    _y = y;
-   _openness = _open ? 1.0f : 0.0f;
+   _open = false;
+   _openness = 0.0f;
 }
 
 void ExitPortal::hide()
@@ -195,11 +196,15 @@ int32_t ExitPortal::getY() const
    return _y;
 }
 
-bool ExitPortal::setOpen(bool open)
+bool ExitPortal::open()
 {
-   const bool opened = open && !_open;
-   _open = open;
-   return opened && _shown;
+   if (!_shown || _open)
+   {
+      return false;
+   }
+
+   _open = true;
+   return true;
 }
 
 void ExitPortal::draw(Part part)
@@ -216,7 +221,10 @@ void ExitPortal::render(float dt)
       return;
    }
 
-   _openness = std::clamp(_openness + (_open ? dt : -dt) / OPEN_TIME, 0.0f, 1.0f);
+   if (_open)
+   {
+      _openness = std::min(_openness + dt / OPEN_TIME, 1.0f);
+   }
 
    // the iris starts turning once the blue box has grown a little
    const float iris = std::clamp(_openness * 1.4f - 0.2f, 0.0f, 1.0f);

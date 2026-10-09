@@ -148,7 +148,7 @@ public:
    void enemyHit(int id);
    void enemyKilled(int id, bool removed);
    void setStoryStage(int stage);
-   //! opens the exit once every enemy is gone, closes it again when bombing it releases new ones
+   //! opens the exit once every enemy is gone, it stays open for the rest of the stage
    void setStoryEnemiesLeft(int enemies_left);
 
 private:
