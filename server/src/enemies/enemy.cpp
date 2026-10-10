@@ -453,6 +453,12 @@ bool Enemy::isInvulnerable() const
    return _invulnerable_time > 0.0f;
 }
 
+void Enemy::protect(float seconds)
+{
+   _invulnerable_time = std::max(_invulnerable_time, seconds);
+   _changed = true;
+}
+
 bool Enemy::isDead() const
 {
    return _dead;

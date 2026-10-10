@@ -274,7 +274,11 @@ void StoryMode::spawnAround(int32_t x, int32_t y, int32_t count)
 
    for (int32_t i = 0; i < count; i++)
    {
-      spawnEnemy(type, static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f, -1);
+      // they appear in the flames that set them free
+      if (spawnEnemy(type, static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f, -1) >= 0)
+      {
+         _spawned.back()->protect(STORY_SPAWN_PROTECTION);
+      }
    }
 }
 
@@ -288,8 +292,6 @@ void StoryMode::update(float dt)
 
 void StoryMode::updateEnemies(float dt)
 {
-   const int32_t alive_before = aliveEnemyCount();
-
    for (auto& enemy : _spawned)
    {
       _enemies.push_back(std::move(enemy));
@@ -354,7 +356,8 @@ void StoryMode::updateEnemies(float dt)
 
    std::erase_if(_enemies, [](const auto& enemy) { return enemy->isDead(); });
 
-   if (aliveEnemyCount() != alive_before)
+   // compared with what the clients were told, flames kill enemies outside of this update
+   if (enemiesLeft() != _sent_enemies_left)
    {
       sendState(StoryStatePacket::StatePlaying);
    }
@@ -642,8 +645,15 @@ void StoryMode::sendState(StoryStatePacket::State state)
       static_cast<int8_t>(std::clamp(_lives, 0, 99)),
       _score,
       static_cast<int8_t>(state),
-      static_cast<int8_t>(std::min(aliveEnemyCount() + static_cast<int32_t>(_spawned.size()), 127))
+      static_cast<int8_t>(std::min(enemiesLeft(), 127))
    ));
+
+   _sent_enemies_left = enemiesLeft();
+}
+
+int32_t StoryMode::enemiesLeft() const
+{
+   return aliveEnemyCount() + static_cast<int32_t>(_spawned.size());
 }
 
 int32_t StoryMode::aliveEnemyCount() const

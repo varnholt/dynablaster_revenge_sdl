@@ -21,8 +21,12 @@ public:
    void loadData() override;
    std::string getLensFlareKey() const override;
 
+   //! snows unless told otherwise
+   void setWeather(Weather weather) override;
+
    std::unique_ptr<Material> createMaterial(int32_t id) const override;
 
 private:
    std::unique_ptr<SnowAnimation> _snow_animation;
+   Weather _weather = Weather::Snow;
 };

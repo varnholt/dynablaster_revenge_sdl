@@ -3,6 +3,7 @@
 #include "engine/gltf/gltfmodel.h"
 #include "gles3.h"
 #include "math/matrix.h"
+#include "settings.h"
 
 #include <algorithm>
 #include <cmath>
@@ -39,12 +40,29 @@ StoryField::~StoryField() = default;
 void StoryField::setWorld(int32_t world)
 {
    _world = std::clamp(world, 1, 8);
+
+   const Settings settings(std::format("data/game/story/world{}/world.ini", _world));
+   _weather = settings.value("world/weather", std::string("clear")).toString() == "snow" ? Level::Weather::Snow : Level::Weather::Clear;
+}
+
+Level::Weather StoryField::getWeather() const
+{
+   return _weather;
 }
 
 void StoryField::setSize(int32_t width, int32_t height)
 {
+   if (width != _width || height != _height)
+   {
+      _snap = true;
+   }
+
    _width = width;
    _height = height;
+}
+
+void StoryField::snap()
+{
    _snap = true;
 }
 

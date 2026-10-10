@@ -63,8 +63,11 @@ public:
    [[nodiscard]] bool isShielded() const;
    void setShielded(bool shielded);
 
-   //! briefly true after a survived hit
+   //! briefly true after a survived hit or protect()
    [[nodiscard]] bool isInvulnerable() const;
+
+   //! nothing can hurt the enemy for the given seconds
+   void protect(float seconds);
 
    [[nodiscard]] bool isDead() const;
    [[nodiscard]] bool isRemoved() const;

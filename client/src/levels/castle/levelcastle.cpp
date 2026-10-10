@@ -42,8 +42,18 @@ void LevelCastle::initialize()
 {
 }
 
+void LevelCastle::setWeather(Weather weather)
+{
+   _weather = weather;
+}
+
 void LevelCastle::draw()
 {
+   if (_weather != Weather::Snow)
+   {
+      return;
+   }
+
    // the snow's unit square spans the level, -8 compensates the wind drift
    Matrix transform = Matrix::scale(15.0f, 15.0f, 15.0f);
    transform.translate(Vector(-8.0f, -17.0f, 0.0f));
@@ -52,6 +62,11 @@ void LevelCastle::draw()
 
 void LevelCastle::animate(float dt)
 {
+   if (_weather != Weather::Snow)
+   {
+      return;
+   }
+
    _snow_animation->animate(dt);
 }
 

@@ -50,6 +50,15 @@ public:
    //! key of this level's lens flare in flares.ini, empty for none
    virtual std::string getLensFlareKey() const;
 
+   enum class Weather
+   {
+      Clear,
+      Snow
+   };
+
+   //! weather effects the level comes with, levels without any ignore it
+   virtual void setWeather(Weather weather);
+
    std::string path() const;
    SceneGraph& getScene() const;
    SceneGraph& getLevel() const;

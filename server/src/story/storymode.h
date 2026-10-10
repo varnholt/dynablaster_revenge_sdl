@@ -105,6 +105,9 @@ private:
    void sendState(StoryStatePacket::State state);
    void killPlayer(Player& player);
    [[nodiscard]] int32_t aliveEnemyCount() const;
+
+   //! living enemies including the ones joining with the next update
+   [[nodiscard]] int32_t enemiesLeft() const;
    [[nodiscard]] Map& getMap() const;
    [[nodiscard]] bool isPlayerOn(int32_t x, int32_t y) const;
 
@@ -124,6 +127,9 @@ private:
    std::vector<std::unique_ptr<Enemy>> _enemies;
    std::vector<std::unique_ptr<Enemy>> _spawned;
    int16_t _next_enemy_id = 0;
+
+   //! enemy count in the last state sent to the clients
+   int32_t _sent_enemies_left = -1;
 
    //! lingering flames per tile (ms) and whether they hurt enemies (player bombs) or only players
    std::vector<float> _flame_time;

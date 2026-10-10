@@ -48,6 +48,7 @@ inline constexpr int32_t STORY_BOMBED_ITEM_ENEMIES = 8;
 inline constexpr int32_t STORY_TIMEOUT_PONTANS = 12;
 inline constexpr int32_t STORY_FLAME_LINGER_TIME = 500;
 inline constexpr float STORY_TOUCH_DISTANCE = 0.7f;
+inline constexpr float STORY_SPAWN_PROTECTION = 1.0f;
 
 // client
 inline constexpr int32_t CLIENT_MESSAGE_TEXT_MAXIMUM = 80;

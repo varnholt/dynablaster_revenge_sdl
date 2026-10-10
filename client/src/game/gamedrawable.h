@@ -211,6 +211,7 @@ private:
    std::unique_ptr<StoryField> _story_field;
    std::unique_ptr<ExitPortal> _exit_portal;
    int _story_enemies_left = -1;
+   int _story_stage = -1;
 
    //! bomberman shaped enemies are drawn as players with ids from here on
    static constexpr int ENEMY_PLAYER_ID_OFFSET = 1000;

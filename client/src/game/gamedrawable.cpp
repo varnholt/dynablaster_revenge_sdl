@@ -216,6 +216,12 @@ void GameDrawable::clear()
    }
 
    _detonations->clear();
+
+   // the server doesn't remove the enemies still alive when a story game ends
+   if (_enemies)
+   {
+      _enemies->clear();
+   }
 }
 
 //-----------------------------------------------------------------------------
@@ -1276,7 +1282,19 @@ void GameDrawable::enemyKilled(int id, bool removed)
  */
 void GameDrawable::setStoryStage(int stage)
 {
+   // a new stage starts in its top left corner, no scrolling there from the last one
+   if (stage != _story_stage)
+   {
+      _story_stage = stage;
+      _story_field->snap();
+   }
+
    _story_field->setWorld(stage / 8 + 1);
+
+   if (_level)
+   {
+      _level->setWeather(_story_field->getWeather());
+   }
 }
 
 void GameDrawable::setStoryEnemiesLeft(int enemies_left)
