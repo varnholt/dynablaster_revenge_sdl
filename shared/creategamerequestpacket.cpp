@@ -63,11 +63,17 @@ CreateGameData CreateGameRequestPacket::getData() const
    return _data;
 }
 
+void CreateGameRequestPacket::setStory(int32_t first_stage)
+{
+   _data._story = true;
+   _data._story_stage = first_stage;
+}
+
 void CreateGameRequestPacket::enqueue(BinaryWriter& out)
 {
    out << _data._name << _data._level << _data._rounds << _data._duration << _data._max_players << _data._extra_bomb_enabled
        << _data._extra_flame_enabled << _data._extra_speedup_enabled << _data._extra_kick_enabled << _data._extra_skulls_enabled
-       << static_cast<int32_t>(_data._dimension);
+       << static_cast<int32_t>(_data._dimension) << _data._story << _data._story_stage;
 }
 
 void CreateGameRequestPacket::dequeue(BinaryReader& in)
@@ -75,7 +81,8 @@ void CreateGameRequestPacket::dequeue(BinaryReader& in)
    int32_t dimension = 0;
 
    in >> _data._name >> _data._level >> _data._rounds >> _data._duration >> _data._max_players >> _data._extra_bomb_enabled >>
-      _data._extra_flame_enabled >> _data._extra_speedup_enabled >> _data._extra_kick_enabled >> _data._extra_skulls_enabled >> dimension;
+      _data._extra_flame_enabled >> _data._extra_speedup_enabled >> _data._extra_kick_enabled >> _data._extra_skulls_enabled >> dimension >>
+      _data._story >> _data._story_stage;
 
    _data._dimension = static_cast<Constants::Dimension>(dimension);
 }

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(dynablaster_server LANGUAGES CXX)
+project(dynablaster_server LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -27,6 +27,9 @@ FetchContent_Declare(
     GIT_SHALLOW TRUE
 )
 FetchContent_MakeAvailable(SDL3_net)
+
+# story mode enemy behaviour scripts
+include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/lua.cmake)
 
 # shared/ (sibling directory, the real client<->server wire protocol) - the exact set server.pro
 # lists, plus playerrotation.{h,cpp}: not in server.pro's own SOURCES/HEADERS lists, but
@@ -58,6 +61,20 @@ set(DYNABLASTER_SHARED_SOURCES
     ../shared/creategameresponsepacket.h
     ../shared/detonationpacket.cpp
     ../shared/detonationpacket.h
+    ../shared/enemycreatedpacket.cpp
+    ../shared/enemycreatedpacket.h
+    ../shared/enemyhitpacket.cpp
+    ../shared/enemyhitpacket.h
+    ../shared/enemykilledpacket.cpp
+    ../shared/enemykilledpacket.h
+    ../shared/enemypositionpacket.cpp
+    ../shared/enemypositionpacket.h
+    ../shared/enemytype.cpp
+    ../shared/enemytype.h
+    ../shared/storystage.h
+    ../shared/storystages.cpp
+    ../shared/storystatepacket.cpp
+    ../shared/storystatepacket.h
     ../shared/elapsedtimer.cpp
     ../shared/elapsedtimer.h
     ../shared/errorpacket.cpp
@@ -182,6 +199,15 @@ set(DYNABLASTER_SERVER_SOURCES
     src/server.cpp
     src/server.h
     src/serverversion.h
+    src/enemies/enemy.cpp
+    src/enemies/enemy.h
+    src/enemies/enemyfactory.cpp
+    src/enemies/enemyfactory.h
+    src/enemies/enemyworld.h
+    src/enemies/scriptedenemy.cpp
+    src/enemies/scriptedenemy.h
+    src/story/storymode.cpp
+    src/story/storymode.h
 )
 
 add_executable(dynablaster_server
@@ -195,10 +221,14 @@ target_include_directories(dynablaster_server PRIVATE
     src
 )
 
-target_link_libraries(dynablaster_server PRIVATE SDL3::SDL3 SDL3_net::SDL3_net)
+target_link_libraries(dynablaster_server PRIVATE SDL3::SDL3 SDL3_net::SDL3_net lua)
 
 add_custom_command(TARGET dynablaster_server POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_CURRENT_SOURCE_DIR}/data
         $<TARGET_FILE_DIR:dynablaster_server>/data
+    # the enemy scripts ship with the client's data, the server runs the same ones
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_CURRENT_SOURCE_DIR}/../client/data/scripts
+        $<TARGET_FILE_DIR:dynablaster_server>/data/scripts
 )

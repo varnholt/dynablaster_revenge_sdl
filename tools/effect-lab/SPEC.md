@@ -44,6 +44,9 @@ At frame 60 (t = 1.0 s) fire the effect's trigger call once.
 - extrareveal : createMapItem(new ExtraMapItem(101, ExtraFlame, 8, 5)) - an extra appearing (reveal
                frustum); the lab keeps it alive for all captures
 - extradestroy : extraRemoved(8, 5, true, ExtraFlame, -1) - an extra destroyed by a flame
+- exitsealed : setStoryEnemiesLeft(3), createMapItem(new ExtraMapItem(102, ExtraExit, 8, 5)) - the
+               story exit revealed while enemies are left (new client only)
+- exitopen   : as exitsealed, then setStoryEnemiesLeft(0) - the exit portal opening (new client only)
 
 ## Captures
 Frames 60 + {6, 30, 60, 120, 180, 300} (= +100, +500, +1000, +2000, +3000, +5000 ms after the
@@ -61,3 +64,6 @@ level's captures to its own dir, e.g. `D:\git\effect-lab\old-mansion\` / `new-ma
 
 Environment variable `DYNA_EFFECT_LAB=<effect>` (old client) / harness flag
 `--effect=<effect>` (new client). Output dir via `DYNA_EFFECT_LAB_OUT` / `--out=`.
+
+`--live` (new client only) shows the effect full screen in real time instead of writing captures,
+until escape is pressed; exitsealed then opens after 3 s.

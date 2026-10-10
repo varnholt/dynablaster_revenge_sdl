@@ -39,6 +39,17 @@ inline constexpr int32_t SERVER_SPECTATOR_DELAY = 4000;
 inline constexpr float SERVER_KICK_PLAYER_DISTANCE = 0.85f;
 inline constexpr int32_t SERVER_SPAWN_INTERVAL = 15000;
 
+// story mode
+inline constexpr int32_t STORY_LIVES = 3;
+inline constexpr int32_t STORY_STAGE_TIME = 240;
+inline constexpr int32_t STORY_DEFAULT_FLAMECOUNT = 1;
+inline constexpr int32_t STORY_VEST_DURATION = 60000;
+inline constexpr int32_t STORY_BOMBED_ITEM_ENEMIES = 8;
+inline constexpr int32_t STORY_TIMEOUT_PONTANS = 12;
+inline constexpr int32_t STORY_FLAME_LINGER_TIME = 500;
+inline constexpr float STORY_TOUCH_DISTANCE = 0.7f;
+inline constexpr float STORY_SPAWN_PROTECTION = 1.0f;
+
 // client
 inline constexpr int32_t CLIENT_MESSAGE_TEXT_MAXIMUM = 80;
 inline constexpr int32_t SHOW_WINNER_FADE_IN_TIME = 500;
@@ -107,7 +118,15 @@ public:
       ExtraFlame = 0x2,
       ExtraSpeedup = 0x4,
       ExtraKick = 0x8,
-      ExtraSkull = 0x10
+      ExtraSkull = 0x10,
+
+      // story mode
+      ExtraWallPass = 0x20,
+      ExtraBombPass = 0x40,
+      ExtraRemote = 0x80,
+      ExtraVest = 0x100,
+      ExtraOneUp = 0x200,
+      ExtraExit = 0x400
    };
 
    //! supported skull types
@@ -162,6 +181,7 @@ public:
    enum GameMode
    {
       GameModeSinglePlayer,
-      GameModeMultiPlayer
+      GameModeMultiPlayer,
+      GameModeStory
    };
 };

@@ -84,8 +84,14 @@ protected:
       std::shared_ptr<MapItem>& blocking_item
    ) const;
 
+   //! soft blocks and bombs the player being processed may walk through
+   bool isPassable(const MapItem& item) const;
+
    //! game
    Game& _game;
+
+   //! the player currently being processed
+   const Player* _player = nullptr;
 };
 
 #endif  // COLLISIONDETECTION_H

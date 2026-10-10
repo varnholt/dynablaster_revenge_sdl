@@ -94,6 +94,18 @@ public:
    bool isBombKeyLocked() const;
    void setBombKeyLocked(bool processed);
 
+   // story mode abilities
+   void setWallPass(bool enabled);
+   [[nodiscard]] bool hasWallPass() const;
+   void setBombPass(bool enabled);
+   [[nodiscard]] bool hasBombPass() const;
+   void setRemoteControl(bool enabled);
+   [[nodiscard]] bool hasRemoteControl() const;
+
+   //! the fire suit keeps the player invincible for the given time (ms)
+   void setVestTime(int32_t ms);
+   [[nodiscard]] int32_t getVestTime() const;
+
 private:
    int8_t _id = 0;
    bool _logged_in = false;
@@ -110,6 +122,10 @@ private:
    PlayerRotation _player_rotation;
    bool _killed = false;
    bool _kick_enabled = false;
+   bool _wall_pass = false;
+   bool _bomb_pass = false;
+   bool _remote_control = false;
+   int32_t _vest_time = 0;
 
    // number of frames since the last position packet was sent
    int32_t _position_skipped_counter = 0;

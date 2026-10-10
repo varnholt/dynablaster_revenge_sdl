@@ -22,6 +22,7 @@
 
 // game
 #include <cstdint>
+#include "enemytype.h"
 #include "gameinformation.h"
 #include "playerinfo.h"
 
@@ -225,6 +226,13 @@ public:
    Signal<float, int> rumbleSignal;
    Signal<int, int> timeChangedSignal;
    Signal<bool> hostingSignal;
+
+   // story mode
+   Signal<int, EnemyType, float, float, float> enemyCreatedSignal;
+   Signal<int, float, float, float, float, float, int> enemyPositionSignal;
+   Signal<int, bool> enemyKilledSignal;
+   Signal<int, int> enemyHitSignal;
+   Signal<int, int, int, int, int> storyStateSignal;
    Signal<> leaveGameSignal;
 
 public:
@@ -285,6 +293,12 @@ public:
 
    //! start a game
    void startGame(int game = 1);
+
+   //! creates a story mode game beginning at the given stage (0..63)
+   void createStoryGame(int first_stage);
+
+   //! the current game is a story mode game
+   bool isStory() const;
 
    //! stop a game
    void stopGame(int game);

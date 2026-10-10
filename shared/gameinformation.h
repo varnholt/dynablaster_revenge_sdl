@@ -58,6 +58,14 @@ public:
    [[nodiscard]] bool isSpawnExtrasEnabled() const;
    void setSpawnExtrasEnabled(bool value);
 
+   //! story mode game, its field size changes per stage
+   void setStory(bool story, int32_t field_width, int32_t field_height);
+   [[nodiscard]] bool isStory() const;
+
+   //! field size in tiles
+   [[nodiscard]] int32_t getFieldWidth() const;
+   [[nodiscard]] int32_t getFieldHeight() const;
+
 private:
    friend BinaryWriter& operator<<(BinaryWriter& out, const GameInformation& info);
    friend BinaryReader& operator>>(BinaryReader& in, GameInformation& info);
@@ -74,6 +82,10 @@ private:
    int32_t _games_played = 0;
    int32_t _current_round = 0;
    int32_t _round_count = 0;
+
+   bool _story = false;
+   int32_t _field_width = 0;
+   int32_t _field_height = 0;
 
    // not serialized
    bool _spawn_extras = false;
