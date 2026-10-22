@@ -2,13 +2,6 @@
 -- then he drops bombs, toggles the field, teleports and sprays fire
 local common = require("common")
 
-properties = {
-   speed = 1.6,
-   points = 50000,
-   hit_points = 5,
-   wall_pass = false,
-}
-
 local BOMB_TIMER = 1
 local SHIELD_TIMER = 2
 local TELEPORT_TIMER = 3

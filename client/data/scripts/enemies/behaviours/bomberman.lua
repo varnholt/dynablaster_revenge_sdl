@@ -2,13 +2,6 @@
 -- then bursts into flames shooting fire into all four directions
 local common = require("common")
 
-properties = {
-   speed = 1.6,
-   points = 1000,
-   hit_points = 2,
-   wall_pass = false,
-}
-
 local FIRE_TIMER = 1
 
 function initialize()

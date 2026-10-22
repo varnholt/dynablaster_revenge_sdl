@@ -22,6 +22,7 @@ extern "C"
 namespace
 {
 constexpr char SCRIPT_DIRECTORY[] = "data/scripts/enemies/";
+constexpr char DEFINITIONS[] = "enemies";
 
 ScriptedEnemy& self(lua_State* state)
 {
@@ -249,8 +250,7 @@ std::string readFile(const std::string& path)
 }
 }  // namespace
 
-ScriptedEnemy::ScriptedEnemy(int16_t id, EnemyType type, EnemyWorld& world, std::string script_path)
-    : Enemy(id, type, world), _script_path(std::move(script_path))
+ScriptedEnemy::ScriptedEnemy(int16_t id, EnemyType type, EnemyWorld& world) : Enemy(id, type, world)
 {
 }
 
@@ -264,18 +264,10 @@ ScriptedEnemy::~ScriptedEnemy()
 
 void ScriptedEnemy::initialize()
 {
-   const std::string source = readFile(_script_path);
-
-   if (source.empty())
-   {
-      qWarning("ScriptedEnemy: no script at %s", _script_path.c_str());
-      return;
-   }
-
    _state = luaL_newstate();
    luaL_openlibs(_state);
 
-   // shared helpers are required by name from the same directory
+   // shared helpers and the enemy definitions are required by name from the same directory
    lua_getglobal(_state, "package");
    lua_pushstring(_state, (std::string(SCRIPT_DIRECTORY) + "?.lua").c_str());
    lua_setfield(_state, -2, "path");
@@ -283,7 +275,23 @@ void ScriptedEnemy::initialize()
 
    registerFunctions();
 
-   if (luaL_loadbuffer(_state, source.data(), source.size(), _script_path.c_str()) != LUA_OK || lua_pcall(_state, 0, 0, 0) != LUA_OK)
+   const auto behaviour = loadDefinition();
+
+   if (!behaviour)
+   {
+      return;
+   }
+
+   const std::string script_path = std::string(SCRIPT_DIRECTORY) + "behaviours/" + *behaviour + ".lua";
+   const std::string source = readFile(script_path);
+
+   if (source.empty())
+   {
+      qWarning("ScriptedEnemy: no behaviour script at %s", script_path.c_str());
+      return;
+   }
+
+   if (luaL_loadbuffer(_state, source.data(), source.size(), script_path.c_str()) != LUA_OK || lua_pcall(_state, 0, 0, 0) != LUA_OK)
    {
       qWarning("ScriptedEnemy: %s", lua_tostring(_state, -1));
       lua_pop(_state, 1);
@@ -294,6 +302,48 @@ void ScriptedEnemy::initialize()
 
    readProperties();
    call("initialize", 0, 0);
+}
+
+std::optional<std::string> ScriptedEnemy::loadDefinition()
+{
+   lua_getglobal(_state, "require");
+   lua_pushstring(_state, DEFINITIONS);
+
+   if (lua_pcall(_state, 1, 1, 0) != LUA_OK)
+   {
+      qWarning("ScriptedEnemy: %s", lua_tostring(_state, -1));
+      lua_pop(_state, 1);
+      return std::nullopt;
+   }
+
+   const std::string name(getEnemyTypeName(getType()));
+   lua_getfield(_state, -1, name.c_str());
+   lua_remove(_state, -2);
+
+   if (!lua_istable(_state, -1))
+   {
+      qWarning("ScriptedEnemy: %s is not defined in %s.lua", name.c_str(), DEFINITIONS);
+      lua_pop(_state, 1);
+      return std::nullopt;
+   }
+
+   lua_getfield(_state, -1, "behaviour");
+   std::optional<std::string> behaviour;
+
+   if (lua_type(_state, -1) == LUA_TSTRING)
+   {
+      behaviour = lua_tostring(_state, -1);
+   }
+   else
+   {
+      qWarning("ScriptedEnemy: %s has no behaviour", name.c_str());
+   }
+
+   lua_pop(_state, 1);
+
+   // the definition is what the behaviour script reads its parameters from
+   lua_setglobal(_state, "properties");
+   return behaviour;
 }
 
 bool ScriptedEnemy::isValid() const
