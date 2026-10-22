@@ -6,9 +6,9 @@
 namespace
 {
 constexpr std::array<std::string_view, static_cast<size_t>(EnemyType::Count)> NAMES = {
-   "ballom",   "ekutopu",   "boyon", "pass",  "pomori",  "telpio", "onil",     "gacha",    "uotan",
-   "boma",     "minvo",     "buffer", "flapper", "sashakin", "nagachamu", "korisuke", "maron", "ojin",
-   "pontan",   "arion",     "bubbles", "cloud", "warp_man", "warp_man_child", "spidfire", "black_bomberman", "bomberman"
+   "balloon", "octopus", "droplet", "tiger",  "imp",   "totem",   "onion", "croc",    "blob",
+   "frog",    "grinner", "gourd",   "hothead", "jester", "statue", "spinner", "sprout", "chomper",
+   "coin",    "serpent", "puffer",  "cloud",  "cyclops", "eyeball", "crab", "shadow_bomber", "henchman"
 };
 }
 
@@ -35,11 +35,11 @@ bool isBoss(EnemyType type)
 {
    switch (type)
    {
-      case EnemyType::Arion:
-      case EnemyType::Bubbles:
-      case EnemyType::WarpMan:
-      case EnemyType::Spidfire:
-      case EnemyType::BlackBomberman:
+      case EnemyType::Serpent:
+      case EnemyType::Puffer:
+      case EnemyType::Cyclops:
+      case EnemyType::Crab:
+      case EnemyType::ShadowBomber:
          return true;
       default:
          return false;

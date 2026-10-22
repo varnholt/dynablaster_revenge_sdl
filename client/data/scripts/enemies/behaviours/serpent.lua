@@ -1,4 +1,4 @@
--- arion: boss of rounds 1 and 3, pursues bomberman alternating between a slow and a fast pace
+-- serpent: boss of rounds 1 and 3, pursues the player alternating between a slow and a fast pace
 local common = require("common")
 
 local PACE_TIMER = 1

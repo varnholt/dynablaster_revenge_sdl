@@ -45,7 +45,7 @@ EnemyRenderer::~EnemyRenderer() = default;
 
 bool EnemyRenderer::isBomberman(EnemyType type)
 {
-   return type == EnemyType::Bomberman || type == EnemyType::BlackBomberman;
+   return type == EnemyType::Henchman || type == EnemyType::ShadowBomber;
 }
 
 EnemyRenderer::Model& EnemyRenderer::getModel(EnemyType type)

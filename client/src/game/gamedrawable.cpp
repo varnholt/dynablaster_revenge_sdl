@@ -1221,11 +1221,11 @@ void GameDrawable::addEnemy(int id, EnemyType type, float x, float y, float angl
 {
    if (EnemyRenderer::isBomberman(type))
    {
-      // black bomberman and his henchmen look like players
+      // the shadow bomber and his henchmen look like players
       static constexpr std::array<Constants::Color, 4> henchmen{
          Constants::ColorRed, Constants::ColorBlue, Constants::ColorGreen, Constants::ColorYellow
       };
-      const Constants::Color color = type == EnemyType::BlackBomberman ? Constants::ColorBlack : henchmen[static_cast<size_t>(id) % 4];
+      const Constants::Color color = type == EnemyType::ShadowBomber ? Constants::ColorBlack : henchmen[static_cast<size_t>(id) % 4];
       addPlayer(id + ENEMY_PLAYER_ID_OFFSET, "", color);
       setPlayerPosition(id + ENEMY_PLAYER_ID_OFFSET, x, y, angle);
       return;

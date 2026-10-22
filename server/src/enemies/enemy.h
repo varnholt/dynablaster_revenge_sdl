@@ -26,7 +26,7 @@ public:
    //! a flame reached the enemy, returns true if that killed it
    bool hit(int8_t player_id);
 
-   //! removed without a fight (e.g. replaced by pontans when the time is up)
+   //! removed without a fight (e.g. replaced by coins when the time is up)
    void remove();
 
    [[nodiscard]] int16_t getId() const;
@@ -118,7 +118,7 @@ private:
    [[nodiscard]] bool isAtCentre() const;
 
    int16_t _id = 0;
-   EnemyType _type = EnemyType::Ballom;
+   EnemyType _type = EnemyType::Balloon;
    int16_t _parent_id = -1;
    float _x = 0.5f;
    float _y = 0.5f;

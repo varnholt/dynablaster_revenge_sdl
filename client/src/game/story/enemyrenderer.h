@@ -37,7 +37,7 @@ public:
 private:
    struct Instance
    {
-      EnemyType _type = EnemyType::Ballom;
+      EnemyType _type = EnemyType::Balloon;
       float _x = 0.0f;
       float _y = 0.0f;
       float _angle = 0.0f;

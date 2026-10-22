@@ -1,4 +1,4 @@
--- bubbles: boss of rounds 2 and 5, wanders around deploying pink clouds that drift after bomberman;
+-- puffer: boss of rounds 2 and 5, wanders around deploying pink clouds that drift after the player;
 -- after a while it starts the pursuit itself
 local common = require("common")
 

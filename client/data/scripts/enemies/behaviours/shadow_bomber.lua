@@ -1,4 +1,4 @@
--- black bomberman: the final boss, invincible behind his force field while his four henchmen live;
+-- shadow bomber: the final boss, invincible behind his force field while his four henchmen live;
 -- then he drops bombs, toggles the field, teleports and sprays fire
 local common = require("common")
 
@@ -20,7 +20,7 @@ function start_second_phase()
 end
 
 function update(dt)
-   if not second_phase and count("bomberman") == 0 then
+   if not second_phase and count("henchman") == 0 then
       start_second_phase()
    end
 end

@@ -1,5 +1,5 @@
--- one of black bomberman's four henchmen: wanders, closes in when bomberman is near and now and
--- then bursts into flames shooting fire into all four directions
+-- henchman: one of the shadow bomber's four henchmen, wanders, closes in when the player is near and
+-- now and then bursts into flames shooting fire into all four directions
 local common = require("common")
 
 local FIRE_TIMER = 1

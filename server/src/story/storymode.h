@@ -57,7 +57,7 @@ public:
    //! every player is dead
    void playersDied();
 
-   //! the stage time ran out: the remaining enemies are replaced by pontans
+   //! the stage time ran out: the remaining enemies are replaced by coins
    void timeUp();
 
    //! game over or all stages done
