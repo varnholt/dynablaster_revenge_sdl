@@ -352,7 +352,11 @@ int main(int /*argc*/, char** /*argv*/)
                                                     game_drawable.playerInfected(id, skull, infector_id, extra_x, extra_y);
                                                     game_stats_drawable.playerInfected(id, skull, infector_id, extra_x, extra_y);
                                                  });
-   bomberman_client.timeChangedSignal.connect([&](int time_left, int duration) { game_stats_drawable.setGameTimeLeft(time_left, duration); });
+   bomberman_client.timeChangedSignal.connect([&](int time_left, int duration)
+                                              {
+                                                 game_stats_drawable.setGameTimeLeft(time_left, duration);
+                                                 game_drawable.setGameTimeLeft(time_left, duration);
+                                              });
    bomberman_client.playerIdSignal.connect([&](int id) { game_drawable.setPlayerId(id); });
    bomberman_client.countdownSignal.connect([&](int left) { countdown_drawable.countdown(left); });
 

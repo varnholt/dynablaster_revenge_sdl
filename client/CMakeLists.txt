@@ -412,6 +412,8 @@ add_library(dynablaster_core STATIC
     src/levels/castle/snowanimation.h
     src/levels/mansion/levelmansion.cpp
     src/levels/mansion/levelmansion.h
+    src/levels/pirate/levelpirate.cpp
+    src/levels/pirate/levelpirate.h
     src/levels/space/levelspace.cpp
     src/levels/space/levelspace.h
     src/levels/space/spacebackground.cpp
@@ -550,6 +552,7 @@ if (EMSCRIPTEN)
         # CMake from de-duplicating the repeated --exclude-file flag away from its argument
         "SHELL:--exclude-file '*/data/level-mansion*'"
         "SHELL:--exclude-file '*/data/level-space*'"
+        "SHELL:--exclude-file '*/data/level-pirate*'"
         --preload-file ${CMAKE_SOURCE_DIR}/data@data
     )
     set_target_properties(dynablaster_revenge PROPERTIES SUFFIX ".html")

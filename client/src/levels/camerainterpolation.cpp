@@ -119,13 +119,13 @@ Matrix CameraInterpolation::getCameraMatrix(float time, float scale)
 
       const Matrix blended = Matrix::blend(upper, lower, _interpolated_positions[0].y);
 
-      if (time < 60 * 160)
+      if (time < _intro_end)
       {
          // no influence of player positions
       }
-      else if (time < 130 * 160)
+      else if (time < _blend_end)
       {
-         float t = (time - 60 * 160) / (70 * 160);
+         float t = (time - _intro_end) / (_blend_end - _intro_end);
          t = 0.5f - std::cos(t * std::numbers::pi_v<float>) * 0.5f;
          t = t * t;
          camera = Matrix::blend(camera, blended, t);
@@ -140,6 +140,12 @@ Matrix CameraInterpolation::getCameraMatrix(float time, float scale)
    camera = camera.getView() * Matrix::scale(fov, fov, 1.0f);
 
    return camera;
+}
+
+void CameraInterpolation::setIntroTimes(float intro_end, float blend_end)
+{
+   _intro_end = intro_end;
+   _blend_end = blend_end;
 }
 
 bool CameraInterpolation::isPlayerMapEmpty() const

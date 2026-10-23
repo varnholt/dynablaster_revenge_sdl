@@ -27,6 +27,7 @@ public:
       LevelCastle,
       LevelMansion,
       LevelSpace,
+      LevelPirate,
       LevelDummy
    };
 
@@ -42,6 +43,9 @@ public:
 
    virtual void initialize();
    virtual void draw();
+
+   //! draws the level's own geometry around the field
+   virtual void drawLevel(float frame, const Matrix& view);
    virtual void drawBackground();
    virtual void animate(float dt);
    virtual void reset();
@@ -58,6 +62,10 @@ public:
 
    //! weather effects the level comes with, levels without any ignore it
    virtual void setWeather(Weather weather);
+
+   //! how far the game has come through its rounds, 0..1 from the first round's start to the last one's end;
+   //! levels with a time of day go through one day and night in it
+   virtual void setDayTime(float phase);
 
    std::string path() const;
    SceneGraph& getScene() const;

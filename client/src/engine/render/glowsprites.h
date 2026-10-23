@@ -23,10 +23,15 @@ public:
    //! draws them with the current camera, after the opaque geometry around them
    void render(const Matrix& transform);
 
+   //! scales the halos, 0 hides them
+   void setBrightness(float brightness);
+
 private:
    uint32_t _shader = 0;
    int32_t _time_param = -1;
    int32_t _aspect_param = -1;
+   int32_t _brightness_param = -1;
+   float _brightness = 1.0f;
    uint32_t _vertex_buffer = 0;
    int32_t _vertex_count = 0;
 };

@@ -181,10 +181,12 @@ MenuPageNavigator::MenuPageNavigator()
    _sorted_level_names.push_back(Level::getLevelName(Level::LevelCastle));
    _sorted_level_names.push_back(Level::getLevelName(Level::LevelMansion));
    _sorted_level_names.push_back(Level::getLevelName(Level::LevelSpace));
+   _sorted_level_names.push_back(Level::getLevelName(Level::LevelPirate));
 
    _sorted_level_dir_names.push_back(Level::getLevelDirectoryName(Level::LevelCastle));
    _sorted_level_dir_names.push_back(Level::getLevelDirectoryName(Level::LevelMansion));
    _sorted_level_dir_names.push_back(Level::getLevelDirectoryName(Level::LevelSpace));
+   _sorted_level_dir_names.push_back(Level::getLevelDirectoryName(Level::LevelPirate));
 
    // BombermanClient must already be constructed+initialize()'d by main.cpp before this runs -
    // getInstance() doesn't self-construct (matches the real client/src/game/bombermanclientgui.cpp
@@ -1097,11 +1099,13 @@ void MenuPageNavigator::updateCreateGameLevelPreview()
    MenuPagePixmapItem& preview_castle = page.getPageItem<MenuPagePixmapItem>("pixmap_preview_castle")->get();
    MenuPagePixmapItem& preview_mansion = page.getPageItem<MenuPagePixmapItem>("pixmap_preview_mansion")->get();
    MenuPagePixmapItem& preview_space = page.getPageItem<MenuPagePixmapItem>("pixmap_preview_space")->get();
+   MenuPagePixmapItem& preview_pirate = page.getPageItem<MenuPagePixmapItem>("pixmap_preview_pirateship")->get();
    MenuPageComboBoxItem& level_combo = page.getPageItem<MenuPageComboBoxItem>("combobox_level_table")->get();
 
    preview_castle.setVisible(level_combo.getFocussedElement() <= 0);
    preview_mansion.setVisible(level_combo.getFocussedElement() == 1);
    preview_space.setVisible(level_combo.getFocussedElement() == 2);
+   preview_pirate.setVisible(level_combo.getFocussedElement() == 3);
 }
 
 void MenuPageNavigator::setMonitorCreateGameOptionsEnabled(bool enabled)

@@ -41,12 +41,19 @@ struct Shader
    int32_t _alpha = -1;
    int32_t _tint = -1;
    int32_t _clip = -1;
+   int32_t _time = -1;
+   int32_t _night = -1;
+   int32_t _has_night = -1;
+   int32_t _day = -1;
 };
 
 Shader shader;
 
 // fragments higher than this are dropped, for drawing mirror images
 float clip_height = 1e9f;
+
+// 1 by day, 0 by night
+float day_share = 1.0f;
 
 // column-major, a * b applies b first
 Matrix4 multiply(const Matrix4& a, const Matrix4& b)
@@ -242,10 +249,8 @@ void GltfModel::load(const std::string& filename)
    cgltf_options options{};
    cgltf_data* data = nullptr;
 
-   if (
-      cgltf_parse(&options, bytes.data(), bytes.size(), &data) != cgltf_result_success ||
-      cgltf_load_buffers(&options, data, nullptr) != cgltf_result_success
-   )
+   if (cgltf_parse(&options, bytes.data(), bytes.size(), &data) != cgltf_result_success ||
+       cgltf_load_buffers(&options, data, nullptr) != cgltf_result_success)
    {
       Log::warning(std::format("GltfModel: unable to read {}", filename));
       cgltf_free(data);
@@ -353,11 +358,14 @@ void GltfModel::load(const std::string& filename)
             _water_color = Vector((*water)[0], (*water)[1], (*water)[2]);
          }
 
+         const auto wave = readExtras<1>(node.extras.data, "wave");
+
          std::vector<float> positions;
          std::vector<float> normals;
          std::vector<float> uvs;
          std::vector<float> joints;
          std::vector<float> weights;
+         std::vector<float> colors;
 
          for (size_t a = 0; a < source.attributes_count; a++)
          {
@@ -382,6 +390,12 @@ void GltfModel::load(const std::string& filename)
                   break;
                case cgltf_attribute_type_weights:
                   weights = readFloats(attribute.data);
+                  break;
+               case cgltf_attribute_type_color:
+                  if (attribute.index == 0 && wave && cgltf_num_components(attribute.data->type) == 4)
+                  {
+                     colors = readFloats(attribute.data);
+                  }
                   break;
                default:
                   break;
@@ -415,6 +429,18 @@ void GltfModel::load(const std::string& filename)
                std::copy_n(weights.begin() + static_cast<std::ptrdiff_t>(v * 4), 4, vertex._weights);
             }
 
+            std::fill_n(vertex._wave, 4, 0.0f);
+
+            if (colors.size() >= (v + 1) * 4)
+            {
+               // z-up direction to the vertices' y-up space, scaled by its amplitude
+               const float* color = colors.data() + v * 4;
+               const float amplitude = color[3] * (*wave)[0];
+               vertex._wave[0] = (color[0] * 2.0f - 1.0f) * amplitude;
+               vertex._wave[1] = (color[2] * 2.0f - 1.0f) * amplitude;
+               vertex._wave[2] = -(color[1] * 2.0f - 1.0f) * amplitude;
+            }
+
             // bounds in game space, i.e. z-up
             const Vector z_up(vertex._position[0], -vertex._position[2], vertex._position[1]);
             _minimum = Vector(std::min(_minimum.x, z_up.x), std::min(_minimum.y, z_up.y), std::min(_minimum.z, z_up.z));
@@ -442,6 +468,7 @@ void GltfModel::load(const std::string& filename)
          {
             primitive._color_image = image_of(source.material->pbr_metallic_roughness.base_color_texture);
             primitive._occlusion_image = image_of(source.material->occlusion_texture);
+            primitive._night_image = image_of(source.material->emissive_texture);
          }
 
          _primitives.push_back(std::move(primitive));
@@ -701,14 +728,20 @@ void GltfModel::begin()
       shader._alpha = activeDevice().getParameterIndex("u_alpha");
       shader._tint = activeDevice().getParameterIndex("u_tint");
       shader._clip = activeDevice().getParameterIndex("u_clip");
+      shader._time = activeDevice().getParameterIndex("u_time");
+      shader._night = activeDevice().getParameterIndex("u_night");
+      shader._has_night = activeDevice().getParameterIndex("u_has_night");
+      shader._day = activeDevice().getParameterIndex("u_daylight");
    }
 
    activeDevice().setShader(shader._program);
    activeDevice().bindSampler(shader._color, 0);
    activeDevice().bindSampler(shader._occlusion, 1);
    activeDevice().setParameter(shader._clip, clip_height);
+   activeDevice().bindSampler(shader._night, 2);
+   activeDevice().setParameter(shader._day, day_share);
 
-   for (GLuint attribute = 0; attribute < 5; attribute++)
+   for (GLuint attribute = 0; attribute < 6; attribute++)
    {
       glEnableVertexAttribArray(attribute);
    }
@@ -721,7 +754,7 @@ void GltfModel::begin()
 
 void GltfModel::end()
 {
-   for (GLuint attribute = 0; attribute < 5; attribute++)
+   for (GLuint attribute = 0; attribute < 6; attribute++)
    {
       glDisableVertexAttribArray(attribute);
    }
@@ -753,6 +786,7 @@ void GltfModel::draw(const Matrix& transform, int32_t animation, float time, con
    activeDevice().setParameter(shader._flash, look._flash);
    activeDevice().setParameter(shader._alpha, look._alpha);
    activeDevice().setParameter(shader._tint, look._tint);
+   activeDevice().setParameter(shader._time, time);
 
    for (const Primitive& primitive : _primitives)
    {
@@ -775,11 +809,13 @@ void GltfModel::draw(const Matrix& transform, int32_t animation, float time, con
          activeDevice().setParameter(shader._joints, std::span<const Matrix>(joint_matrices.data(), MAX_JOINTS));
       }
 
-      const auto texture_of = [this](int32_t image)
-      {
+      const auto texture_of = [this](int32_t image) {
          return image >= 0 && _images[static_cast<size_t>(image)]._texture ? _images[static_cast<size_t>(image)]._texture : whiteTexture();
       };
 
+      activeDevice().setParameter(shader._has_night, primitive._night_image >= 0 ? 1.0f : 0.0f);
+      glActiveTexture(GL_TEXTURE2);
+      glBindTexture(GL_TEXTURE_2D, texture_of(primitive._night_image));
       glActiveTexture(GL_TEXTURE1);
       glBindTexture(GL_TEXTURE_2D, texture_of(primitive._occlusion_image));
       glActiveTexture(GL_TEXTURE0);
@@ -791,6 +827,7 @@ void GltfModel::draw(const Matrix& transform, int32_t animation, float time, con
       glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const void*>(offsetof(Vertex, _uv)));
       glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const void*>(offsetof(Vertex, _joints)));
       glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const void*>(offsetof(Vertex, _weights)));
+      glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const void*>(offsetof(Vertex, _wave)));
 
       glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, primitive._index_buffer);
       glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(primitive._indices.size()), GL_UNSIGNED_INT, nullptr);
@@ -852,6 +889,11 @@ float GltfModel::getWaterLevel() const
 const Vector& GltfModel::getWaterColor() const
 {
    return _water_color;
+}
+
+void GltfModel::setDaylight(float value)
+{
+   day_share = value;
 }
 
 void GltfModel::setClipHeight(float height)

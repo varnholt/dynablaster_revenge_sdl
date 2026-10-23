@@ -8,10 +8,12 @@ in vec3 color;
 
 out vec4 o_color;
 
+uniform float u_brightness;
+
 void main()
 {
    float r2 = dot(corner, corner);
    float halo = exp(-r2 * 4.0) * (1.0 - smoothstep(0.6, 1.0, r2));
    float core = exp(-r2 * 45.0);
-   o_color = vec4(color * (halo * 0.7 + core * 1.4), 1.0);
+   o_color = vec4(color * (halo * 0.7 + core * 1.4) * u_brightness, 1.0);
 }
