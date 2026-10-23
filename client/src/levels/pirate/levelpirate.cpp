@@ -45,6 +45,9 @@ void LevelPirate::loadData()
       const auto lower = _level->findNode<Camera>("Lower");
       _camera_interpolation = std::make_unique<CameraInterpolation>(center, upper, lower);
 
+      // the fly-in shows the whole ship for a while, the game's cameras take over by the end of the countdown
+      _camera_interpolation->setIntroTimes(15000.0f, 22500.0f);
+
       shadow_camera = _level->findNode<Camera>("Shadow Cam");
       shadow_camera->get().setPerspectiveMode(false);
    }

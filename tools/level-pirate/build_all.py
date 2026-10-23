@@ -1,7 +1,8 @@
 # Builds client/data/level-pirate from scratch: python build_all.py
 #   build_pirate.py    the ship, baked into ship.glb (Blender)
 #   render_lighting.py the blocks' and players' lighting and shadow cookie, the shadow camera (Blender)
-#   make_level_hjb.py  level.hjb: the castle's cameras with that shadow camera
+#   make_intro.py      the fly-in camera from far out at sea
+#   make_level_hjb.py  level.hjb: the castle's game cameras with that shadow camera and fly-in
 #   make_textures.py   the block skins
 # Blender is found via the BLENDER environment variable or in its default install folder.
 import glob
@@ -36,8 +37,9 @@ os.makedirs(OUT, exist_ok=True)
 os.makedirs(LEVEL, exist_ok=True)
 run_blender("build_pirate.py")
 run_blender("render_lighting.py")
+subprocess.run([sys.executable, os.path.join(HERE, "make_intro.py"), os.path.join(OUT, "intro.json")], check=True)
 subprocess.run([sys.executable, os.path.join(HERE, "make_level_hjb.py"), os.path.join(LEVEL, "level.hjb"),
-                os.path.join(OUT, "cameras.json")], check=True)
+                os.path.join(OUT, "cameras.json"), os.path.join(OUT, "intro.json")], check=True)
 subprocess.run([sys.executable, os.path.join(HERE, "make_textures.py"), LEVEL], check=True)
 for name in ("ship.glb", "diffuse_level.tga", "specular_level.tga", "shadow-cookie.tga"):
     shutil.copy(os.path.join(OUT, name), LEVEL)

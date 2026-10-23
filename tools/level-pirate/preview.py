@@ -24,6 +24,11 @@ POSES = {
     "sail": ((-12.0, -9.0, 9.0), (0.55, 0.65, -0.35), 40.0),
     "stern": ((8.0, -9.0, 5.0), (0.85, 0.3, -0.25), 55.0),
     "wide": ((6.5, -40.0, 30.0), (0.0, 0.75, -0.62), 55.0),
+    "far": ((-46.0, -66.0, 17.0), (0.52, 0.83, -0.2), 49.0),
+    "bow": ((-70.0, 10.0, 14.0), (0.95, -0.2, -0.18), 49.0),
+    "stern_out": ((60.0, -30.0, 12.0), (-0.85, 0.5, -0.15), 49.0),
+    "side": ((-8.0, -80.0, 14.0), (0.0, 1.0, 0.02), 49.0),
+    "flag": ((-14.0, -22.0, 34.0), (0.5, 0.75, 0.05), 30.0),
 }
 
 scene = bpy.context.scene
@@ -34,13 +39,12 @@ for engine in ("BLENDER_EEVEE_NEXT", "BLENDER_EEVEE"):
     except TypeError:
         continue
 scene.render.resolution_x, scene.render.resolution_y = 1280, 720
-scene.world = scene.world or bpy.data.worlds.new("World")
-scene.world.color = (0.05, 0.07, 0.12)
-sun = bpy.data.lights.new("sun", "SUN")
-sun.energy = 3.0
-obj = bpy.data.objects.new("sun", sun)
-scene.collection.objects.link(obj)
-obj.rotation_euler = Vector((0.35, 0.55, -0.75)).to_track_quat("-Z", "Y").to_euler()
+scene.camera.data.clip_end = 1000
+# the bake's lights; the sky dome would keep them out
+build["light_rig"]()
+for obj in bpy.data.objects:
+    if obj.name.startswith("sky"):
+        obj.hide_render = True
 
 cam = scene.camera
 os.makedirs(OUT, exist_ok=True)

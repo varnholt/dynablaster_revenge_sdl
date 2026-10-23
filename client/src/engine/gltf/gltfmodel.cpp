@@ -41,6 +41,7 @@ struct Shader
    int32_t _alpha = -1;
    int32_t _tint = -1;
    int32_t _clip = -1;
+   int32_t _time = -1;
 };
 
 Shader shader;
@@ -242,10 +243,8 @@ void GltfModel::load(const std::string& filename)
    cgltf_options options{};
    cgltf_data* data = nullptr;
 
-   if (
-      cgltf_parse(&options, bytes.data(), bytes.size(), &data) != cgltf_result_success ||
-      cgltf_load_buffers(&options, data, nullptr) != cgltf_result_success
-   )
+   if (cgltf_parse(&options, bytes.data(), bytes.size(), &data) != cgltf_result_success ||
+       cgltf_load_buffers(&options, data, nullptr) != cgltf_result_success)
    {
       Log::warning(std::format("GltfModel: unable to read {}", filename));
       cgltf_free(data);
@@ -353,11 +352,14 @@ void GltfModel::load(const std::string& filename)
             _water_color = Vector((*water)[0], (*water)[1], (*water)[2]);
          }
 
+         const auto wave = readExtras<1>(node.extras.data, "wave");
+
          std::vector<float> positions;
          std::vector<float> normals;
          std::vector<float> uvs;
          std::vector<float> joints;
          std::vector<float> weights;
+         std::vector<float> colors;
 
          for (size_t a = 0; a < source.attributes_count; a++)
          {
@@ -382,6 +384,12 @@ void GltfModel::load(const std::string& filename)
                   break;
                case cgltf_attribute_type_weights:
                   weights = readFloats(attribute.data);
+                  break;
+               case cgltf_attribute_type_color:
+                  if (attribute.index == 0 && wave && cgltf_num_components(attribute.data->type) == 4)
+                  {
+                     colors = readFloats(attribute.data);
+                  }
                   break;
                default:
                   break;
@@ -413,6 +421,18 @@ void GltfModel::load(const std::string& filename)
             {
                std::copy_n(joints.begin() + static_cast<std::ptrdiff_t>(v * 4), 4, vertex._joints);
                std::copy_n(weights.begin() + static_cast<std::ptrdiff_t>(v * 4), 4, vertex._weights);
+            }
+
+            std::fill_n(vertex._wave, 4, 0.0f);
+
+            if (colors.size() >= (v + 1) * 4)
+            {
+               // z-up direction to the vertices' y-up space, scaled by its amplitude
+               const float* color = colors.data() + v * 4;
+               const float amplitude = color[3] * (*wave)[0];
+               vertex._wave[0] = (color[0] * 2.0f - 1.0f) * amplitude;
+               vertex._wave[1] = (color[2] * 2.0f - 1.0f) * amplitude;
+               vertex._wave[2] = -(color[1] * 2.0f - 1.0f) * amplitude;
             }
 
             // bounds in game space, i.e. z-up
@@ -701,6 +721,7 @@ void GltfModel::begin()
       shader._alpha = activeDevice().getParameterIndex("u_alpha");
       shader._tint = activeDevice().getParameterIndex("u_tint");
       shader._clip = activeDevice().getParameterIndex("u_clip");
+      shader._time = activeDevice().getParameterIndex("u_time");
    }
 
    activeDevice().setShader(shader._program);
@@ -708,7 +729,7 @@ void GltfModel::begin()
    activeDevice().bindSampler(shader._occlusion, 1);
    activeDevice().setParameter(shader._clip, clip_height);
 
-   for (GLuint attribute = 0; attribute < 5; attribute++)
+   for (GLuint attribute = 0; attribute < 6; attribute++)
    {
       glEnableVertexAttribArray(attribute);
    }
@@ -721,7 +742,7 @@ void GltfModel::begin()
 
 void GltfModel::end()
 {
-   for (GLuint attribute = 0; attribute < 5; attribute++)
+   for (GLuint attribute = 0; attribute < 6; attribute++)
    {
       glDisableVertexAttribArray(attribute);
    }
@@ -753,6 +774,7 @@ void GltfModel::draw(const Matrix& transform, int32_t animation, float time, con
    activeDevice().setParameter(shader._flash, look._flash);
    activeDevice().setParameter(shader._alpha, look._alpha);
    activeDevice().setParameter(shader._tint, look._tint);
+   activeDevice().setParameter(shader._time, time);
 
    for (const Primitive& primitive : _primitives)
    {
@@ -775,8 +797,7 @@ void GltfModel::draw(const Matrix& transform, int32_t animation, float time, con
          activeDevice().setParameter(shader._joints, std::span<const Matrix>(joint_matrices.data(), MAX_JOINTS));
       }
 
-      const auto texture_of = [this](int32_t image)
-      {
+      const auto texture_of = [this](int32_t image) {
          return image >= 0 && _images[static_cast<size_t>(image)]._texture ? _images[static_cast<size_t>(image)]._texture : whiteTexture();
       };
 
@@ -791,6 +812,7 @@ void GltfModel::draw(const Matrix& transform, int32_t animation, float time, con
       glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const void*>(offsetof(Vertex, _uv)));
       glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const void*>(offsetof(Vertex, _joints)));
       glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const void*>(offsetof(Vertex, _weights)));
+      glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const void*>(offsetof(Vertex, _wave)));
 
       glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, primitive._index_buffer);
       glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(primitive._indices.size()), GL_UNSIGNED_INT, nullptr);

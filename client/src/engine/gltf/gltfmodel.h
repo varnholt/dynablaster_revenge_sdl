@@ -94,6 +94,11 @@ private:
       float _uv[2];
       float _joints[4];
       float _weights[4];
+
+      //! cloth (sails, flags) waving in the wind, direction times amplitude: for nodes with "wave": [amplitude]
+      //! in their extras from their vertices' first colour, its rgb the direction (z-up, 0..1 for -1..1), its
+      //! alpha how far; draw() moves them by its time
+      float _wave[4];
    };
 
    struct Primitive

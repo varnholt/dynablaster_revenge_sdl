@@ -1,7 +1,7 @@
 # Writes the pirate ship's level.hjb: no geometry (the ship is a .glb), only the cameras the game looks for -
 # "Camera001" (the fly-in), "Upper" and "Lower" (following the players) and "Shadow Cam" (the blocks' shadows).
-#   python make_level_hjb.py <out level.hjb> [cameras.json]
-# Without a cameras.json the castle's cameras are copied as they are. A cameras.json holds per camera
+#   python make_level_hjb.py <out level.hjb> [cameras.json ...]
+# Cameras not in a cameras.json are copied from the castle as they are. A cameras.json holds per camera
 # {"fov": [[time, radians]...], "position": [[time, x, y, z]...], "rotation": [[time, x, y, z, w]...]}
 # in the engine's convention (rotation keys absolute here, written as the deltas the loader accumulates).
 import json
@@ -83,8 +83,8 @@ def camera_chunk(name, cam):
 def main():
     out = sys.argv[1]
     header, material_id, cameras = castle_chunks()
-    if len(sys.argv) > 2:
-        for name, cam in json.load(open(sys.argv[2])).items():
+    for path in sys.argv[2:]:
+        for name, cam in json.load(open(path)).items():
             cameras[name] = camera_chunk(name, cam)
     data = header + chunk(material_id, "Materials", struct.pack("<i", 0))
     for name in NAMES:

@@ -23,10 +23,17 @@ POOP_X = 16.6  # the stern deck's wall facing the field
 POOP_Z = 2.6
 RAIL_Y = 3.2  # inner face of the bulwark behind the field
 SEA_Z = -2.4
-DECK_X0, DECK_X1 = -11.0, 24.0
-DECK_Y0 = -22.0
-DECK_TEX = (4096, 3072)
 WALL = 0.35  # the bulwarks' thickness
+YC = -5.5  # the ship's centre line, through the field's middle
+HB = RAIL_Y + WALL - YC  # half the beam, outside the bulwarks
+DECK_X0, DECK_X1 = -11.0, 24.0  # the main deck's planar mapped part, the stern
+DECK_Y0 = YC - HB + WALL  # inner face of the bulwark on the viewer's side
+BOW_X = -38.0  # the stem
+TAPER_X = -10.0  # where the sides start curving in towards the bow
+STERN_X = DECK_X1 + 0.1
+DECK_TEX = (4096, 2048)
+EXTERIOR_TEX = 4096
+CLOTH_TEX = 2048
 # from the field towards the moon, high in the north west: the mast's shadow falls across the field
 MOON = Vector((-0.42, 0.5, 0.76)).normalized()
 PROP_TEX = 4096
@@ -130,6 +137,12 @@ def palette():
         brass=material("brass", (0.72, 0.56, 0.26), 0.10, 9.0),
         sail=material("sail", (0.86, 0.80, 0.66), 0.08, 7.0),
         darkrope=material("darkrope", (0.30, 0.21, 0.12), 0.15, 12.0),
+        keelside=material("keelside", (0.20, 0.12, 0.08), 0.15, 2.0, "planks", axes="xz", plank=(3.4, 0.3)),
+        transom=material("transom", (0.36, 0.2, 0.1), 0.15, 2.0, "planks", axes="yz", plank=(3.0, 0.3)),
+        black=material("black", (0.05, 0.05, 0.06), 0.2, 6.0),
+        sailcloth=material("sailcloth", (0.84, 0.78, 0.64), 0.1, 5.0),
+        redcross=material("redcross", (0.62, 0.08, 0.06), 0.1, 5.0),
+        bone=material("bone", (0.92, 0.9, 0.84), 0.05, 6.0),
         rope=material("rope", (0.46, 0.34, 0.19), 0.15, 12.0),
         green=material("green", (0.18, 0.62, 0.26), 0.08, 9.0),
         glass=material("glass", (0.06, 0.10, 0.09), 0.10, 6.0),
@@ -141,14 +154,28 @@ def palette():
 # --- primitive props ------------------------------------------------------------------------------
 
 PROPS = []
+# the ship's outside, masts and sails: seen in the fly-in only, baked into a texture of its own
+EXTERIOR = []
+# sails and the flag, waving in the wind (GltfModel's "wave"): a node and a texture of their own
+CLOTH = []
+_TARGET = [PROPS]
 
 
 def _finish(obj, mat, smooth_shade=True):
     obj.data.materials.append(mat)
     for p in obj.data.polygons:
         p.use_smooth = smooth_shade
-    PROPS.append(obj)
+    _TARGET[0].append(obj)
     return obj
+
+
+def exterior(build_parts, *args):
+    """Builds into EXTERIOR instead of PROPS."""
+    _TARGET[0] = EXTERIOR
+    try:
+        return build_parts(*args)
+    finally:
+        _TARGET[0] = PROPS
 
 
 def _mesh(name, verts, faces, mat, smooth_shade=True):
@@ -323,8 +350,6 @@ def bulwark(m, gunports):
         slab(gx - gw / 2, gx + gw / 2, RAIL_Y, RAIL_Y + thick, DECK_Z, 0.22, m["hull"])
         slab(gx - gw / 2, gx + gw / 2, RAIL_Y, RAIL_Y + thick, 0.95, height, m["hull"])
         slab(gx - gw / 2, gx + gw / 2, RAIL_Y + thick - 0.02, RAIL_Y + thick + 0.25, -0.6, 0.0, m["darkwood"])
-    # the outer side down to the sea, seen in the water only
-    slab(x0 - WALL, x1, RAIL_Y + thick, RAIL_Y + thick + 0.1, SEA_Z - 0.6, height, m["hull"])
     # cap rail
     slab(x0, x1, RAIL_Y - 0.08, RAIL_Y + thick + 0.08, height, height + 0.12, m["gold"], bevel=0.03)
     # posts
@@ -339,26 +364,121 @@ def bulwark(m, gunports):
 
 
 def side_bulwarks(m):
-    """The ship's sides left of the field and behind the viewer, like the one behind the field, without gunports."""
+    """The ship's side behind the viewer, like the one behind the field without gunports, and the bow's."""
     height = 1.25
     x0, y0 = DECK_X0, DECK_Y0
-    # west: planked wall, its outer side down to the sea, cap rail and posts
-    slab(x0 - WALL, x0, y0 - WALL, RAIL_Y + WALL, DECK_Z, height, m["hull"])
-    slab(x0 - WALL - 0.1, x0 - WALL, y0 - WALL - 0.1, RAIL_Y + WALL + 0.1, SEA_Z - 0.6, height, m["hull"])
-    slab(x0 - WALL - 0.08, x0 + 0.08, y0 - WALL - 0.08, RAIL_Y + WALL + 0.08, height, height + 0.12, m["gold"],
-         bevel=0.03)
-    y = y0 + 0.6
-    while y < RAIL_Y - 0.3:
-        slab(x0, x0 + 0.14, y - 0.11, y + 0.11, DECK_Z, height, m["wood"])
-        y += 1.15
-    # south, up to the stern deck
     slab(x0, POOP_X, y0 - WALL, y0, DECK_Z, height, m["hull"])
-    slab(x0, POOP_X, y0 - WALL - 0.1, y0 - WALL, SEA_Z - 0.6, height, m["hull"])
     slab(x0, POOP_X, y0 - WALL - 0.08, y0 + 0.08, height, height + 0.12, m["gold"], bevel=0.03)
     x = x0 + 0.6
     while x < POOP_X - 0.3:
         slab(x - 0.11, x + 0.11, y0, y0 + 0.14, DECK_Z, height, m["wood"])
         x += 1.15
+    exterior(bow, m)
+
+
+FORECASTLE_X = -28.5  # the forecastle's front wall, facing aft
+FORE_Z = 3.5  # the forecastle's deck
+AFT_X = 20.0  # the aftcastle's upper tier starts here
+AFT_Z = POOP_Z + 2.1
+
+
+def half_beam(x):
+    """Half the ship's width at its rail at x: straight aft of TAPER_X, a full, round carrack bow forward."""
+    x = np.asarray(x, dtype=float)
+    t = np.clip((TAPER_X - x) / (TAPER_X - BOW_X), 0, 1)
+    return HB * np.clip(1 - t ** 2.4, 0, 1) ** 0.42
+
+
+def sheer(x):
+    """Height of the ship's side at x: the waist's rail, stepping up to the forecastle forward and the two tiers of
+    the aftcastle aft, each rising a little towards its end."""
+    if x >= AFT_X:
+        return AFT_Z + 0.95 + 0.5 * (x - AFT_X) / (STERN_X - AFT_X)
+    if x >= POOP_X:
+        return POOP_Z + 0.95
+    if x <= FORECASTLE_X:
+        return FORE_Z + 1.0 + 0.9 * ((FORECASTLE_X - x) / (FORECASTLE_X - BOW_X)) ** 1.5
+    t = max(0.0, (TAPER_X - x) / (TAPER_X - FORECASTLE_X))
+    return 1.37 + 0.35 * t * t
+
+
+def bow_rake(x, z):
+    """How far the stem leans forward at height z: the bow's upper part overhangs."""
+    t = max(0.0, (TAPER_X - x) / (TAPER_X - BOW_X))
+    return -(z + 4.9) * 0.55 * t ** 3
+
+
+def rail_sections():
+    xs = np.linspace(DECK_X0, BOW_X + 1.2, 48)
+    return sorted(set(np.round(np.concatenate([xs, [FORECASTLE_X + 0.02, FORECASTLE_X - 0.02]]), 3)), reverse=True)
+
+
+def bow(m):
+    """The deck forward of the planar mapped part, the forecastle over the bow, bulwarks along the sides."""
+    xs = rail_sections()
+    inner = [float(half_beam(x)) - WALL for x in xs]
+
+    def deck_strip(name, z, keep):
+        verts, faces = [], []
+        for x, b in zip(xs, inner):
+            if not keep(x):
+                continue
+            x_top = x + bow_rake(x, z)
+            verts += [(x_top, YC + max(b, 0.02), z), (x_top, YC - max(b, 0.02), z)]
+            if len(verts) > 2:
+                i = len(verts) // 2 - 1
+                faces.append((2 * i - 2, 2 * i - 1, 2 * i + 1, 2 * i))
+        part = _mesh(name, verts, faces, m["deck"], smooth_shade=False)
+        for poly in part.data.polygons:
+            if poly.normal.z < 0:
+                poly.flip()
+
+    deck_strip("bow_deck", DECK_Z, lambda x: x >= FORECASTLE_X - 0.05)
+    deck_strip("forecastle_deck", FORE_Z, lambda x: x <= FORECASTLE_X + 0.05)
+    # the forecastle's front wall with its door and the rail on its edge
+    b = float(half_beam(FORECASTLE_X)) - WALL
+    slab(FORECASTLE_X, FORECASTLE_X + 0.3, YC - b, YC + b, DECK_Z, FORE_Z, m["wall"])
+    slab(FORECASTLE_X + 0.3, FORECASTLE_X + 0.42, YC - b, YC + b, FORE_Z - 0.25, FORE_Z, m["redwood"], bevel=0.03)
+    slab(FORECASTLE_X + 0.3, FORECASTLE_X + 0.36, YC - 0.6, YC + 0.6, DECK_Z, 1.75, m["redwood"])
+    for y in (YC - 3.5, YC + 3.5):
+        slab(FORECASTLE_X + 0.3, FORECASTLE_X + 0.36, y - 0.4, y + 0.4, 0.8, 1.5, m["glass"])
+        glow((FORECASTLE_X + 0.6, y, 1.15), (1.0, 0.68, 0.34), 0.9, GLOW_PULSE)
+    count = int(2 * b / 0.3)
+    for i in range(1, count):
+        baluster(m, (FORECASTLE_X + 0.15, YC - b + 2 * b * i / count, FORE_Z), 0.85)
+    bar((FORECASTLE_X + 0.15, YC - b, FORE_Z + 0.85), (FORECASTLE_X + 0.15, YC + b, FORE_Z + 0.85), 0.13, 0.09,
+        m["redwood"])
+    # bulwarks: wall pieces and the gold cap along both sides
+    for side in (1, -1):
+        for i in range(len(xs) - 1):
+            xa, xc = xs[i], xs[i + 1]
+            top_a, top_c = sheer(xa) - 0.12, sheer(xc) - 0.12
+            floor = FORE_Z if xc < FORECASTLE_X else DECK_Z
+            a = Vector((xa + bow_rake(xa, top_a), YC + side * (inner[i] + WALL / 2), 0.0))
+            c = Vector((xc + bow_rake(xc, top_c), YC + side * (inner[i + 1] + WALL / 2), 0.0))
+            mid = (top_a + top_c) / 2
+            bar(Vector((a.x, a.y, (floor + mid) / 2)), Vector((c.x, c.y, (floor + mid) / 2)), WALL, mid - floor,
+                m["hull"])
+            bar(Vector((a.x, a.y, top_a + 0.06)), Vector((c.x, c.y, top_c + 0.06)), WALL + 0.16, 0.12, m["gold"])
+
+
+def aftcastle(m):
+    """The aftcastle's upper tier over the stern deck's after part: a cabin with lit windows, its roof railed."""
+    y0, y1 = DECK_Y0, RAIL_Y
+    slab(AFT_X, STERN_X, y0, y1, POOP_Z, AFT_Z - 0.1, m["wall"])
+    slab(AFT_X - 0.1, STERN_X, y0, y1, AFT_Z - 0.1, AFT_Z, m["deck"])
+    slab(AFT_X - 0.22, AFT_X, y0, y1, AFT_Z - 0.32, AFT_Z - 0.1, m["redwood"], bevel=0.03)
+    for y in np.linspace(y0 + 1.5, y1 - 1.5, 5):
+        slab(AFT_X - 0.05, AFT_X, y - 0.6, y + 0.6, POOP_Z + 0.5, POOP_Z + 1.5, m["lamp"])
+        slab(AFT_X - 0.14, AFT_X - 0.05, y - 0.7, y + 0.7, POOP_Z + 0.4, POOP_Z + 0.5, m["gold"])
+    slab(AFT_X - 0.05, AFT_X, YC - 0.55, YC + 0.55, POOP_Z, POOP_Z + 1.75, m["redwood"])
+    # rail around the roof
+    for a, b in (((AFT_X + 0.1, y0 + 0.1), (AFT_X + 0.1, y1 - 0.1)),):
+        a, b = Vector((*a, AFT_Z)), Vector((*b, AFT_Z))
+        count = int((b - a).length / 0.3)
+        for i in range(1, count):
+            baluster(m, tuple(a + (b - a) * i / count), 0.85)
+        bar(a + Vector((0, 0, 0.85)), b + Vector((0, 0, 0.85)), 0.12, 0.09, m["redwood"])
 
 
 # --- the stern deck -------------------------------------------------------------------------------
@@ -490,7 +610,7 @@ def newel(m, base, height):
 def stern(m):
     top = POOP_Z
     x1 = DECK_X1
-    y0, y1 = DECK_Y0, RAIL_Y + 0.35
+    y0, y1 = DECK_Y0 - WALL, RAIL_Y + WALL
     # the raised deck: wall facing the field, deck on top, its side towards the sea
     slab(POOP_X, x1, y0, y1, DECK_Z, top - 0.1, m["wall"])
     slab(POOP_X - 0.05, x1, y0, y1, top - 0.1, top, m["deck"])
@@ -524,21 +644,19 @@ def stern(m):
     # rails around the stern deck's far side, mostly out of view
     for y in (y1 - 0.1,):
         x = POOP_X + 2.6
-        while x < x1:
+        while x < AFT_X - 0.2:
             baluster(m, (x, y, top), 0.85)
             x += 0.3
-        bar((POOP_X + 2.4, y, rail_z), (x1, y, rail_z), 0.12, 0.09, m["redwood"])
+        bar((POOP_X + 2.4, y, rail_z), (AFT_X - 0.1, y, rail_z), 0.12, 0.09, m["redwood"])
     # the ship's side under the stern deck, towards the sea
-    slab(POOP_X, x1 + 0.1, y1, y1 + 0.1, SEA_Z - 0.6, top + 0.9, m["stern_side"])
     # the stern deck's other sides towards the sea, with a rail
-    slab(x1, x1 + 0.1, y0 - 0.1, y1, SEA_Z - 0.6, top + 0.9, m["hull"])
-    slab(POOP_X, x1, y0 - 0.1, y0, SEA_Z - 0.6, top + 0.9, m["hull"])
-    for (a, b) in (((x1 - 0.12, y0 + 0.1), (x1 - 0.12, y1 - 0.1)), ((POOP_X + 0.1, y0 + 0.12), (x1 - 0.1, y0 + 0.12))):
+    for (a, b) in (((POOP_X + 0.1, y0 + 0.12), (AFT_X - 0.1, y0 + 0.12)),):
         a, b = Vector((*a, top)), Vector((*b, top))
         count = int((b - a).length / 0.3)
         for i in range(1, count):
             baluster(m, tuple(a + (b - a) * i / count), 0.85)
         bar(a + Vector((0, 0, 0.85)), b + Vector((0, 0, 0.85)), 0.12, 0.09, m["redwood"])
+    exterior(aftcastle, m)
     return north_top, south_top
 
 
@@ -652,12 +770,18 @@ def boom_with_sail(m, mast_xy, z, tip):
     tip = Vector(tip)
     rod(root, tip, 0.17, m["wood"], 12)
     lathe(root - Vector((0, 0, 0.25)), root + Vector((0, 0, 0.25)), ((0, 0.56), (1, 0.56)), m["iron"], 16)
+    furled_sail(m, root, tip)
+    lathe(tip - (tip - root).normalized() * 0.2, tip + (tip - root).normalized() * 0.05, ((0, 0.2), (1, 0.2)),
+          m["iron"], 12)
+    return root, tip
+
+
+def furled_sail(m, root, tip, size=1.0, t0=0.1, t1=0.94, ties=6):
+    """The canvas bundled on top of a spar from root to tip: pinched by the gaskets, wrinkled between them."""
     along = tip - root
     axis = along.normalized()
     side = axis.cross(Vector((0, 0, 1))).normalized()
     up = side.cross(axis).normalized()
-    # the canvas bundled on top of the boom: pinched by the gaskets, wrinkled between them
-    t0, t1, ties = 0.1, 0.94, 6
     rings, segments = 120, 20
     verts, faces, pinch = [], [], []
     for i in range(rings + 1):
@@ -665,8 +789,8 @@ def boom_with_sail(m, mast_xy, z, tip):
         t = t0 + (t1 - t0) * u
         taper = math.sin(math.pi * (0.06 + 0.88 * u)) ** 0.6
         bunch = 0.72 + 0.28 * abs(math.sin(math.pi * ties * u))
-        radius = 0.5 * taper * bunch
-        centre = root + along * t + up * (0.12 + radius * 0.55)
+        radius = 0.5 * size * taper * bunch
+        centre = root + along * t + up * (0.12 * size + radius * 0.55)
         for s in range(segments):
             a = 2 * math.pi * s / segments
             wrinkle = 1 + 0.07 * math.sin(5 * a + 31 * u) + 0.04 * math.sin(11 * a - 17 * u)
@@ -686,8 +810,8 @@ def boom_with_sail(m, mast_xy, z, tip):
         u = k / ties
         t = t0 + (t1 - t0) * u
         taper = math.sin(math.pi * (0.06 + 0.88 * u)) ** 0.6
-        radius = 0.5 * taper * 0.72
-        centre = root + along * t + up * (0.12 + radius * 0.55 - 0.08)
+        radius = 0.5 * size * taper * 0.72
+        centre = root + along * t + up * (0.12 * size + radius * 0.55 - 0.08)
         bpy.ops.mesh.primitive_torus_add(major_radius=1.0, minor_radius=0.05, major_segments=20, minor_segments=6)
         obj = bpy.context.object
         obj.location = centre
@@ -695,35 +819,268 @@ def boom_with_sail(m, mast_xy, z, tip):
         obj.scale = (radius * 1.3 + 0.12, radius * 1.0 + 0.16, 0.6)
         bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
         _finish(obj, m["darkrope"])
-    lathe(tip - axis * 0.2, tip + axis * 0.05, ((0, 0.2), (1, 0.2)), m["iron"], 12)
-    return root, tip
+
+
+MAIN = Vector((-2.4, -4.1, 34.0))  # the main mast's top
+FORE = Vector((-22.0, YC, 28.0))
+MIZZEN = Vector((22.0, YC, 24.0))
+BOWSPRIT = Vector((BOW_X - 13.0, YC, 10.0))
+
+
+def shrouds(m, feet, top, ratlines=8):
+    """Lines from feet on the rail up to a mast's top, ratlines across the first few metres."""
+    for foot in feet:
+        rod(foot, top, 0.035, m["rope"], 6)
+        sphere(tuple(foot + Vector((0, 0, 0.05))), 0.1, m["darkwood"], scale=(1, 1, 0.7), subdiv=1)
+    for k in range(1, ratlines + 1):
+        t = k * 0.03
+        rod(feet[0].lerp(top, t), feet[-1].lerp(top, t), 0.02, m["rope"], 5)
+
+
+def yard(m, mast_top, z, half, sail=True, size=1.0, x=None):
+    """A yard across the ship, its sail furled on top of it."""
+    centre = Vector((mast_top.x if x is None else x, mast_top.y, z))
+    a, b = centre + Vector((0, half, 0)), centre - Vector((0, half, 0))
+    lathe(a, b, ((0, 0.12), (0.5, 0.22), (1, 0.12)), m["wood"], 10)
+    if sail:
+        furled_sail(m, a, b, size=size, t0=0.04, t1=0.96, ties=7)
+
+
+def cloth(m, name, point, nu, nv, wave, cross=None, base="sailcloth", emblem="redcross"):
+    """A sail or flag as a thin cloth: point(u, v) gives its surface, cross(u, v) where it shows its emblem,
+    wave(u, v) how it moves in the wind (a direction times how far, see GltfModel's "wave")."""
+    verts, faces, marked = [], [], []
+    for j in range(nv + 1):
+        for i in range(nu + 1):
+            verts.append(point(i / nu, j / nv))
+    for j in range(nv):
+        for i in range(nu):
+            a = j * (nu + 1) + i
+            faces.append((a, a + 1, a + nu + 2, a + nu + 1))
+            marked.append(bool(cross and cross((i + 0.5) / nu, (j + 0.5) / nv)))
+    obj = _mesh(name, verts, faces, m[base])
+    _TARGET[0].remove(obj)
+    CLOTH.append(obj)
+    if any(marked):
+        obj.data.materials.append(m[emblem])
+        for poly, is_marked in zip(obj.data.polygons, marked):
+            poly.material_index = 1 if is_marked else 0
+    colors = obj.data.color_attributes.new("wave", "FLOAT_COLOR", "POINT")
+    for j in range(nv + 1):
+        for i in range(nu + 1):
+            direction, amount = wave(i / nu, j / nv)
+            d = Vector(direction).normalized()
+            colors.data[j * (nu + 1) + i].color = (d.x * 0.5 + 0.5, d.y * 0.5 + 0.5, d.z * 0.5 + 0.5, amount)
+    solidify = obj.modifiers.new("Solidify", "SOLIDIFY")
+    solidify.thickness = 0.05
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.select_all(action="DESELECT")
+    obj.select_set(True)
+    bpy.ops.object.modifier_apply(modifier=solidify.name)
+    return obj
+
+
+def square_sail(m, mast, top, bottom, half_top, half_bottom, billow, crossed=False):
+    """A square sail set from its yard at top down to bottom, bellied forward by the wind from astern."""
+    lathe(Vector((mast.x, mast.y + half_top + 0.3, top)), Vector((mast.x, mast.y - half_top - 0.3, top)),
+          ((0, 0.12), (0.5, 0.24), (1, 0.12)), m["wood"], 10)
+
+    def point(u, v):
+        half = half_top + (half_bottom - half_top) * v
+        belly = math.sin(math.pi * u) * math.sin(math.pi * (0.12 + 0.88 * v)) ** 0.8
+        z = top - 0.15 - (top - 0.15 - bottom) * v + 0.35 * math.sin(math.pi * u) * v
+        return Vector((mast.x - 0.35 - billow * belly, mast.y + half * (1 - 2 * u), z))
+
+    def cross(u, v):
+        return 0.2 < u < 0.8 and 0.12 < v < 0.88 and (abs(u - 0.5) < 0.055 or abs(v - 0.42) < 0.065)
+
+    def wave(u, v):
+        # fixed on the yard, the belly and the free foot move
+        return (-1.0, 0.0, 0.0), 0.4 * math.sin(math.pi * u) * v ** 0.7
+
+    cloth(m, "square_sail", point, 24, 16, wave, cross if crossed else None)
+
+
+def lateen_sail(m, mast):
+    """The mizzen's triangular sail on its long slanted yard, bellied out to one side."""
+    low = Vector((mast.x + 6.5, mast.y, AFT_Z + 2.4))
+    high = Vector((mast.x - 5.5, mast.y, mast.z - 1.0))
+    lathe(low - (high - low).normalized() * 0.6, high, ((0, 0.12), (0.4, 0.2), (1, 0.08)), m["wood"], 10)
+    clew = Vector((mast.x + 5.8, mast.y, AFT_Z + 1.3))
+
+    def point(u, v):
+        # u along the yard, v from the yard down towards the clew
+        top = low.lerp(high, u)
+        p = top.lerp(clew, v * (1 - u) ** 0.6) + Vector((0, 0, -v * u * 6.0))
+        belly = math.sin(math.pi * u) * math.sin(math.pi * min(v, 1.0)) * 1.4
+        return p + Vector((0, belly, 0)) + Vector((0, 0.2, -0.15))
+
+    def wave(u, v):
+        return (0.0, 1.0, 0.0), 0.45 * math.sin(math.pi * u) * v
+
+    cloth(m, "lateen", point, 18, 10, wave)
+
+
+def jolly_roger(m, pole_top):
+    """A black flag streaming forward from a pole on the main mast's top (the wind blows from astern), a white
+    skull over crossed bones on both sides."""
+    lathe(pole_top - Vector((0, 0, 3.0)), pole_top, ((0, 0.1), (1, 0.06)), m["darkwood"], 8)
+    sphere(tuple(pole_top + Vector((0, 0, 0.08))), 0.13, m["gold"])
+    width, height = 4.8, 3.1
+
+    def point(u, v):
+        return pole_top + Vector((-u * width, 0.28 * math.sin(u * 5.0 + 0.6) * u, -0.15 - v * height + 0.25 * u * u))
+
+    def emblem(u, v):
+        # a skull over crossed bones, in the flag's proportions (u along it, v down)
+        x, y = (u - 0.42) * 3.4, (v - 0.45) * 2.2
+        skull = (x / 0.42) ** 2 + ((y + 0.12) / 0.4) ** 2 < 1.0 and not (
+            ((x - 0.15) ** 2 + (y + 0.12) ** 2 < 0.012) or ((x + 0.15) ** 2 + (y + 0.12) ** 2 < 0.012))
+        jaw = abs(x) < 0.24 and 0.2 < y < 0.38
+        bones = any(abs((y - 0.62) - sign * x * 0.62) < 0.09 and abs(x) < 0.85 for sign in (1, -1))
+        knuckles = any((abs(x) - 0.82) ** 2 + (y - 0.62 + sign * 0.48) ** 2 < 0.02 for sign in (1, -1))
+        return skull or jaw or bones or knuckles
+
+    def wave(u, v):
+        return (0.0, 1.0, 0.25), 0.55 * u ** 0.8
+
+    cloth(m, "flag", point, 44, 28, wave, emblem, base="black", emblem="bone")
+
+
+def crows_nest(m, mast, z, radius):
+    lathe(Vector((mast.x, mast.y, z)), Vector((mast.x, mast.y, z + 0.35)), ((0, radius * 0.6), (1, radius)),
+          m["darkwood"], 24)
+    lathe(Vector((mast.x, mast.y, z + 0.35)), Vector((mast.x, mast.y, z + 1.2)),
+          ((0, radius), (0.7, radius * 1.05), (1, radius * 1.1)), m["redwood"], 24, caps=False)
 
 
 def rigging(m, mast_xy):
-    """Shrouds from the rail to the mast top and the lines of the masts further forward."""
-    mx, my = mast_xy
-    top = Vector((mx, my, 34))
-    for x in (-8.6, -7.8, -7.0, -6.2):
-        foot = Vector((x, RAIL_Y + 0.2, 1.37))
-        rod(foot, top, 0.035, m["rope"], 6)
-        sphere(tuple(foot + Vector((0, 0, 0.05))), 0.1, m["darkwood"], scale=(1, 1, 0.7), subdiv=1)
-    # ratlines across the shrouds
-    for k in range(1, 9):
-        t = k * 0.03
-        a = Vector((-8.6, RAIL_Y + 0.2, 1.37)).lerp(top, t)
-        b = Vector((-6.2, RAIL_Y + 0.2, 1.37)).lerp(top, t)
-        rod(a, b, 0.02, m["rope"], 5)
-    # lines up to the foremast beyond the rail
-    for x, target in ((3.0, (5.0, 26.0, 30.0)), (4.2, (5.0, 26.0, 30.0)), (9.0, (7.5, 26.0, 30.0)),
-                      (10.2, (7.5, 26.0, 30.0))):
-        foot = Vector((x, RAIL_Y + 0.18, 1.37))
-        rod(foot, Vector(target), 0.035, m["rope"], 6)
-        sphere(tuple(foot + Vector((0, 0, 0.05))), 0.1, m["darkwood"], scale=(1, 1, 0.7), subdiv=1)
-    # the foremast, far ahead with its yard
-    lathe((6.2, 26.0, -1.0), (6.2, 26.0, 34), ((0, 0.5), (1, 0.34)), m["wood"], 16)
-    rod((-1.5, 26.0, 11.0), (14.0, 26.0, 11.0), 0.2, m["wood"], 10)
-    for x in (0.0, 2.5, 4.5, 8.0, 10.0, 12.5):
-        sphere((x, 26.0, 10.75), 0.22, m["darkwood"], scale=(1, 0.6, 1.2), subdiv=1)
+    """The main mast's shrouds down to the rail behind the field (the other side's would cross the game's view)."""
+    north = RAIL_Y + 0.2
+    for xs in ((-8.6, -7.8, -7.0, -6.2), (1.4, 2.2, 3.0, 3.8)):
+        shrouds(m, [Vector((x, north, 1.37)) for x in xs], MAIN)
+
+
+def masts(m):
+    """What only the fly-in shows, after a carrack like the Santa Maria: the main course furled (it would hang into
+    the game's view), its topsail set with a red cross, the foremast's sails set, a lateen sail on the mizzen, a
+    spritsail under the bowsprit, crow's nests and the flag."""
+    yard(m, MAIN, 13.0, 8.4, size=1.3)
+    square_sail(m, MAIN, 23.5, 14.2, 6.6, 8.4, 2.4, crossed=True)
+    crows_nest(m, MAIN, 25.0, 1.5)
+    lathe(Vector((MAIN.x, MAIN.y, 26.0)), Vector((MAIN.x, MAIN.y, 31.0)), ((0, 0.25), (1, 0.2)), m["wood"], 12)
+    square_sail(m, Vector((MAIN.x, MAIN.y, 0)), 31.2, 26.4, 3.8, 5.2, 1.1)
+    jolly_roger(m, MAIN + Vector((0, 0, 2.6)))
+    # foremast
+    lathe(Vector((FORE.x, FORE.y, DECK_Z)), FORE, ((0, 0.45), (1, 0.28)), m["wood"], 16)
+    square_sail(m, FORE, 14.0, 5.8, 7.0, 8.2, 2.6, crossed=True)
+    crows_nest(m, FORE, 18.6, 1.15)
+    square_sail(m, FORE, 25.5, 19.6, 4.6, 6.0, 1.6)
+    # mizzen on the aftcastle
+    lathe(Vector((MIZZEN.x, MIZZEN.y, AFT_Z)), MIZZEN, ((0, 0.36), (1, 0.24)), m["wood"], 16)
+    lateen_sail(m, MIZZEN)
+    # bowsprit with its spritsail
+    root = Vector((FORECASTLE_X - 2.0, YC, FORE_Z + 0.6))
+    lathe(root, BOWSPRIT, ((0, 0.45), (1, 0.18)), m["wood"], 12)
+    axis = (BOWSPRIT - root).normalized()
+    for t in (0.3, 0.55):
+        q = root.lerp(BOWSPRIT, t)
+        r = 0.45 - 0.27 * t + 0.03
+        lathe(q - axis * 0.06, q + axis * 0.06, ((0, r), (1, r)), m["iron"], 12)
+    sprit = root.lerp(BOWSPRIT, 0.72)
+    square_sail(m, Vector((sprit.x, YC, 0)), sprit.z - 0.3, sprit.z - 4.2, 3.4, 3.8, 1.2)
+    # shrouds of the fore and mizzen masts, stays between the tops and out to the bowsprit
+    for sign in (1, -1):
+        feet = [Vector((x + bow_rake(x, sheer(x)), YC + sign * (float(half_beam(x)) - 0.1), sheer(x) + 0.05))
+                for x in (-24.2, -23.2, -22.2, -21.2)]
+        shrouds(m, feet, FORE - Vector((0, 0, 8.0)), ratlines=6)
+        feet = [Vector((x, YC + sign * (HB - 0.1), AFT_Z + 1.0)) for x in (20.6, 21.6, 22.6, 23.6)]
+        shrouds(m, feet, MIZZEN - Vector((0, 0, 4.0)), ratlines=5)
+    for a, b in ((MAIN, FORE), (FORE, BOWSPRIT), (MIZZEN, MAIN - Vector((0, 0, 4.0))),
+                 (FORE - Vector((0, 0, 12.0)), BOWSPRIT.lerp(root, 0.35))):
+        rod(a, b, 0.045, m["rope"], 6)
+
+
+HULL_ROWS = (
+    # (share of the half beam at the rail, height or None for the side's top, material of the band below):
+    # wider at the waterline than at the rail (tumblehome), round below
+    (1.0, None, "hull"),
+    (1.015, 0.55, "gold"),
+    (1.03, 0.25, "hull"),
+    (1.07, -0.75, "gold"),
+    (1.075, -1.05, "keelside"),
+    (1.05, -2.2, "keelside"),
+    (0.88, -3.5, "keelside"),
+    (0.5, -4.5, "keelside"),
+    (0.0, -4.9, "keelside"),
+)
+
+
+def hull(m):
+    """The ship's outside, lofted from the stem to the stern: planked sides with two gold wales, darker below the
+    waterline, the stem raked forward, the transom aft with two rows of lit gallery windows."""
+    steps = [POOP_X, AFT_X, FORECASTLE_X]
+    xs = np.concatenate([np.linspace(BOW_X, STERN_X, 110)] + [[x - 0.02, x + 0.02] for x in steps])
+    xs = sorted(set(np.round(xs, 3)))
+    rows = len(HULL_ROWS)
+    # one ring per section: the north side from its top down to the keel, back up the south side
+    ring = [(1, i) for i in range(rows)] + [(-1, i) for i in range(rows - 2, -1, -1)]
+    verts = []
+    for x in xs:
+        b = max(float(half_beam(x)), 0.03)
+        for side, i in ring:
+            share, z, _ = HULL_ROWS[i]
+            z = sheer(x) if z is None else z
+            verts.append(Vector((x + bow_rake(x, z), YC + side * b * share, z)))
+    n = len(ring)
+    faces, bands = [], []
+    for k in range(len(xs) - 1):
+        for j in range(n - 1):
+            a, b = k * n + j, k * n + j + 1
+            faces.append((a, b, b + n, a + n))
+            side, i = ring[j]
+            bands.append(HULL_ROWS[i][2] if side > 0 else HULL_ROWS[ring[j + 1][1]][2])
+    last = len(xs) - 1
+    faces.append(tuple(last * n + j for j in range(n)))
+    bands.append("transom")
+    names = sorted(set(bands))
+    obj = _mesh("hull", verts, faces, m[names[0]], smooth_shade=False)
+    for name in names[1:]:
+        obj.data.materials.append(m[name])
+    for poly, name in zip(obj.data.polygons, bands):
+        poly.material_index = names.index(name)
+        centre = poly.center
+        outward = Vector((1, 0, 0)) if name == "transom" else Vector((0, centre.y - YC, min(centre.z + 2.0, 0.0)))
+        if poly.normal.dot(outward) < 0:
+            poly.flip()
+        poly.use_smooth = name != "transom"
+
+    # gunports along both sides between the wales
+    for x in np.arange(-8.0, 19.0, 3.6):
+        for side in (1, -1):
+            y = YC + side * (HB * 1.05 + 0.03)
+            slab(x - 0.42, x + 0.42, y - 0.08, y + 0.08, -0.62, 0.08, m["redwood"])
+            slab(x - 0.32, x + 0.32, y - 0.1 + side * 0.04, y + 0.1 + side * 0.04, -0.52, -0.02, m["hole"])
+    # the stern gallery: two rows of windows lit from inside, gold mouldings, lanterns on the corners
+    for row, (z0, z1) in enumerate(((0.55, 2.05), (POOP_Z + 0.5, POOP_Z + 1.8))):
+        count = 5 if row == 0 else 4
+        for k in range(count):
+            y = YC + (k - (count - 1) / 2) * 2.3
+            slab(STERN_X, STERN_X + 0.14, y - 0.8, y + 0.8, z0, z1, m["gold"], bevel=0.03)
+            slab(STERN_X + 0.1, STERN_X + 0.17, y - 0.62, y + 0.62, z0 + 0.15, z1 - 0.15, m["lamp"])
+            bar(Vector((STERN_X + 0.2, y, z0 + 0.15)), Vector((STERN_X + 0.2, y, z1 - 0.15)), 0.06, 0.06, m["darkwood"])
+            bar(Vector((STERN_X + 0.2, y - 0.62, (z0 + z1) / 2)), Vector((STERN_X + 0.2, y + 0.62, (z0 + z1) / 2)),
+                0.06, 0.06, m["darkwood"])
+            glow((STERN_X + 0.6, y, (z0 + z1) / 2), (1.0, 0.7, 0.35), 1.6, GLOW_PULSE)
+    for z in (0.25, 2.35, POOP_Z + 0.2, POOP_Z + 2.05):
+        slab(STERN_X, STERN_X + 0.25, YC - 7.2, YC + 7.2, z, z + 0.22, m["gold"], bevel=0.04)
+    for side in (1, -1):
+        base = Vector((STERN_X - 0.4, YC + side * (HB - 0.4), sheer(STERN_X - 0.4)))
+        rod(base, base + Vector((0, 0, 0.9)), 0.05, m["iron"], 6)
+        lathe(base + Vector((0, 0, 0.9)), base + Vector((0, 0, 1.6)),
+              ((0, 0.12), (0.2, 0.2), (0.8, 0.2), (1, 0.05)), m["iron"], 8)
+        sphere(tuple(base + Vector((0, 0, 1.25))), 0.16, m["lamp"], scale=(1, 1, 1.3))
+        glow(base + Vector((0, 0, 1.25)), (1.0, 0.62, 0.3), 1.4, GLOW_FLAME)
 
 
 def deck_props(m):
@@ -731,6 +1088,8 @@ def deck_props(m):
     mast(m, *mast_xy)
     boom_with_sail(m, mast_xy, 2.9, (-10.5, 3.0, 6.2))
     rigging(m, mast_xy)
+    exterior(masts, m)
+    exterior(hull, m)
 
     cannon(m, -3.4, 1.35, math.radians(88))
     ball_pile(m, -1.2, 1.9)
@@ -762,8 +1121,9 @@ def deck_props(m):
 
 # --- sea and sky ----------------------------------------------------------------------------------
 
-SEA = (-90.0, 110.0, -90.0, 100.0)
-HULL = (DECK_X0 - WALL - 0.1, DECK_X1 + 0.1, DECK_Y0 - WALL - 0.1, RAIL_Y + WALL + 0.1)
+SEA = (-300.0, 300.0, -300.0, 300.0)
+SKY_RADIUS = 380.0
+MOON_SKY = (math.radians(58.0), math.radians(9.0))  # azimuth and elevation of the moon in the sky dome
 WATER = []
 
 
@@ -771,7 +1131,7 @@ def sea():
     """The water around the ship for the game's water shader ("water": [deep r, g, b] in its extras); its texture
     is data: red the depth, green the foam along the hull."""
     x0, x1, y0, y1 = SEA
-    step = 5.0
+    step = 25.0
     xs = np.arange(x0, x1 + 1e-6, step)
     ys = np.arange(y0, y1 + 1e-6, step)
     X, Y = np.meshgrid(xs, ys)
@@ -788,14 +1148,15 @@ def sea():
     co = np.array([mesh.vertices[l.vertex_index].co[:] for l in mesh.loops])
     uv.data.foreach_set("uv", np.stack([(co[:, 0] - x0) / (x1 - x0), (co[:, 1] - y0) / (y1 - y0)], 1).ravel())
 
-    size = 1024
+    size = 2048
     u = (np.arange(size) + 0.5) / size
     TX, TY = np.meshgrid(x0 + u * (x1 - x0), y0 + u * (y1 - y0))
     depth = np.ones_like(TX)
     # foam along the hull
-    hx0, hx1, hy0, hy1 = HULL
-    away = np.hypot(np.maximum(np.maximum(hx0 - TX, TX - hx1), 0), np.maximum(np.maximum(hy0 - TY, TY - hy1), 0))
-    foam = np.clip(1.0 - away / 1.1, 0, 1) ** 2 * 0.8
+    side = np.maximum(np.abs(TY - YC) - 1.075 * half_beam(np.clip(TX, BOW_X, STERN_X)), 0)
+    ends = np.maximum(np.maximum(BOW_X - TX, TX - STERN_X), 0)
+    away = np.hypot(side, ends)
+    foam = np.clip(1.0 - away / 1.3, 0, 1) ** 2 * 0.8
     data = np.stack([depth, foam, np.zeros_like(depth), np.ones_like(depth)], axis=2)
     img = bpy.data.images.new("water_data", size, size)
     img.pixels.foreach_set(data.astype(np.float32).ravel())
@@ -816,40 +1177,63 @@ def sea():
 
 
 def sky():
-    """A backdrop far behind the sea: the night sky with stars and the moon, its colour painted, not baked."""
-    x0, x1 = -150.0, 170.0
-    z0, z1 = SEA_Z - 1.0, 70.0
-    y = 110.0
-    verts = [(x0, y, z0), (x1, y, z0), (x1, y, z1), (x0, y, z1)]
-    obj = _mesh("sky", verts, [(0, 3, 2, 1)], material("sky_tmp", (0, 0, 0)), smooth_shade=False)
-    PROPS.remove(obj)
-    obj.data.materials.clear()
-    uv = obj.data.uv_layers.new(name="UVMap")
-    uv.data.foreach_set("uv", [0, 0, 0, 1, 1, 1, 1, 0])
+    """A dome over the sea: the night sky with stars and the moon low over the horizon, its colour painted, not
+    baked. Its faces look inwards, its normals all point up so the game's light leaves it as painted."""
+    centre = Vector((6.5, YC, SEA_Z - 6.0))
+    segments, rings = 96, 24
+    verts, faces, uvs = [], [], []
+    for j in range(rings + 1):
+        elevation = (math.pi / 2) * j / rings
+        for i in range(segments + 1):
+            azimuth = 2 * math.pi * i / segments
+            direction = Vector((math.cos(azimuth) * math.cos(elevation), math.sin(azimuth) * math.cos(elevation),
+                                math.sin(elevation)))
+            verts.append(centre + direction * SKY_RADIUS)
+    for j in range(rings):
+        for i in range(segments):
+            a = j * (segments + 1) + i
+            # wound to face the centre
+            faces.append((a, a + segments + 1, a + segments + 2, a + 1))
+    mesh = bpy.data.meshes.new("sky")
+    mesh.from_pydata([tuple(v) for v in verts], [], faces)
+    mesh.validate()
+    obj = bpy.data.objects.new("sky", mesh)
+    bpy.context.scene.collection.objects.link(obj)
+    uv = mesh.uv_layers.new(name="UVMap")
+    for loop in mesh.loops:
+        index = loop.vertex_index
+        uv.data[loop.index].uv = ((index % (segments + 1)) / segments, (index // (segments + 1)) / rings)
+    mesh.normals_split_custom_set_from_vertices([(0.0, 0.0, 1.0)] * len(mesh.vertices))
 
-    sw, sh = 2048, 512
+    sw, sh = 4096, 1024
     u = (np.arange(sw) + 0.5) / sw
     v = (np.arange(sh) + 0.5) / sh
     U, V = np.meshgrid(u, v)
-    horizon = np.array(_linear((0.13, 0.20, 0.36)))
+    elevation = V * math.pi / 2
+    azimuth = U * 2 * math.pi
+    horizon = np.array(_linear((0.15, 0.22, 0.38)))
     zenith = np.array(_linear((0.01, 0.02, 0.06)))
-    t = np.clip(V / 0.55, 0, 1) ** 0.7
+    t = np.clip(elevation / math.radians(40), 0, 1) ** 0.6
     color = horizon * (1 - t[..., None]) + zenith * t[..., None]
-    # moon halo
-    mu, mv = 0.62, 0.42
-    d = np.hypot((U - mu) * (x1 - x0), (V - mv) * (z1 - z0))
-    color += np.array(_linear((0.55, 0.62, 0.75)))[None, None, :] * np.exp(-d / 9.0)[..., None] * 0.5
-    color = np.where((d < 3.2)[..., None], np.array(_linear((0.95, 0.94, 0.86))), color)
-    # stars
-    stars = rng.random((sh, sw)) > 0.9975
-    bright = rng.uniform(0.3, 1.0, (sh, sw)) * (V > 0.12)
-    color += (stars * bright)[..., None] * 0.9
+    # the moon, its halo and the light it throws on the haze around it
+    moon_azimuth, moon_elevation = MOON_SKY
+    cos_angle = (np.cos(elevation) * math.cos(moon_elevation) * np.cos(azimuth - moon_azimuth)
+                 + np.sin(elevation) * math.sin(moon_elevation))
+    angle = np.degrees(np.arccos(np.clip(cos_angle, -1, 1)))
+    color += np.array(_linear((0.55, 0.62, 0.78)))[None, None, :] * (np.exp(-angle / 7.0) * 0.6)[..., None]
+    color = np.where((angle < 1.6)[..., None], np.array(_linear((0.96, 0.95, 0.88))), color)
+    # stars, fewer towards the horizon's haze
+    stars = rng.random((sh, sw)) > 0.9978
+    bright = rng.uniform(0.3, 1.0, (sh, sw)) * np.clip((elevation - math.radians(4)) / math.radians(12), 0, 1)
+    color += (stars * bright * (angle > 4))[..., None] * 0.9
     pixels = np.concatenate([np.clip(color, 0, 1), np.ones((sh, sw, 1))], axis=2)
     img = bpy.data.images.new("sky_color", sw, sh)
     img.pixels.foreach_set(pixels.astype(np.float32).ravel())
     obj.data.materials.append(export_material("sky_export", img, white_image()))
-    moon = ((x0 + mu * (x1 - x0)), y - 1.0, z0 + mv * (z1 - z0))
-    glow(moon, (0.75, 0.82, 1.0), 9.0, GLOW_STEADY)
+    moon = centre + Vector((math.cos(moon_azimuth) * math.cos(moon_elevation),
+                            math.sin(moon_azimuth) * math.cos(moon_elevation),
+                            math.sin(moon_elevation))) * (SKY_RADIUS - 10.0)
+    glow(moon, (0.75, 0.82, 1.0), 22.0, GLOW_STEADY)
     return obj, img
 
 
@@ -972,8 +1356,8 @@ def export_material(name, color_img, ao_img):
     return mat
 
 
-def join_props(name):
-    objs = [o for o in PROPS if o.name in bpy.data.objects]
+def join_props(name, parts=None):
+    objs = [o for o in (PROPS if parts is None else parts) if o.name in bpy.data.objects]
     bpy.ops.object.select_all(action="DESELECT")
     for o in objs:
         o.select_set(True)
@@ -1074,6 +1458,8 @@ def build_scene():
     clear_scene()
     _MATERIALS.clear()
     PROPS.clear()
+    EXTERIOR.clear()
+    CLOTH.clear()
     GLOWS.clear()
     WATER.clear()
     _WHITE.clear()
@@ -1111,6 +1497,9 @@ def build():
 
     water.hide_render = True
     sky_obj.hide_render = True
+    outside = join_props("exterior", EXTERIOR)
+    sails = join_props("cloth", CLOTH)
+    sails["wave"] = [1.0]
     props = join_props("props")
     props_color = new_image("props_color", PROP_TEX, PROP_TEX)
     props_ao = new_image("props_ao", AO_TEX, AO_TEX, data=True)
@@ -1130,27 +1519,53 @@ def build():
 
     # moon, lanterns and sky: the lit bake holds the sky's occlusion already, the ambient occlusion only deepens it
     light_rig()
+    outside.visible_shadow = sails.visible_shadow = False
     deck_lit, exposure = light(deck_obj, deck_color, DECK_TEX, field_texels(deck_color))
     props_lit, _ = light(props, props_color, (PROP_TEX, PROP_TEX), exposure=exposure)
+    outside.visible_shadow = sails.visible_shadow = True
+    cloth_color = new_image("cloth_color", CLOTH_TEX, CLOTH_TEX)
+    cloth_ao = new_image("cloth_ao", CLOTH_TEX // 2, CLOTH_TEX // 2, data=True)
+    bake(sails, "COLOR", cloth_color)
+    fill_unbaked(cloth_color)
+    bake(sails, "AO", cloth_ao)
+    fill_unbaked(cloth_ao, 1.0)
+    cloth_lit, _ = light(sails, cloth_color, (CLOTH_TEX, CLOTH_TEX), exposure=exposure)
+    outside_color = new_image("exterior_color", EXTERIOR_TEX, EXTERIOR_TEX)
+    outside_ao = new_image("exterior_ao", AO_TEX, AO_TEX, data=True)
+    bake(outside, "COLOR", outside_color)
+    fill_unbaked(outside_color)
+    bake(outside, "AO", outside_ao)
+    fill_unbaked(outside_ao, 1.0)
+    outside_lit, _ = light(outside, outside_color, (EXTERIOR_TEX, EXTERIOR_TEX), exposure=exposure)
     deck_color, props_color = deck_lit, props_lit
-    for img, floor in ((props_ao, 0.55), (deck_ao, 0.6)):
+    for img, floor in ((props_ao, 0.55), (deck_ao, 0.6), (outside_ao, 0.55), (cloth_ao, 0.7)):
         ao = pixels(img)
         ao[:, :3] = floor + (1 - floor) * ao[:, :3]
         img.pixels.foreach_set(ao.ravel())
     water.hide_render = False
     sky_obj.hide_render = False
 
-    for obj, color_img, ao_img in ((deck_obj, deck_color, deck_ao), (props, props_color, props_ao)):
+    for obj, color_img, ao_img in ((deck_obj, deck_color, deck_ao), (props, props_color, props_ao),
+                                   (outside, outside_lit, outside_ao), (sails, cloth_lit, cloth_ao)):
         obj.data.materials.clear()
         obj.data.materials.append(export_material(f"{obj.name}_export", color_img, ao_img))
 
-    tris = sum(len(p.vertices) - 2 for o in (deck_obj, props) for p in o.data.polygons)
+    tris = sum(len(p.vertices) - 2 for o in (deck_obj, props, outside, sails) for p in o.data.polygons)
     os.makedirs(OUT, exist_ok=True)
     path = os.path.join(OUT, "ship.glb")
     bpy.ops.object.select_all(action="SELECT")
+    # the cloth's waving goes out as its first vertex colour
+    options = bpy.ops.export_scene.gltf.get_rna_type().properties
+    colors = {}
+    if "export_vertex_color" in options:
+        colors["export_vertex_color"] = "ACTIVE"
+    elif "export_colors" in options:
+        colors["export_colors"] = True
     bpy.ops.export_scene.gltf(filepath=path, export_format="GLB", use_selection=True, export_yup=True,
-                              export_image_format="JPEG", export_jpeg_quality=90, export_extras=True)
-    for img in (props_color, props_ao, deck_color, deck_ao, sky_img, white_image(), *(img for _, img in WATER)):
+                              export_image_format="JPEG", export_jpeg_quality=90, export_extras=True, **colors)
+    for img in (props_color, props_ao, deck_color, deck_ao, outside_lit, outside_ao, cloth_lit, cloth_ao, sky_img,
+                white_image(),
+                *(img for _, img in WATER)):
         img.pack()
     preview_camera()
     bpy.context.scene.name = "pirate_ship"

@@ -28,6 +28,10 @@ SHADOW = (0.50, 0.56, 0.72)
 
 
 def setup():
+    # the sky dome would keep the moon and the sky's light out, the world stands in for it
+    for obj in bpy.data.objects:
+        if obj.name.startswith("sky"):
+            obj.hide_render = True
     build["setup_cycles"]()
     bpy.context.scene.cycles.samples = 96
     bpy.context.scene.render.film_transparent = False
@@ -109,14 +113,14 @@ def lighting_balls():
     obj = ball("mirror", mirror)
     # the sphere map adds the reflection on top of the lit colour, keep it subtle
     spec = render(tmp).reshape(-1, 4)
-    spec[:, :3] *= 0.75
+    spec[:, :3] *= 0.45
     to_tga(spec, (256, 256), os.path.join(OUT, "specular_level.tga"))
     bpy.data.objects.remove(obj, do_unlink=True)
 
     obj = ball("white", white)
     diffuse = render(tmp).reshape(-1, 4)
     # brighter: the map multiplies the players' colours, they must stay readable at night
-    diffuse[:, :3] = np.clip(diffuse[:, :3] * 1.9 + 0.08, 0, 1)
+    diffuse[:, :3] = np.clip(diffuse[:, :3] * 1.1 + 0.04, 0, 1)
     to_tga(diffuse, (256, 256), os.path.join(OUT, "diffuse_level.tga"))
     bpy.data.objects.remove(obj, do_unlink=True)
     bpy.data.objects.remove(camera, do_unlink=True)
