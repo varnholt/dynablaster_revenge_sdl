@@ -852,7 +852,9 @@ MAIN = Vector((-2.4, -4.1, 34.0))  # the main mast's top
 MAIN_TOP_Z = 23.6  # its round top (crow's nest)
 FORE = Vector((-25.0, YC, 21.0))
 MIZZEN = Vector((21.8, YC, 21.0))
-BOWSPRIT = Vector((BOW_X - 15.0, YC, 13.5))
+# the bowsprit leaves the forecastle at the stem head, forward of the foremast, about 28 degrees up
+BOWSPRIT_ROOT = Vector((BOW_X - 2.6, YC, FORE_Z + 0.35))
+BOWSPRIT = BOWSPRIT_ROOT + Vector((-math.cos(math.radians(28)), 0.0, math.sin(math.radians(28)))) * 15.0
 
 
 def shrouds(m, feet, top, ratlines=8):
@@ -1016,15 +1018,16 @@ def masts(m):
     lathe(Vector((MIZZEN.x, MIZZEN.y, AFT_Z)), MIZZEN, ((0, 0.34), (1, 0.22)), m["wood"], 16)
     lateen_sail(m, MIZZEN)
     # bowsprit with its spritsail
-    root = Vector((FORECASTLE_X - 2.5, YC, FORE_Z + 0.5))
-    lathe(root, BOWSPRIT, ((0, 0.45), (1, 0.18)), m["wood"], 12)
+    root = BOWSPRIT_ROOT
+    lathe(root, BOWSPRIT, ((0, 0.42), (1, 0.16)), m["wood"], 12)
     axis = (BOWSPRIT - root).normalized()
     for t in (0.35, 0.6):
         q = root.lerp(BOWSPRIT, t)
         r = 0.45 - 0.27 * t + 0.03
         lathe(q - axis * 0.06, q + axis * 0.06, ((0, r), (1, r)), m["iron"], 12)
-    sprit = root.lerp(BOWSPRIT, 0.78)
-    square_sail(m, Vector((sprit.x, YC, 0)), sprit.z - 0.3, sprit.z - 4.6, 3.6, 4.0, 1.2)
+    # the spritsail hangs from its yard under the bowsprit
+    sprit = root.lerp(BOWSPRIT, 0.62)
+    square_sail(m, Vector((sprit.x, YC, 0)), sprit.z - 0.35, sprit.z - 6.0, 4.6, 5.0, 1.6)
     # shrouds of the fore and mizzen masts, stays between the tops and out to the bowsprit
     for sign in (1, -1):
         feet = []
