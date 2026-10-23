@@ -5,7 +5,7 @@
 #include "game.h"
 
 // shared
-#include "logging.h"
+#include "log.h"
 #include "map.h"
 #include "mapitem.h"
 #include "player.h"

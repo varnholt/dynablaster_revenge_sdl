@@ -72,7 +72,7 @@
 #include "server.h"
 
 // qt
-#include "logging.h"
+#include "log.h"
 
 // SDL
 #include <SDL3/SDL_keycode.h>
@@ -337,7 +337,7 @@ void BombermanClient::connectToServer()
  */
 void BombermanClient::clientConnect()
 {
-   qDebug("BombermanClient::clientConnect()");
+   Log::info("BombermanClient::clientConnect()");
 
    setConnected(true);
 
@@ -371,7 +371,7 @@ void BombermanClient::clientDisconnect()
    resetGameData();
    resetClientState();
 
-   qDebug("disconnected");
+   Log::info("disconnected");
 
    clearMapItems();
 }
@@ -498,7 +498,7 @@ void BombermanClient::processCreateGameResponse(const CreateGameResponsePacket& 
 
    if (game_id > -1)
    {
-      qDebug("BombermanClient::data(): game %d created", game_id);
+      Log::info(std::format("BombermanClient::data(): game {} created", game_id));
 
       // update game information
       if (const auto old_game_information = getGameInformation(game_id))
@@ -514,7 +514,7 @@ void BombermanClient::processCreateGameResponse(const CreateGameResponsePacket& 
    }
    else
    {
-      qDebug("BombermanClient::data(): game create request failed");
+      Log::info("BombermanClient::data(): game create request failed");
    }
 
    createGameResponseSignal(success, game_id, player_id == getPlayerId());
@@ -624,7 +624,7 @@ void BombermanClient::processListGameResponse(const ListGamesResponsePacket& lis
       _games = list.getGames();
    }
 
-   // qDebug("BombermanClient::data(): %d games received", _games.size());
+   // Log::info(std::format("BombermanClient::data(): {} games received", _games.size()));
 
    gamesListUpdatedSignal(_games);
 }
@@ -980,14 +980,8 @@ void BombermanClient::processGameStats(const GameStatsPacket& stats_packet)
          PlayerInfo& info = iter->second;
 
          /*
-         qDebug(
-            "BombermanClient::processGameStats: "
-            "player %s: wins: %d, kills: %d, deaths: %d",
-            qPrintable(info->getNick()),
-            stats[i].getWins(),
-            stats[i].getKills(),
-            stats[i].getDeaths()
-         );
+         Log::info(std::format("BombermanClient::processGameStats: player {}: wins: {}, kills: {}, deaths: {}", qPrintable(info->getNick()),
+         stats[i].getWins(), stats[i].getKills(), stats[i].getDeaths()));
          */
 
          info.setOverallStats(overall_stats[i]);
@@ -1065,7 +1059,7 @@ void BombermanClient::broadcastPlayerStartPositions()
  */
 void BombermanClient::processStartGameResponse(const StartGameResponsePacket& response)
 {
-   qDebug("BombermanClient::data: game %d started", response.getId());
+   Log::info(std::format("BombermanClient::data: game {} started", response.getId()));
 
    setIngameMessagingActive(false);
    GameStateMachine::getInstance().setState(Constants::GameActive);
@@ -1091,7 +1085,7 @@ void BombermanClient::processStartGameResponse(const StartGameResponsePacket& re
 */
 void BombermanClient::processStopGameResponse(const StopGameResponsePacket& response)
 {
-   qDebug("BombermanClient::data: game %d stopped, all rounds finished: %d", response.getId(), response.isFinished());
+   Log::info(std::format("BombermanClient::data: game {} stopped, all rounds finished: {}", response.getId(), response.isFinished()));
 
    GameStateMachine::getInstance().setState(Constants::GameStopped);
 
@@ -1166,11 +1160,8 @@ void BombermanClient::processMessage(const MessagePacket& message_packet)
 void BombermanClient::processTime(const TimePacket& time_packet)
 {
    /*
-      qDebug(
-         "BombermanClient::data: server time: %s, left: %d",
-         qPrintable(packet->getTimestamp().toString()),
-         time_packet.getTimeLeft()
-      );
+      Log::info(std::format("BombermanClient::data: server time: {}, left: {}", qPrintable(packet->getTimestamp().toString()),
+      time_packet.getTimeLeft()));
    */
 
    if (const auto game_information = getCurrentGameInformation())
@@ -1197,7 +1188,7 @@ void BombermanClient::processCountdown(const CountdownPacket& countdown_packet)
 
    int time_left = countdown_packet.getTimeLeft();
 
-   qDebug("BombermanClient::processCountdown: left: %d", time_left);
+   Log::info(std::format("BombermanClient::processCountdown: left: {}", time_left));
 
    // sync tick
    if (time_left == SERVER_PREPARATION_TIME + SERVER_PREPARATION_SYNC_TIME - 1)
@@ -1280,7 +1271,7 @@ void BombermanClient::processPacket(const Packet& packet)
 
       case Packet::KEY:
       {
-         qWarning("BombermanClient::data(): wrong direction!");
+         Log::warning("BombermanClient::data(): wrong direction!");
          break;
       }
 
@@ -1311,10 +1302,7 @@ void BombermanClient::processPacket(const Packet& packet)
       case Packet::POSITION:
       {
          /*
-         qDebug(
-            "pos received: %s",
-            qPrintable(QTime::currentTime().toString("hh:mm:ss.zzz"))
-         );
+         Log::info(std::format("pos received: {}", qPrintable(QTime::currentTime().toString("hh:mm:ss.zzz"))));
          */
 
          processPosition(static_cast<const PositionPacket&>(packet));
@@ -1420,7 +1408,7 @@ void BombermanClient::processPacket(const Packet& packet)
 
       case Packet::INVALID:
       {
-         qWarning("BombermanClient::data: Packet::INVALID received");
+         Log::warning("BombermanClient::data: Packet::INVALID received");
          break;
       }
 
@@ -1641,7 +1629,7 @@ void BombermanClient::processExtraShake(const ExtraShakePacket& shake_packet)
 void BombermanClient::sendKeysPressedPacket()
 {
    // build keypacket
-   // qDebug("BombermanClient::keyPressed: sending keypacket");
+   // Log::info("BombermanClient::keyPressed: sending keypacket");
    KeyPacket kPacket(0, _keys_pressed);
    send(kPacket);
 }
@@ -1850,7 +1838,7 @@ void BombermanClient::processKeyReleased(int key)
    if (!_dead)
    {
       // build keypacket
-      // qDebug("BombermanClient::keyPressed: sending keypacket");
+      // Log::info("BombermanClient::keyPressed: sending keypacket");
       KeyPacket kPacket(0, _keys_pressed);
       send(kPacket);
    }
@@ -2122,11 +2110,9 @@ void BombermanClient::loginRequest(const std::string& host, const std::string& n
    // because its hostname obviously differs from ours
    if (connected_or_connecting && StringUtils::toLower(previous_host) != StringUtils::toLower(host))
    {
-      qDebug(
-         "BombermanClient::loginRequest: connect to another host: %s -> %s",
-         StringUtils::toLower(previous_host).c_str(),
-         StringUtils::toLower(host).c_str()
-      );
+      Log::info(std::format(
+         "BombermanClient::loginRequest: connect to another host: {} -> {}", StringUtils::toLower(previous_host), StringUtils::toLower(host)
+      ));
 
       setConnected(false);
       disconnectFromServer();

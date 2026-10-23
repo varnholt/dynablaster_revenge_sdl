@@ -2,11 +2,12 @@
 
 #include "screenshot.h"
 
-#include "logging.h"
+#include "log.h"
 
 #include <SDL3/SDL.h>
 
 #include <cstdlib>
+#include <format>
 #include <fstream>
 #include <sstream>
 
@@ -54,7 +55,7 @@ DevScript::DevScript()
       _commands.push_back(std::move(command));
    }
 
-   qDebug("DevScript: %zu commands from %s", _commands.size(), path);
+   Log::info(std::format("DevScript: {} commands from {}", _commands.size(), path));
 }
 
 bool DevScript::isActive() const
@@ -124,7 +125,7 @@ void DevScript::frameDrawn(int32_t width, int32_t height)
    if (!_pending_shot.empty())
    {
       saveScreenshot(_pending_shot, width, height);
-      qDebug("DevScript: screenshot %s", _pending_shot.c_str());
+      Log::info(std::format("DevScript: screenshot {}", _pending_shot));
       _pending_shot.clear();
    }
 }

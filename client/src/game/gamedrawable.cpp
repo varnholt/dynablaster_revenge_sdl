@@ -44,9 +44,10 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <format>
 #include <numbers>
 
-#include "logging.h"
+#include "log.h"
 
 #include <SDL3/SDL_keycode.h>
 
@@ -287,7 +288,7 @@ void GameDrawable::setPlayfieldSize(int width, int height)
 */
 void GameDrawable::loadLevel(const std::string& level_path)
 {
-   qDebug("GameDrawable::loadLevel: loading %s", level_path.c_str());
+   Log::info(std::format("GameDrawable::loadLevel: loading {}", level_path));
 
    _map.clear();
 
@@ -1018,7 +1019,7 @@ void GameDrawable::addPlayer(int id, const std::string& nick, Constants::Color c
 {
    if (const auto player = getPlayer(id))
    {
-      qWarning("GameDrawable::addPlayer: player already exists");
+      Log::warning("GameDrawable::addPlayer: player already exists");
       player->get().setKilled(false);
       return;
    }
@@ -1026,7 +1027,7 @@ void GameDrawable::addPlayer(int id, const std::string& nick, Constants::Color c
    const auto mesh = MotionMixer::getMesh("bomberman");
    if (!mesh)
    {
-      qWarning("GameDrawable::addPlayer: mesh not found");
+      Log::warning("GameDrawable::addPlayer: mesh not found");
    }
 
    SceneGraph& players = _level->getPlayers();

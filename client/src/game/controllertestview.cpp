@@ -7,10 +7,11 @@
 #include "menus/menupageitem.h"
 #include "menus/menupagelabelitem.h"
 
-#include "logging.h"
+#include "log.h"
 
 #include <algorithm>
 #include <array>
+#include <format>
 #include <string>
 #include <utility>
 
@@ -295,6 +296,6 @@ void ControllerTestView::calibrate(const ControllerInput::State& state)
    {
       controls.setAnalogueAxis1(pair->first);
       controls.setAnalogueAxis2(pair->second);
-      qDebug("ControllerTestView: steering axes %d, %d", pair->first, pair->second);
+      Log::info(std::format("ControllerTestView: steering axes {}, {}", pair->first, pair->second));
    }
 }

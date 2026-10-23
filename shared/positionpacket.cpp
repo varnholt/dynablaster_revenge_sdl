@@ -1,7 +1,8 @@
 #include "positionpacket.h"
 
-#include "logging.h"
+#include "log.h"
 
+#include <format>
 #include <string_view>
 
 namespace
@@ -121,5 +122,14 @@ void PositionPacket::dequeue(BinaryReader& in)
 
 void PositionPacket::debug()
 {
-   qDebug("PositionPacket: player id: %d, position: (%f, %f, %f)  dir: (%f,%f,%f)", _player_id, _x, _y, _angle, _dx, _dy, _angle_delta);
+   Log::info(std::format(
+      "PositionPacket: player id: {}, position: ({:.6f}, {:.6f}, {:.6f})  dir: ({:.6f},{:.6f},{:.6f})",
+      _player_id,
+      _x,
+      _y,
+      _angle,
+      _dx,
+      _dy,
+      _angle_delta
+   ));
 }

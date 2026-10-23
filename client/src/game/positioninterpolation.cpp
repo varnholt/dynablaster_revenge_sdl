@@ -2,6 +2,7 @@
 
 // cmath
 #include <cmath>
+#include <format>
 
 // game
 #include "bombermanclient.h"
@@ -115,7 +116,7 @@ void PositionInterpolation::interpolatePlayerPositions(float delta)
       dy = player.getDeltaY();
       dr = player.getAngleDelta();
 
-      //      qDebug("interpolation %d (%f): %f, %f, %f ", dx,dy,dr);
+      //      Log::info(std::format("interpolation {} ({:.6f}): {:.6f}, {:.6f}, {:.6f} ", dx, dy, dr));
 
       x += dx * delta;
       y += dy * delta;
@@ -174,7 +175,7 @@ void PositionInterpolation::interpolateMapItemPositions(float dt)
             factor -= 0.1f;
             animation._factor = std::max(factor, 0.0f);
 
-            //            qDebug(
+            //            Log::info(
             //               "anim: %f, %f, diff: %f, %f, pos: %f, %f",
             //               animation._x,
             //               animation._y,

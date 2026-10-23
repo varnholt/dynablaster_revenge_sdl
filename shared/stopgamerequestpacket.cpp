@@ -1,7 +1,8 @@
 #include "stopgamerequestpacket.h"
 
-#include "logging.h"
+#include "log.h"
 
+#include <format>
 #include <string_view>
 
 namespace
@@ -36,5 +37,5 @@ void StopGameRequestPacket::dequeue(BinaryReader& in)
 
 void StopGameRequestPacket::debug()
 {
-   qDebug("StopGameRequestPacket:debug: id: %d", _id);
+   Log::info(std::format("StopGameRequestPacket:debug: id: {}", _id));
 }

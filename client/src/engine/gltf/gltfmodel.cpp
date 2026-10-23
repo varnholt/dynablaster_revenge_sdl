@@ -3,7 +3,7 @@
 #include "framework/gldevice.h"
 #include "tools/datapaths.h"
 
-#include "logging.h"
+#include "log.h"
 
 #include "cgltf.h"
 #include "stb_image.h"
@@ -13,6 +13,7 @@
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
+#include <format>
 #include <fstream>
 #include <iterator>
 #include <optional>
@@ -232,7 +233,7 @@ void GltfModel::load(const std::string& filename)
 
    if (!file.is_open())
    {
-      qWarning("GltfModel: %s not found", filename.c_str());
+      Log::warning(std::format("GltfModel: {} not found", filename));
       return;
    }
 
@@ -246,7 +247,7 @@ void GltfModel::load(const std::string& filename)
       cgltf_load_buffers(&options, data, nullptr) != cgltf_result_success
    )
    {
-      qWarning("GltfModel: unable to read %s", filename.c_str());
+      Log::warning(std::format("GltfModel: unable to read {}", filename));
       cgltf_free(data);
       return;
    }

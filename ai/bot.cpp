@@ -7,7 +7,7 @@
 #include "botplayerinfo.h"
 #include "botwalkaction.h"
 
-#include "logging.h"
+#include "log.h"
 
 #include <algorithm>
 #include <cmath>
@@ -140,7 +140,7 @@ void Bot::act()
          {
             if (DEBUG_EXECUTED_ACTIONS)
             {
-               qDebug("Bot::act(): BotAction::ActionBomb:");
+               Log::info("Bot::act(): BotAction::ActionBomb:");
             }
 
             bombSignal();
@@ -151,7 +151,7 @@ void Bot::act()
          {
             if (DEBUG_EXECUTED_ACTIONS)
             {
-               qDebug("Bot::act(): BotAction::ActionWalk:");
+               Log::info("Bot::act(): BotAction::ActionWalk:");
             }
 
             walkSignal(static_cast<BotWalkAction&>(action).getWalkKeys());
@@ -162,7 +162,7 @@ void Bot::act()
          default:
             if (DEBUG_EXECUTED_ACTIONS)
             {
-               qDebug("Bot::act(): BotAction::ActionIdle:");
+               Log::info("Bot::act(): BotAction::ActionIdle:");
             }
 
             walkSignal(0);
@@ -299,7 +299,7 @@ void Bot::setState(BotState state)
 */
 bool Bot::isFieldReached()
 {
-   qFatal("Bot::isFieldReached(): rebel without a cause");
+   Log::fatal("Bot::isFieldReached(): rebel without a cause");
 
    return std::fabs(_x - (static_cast<float>(_transiterate_target_x) + 0.5f)) < FIELD_REACHED_PRECISION &&
           std::fabs(_y - (static_cast<float>(_transiterate_target_y) + 0.5f)) < FIELD_REACHED_PRECISION;
@@ -385,10 +385,7 @@ bool Bot::isPositionQueueRecurrent() const
 
       if (points.size() <= 3)
       {
-         qWarning(
-            "Bot::checkPositionQueueForRecurrence(): "
-            "bot positioning recurs"
-         );
+         Log::warning("Bot::checkPositionQueueForRecurrence(): bot positioning recurs");
 
          recurrent = true;
       }

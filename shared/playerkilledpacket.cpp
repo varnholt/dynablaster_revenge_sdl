@@ -1,7 +1,8 @@
 #include "playerkilledpacket.h"
 
-#include "logging.h"
+#include "log.h"
 
+#include <format>
 #include <string_view>
 
 namespace
@@ -46,5 +47,5 @@ void PlayerKilledPacket::dequeue(BinaryReader& in)
 
 void PlayerKilledPacket::debug()
 {
-   qDebug("PlayerKilledPacket: player: %d, killed by: %d, intensity: %f", _player_id, _player_killed_by_id, _intensity);
+   Log::info(std::format("PlayerKilledPacket: player: {}, killed by: {}, intensity: {:.6f}", _player_id, _player_killed_by_id, _intensity));
 }

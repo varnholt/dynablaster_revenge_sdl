@@ -3,7 +3,7 @@
 #include "gamesettings.h"
 #include "tools/singleton.h"
 
-#include "logging.h"
+#include "log.h"
 
 #include <SDL3/SDL.h>
 
@@ -13,6 +13,7 @@
 #include "stringutils.h"
 
 #include <algorithm>
+#include <format>
 
 namespace
 {
@@ -43,14 +44,14 @@ SoundManager::SoundManager()
 {
    if (!SDL_InitSubSystem(SDL_INIT_AUDIO))
    {
-      qWarning("SoundManager: SDL_InitSubSystem(SDL_INIT_AUDIO) failed: %s", SDL_GetError());
+      Log::warning(std::format("SoundManager: SDL_InitSubSystem(SDL_INIT_AUDIO) failed: {}", SDL_GetError()));
       return;
    }
 
    _device = SDL_OpenAudioDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, nullptr);
    if (_device == 0)
    {
-      qWarning("SoundManager: SDL_OpenAudioDevice failed: %s", SDL_GetError());
+      Log::warning(std::format("SoundManager: SDL_OpenAudioDevice failed: {}", SDL_GetError()));
       return;
    }
 
@@ -145,7 +146,7 @@ void SoundManager::loadSample(SampleId id, const std::string& filename)
 
    if (!SDL_LoadWAV(filename.c_str(), &sample.spec, &buffer, &length))
    {
-      qWarning("SoundManager: failed to load %s: %s", filename.c_str(), SDL_GetError());
+      Log::warning(std::format("SoundManager: failed to load {}: {}", filename, SDL_GetError()));
       return;
    }
 
@@ -268,7 +269,7 @@ void SoundManager::startPlaylist()
 
    if (_playlist.empty())
    {
-      qWarning("SoundManager: no music found in data/music");
+      Log::warning("SoundManager: no music found in data/music");
       return;
    }
 
@@ -311,7 +312,7 @@ void SoundManager::playTrack(std::size_t index)
    mp3dec_file_info_t info{};
    if (mp3dec_load(&decoder, path.c_str(), &info, nullptr, nullptr) != 0 || !info.buffer)
    {
-      qWarning("SoundManager: failed to decode %s", path.c_str());
+      Log::warning(std::format("SoundManager: failed to decode {}", path));
       return;
    }
 

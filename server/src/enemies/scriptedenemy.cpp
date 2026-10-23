@@ -3,7 +3,7 @@
 #include "enemyworld.h"
 
 // shared
-#include "logging.h"
+#include "log.h"
 #include "random.h"
 
 extern "C"
@@ -15,6 +15,7 @@ extern "C"
 
 #include <array>
 #include <cmath>
+#include <format>
 #include <fstream>
 #include <optional>
 #include <sstream>
@@ -229,7 +230,7 @@ int dropBomb(lua_State* state)
 
 int logMessage(lua_State* state)
 {
-   qDebug("enemy %d: %s", self(state).getId(), luaL_checkstring(state, 1));
+   Log::info(std::format("enemy {}: {}", self(state).getId(), luaL_checkstring(state, 1)));
    return 0;
 }
 
@@ -287,13 +288,13 @@ void ScriptedEnemy::initialize()
 
    if (source.empty())
    {
-      qWarning("ScriptedEnemy: no behaviour script at %s", script_path.c_str());
+      Log::warning(std::format("ScriptedEnemy: no behaviour script at {}", script_path));
       return;
    }
 
    if (luaL_loadbuffer(_state, source.data(), source.size(), script_path.c_str()) != LUA_OK || lua_pcall(_state, 0, 0, 0) != LUA_OK)
    {
-      qWarning("ScriptedEnemy: %s", lua_tostring(_state, -1));
+      Log::warning(std::format("ScriptedEnemy: {}", lua_tostring(_state, -1)));
       lua_pop(_state, 1);
       return;
    }
@@ -311,7 +312,7 @@ std::optional<std::string> ScriptedEnemy::loadDefinition()
 
    if (lua_pcall(_state, 1, 1, 0) != LUA_OK)
    {
-      qWarning("ScriptedEnemy: %s", lua_tostring(_state, -1));
+      Log::warning(std::format("ScriptedEnemy: {}", lua_tostring(_state, -1)));
       lua_pop(_state, 1);
       return std::nullopt;
    }
@@ -322,7 +323,7 @@ std::optional<std::string> ScriptedEnemy::loadDefinition()
 
    if (!lua_istable(_state, -1))
    {
-      qWarning("ScriptedEnemy: %s is not defined in %s.lua", name.c_str(), DEFINITIONS);
+      Log::warning(std::format("ScriptedEnemy: {} is not defined in {}.lua", name, DEFINITIONS));
       lua_pop(_state, 1);
       return std::nullopt;
    }
@@ -336,7 +337,7 @@ std::optional<std::string> ScriptedEnemy::loadDefinition()
    }
    else
    {
-      qWarning("ScriptedEnemy: %s has no behaviour", name.c_str());
+      Log::warning(std::format("ScriptedEnemy: {} has no behaviour", name));
    }
 
    lua_pop(_state, 1);
@@ -461,7 +462,7 @@ bool ScriptedEnemy::call(const char* function, int32_t nargs, int32_t nresults)
 
    if (lua_pcall(_state, nargs, nresults, 0) != LUA_OK)
    {
-      qWarning("ScriptedEnemy: %s: %s", function, lua_tostring(_state, -1));
+      Log::warning(std::format("ScriptedEnemy: {}: {}", function, lua_tostring(_state, -1)));
       lua_pop(_state, 1);
 
       // a broken script stops thinking instead of flooding the log every tick

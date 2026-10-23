@@ -1,7 +1,8 @@
 #include "loginresponsepacket.h"
 
-#include "logging.h"
+#include "log.h"
 
+#include <format>
 #include <string_view>
 
 namespace
@@ -47,7 +48,7 @@ void LoginResponsePacket::dequeue(BinaryReader& in)
 
 void LoginResponsePacket::debug()
 {
-   qDebug("LoginResponsePacket:loginresponse: player: %d (%s)", _id, (_id != -1) ? "accepted" : "denied");
+   Log::info(std::format("LoginResponsePacket:loginresponse: player: {} ({})", _id, (_id != -1) ? "accepted" : "denied"));
 }
 
 const std::string& LoginResponsePacket::getNick() const

@@ -1,7 +1,8 @@
 #include "countdownpacket.h"
 
-#include "logging.h"
+#include "log.h"
 
+#include <format>
 #include <string_view>
 
 namespace
@@ -36,5 +37,5 @@ void CountdownPacket::dequeue(BinaryReader& in)
 
 void CountdownPacket::debug()
 {
-   qDebug("CountdownPacket:debug: time left: %d", _time_left);
+   Log::info(std::format("CountdownPacket:debug: time left: {}", _time_left));
 }

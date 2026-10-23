@@ -1,7 +1,8 @@
 #include "loginrequestpacket.h"
 
-#include "logging.h"
+#include "log.h"
 
+#include <format>
 #include <string_view>
 
 namespace
@@ -43,5 +44,5 @@ void LoginRequestPacket::dequeue(BinaryReader& in)
 
 void LoginRequestPacket::debug()
 {
-   qDebug("LoginRequestPacket:loginrequest: player: %s, bot: %d", _nick.c_str(), _bot);
+   Log::info(std::format("LoginRequestPacket:loginrequest: player: {}, bot: {}", _nick, _bot));
 }

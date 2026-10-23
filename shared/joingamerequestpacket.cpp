@@ -1,7 +1,8 @@
 #include "joingamerequestpacket.h"
 
-#include "logging.h"
+#include "log.h"
 
+#include <format>
 #include <string_view>
 
 namespace
@@ -59,5 +60,7 @@ void JoinGameRequestPacket::dequeue(BinaryReader& in)
 
 void JoinGameRequestPacket::debug()
 {
-   qDebug("JoinGameRequestPacket:debug: id: %d, preferred color: %d", _id, _preferred_color ? static_cast<int>(*_preferred_color) : 0);
+   Log::info(std::format(
+      "JoinGameRequestPacket:debug: id: {}, preferred color: {}", _id, _preferred_color ? static_cast<int>(*_preferred_color) : 0
+   ));
 }

@@ -1,7 +1,8 @@
 #include "mapitemdestroyedpacket.h"
 
-#include "logging.h"
+#include "log.h"
 
+#include <format>
 #include <string_view>
 
 namespace
@@ -40,7 +41,7 @@ void MapItemDestroyedPacket::dequeue(BinaryReader& in)
 
 void MapItemDestroyedPacket::debug()
 {
-   qDebug("MapItemDestroyedPacket: x: %d, y: %d, player: %d, intensity: %f", getX(), getY(), _player_id, _intensity);
+   Log::info(std::format("MapItemDestroyedPacket: x: {}, y: {}, player: {}, intensity: {:.6f}", getX(), getY(), _player_id, _intensity));
 }
 
 int32_t MapItemDestroyedPacket::getPlayerId() const

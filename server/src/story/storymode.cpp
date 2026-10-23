@@ -15,7 +15,7 @@
 #include "enemypositionpacket.h"
 #include "extramapitem.h"
 #include "gameeventpacket.h"
-#include "logging.h"
+#include "log.h"
 #include "map.h"
 #include "player.h"
 #include "random.h"

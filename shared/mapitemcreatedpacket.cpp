@@ -1,7 +1,8 @@
 #include "mapitemcreatedpacket.h"
 
-#include "logging.h"
+#include "log.h"
 
+#include <format>
 #include <string_view>
 
 namespace
@@ -48,5 +49,11 @@ void MapItemCreatedPacket::dequeue(BinaryReader& in)
 
 void MapItemCreatedPacket::debug()
 {
-   qDebug("MapItemCreatedPacket: x: %d, y: %d, type: %d, appearance: %d", getX(), getY(), getType(), _appearance);
+   Log::info(std::format(
+      "MapItemCreatedPacket: x: {}, y: {}, type: {}, appearance: {}",
+      getX(),
+      getY(),
+      static_cast<int32_t>(getType()),
+      static_cast<int32_t>(_appearance)
+   ));
 }

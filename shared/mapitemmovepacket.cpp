@@ -1,7 +1,8 @@
 #include "mapitemmovepacket.h"
 
-#include "logging.h"
+#include "log.h"
 
+#include <format>
 #include <string_view>
 
 namespace
@@ -68,5 +69,5 @@ void MapItemMovePacket::dequeue(BinaryReader& in)
 
 void MapItemMovePacket::debug()
 {
-   qDebug("MapItemMovePacket: unique id: %d, speed: %f, nominal: %d, %d", _map_item_id, _speed, _nominal_x, _nominal_y);
+   Log::info(std::format("MapItemMovePacket: unique id: {}, speed: {:.6f}, nominal: {}, {}", _map_item_id, _speed, _nominal_x, _nominal_y));
 }

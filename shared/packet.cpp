@@ -1,6 +1,6 @@
 #include "packet.h"
 
-#include "logging.h"
+#include "log.h"
 
 #include <chrono>
 
@@ -254,7 +254,7 @@ std::unique_ptr<Packet> Packet::deserialize(BinaryReader& in)
    }
    else
    {
-      qWarning("unknown packet received");
+      Log::warning("unknown packet received");
    }
 
    return packet;

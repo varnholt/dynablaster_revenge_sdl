@@ -18,7 +18,7 @@
 #include "protobotmemory.h"
 
 // shared
-#include "logging.h"
+#include "log.h"
 #include "mapitem.h"
 #include "playerdisease.h"
 #include "random.h"
@@ -307,7 +307,7 @@ void ProtoBot::bugTrack1()
    {
       if (_bot_map->getReachablePositions().size() == 3)
       {
-         qDebug("ProtoBot::bugTrack1(): issue 1 spotted");
+         Log::info("ProtoBot::bugTrack1(): issue 1 spotted");
       }
    }
 }
@@ -317,7 +317,7 @@ void ProtoBot::bugTrack2()
    if (_bot_map->getItem(getXField(), getYField()) && _bot_map->getItem(getXField(), getYField())->getType() == MapItem::Bomb &&
        getScore(getXField(), getYField()) == 1)
    {
-      qDebug("ErrorConditionTest");
+      Log::info("ErrorConditionTest");
    }
 }
 
@@ -352,7 +352,7 @@ void ProtoBot::bugTrack3()
 
          if (diff)
          {
-            qDebug("player is totally idle :(");
+            Log::info("player is totally idle :(");
          }
       }
    }
@@ -399,7 +399,7 @@ bool ProtoBot::isSafeEscapePossible()
 
    if (reachable_positions_filtered.size() > 100)
    {
-      qWarning("ProtoBot::isAttackPossible(): cpu usage exceeded");
+      Log::warning("ProtoBot::isAttackPossible(): cpu usage exceeded");
    }
 
    bool found_safe_drop_position = false;
@@ -529,7 +529,7 @@ void ProtoBot::markHazardousFields()
          //
          //         if (bomb->getFlames() < 2)
          //         {
-         //            qWarning(
+         //            Log::warning(
          //               "ProtoBot::markHazardousFields(): the bot is "
          //               "obviously fucked. that is too bad."
          //            );
@@ -710,7 +710,7 @@ void ProtoBot::scoreFields()
    //   {
    //      if (isDebugCurrentHazardousEnabled())
    //      {
-   //         qDebug("ProtoBot::scoreFields: current field must be left!");
+   //         Log::info("ProtoBot::scoreFields: current field must be left!");
    //      }
    //   }
 
@@ -833,7 +833,7 @@ void ProtoBot::scoreFields()
    //         || _scoring_prepare_attack
    //      )
    //      {
-   //         qDebug(
+   //         Log::info(
    //            "ProtoBot::scoreFields: action: escape: %d, extra: %d, "
    //            "gotobombplacepos %d, placebomb: %d, attack: %d",
    //            _scoring_escape,
@@ -852,24 +852,15 @@ void ProtoBot::scoreFields()
    //      debugScores();
 
    /*
-   qDebug(
-      "consumed: REACHP: %d, HAZARDF: %d, ESC: %d, EXTRA: %d, ATTSCR: %d, "
-      "BSTONE: %d, ATTPSS: %d, BSTONEPSS: %d",
-      timeForUpdateReachablePositions,
-      timeForMarkHazardousFields,
-      timeForUpdateEscapeScore,
-      timeForUpdateExtraScore,
-      timeForUpdateAttackScore,
-      timeForUpdateBombStoneScore,
-      timeForIsAttackPossible,
-      timeForIsAtBombStonePosition
-   );
+   Log::info(std::format("consumed: REACHP: {}, HAZARDF: {}, ESC: {}, EXTRA: {}, ATTSCR: {}, BSTONE: {}, ATTPSS: {}, BSTONEPSS: {}",
+   timeForUpdateReachablePositions, timeForMarkHazardousFields, timeForUpdateEscapeScore, timeForUpdateExtraScore, timeForUpdateAttackScore,
+   timeForUpdateBombStoneScore, timeForIsAttackPossible, timeForIsAtBombStonePosition));
    */
 }
 
 void ProtoBot::debugScores()
 {
-   qDebug("ProtoBot::debugScores(): start");
+   Log::info("ProtoBot::debugScores(): start");
 
    for (int yi = 0; yi < _bot_map->getHeight(); yi++)
    {
@@ -893,10 +884,10 @@ void ProtoBot::debugScores()
          }
       }
 
-      qDebug("%s", line.c_str());
+      Log::info(std::format("{}", line));
    }
 
-   qDebug("ProtoBot::debugScores(): end");
+   Log::info("ProtoBot::debugScores(): end");
 }
 
 /*!
@@ -1112,7 +1103,7 @@ bool ProtoBot::updateEscapeScore()
                   //
                   // else
                   // {
-                  //    qWarning("ProtoBot::isEscapePossible(): no path found to a reachable position");
+                  //    Log::warning("ProtoBot::isEscapePossible(): no path found to a reachable position");
                   // }
 
                   clearPath();
@@ -1140,12 +1131,12 @@ bool ProtoBot::updateEscapeScore()
    }
    // else
    // {
-   //     qDebug("ProtoBot::scoreFields(): no path found!");
+   //     Log::info("ProtoBot::scoreFields(): no path found!");
    // }
 
    //   if (_debug_escape_paths)
    //   {
-   //      qDebug(
+   //      Log::info(
    //         "ProtoBot::scoreFields(): escape from (%d, %d) via: %s",
    //         getXField(),
    //         getYField(),
@@ -1579,7 +1570,7 @@ bool ProtoBot::updateBombStoneScore()
 
             if (path_finding_loops1 > 300)
             {
-               qWarning("ProtoBot::updateBombStoneScore(): cpu usage exceeded");
+               Log::warning("ProtoBot::updateBombStoneScore(): cpu usage exceeded");
             }
 
             // a safe position must not be our current position
@@ -1621,14 +1612,13 @@ bool ProtoBot::updateBombStoneScore()
                      }
                      else
                      {
-                        qDebug(
-                           "ProtoBot::updateBombStoneScore(): path finding failed "
-                           "finding a path from (%d;%d) to (%d;%d)",
+                        Log::info(std::format(
+                           "ProtoBot::updateBombStoneScore(): path finding failed finding a path from ({};{}) to ({};{})",
                            _x_field,
                            _y_field,
                            weighted_point.x(),
                            weighted_point.y()
-                        );
+                        ));
                      }
 
                      clearPath();
@@ -1657,7 +1647,7 @@ bool ProtoBot::updateBombStoneScore()
    //
    //   if (timePathFinding > 1000)
    //   {
-   //      qWarning(
+   //      Log::warning(
    //         "bool ProtoBot::updateBombStoneScore(): cpu usage critical, %dms "
    //         "loops1: %d, loops2: %d",
    //         timePathFinding,
@@ -1873,18 +1863,9 @@ void ProtoBot::chooseNextField()
       }
 
       /*
-      qDebug(
-         "CurrentHazardous: %d, PrepareAttack: %d, Escape: %d, Extra: %d, "
-         "PrepareBombStone: %d, Bomb: %d, AttackPossible: %d, AtBombStonePosition: %d",
-         _scoring_current_hazardous,
-         _scoring_prepare_attack,
-         _scoring_escape,
-         _scoring_extra,
-         _scoring_prepare_bomb_stone,
-         _scoring_bomb,
-         _scoring_attack_possible,
-         _scoring_at_bomb_stone_position
-      );
+      Log::info(std::format("CurrentHazardous: {}, PrepareAttack: {}, Escape: {}, Extra: {}, PrepareBombStone: {}, Bomb: {}, AttackPossible:
+      {}, AtBombStonePosition: {}", _scoring_current_hazardous, _scoring_prepare_attack, _scoring_escape, _scoring_extra,
+      _scoring_prepare_bomb_stone, _scoring_bomb, _scoring_attack_possible, _scoring_at_bomb_stone_position));
       */
 
       if (!other_field_score_is_higher)
@@ -1904,11 +1885,7 @@ void ProtoBot::chooseNextField()
          if (target_remaining > 1000 || target_remaining >= current_remaining)
          {
             /*
-            qDebug(
-               "target: %d, current: %d",
-               target_remaining,
-               current_remaining
-            );
+            Log::info(std::format("target: {}, current: {}", target_remaining, current_remaining));
             */
 
             // add walk action
@@ -1969,7 +1946,7 @@ std::unique_ptr<BotWalkAction> ProtoBot::getWalkActionInstance()
 
    //   if (isDebugWalkActionEnabled())
    //   {
-   //      qDebug(
+   //      Log::info(
    //         "ProtoBot::getWalkActionInstance(): x: %d; y: %d; (%f, %f); "
    //         "tx:%d, ty: %d;",
    //         getXField(),
@@ -1990,7 +1967,7 @@ std::unique_ptr<BotWalkAction> ProtoBot::getWalkActionInstance()
    //            .arg( (keys_pressed & Constants::KeyLeft ) ? "left"  : "----")
    //            .arg( (keys_pressed & Constants::KeyRight) ? "right" : "----");
    //
-   //      qDebug("%s", qPrintable(keysPressedString));
+   //      Log::info(std::format("{}", qPrintable(keysPressedString)));
    //   }
 
    // store latest walk information
@@ -2820,7 +2797,7 @@ void ProtoBot::bombKicked(int start_x, int start_y, Constants::Direction directi
 
    if (xi_previous >= 0 && xi_previous < _bot_map->getWidth() && yi_previous >= 0 && yi_previous < _bot_map->getHeight())
    {
-      // qDebug("mark %d, %d with %d flames hazardous", xi_previous, yi_previous, flames);
+      // Log::info(std::format("mark {}, {} with {} flames hazardous", xi_previous, yi_previous, flames));
       markHazardousTemporary(xi_previous, yi_previous, 1500, flames);
    }
 }

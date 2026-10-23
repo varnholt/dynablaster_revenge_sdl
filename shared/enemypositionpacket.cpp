@@ -1,7 +1,8 @@
 #include "enemypositionpacket.h"
 
-#include "logging.h"
+#include "log.h"
 
+#include <format>
 #include <string_view>
 
 namespace
@@ -80,5 +81,14 @@ void EnemyPositionPacket::dequeue(BinaryReader& in)
 
 void EnemyPositionPacket::debug()
 {
-   qDebug("EnemyPositionPacket: id: %d, x: %f, y: %f, angle: %f, dx: %f, dy: %f, flags: %d", static_cast<int32_t>(_id), _x, _y, _angle, _dx, _dy, static_cast<int32_t>(_flags));
+   Log::info(std::format(
+      "EnemyPositionPacket: id: {}, x: {:.6f}, y: {:.6f}, angle: {:.6f}, dx: {:.6f}, dy: {:.6f}, flags: {}",
+      static_cast<int32_t>(_id),
+      _x,
+      _y,
+      _angle,
+      _dx,
+      _dy,
+      static_cast<int32_t>(_flags)
+   ));
 }

@@ -1,7 +1,8 @@
 #include "enemyhitpacket.h"
 
-#include "logging.h"
+#include "log.h"
 
+#include <format>
 #include <string_view>
 
 namespace
@@ -45,5 +46,5 @@ void EnemyHitPacket::dequeue(BinaryReader& in)
 
 void EnemyHitPacket::debug()
 {
-   qDebug("EnemyHitPacket: id: %d, hit_points: %d", static_cast<int32_t>(_id), static_cast<int32_t>(_hit_points));
+   Log::info(std::format("EnemyHitPacket: id: {}, hit_points: {}", static_cast<int32_t>(_id), static_cast<int32_t>(_hit_points)));
 }

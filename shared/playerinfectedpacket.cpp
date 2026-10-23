@@ -1,7 +1,8 @@
 #include "playerinfectedpacket.h"
 
-#include "logging.h"
+#include "log.h"
 
+#include <format>
 #include <string_view>
 
 namespace
@@ -48,7 +49,7 @@ void PlayerInfectedPacket::dequeue(BinaryReader& in)
 
 void PlayerInfectedPacket::debug()
 {
-   qDebug("PlayerInfectedPacket: player: %d, skull type: %d", _player_id, _skull_type);
+   Log::info(std::format("PlayerInfectedPacket: player: {}, skull type: {}", _player_id, static_cast<int32_t>(_skull_type)));
 }
 
 uint8_t PlayerInfectedPacket::getExtraPosY() const

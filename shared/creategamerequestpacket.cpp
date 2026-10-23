@@ -1,7 +1,8 @@
 #include "creategamerequestpacket.h"
 
-#include "logging.h"
+#include "log.h"
 
+#include <format>
 #include <string_view>
 
 namespace
@@ -89,21 +90,11 @@ void CreateGameRequestPacket::dequeue(BinaryReader& in)
 
 void CreateGameRequestPacket::debug()
 {
-   qDebug(
-      "CreateGameRequestPacket:debug:\n"
-      "- name: %s\n"
-      "- level: %s\n"
-      "- rounds: %d\n"
-      "- duration: %d\n"
-      "- max players: %d\n"
-      "- extra bomb enabled: %d\n"
-      "- extra flame enabled: %d\n"
-      "- extra speedup enabled: %d\n"
-      "- extra kick enabled: %d"
-      "- extra skulls enabled: %d"
-      "- dimension: %d",
-      _data._name.c_str(),
-      _data._level.c_str(),
+   Log::info(std::format(
+      "CreateGameRequestPacket:debug:\n- name: {}\n- level: {}\n- rounds: {}\n- duration: {}\n- max players: {}\n- extra bomb enabled: "
+      "{}\n- extra flame enabled: {}\n- extra speedup enabled: {}\n- extra kick enabled: {}- extra skulls enabled: {}- dimension: {}",
+      _data._name,
+      _data._level,
       _data._rounds,
       _data._duration,
       _data._max_players,
@@ -112,6 +103,6 @@ void CreateGameRequestPacket::debug()
       _data._extra_speedup_enabled,
       _data._extra_kick_enabled,
       _data._extra_skulls_enabled,
-      _data._dimension
-   );
+      static_cast<int32_t>(_data._dimension)
+   ));
 }

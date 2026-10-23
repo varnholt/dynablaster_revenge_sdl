@@ -1,7 +1,8 @@
 #include "creategameresponsepacket.h"
 
-#include "logging.h"
+#include "log.h"
 
+#include <format>
 #include <string_view>
 
 namespace
@@ -37,5 +38,7 @@ void CreateGameResponsePacket::dequeue(BinaryReader& in)
 
 void CreateGameResponsePacket::debug()
 {
-   qDebug("CreateGameResponsePacket:debug: id: %d, player id: %d", _game_information.getId(), _game_information.getCreatorId());
+   Log::info(
+      std::format("CreateGameResponsePacket:debug: id: {}, player id: {}", _game_information.getId(), _game_information.getCreatorId())
+   );
 }

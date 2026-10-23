@@ -1,7 +1,8 @@
 #include "bombpacket.h"
 
-#include "logging.h"
+#include "log.h"
 
+#include <format>
 #include <string_view>
 
 namespace
@@ -48,5 +49,5 @@ void BombPacket::dequeue(BinaryReader& in)
 
 void BombPacket::debug()
 {
-   qDebug("BombPacket:bomb: player: %d (%d, %d)", _player_id, _x, _y);
+   Log::info(std::format("BombPacket:bomb: player: {} ({}, {})", _player_id, _x, _y));
 }

@@ -7,7 +7,7 @@
 #include "constants.h"
 #include "extramapitem.h"
 #include "extrashakepacket.h"
-#include "logging.h"
+#include "log.h"
 #include "map.h"
 #include "random.h"
 #include "stonemapitem.h"

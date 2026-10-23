@@ -13,7 +13,7 @@
 #include "bombmapitem.h"
 #include "botbombmapitem.h"
 #include "extramapitem.h"
-#include "logging.h"
+#include "log.h"
 #include "mapitem.h"
 #include "stonemapitem.h"
 
@@ -251,7 +251,7 @@ void BotMap::debugDirections(const std::vector<Constants::Direction>& list)
       }
    }
 
-   qDebug("%s", line.c_str());
+   Log::info(std::format("{}", line));
 }
 
 /*!
@@ -333,7 +333,7 @@ void BotMap::updateReachablePositions(int x, int y, int iteration)
 
    if (_reachable_positions.size() == static_cast<size_t>(getWidth() * getHeight()))
    {
-      qDebug("we're fucked");
+      Log::info("we're fucked");
       _reachable_positions.clear();
    }
 }
@@ -417,7 +417,7 @@ void BotMap::updateReachablePositionsRandomized(int x, int y, int iteration)
 
    if (_reachable_positions.size() == static_cast<size_t>(getWidth() * getHeight()))
    {
-      qDebug("we're fucked");
+      Log::info("we're fucked");
       _reachable_positions.clear();
    }
 }
@@ -782,8 +782,8 @@ void BotMap::debugTraversedMatrix()
       joined += line;
    }
 
-   qDebug(" 0123456789abc");
-   qDebug("%s\n", joined.c_str());
+   Log::info(" 0123456789abc");
+   Log::info(std::format("{}\n", joined));
 }
 
 /*!
@@ -839,10 +839,7 @@ void BotMap::checkPosition(int x, int y, bool& hazardous, bool& abort, int dista
 */
 bool BotMap::isPositionHazardous(int x, int y) const
 {
-   qFatal(
-      "BotMap::isPositionHazardous: do you really want to "
-      "call a O(n^2) function?"
-   );
+   Log::fatal("BotMap::isPositionHazardous: do you really want to call a O(n^2) function?");
 
    bool hazardous = false;
    bool abort = false;
@@ -962,6 +959,6 @@ void BotMap::debugMapItems()
       joined += line;
    }
 
-   qDebug("%s", joined.c_str());
-   qDebug("  0|  1|  2|  3|  4|  5|  6|  7|  8|  9| 10| 11| 12|\n");
+   Log::info(std::format("{}", joined));
+   Log::info("  0|  1|  2|  3|  4|  5|  6|  7|  8|  9| 10| 11| 12|\n");
 }

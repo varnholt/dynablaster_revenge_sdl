@@ -3,7 +3,7 @@
 // shared
 #include "botbombmapitem.h"
 #include "extramapitem.h"
-#include "logging.h"
+#include "log.h"
 #include "mapitem.h"
 
 // SDL
@@ -424,7 +424,7 @@ void BotClient::readData()
 
             case Packet::INVALID:
             {
-               qWarning("BotClient::data: Packet::INVALID received");
+               Log::warning("BotClient::data: Packet::INVALID received");
                break;
             }
 
@@ -1022,7 +1022,7 @@ void BotClient::bugTrack1()
 {
    if (_bomb_time.elapsed() < 500)
    {
-      qDebug("bug");
+      Log::info("bug");
    }
 }
 

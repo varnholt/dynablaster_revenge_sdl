@@ -1,7 +1,8 @@
 #include "joingameresponsepacket.h"
 
-#include "logging.h"
+#include "log.h"
 
+#include <format>
 #include <string_view>
 
 namespace
@@ -62,7 +63,9 @@ void JoinGameResponsePacket::dequeue(BinaryReader& in)
 
 void JoinGameResponsePacket::debug()
 {
-   qDebug("JoinGameResponsePacket:loginresponse: game: %d, player: %d (%s)", _game_id, _player_id, _success ? "accepted" : "denied");
+   Log::info(
+      std::format("JoinGameResponsePacket:loginresponse: game: {}, player: {} ({})", _game_id, _player_id, _success ? "accepted" : "denied")
+   );
 }
 
 const std::string& JoinGameResponsePacket::getNick() const

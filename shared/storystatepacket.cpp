@@ -1,7 +1,8 @@
 #include "storystatepacket.h"
 
-#include "logging.h"
+#include "log.h"
 
+#include <format>
 #include <string_view>
 
 namespace
@@ -66,5 +67,12 @@ void StoryStatePacket::dequeue(BinaryReader& in)
 
 void StoryStatePacket::debug()
 {
-   qDebug("StoryStatePacket: stage: %d, lives: %d, score: %d, state: %d, enemies_left: %d", static_cast<int32_t>(_stage), static_cast<int32_t>(_lives), static_cast<int32_t>(_score), static_cast<int32_t>(_state), static_cast<int32_t>(_enemies_left));
+   Log::info(std::format(
+      "StoryStatePacket: stage: {}, lives: {}, score: {}, state: {}, enemies_left: {}",
+      static_cast<int32_t>(_stage),
+      static_cast<int32_t>(_lives),
+      static_cast<int32_t>(_score),
+      static_cast<int32_t>(_state),
+      static_cast<int32_t>(_enemies_left)
+   ));
 }
