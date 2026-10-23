@@ -853,8 +853,34 @@ MAIN_TOP_Z = 23.6  # its round top (crow's nest)
 FORE = Vector((-25.0, YC, 21.0))
 MIZZEN = Vector((21.8, YC, 21.0))
 # the bowsprit leaves the forecastle at the stem head, forward of the foremast, about 28 degrees up
-BOWSPRIT_ROOT = Vector((BOW_X - 2.6, YC, FORE_Z + 0.35))
-BOWSPRIT = BOWSPRIT_ROOT + Vector((-math.cos(math.radians(28)), 0.0, math.sin(math.radians(28)))) * 15.0
+# the bowsprit's heel lies on the forecastle deck against its bitts, it rises over the stem head at 28 degrees
+BOWSPRIT_ROOT = Vector((BOW_X + 0.6, YC, FORE_Z + 0.42))
+BOWSPRIT = BOWSPRIT_ROOT + Vector((-math.cos(math.radians(28)), 0.0, math.sin(math.radians(28)))) * 19.0
+
+
+def bowsprit_fittings(m, heel, axis):
+    """What holds the bowsprit: bitts on the forecastle deck its heel butts against, a knighthead rising from the
+    stem head under it and the gammoning lashing it down there."""
+    # bitts: two posts and the crossbeam over the heel's end
+    for side in (-1, 1):
+        slab(heel.x + 0.05, heel.x + 0.45, YC + side * 0.6 - 0.2, YC + side * 0.6 + 0.2, FORE_Z, FORE_Z + 1.5,
+             m["darkwood"], bevel=0.03)
+        sphere((heel.x + 0.25, YC + side * 0.6, FORE_Z + 1.55), 0.17, m["darkwood"])
+    slab(heel.x - 0.12, heel.x + 0.2, YC - 0.85, YC + 0.85, FORE_Z + 0.1, FORE_Z + 1.0, m["darkwood"], bevel=0.03)
+    # the stem head, where the bowsprit passes over the bow
+    x_stem = BOW_X + bow_rake(BOW_X, sheer(BOW_X)) + 0.6
+    t = (x_stem - heel.x) / axis.x
+    over = heel + axis * t
+    rail = sheer(BOW_X) - 0.1
+    slab(x_stem - 0.35, x_stem + 0.35, YC - 0.45, YC + 0.45, rail - 1.2, over.z - 0.36, m["darkwood"], bevel=0.04)
+    # gammoning: turns of rope round the bowsprit and down through the knighthead
+    for k in range(5):
+        c = over + axis * (k - 2) * 0.13
+        torus(tuple(c), 0.5, 0.045, m["darkrope"], normal=tuple(axis))
+        rod(c - Vector((0, 0.38, 0.3)), Vector((x_stem + (k - 2) * 0.1, YC - 0.4, rail - 1.0)), 0.035,
+            m["darkrope"], 5)
+        rod(c + Vector((0, 0.38, -0.3)), Vector((x_stem + (k - 2) * 0.1, YC + 0.4, rail - 1.0)), 0.035,
+            m["darkrope"], 5)
 
 
 def shrouds(m, feet, top, ratlines=8):
@@ -1019,8 +1045,9 @@ def masts(m):
     lateen_sail(m, MIZZEN)
     # bowsprit with its spritsail
     root = BOWSPRIT_ROOT
-    lathe(root, BOWSPRIT, ((0, 0.42), (1, 0.16)), m["wood"], 12)
+    lathe(root, BOWSPRIT, ((0, 0.42), (0.3, 0.42), (1, 0.16)), m["wood"], 12)
     axis = (BOWSPRIT - root).normalized()
+    bowsprit_fittings(m, root, axis)
     for t in (0.35, 0.6):
         q = root.lerp(BOWSPRIT, t)
         r = 0.45 - 0.27 * t + 0.03
