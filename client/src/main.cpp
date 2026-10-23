@@ -12,7 +12,6 @@
 #include "framework/timerhandler.h"
 #include "timer.h"
 
-#include "devscript.h"
 #include "game/controllerinput.h"
 #include "game/controllertestview.h"
 #include "game/controlspage.h"
@@ -22,16 +21,17 @@
 #include "game/gamelogodrawable.h"
 #include "game/gamemenuhelp.h"
 #include "game/gamemessagingdrawable.h"
-#include "game/gamesettings.h"
 #include "game/gamestatsdrawable.h"
+#include "game/gamesettings.h"
 #include "game/gamewindrawable.h"
 #include "game/hotkeydrawable.h"
 #include "game/localplayers.h"
 #include "game/menucontrollerhandler.h"
 #include "game/musicplayerdrawable.h"
 #include "game/roundsdrawable.h"
-#include "game/soundmanager.h"
 #include "game/story/storyhuddrawable.h"
+#include "devscript.h"
+#include "game/soundmanager.h"
 #include "game/videooptions.h"
 #include "game/videooutput.h"
 
@@ -49,8 +49,8 @@
 
 #include <SDL3/SDL.h>
 
-#include <SDL3_net/SDL_net.h>
 #include <cstdlib>
+#include <SDL3_net/SDL_net.h>
 
 #include <array>
 #include <functional>
@@ -346,15 +346,12 @@ int main(int /*argc*/, char** /*argv*/)
                                                { game_drawable.extraRemoved(x, y, destroyed, extra, player_id); });
    bomberman_client.detonationSignal.connect([&](int x, int y, int up, int down, int left, int right, float intense)
                                              { game_drawable.addDetonation(x, y, up, down, left, right, intense); });
-   bomberman_client.playerInfectedSignal.connect(
-      [&](int id, Constants::SkullType skull, int infector_id, int extra_x, int extra_y)
-      {
-         game_drawable.playerInfected(id, skull, infector_id, extra_x, extra_y);
-         game_stats_drawable.playerInfected(id, skull, infector_id, extra_x, extra_y);
-      }
-   );
-   bomberman_client.timeChangedSignal.connect([&](int time_left, int duration)
-                                              { game_stats_drawable.setGameTimeLeft(time_left, duration); });
+   bomberman_client.playerInfectedSignal.connect([&](int id, Constants::SkullType skull, int infector_id, int extra_x, int extra_y)
+                                                 {
+                                                    game_drawable.playerInfected(id, skull, infector_id, extra_x, extra_y);
+                                                    game_stats_drawable.playerInfected(id, skull, infector_id, extra_x, extra_y);
+                                                 });
+   bomberman_client.timeChangedSignal.connect([&](int time_left, int duration) { game_stats_drawable.setGameTimeLeft(time_left, duration); });
    bomberman_client.playerIdSignal.connect([&](int id) { game_drawable.setPlayerId(id); });
    bomberman_client.countdownSignal.connect([&](int left) { countdown_drawable.countdown(left); });
 
