@@ -32,6 +32,7 @@
 #include "mapitemmovepacket.h"
 #include "mapitemremovedpacket.h"
 #include "messagepacket.h"
+#include "pausepacket.h"
 #include "player.h"
 #include "playerdisease.h"
 #include "playerinfectedpacket.h"
@@ -574,6 +575,12 @@ GameInformation Game::getGameInformation()
 //! the main update loop
 void Game::update()
 {
+   if (_paused)
+   {
+      sendBroadcastPackets();
+      return;
+   }
+
    updatePositions();
 
    // there is no point checking extra or bomb conditions while the game isn't
@@ -2354,6 +2361,12 @@ void Game::processPacket(Connection& connection, const Packet& packet)
                "long story short" => lock the bomb key until it is processed!
             */
 
+            // no bombs queued up while the game is paused
+            if (_paused)
+            {
+               keys &= ~Constants::KeyBomb;
+            }
+
             if (keys & Constants::KeyBomb)
             {
                player.setBombKeyLocked(true);
@@ -2368,6 +2381,17 @@ void Game::processPacket(Connection& connection, const Packet& packet)
       case Packet::POSITION:
       {
          Log::warning("Game::data(): Packet::POSITION received. no no no. wrong direction!");
+         break;
+      }
+
+      case Packet::PAUSE:
+      {
+         // only the story mode pauses, a battle doesn't stop for one player
+         if (_story && getState() == Constants::GameActive)
+         {
+            setPaused(static_cast<const PausePacket&>(packet).isPaused());
+         }
+
          break;
       }
 
@@ -2596,7 +2620,7 @@ int Game::getTimeLeft()
 
 void Game::processGameTime()
 {
-   if (getState() == Constants::GameActive)
+   if (getState() == Constants::GameActive && !_paused)
    {
       const int time_left = getTimeLeft();
 
@@ -2641,8 +2665,36 @@ std::vector<std::reference_wrapper<Player>> Game::getPlayers() const
 
 void Game::setState(Constants::GameState state)
 {
+   if (state != Constants::GameActive)
+   {
+      setPaused(false);
+   }
+
    _state = state;
    stateChangedSignal(state);
+}
+
+void Game::setPaused(bool paused)
+{
+   if (paused == _paused)
+   {
+      return;
+   }
+
+   _paused = paused;
+   _game_time.setPaused(paused);
+
+   if (_map)
+   {
+      _map->setBombsPaused(paused);
+   }
+
+   _outgoing_packets.push_back(std::make_unique<PausePacket>(paused));
+}
+
+bool Game::isPaused() const
+{
+   return _paused;
 }
 
 Constants::GameState Game::getState() const

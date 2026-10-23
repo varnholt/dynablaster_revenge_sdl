@@ -206,7 +206,7 @@ void ControllerInput::updateGame(bool in_game, GameDrawable& game)
       }
 
       const auto& controls = GameSettings::getInstance().getControllerSettings();
-      const std::array<std::pair<uint32_t, SDL_Keycode>, 7> key_map{{
+      const std::array<std::pair<uint32_t, SDL_Keycode>, 8> key_map{{
          {ButtonUp, controls.getUpKey()},
          {ButtonDown, controls.getDownKey()},
          {ButtonLeft, controls.getLeftKey()},
@@ -214,6 +214,7 @@ void ControllerInput::updateGame(bool in_game, GameDrawable& game)
          {ButtonBomb, controls.getBombKey()},
          {ButtonShoulderLeft, controls.getZoomOutKey()},
          {ButtonShoulderRight, controls.getZoomInKey()},
+         {ButtonStart, SDLK_P},
       }};
 
       for (const auto& [mask, key] : key_map)

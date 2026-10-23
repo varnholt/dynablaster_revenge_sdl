@@ -186,6 +186,10 @@ public:
    //! puts a ticking bomb on the field, returns false if the tile is taken
    bool placeBomb(int8_t owner_id, int32_t flames, int32_t x, int32_t y);
 
+   //! story mode pause: players, enemies, bombs and the stage time stand still
+   void setPaused(bool paused);
+   [[nodiscard]] bool isPaused() const;
+
    //! player was killed
    Signal<int> playerKilledSignal;
 
@@ -480,6 +484,9 @@ private:
 
    //! the story mode campaign, only set for story games
    std::unique_ptr<StoryMode> _story;
+
+   //! the story mode is paused
+   bool _paused = false;
 
    //! remote controlled bombs in the order they were dropped
    std::vector<std::weak_ptr<BombMapItem>> _remote_bombs;

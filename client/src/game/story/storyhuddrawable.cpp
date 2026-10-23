@@ -78,6 +78,11 @@ void StoryHudDrawable::setState(int32_t stage, int32_t lives, int32_t score, int
    }
 }
 
+void StoryHudDrawable::setPaused(bool paused)
+{
+   _paused = paused;
+}
+
 void StoryHudDrawable::showBanner(const std::string& title, const std::string& subtitle)
 {
    _banner_title = title;
@@ -91,7 +96,7 @@ void StoryHudDrawable::animate(float global_time)
    const float dt = _last_time > 0.0f ? (global_time - _last_time) * 0.016f : 0.0f;
    _last_time = global_time;
 
-   if (_banner_time >= 0.0f)
+   if (_banner_time >= 0.0f && !_paused)
    {
       _banner_time += dt;
 
@@ -143,6 +148,16 @@ void StoryHudDrawable::paintGL()
       font.draw();
       font.setColor(1.0f, 0.85f, 0.4f, alpha);
       font.buildVertices(0.2f, _banner_subtitle, 0.0f, SCREEN_HEIGHT * 0.56f, SCREEN_WIDTH);
+      font.draw();
+   }
+
+   if (_paused)
+   {
+      font.setColor(1.0f, 1.0f, 1.0f, 1.0f);
+      font.buildVertices(0.45f, "PAUSED", 0.0f, SCREEN_HEIGHT * 0.42f, SCREEN_WIDTH);
+      font.draw();
+      font.setColor(1.0f, 0.85f, 0.4f, 1.0f);
+      font.buildVertices(0.2f, "PRESS P OR START TO CONTINUE", 0.0f, SCREEN_HEIGHT * 0.56f, SCREEN_WIDTH);
       font.draw();
    }
 

@@ -114,6 +114,7 @@ SDL_Keycode mapGameKey(SDL_Keycode key)
       case SDLK_LEFTBRACKET:
       case SDLK_RIGHTBRACKET:
       case SDLK_F10:
+      case SDLK_P:
       case SDLK_RETURN:
       case SDLK_KP_ENTER:
       case SDLK_ESCAPE:
@@ -368,6 +369,13 @@ int main(int /*argc*/, char** /*argv*/)
          game_drawable.setStoryStage(stage);
          game_drawable.setStoryEnemiesLeft(enemies_left);
          story_hud_drawable.setState(stage, lives, score, state, enemies_left);
+      }
+   );
+   bomberman_client.pausedSignal.connect(
+      [&](bool paused)
+      {
+         game_drawable.setPaused(paused);
+         story_hud_drawable.setPaused(paused);
       }
    );
    bomberman_client.messageReceivedSignal.connect([&](int sender_id, const std::string& message, bool finished)

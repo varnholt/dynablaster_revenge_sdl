@@ -60,6 +60,9 @@ public:
    // stop all ticking bombs on the map
    void stopBombs();
 
+   // hold or resume all bombs, the ones kicked across the map included
+   void setBombsPaused(bool paused);
+
    [[nodiscard]] static int32_t getManhattanLength(int32_t x1, int32_t y1, int32_t x2, int32_t y2);
 
    // filter points by manhattan distance to position
