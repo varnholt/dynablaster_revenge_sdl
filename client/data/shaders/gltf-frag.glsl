@@ -9,12 +9,21 @@ uniform float u_flash;
 uniform float u_alpha;
 uniform vec3 u_tint;
 
+// fragments above this height are dropped (mirror images)
+uniform highp float u_clip;
+
 in vec2 uv;
 in vec3 nrm;
+in highp float height;
 out vec4 o_color;
 
 void main()
 {
+   if (height > u_clip)
+   {
+      discard;
+   }
+
    vec3 light = normalize(vec3(-0.35, -0.55, 0.75));
    vec3 n = normalize(nrm);
    float diffuse = max(dot(n, light), 0.0);

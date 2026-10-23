@@ -11,8 +11,11 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <iterator>
+#include <optional>
 
 namespace
 {
@@ -36,9 +39,13 @@ struct Shader
    int32_t _flash = -1;
    int32_t _alpha = -1;
    int32_t _tint = -1;
+   int32_t _clip = -1;
 };
 
 Shader shader;
+
+// fragments higher than this are dropped, for drawing mirror images
+float clip_height = 1e9f;
 
 // column-major, a * b applies b first
 Matrix4 multiply(const Matrix4& a, const Matrix4& b)
@@ -126,6 +133,41 @@ Matrix toEngine(const Matrix4& m)
    return result;
 }
 
+// a node's extras like "glow": [r, g, b, size, mode], the first count numbers of the array named key
+template <size_t count>
+std::optional<std::array<float, count>> readExtras(const char* extras, const char* key)
+{
+   if (!extras)
+   {
+      return std::nullopt;
+   }
+
+   const std::string quoted = std::string("\"") + key + "\"";
+   const char* found = std::strstr(extras, quoted.c_str());
+   const char* cursor = found ? std::strchr(found, '[') : nullptr;
+
+   if (!cursor)
+   {
+      return std::nullopt;
+   }
+
+   std::array<float, count> values{};
+   for (float& value : values)
+   {
+      char* end = nullptr;
+      value = std::strtof(cursor + 1, &end);
+
+      if (end == cursor + 1)
+      {
+         return std::nullopt;
+      }
+
+      cursor = end;
+   }
+
+   return values;
+}
+
 std::vector<float> readFloats(const cgltf_accessor* accessor)
 {
    const size_t components = cgltf_num_components(accessor->type);
@@ -199,8 +241,10 @@ void GltfModel::load(const std::string& filename)
    cgltf_options options{};
    cgltf_data* data = nullptr;
 
-   if (cgltf_parse(&options, bytes.data(), bytes.size(), &data) != cgltf_result_success ||
-       cgltf_load_buffers(&options, data, nullptr) != cgltf_result_success)
+   if (
+      cgltf_parse(&options, bytes.data(), bytes.size(), &data) != cgltf_result_success ||
+      cgltf_load_buffers(&options, data, nullptr) != cgltf_result_success
+   )
    {
       qWarning("GltfModel: unable to read %s", filename.c_str());
       cgltf_free(data);
@@ -242,9 +286,8 @@ void GltfModel::load(const std::string& filename)
 
       const auto* encoded = static_cast<const stbi_uc*>(cgltf_buffer_view_data(source.buffer_view));
       int32_t channels = 0;
-      stbi_uc* pixels = stbi_load_from_memory(
-         encoded, static_cast<int>(source.buffer_view->size), &_images[i]._width, &_images[i]._height, &channels, 4
-      );
+      stbi_uc* pixels =
+         stbi_load_from_memory(encoded, static_cast<int>(source.buffer_view->size), &_images[i]._width, &_images[i]._height, &channels, 4);
 
       if (pixels)
       {
@@ -302,6 +345,12 @@ void GltfModel::load(const std::string& filename)
          Primitive primitive;
          primitive._node = static_cast<int32_t>(n);
          primitive._skinned = node.skin != nullptr && !_joints.empty();
+
+         if (const auto water = readExtras<3>(node.extras.data, "water"))
+         {
+            primitive._water = true;
+            _water_color = Vector((*water)[0], (*water)[1], (*water)[2]);
+         }
 
          std::vector<float> positions;
          std::vector<float> normals;
@@ -447,6 +496,37 @@ void GltfModel::load(const std::string& filename)
       _animations.push_back(std::move(animation));
    }
 
+   // lights, placed in the bind pose
+   std::vector<Matrix4> globals;
+   pose(-1, 0.0f, globals);
+
+   for (size_t n = 0; n < data->nodes_count; n++)
+   {
+      if (const auto glow = readExtras<5>(data->nodes[n].extras.data, "glow"))
+      {
+         const Matrix4 placed = multiply(Y_UP_TO_Z_UP, globals[n]);
+         const auto& [r, g, b, size, mode] = *glow;
+         _glows.push_back({Vector(placed[12], placed[13], placed[14]), Vector(r, g, b), size, static_cast<int32_t>(mode)});
+      }
+   }
+
+   // the water's height, z-up
+   for (const Primitive& primitive : _primitives)
+   {
+      if (!primitive._water)
+      {
+         continue;
+      }
+
+      const Matrix4 placed = multiply(Y_UP_TO_Z_UP, globals[static_cast<size_t>(primitive._node)]);
+      for (const Vertex& vertex : primitive._vertices)
+      {
+         const float z = placed[2] * vertex._position[0] + placed[6] * vertex._position[1] + placed[10] * vertex._position[2] + placed[14];
+         _water_level = _has_water ? std::max(_water_level, z) : z;
+         _has_water = true;
+      }
+   }
+
    cgltf_free(data);
    _valid = !_primitives.empty();
 }
@@ -472,7 +552,7 @@ int32_t GltfModel::findAnimation(std::string_view name) const
 float GltfModel::getAnimationDuration(int32_t animation) const
 {
    return animation >= 0 && animation < static_cast<int32_t>(_animations.size()) ? _animations[static_cast<size_t>(animation)]._duration
-                                                                                   : 0.0f;
+                                                                                 : 0.0f;
 }
 
 const Vector& GltfModel::getMinimum() const
@@ -483,6 +563,11 @@ const Vector& GltfModel::getMinimum() const
 const Vector& GltfModel::getMaximum() const
 {
    return _maximum;
+}
+
+const std::vector<GltfModel::Glow>& GltfModel::getGlows() const
+{
+   return _glows;
 }
 
 void GltfModel::initializeGL()
@@ -614,11 +699,13 @@ void GltfModel::begin()
       shader._flash = activeDevice().getParameterIndex("u_flash");
       shader._alpha = activeDevice().getParameterIndex("u_alpha");
       shader._tint = activeDevice().getParameterIndex("u_tint");
+      shader._clip = activeDevice().getParameterIndex("u_clip");
    }
 
    activeDevice().setShader(shader._program);
    activeDevice().bindSampler(shader._color, 0);
    activeDevice().bindSampler(shader._occlusion, 1);
+   activeDevice().setParameter(shader._clip, clip_height);
 
    for (GLuint attribute = 0; attribute < 5; attribute++)
    {
@@ -668,9 +755,14 @@ void GltfModel::draw(const Matrix& transform, int32_t animation, float time, con
 
    for (const Primitive& primitive : _primitives)
    {
+      // the water has a shader of its own, see drawWater()
+      if (primitive._water)
+      {
+         continue;
+      }
+
       // skinned vertices are posed by their joints, static ones by their node
-      const Matrix4 local =
-         primitive._skinned ? Y_UP_TO_Z_UP : multiply(Y_UP_TO_Z_UP, globals[static_cast<size_t>(primitive._node)]);
+      const Matrix4 local = primitive._skinned ? Y_UP_TO_Z_UP : multiply(Y_UP_TO_Z_UP, globals[static_cast<size_t>(primitive._node)]);
       const Matrix world = toEngine(local) * transform;
 
       activeDevice().push(world);
@@ -683,7 +775,9 @@ void GltfModel::draw(const Matrix& transform, int32_t animation, float time, con
       }
 
       const auto texture_of = [this](int32_t image)
-      { return image >= 0 && _images[static_cast<size_t>(image)]._texture ? _images[static_cast<size_t>(image)]._texture : whiteTexture(); };
+      {
+         return image >= 0 && _images[static_cast<size_t>(image)]._texture ? _images[static_cast<size_t>(image)]._texture : whiteTexture();
+      };
 
       glActiveTexture(GL_TEXTURE1);
       glBindTexture(GL_TEXTURE_2D, texture_of(primitive._occlusion_image));
@@ -703,4 +797,63 @@ void GltfModel::draw(const Matrix& transform, int32_t animation, float time, con
 
    glBindBuffer(GL_ARRAY_BUFFER, 0);
    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+}
+
+void GltfModel::drawWater(const Matrix& transform)
+{
+   if (!_valid || !_has_water)
+   {
+      return;
+   }
+
+   initializeGL();
+
+   std::vector<Matrix4> globals;
+   pose(-1, 0.0f, globals);
+
+   for (const Primitive& primitive : _primitives)
+   {
+      if (!primitive._water)
+      {
+         continue;
+      }
+
+      activeDevice().push(toEngine(multiply(Y_UP_TO_Z_UP, globals[static_cast<size_t>(primitive._node)])) * transform);
+
+      glActiveTexture(GL_TEXTURE0);
+      glBindTexture(
+         GL_TEXTURE_2D, primitive._color_image >= 0 ? _images[static_cast<size_t>(primitive._color_image)]._texture : whiteTexture()
+      );
+
+      glBindBuffer(GL_ARRAY_BUFFER, primitive._vertex_buffer);
+      glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const void*>(offsetof(Vertex, _position)));
+      glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const void*>(offsetof(Vertex, _normal)));
+      glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const void*>(offsetof(Vertex, _uv)));
+
+      glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, primitive._index_buffer);
+      glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(primitive._indices.size()), GL_UNSIGNED_INT, nullptr);
+   }
+
+   glBindBuffer(GL_ARRAY_BUFFER, 0);
+   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+}
+
+bool GltfModel::hasWater() const
+{
+   return _has_water;
+}
+
+float GltfModel::getWaterLevel() const
+{
+   return _water_level;
+}
+
+const Vector& GltfModel::getWaterColor() const
+{
+   return _water_color;
+}
+
+void GltfModel::setClipHeight(float height)
+{
+   clip_height = height;
 }

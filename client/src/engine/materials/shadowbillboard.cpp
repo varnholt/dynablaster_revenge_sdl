@@ -22,6 +22,8 @@ ShadowBillboard::ShadowBillboard(const std::string& map) : Material(-1)
 
 void ShadowBillboard::removeMesh(const Mesh& mesh)
 {
+   // geometry added but not yet prepared still sits in the base class queue
+   Material::removeMesh(mesh);
    std::erase_if(_instances, [&mesh](const Instance& instance) { return &instance.geometry.get().getParent() == &mesh; });
 }
 

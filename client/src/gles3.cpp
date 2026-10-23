@@ -41,6 +41,7 @@ PFNGLVERTEXATTRIBPOINTERPROC glVertexAttribPointer;
 PFNGLENABLEVERTEXATTRIBARRAYPROC glEnableVertexAttribArray;
 PFNGLDISABLEVERTEXATTRIBARRAYPROC glDisableVertexAttribArray;
 PFNGLDEPTHMASKPROC glDepthMask;
+PFNGLFRONTFACEPROC glFrontFace;
 
 PFNGLGENTEXTURESPROC glGenTextures;
 PFNGLBINDTEXTUREPROC glBindTexture;
@@ -142,6 +143,7 @@ bool loadGles3Functions()
    ok &= load(glEnableVertexAttribArray, "glEnableVertexAttribArray");
    ok &= load(glDisableVertexAttribArray, "glDisableVertexAttribArray");
    ok &= load(glDepthMask, "glDepthMask");
+   ok &= load(glFrontFace, "glFrontFace");
 
    ok &= load(glGenTextures, "glGenTextures");
    ok &= load(glBindTexture, "glBindTexture");

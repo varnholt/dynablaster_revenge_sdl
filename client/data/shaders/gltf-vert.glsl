@@ -17,6 +17,9 @@ uniform float u_skinned;
 out vec2 uv;
 out vec3 nrm;
 
+// world z, for the clip height of mirror images
+out float height;
+
 void main()
 {
    mat4 skin = mat4(1.0);
@@ -29,5 +32,6 @@ void main()
 
    uv = a_texcoord0;
    nrm = normalize(mat3(u_model) * mat3(skin) * a_normal);
+   height = (u_model * skin * vec4(a_position, 1.0)).z;
    gl_Position = u_modelViewProjection * skin * vec4(a_position, 1.0);
 }

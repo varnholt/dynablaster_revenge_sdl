@@ -189,6 +189,8 @@ private:
    void updateBlock(int item_x, int item_y);
 
    void resetPlayers();
+   //! frees a player's mesh and forgets the player, no death animation
+   void deletePlayer(int id);
    void deleteLevelData();
    void deleteMesh(Mesh& mesh);
 
