@@ -1,7 +1,8 @@
 #include "timepacket.h"
 
-#include "logging.h"
+#include "log.h"
 
+#include <format>
 #include <string_view>
 
 namespace
@@ -36,5 +37,5 @@ void TimePacket::dequeue(BinaryReader& in)
 
 void TimePacket::debug()
 {
-   qDebug("TimePacket: game time left: %d", _time_left);
+   Log::info(std::format("TimePacket: game time left: {}", _time_left));
 }

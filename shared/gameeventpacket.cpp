@@ -1,7 +1,8 @@
 #include "gameeventpacket.h"
 
-#include "logging.h"
+#include "log.h"
 
+#include <format>
 #include <string_view>
 
 namespace
@@ -48,7 +49,7 @@ void GameEventPacket::dequeue(BinaryReader& in)
 
 void GameEventPacket::debug()
 {
-   qDebug("GameEventPacket: type: %d, intensity: %f", _event, _intensity);
+   Log::info(std::format("GameEventPacket: type: {}, intensity: {:.6f}", static_cast<int32_t>(_event), _intensity));
 }
 
 void GameEventPacket::setPlayerId(int32_t player_id)

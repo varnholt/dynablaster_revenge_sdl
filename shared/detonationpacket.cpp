@@ -1,7 +1,8 @@
 #include "detonationpacket.h"
 
-#include "logging.h"
+#include "log.h"
 
+#include <format>
 #include <string_view>
 
 namespace
@@ -88,10 +89,8 @@ float DetonationPacket::getIntensity() const
 
 void DetonationPacket::debug()
 {
-   qDebug(
-      "DetonationPacket: x: %d, y: %d, "
-      "up: %d, down: %d, left: %d, right: %d, "
-      "intensity: %f",
+   Log::info(std::format(
+      "DetonationPacket: x: {}, y: {}, up: {}, down: {}, left: {}, right: {}, intensity: {:.6f}",
       _x,
       _y,
       _fields_up,
@@ -99,5 +98,5 @@ void DetonationPacket::debug()
       _fields_left,
       _fields_right,
       _intensity
-   );
+   ));
 }

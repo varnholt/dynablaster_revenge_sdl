@@ -1,7 +1,8 @@
 #include "messagepacket.h"
 
-#include "logging.h"
+#include "log.h"
 
+#include <format>
 #include <string_view>
 
 namespace
@@ -55,12 +56,7 @@ int8_t MessagePacket::getSenderId() const
 
 void MessagePacket::debug()
 {
-   qDebug(
-      "MessagePacket:debug: sender: %d, message: '%s', "
-      "receiver: %d, finished: %d",
-      _sender_id,
-      _message.c_str(),
-      _receiver_id,
-      _finished_typing
-   );
+   Log::info(std::format(
+      "MessagePacket:debug: sender: {}, message: '{}', receiver: {}, finished: {}", _sender_id, _message, _receiver_id, _finished_typing
+   ));
 }

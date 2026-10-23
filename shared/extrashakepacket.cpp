@@ -1,7 +1,8 @@
 #include "extrashakepacket.h"
 
-#include "logging.h"
+#include "log.h"
 
+#include <format>
 #include <string_view>
 
 namespace
@@ -36,5 +37,5 @@ void ExtraShakePacket::dequeue(BinaryReader& in)
 
 void ExtraShakePacket::debug()
 {
-   qDebug("ExtraShakePacket: unique id: %d", _map_item_unique_id);
+   Log::info(std::format("ExtraShakePacket: unique id: {}", _map_item_unique_id));
 }

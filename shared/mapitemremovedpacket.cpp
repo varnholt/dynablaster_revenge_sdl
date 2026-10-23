@@ -1,7 +1,8 @@
 #include "mapitemremovedpacket.h"
 
-#include "logging.h"
+#include "log.h"
 
+#include <format>
 #include <string_view>
 
 namespace
@@ -31,5 +32,5 @@ void MapItemRemovedPacket::dequeue(BinaryReader& in)
 
 void MapItemRemovedPacket::debug()
 {
-   qDebug("MapItemRemovedPacket: x: %d, y: %d", getX(), getY());
+   Log::info(std::format("MapItemRemovedPacket: x: {}, y: {}", getX(), getY()));
 }

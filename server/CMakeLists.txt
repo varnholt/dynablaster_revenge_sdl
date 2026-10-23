@@ -107,6 +107,8 @@ set(DYNABLASTER_SHARED_SOURCES
     ../shared/listgamesrequestpacket.h
     ../shared/listgamesresponsepacket.cpp
     ../shared/listgamesresponsepacket.h
+    ../shared/log.cpp
+    ../shared/log.h
     ../shared/loginrequestpacket.cpp
     ../shared/loginrequestpacket.h
     ../shared/loginresponsepacket.cpp

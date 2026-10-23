@@ -1,6 +1,6 @@
 #include "leavegamerequestpacket.h"
 
-#include "logging.h"
+#include "log.h"
 
 #include <string_view>
 
@@ -32,7 +32,7 @@ void LeaveGameRequestPacket::dequeue(BinaryReader& in)
 
 void LeaveGameRequestPacket::debug()
 {
-   qDebug("LeaveGameRequestPacket:debug: no members");
+   Log::info("LeaveGameRequestPacket:debug: no members");
 }
 
 void LeaveGameRequestPacket::setPlayerId(int32_t id)

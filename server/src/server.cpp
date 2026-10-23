@@ -14,7 +14,7 @@
 #include "leavegameresponsepacket.h"
 #include "listgamesrequestpacket.h"
 #include "listgamesresponsepacket.h"
-#include "logging.h"
+#include "log.h"
 #include "loginrequestpacket.h"
 #include "loginresponsepacket.h"
 #include "player.h"
@@ -41,20 +41,20 @@ Server::Server()
 {
    initServerConfiguration();
 
-   qDebug("Server::Server: Dynablaster Revenge Server - v%s, rev. %s", SERVER_VERSION, SERVER_REVISION);
+   Log::info(std::format("Server::Server: Dynablaster Revenge Server - v{}, rev. {}", SERVER_VERSION, SERVER_REVISION));
 
-   qDebug("Server::Server: binding to port %d..", SERVER_PORT);
+   Log::info(std::format("Server::Server: binding to port {}..", SERVER_PORT));
 
    // create server, listening on all local addresses
    _net_server.reset(NET_CreateServer(nullptr, SERVER_PORT, 0));
 
    if (!_net_server)
    {
-      qDebug("Server::Server: Dynablaster Revenge Server: Unable to start the server: %s.", SDL_GetError());
+      Log::info(std::format("Server::Server: Dynablaster Revenge Server: Unable to start the server: {}.", SDL_GetError()));
    }
    else
    {
-      qDebug("Server::Server: Dynablaster Revenge Server: server initialized");
+      Log::info("Server::Server: Dynablaster Revenge Server: server initialized");
    }
 
    // check for incoming connections and incoming data once per tick - not started here,
@@ -70,7 +70,7 @@ void Server::startPolling()
 
 Server::~Server()
 {
-   qDebug("Server::~Server");
+   Log::info("Server::~Server");
 
    // players first: an infected player's disease disconnects itself from its game on destruction
    _connections.clear();
@@ -125,7 +125,7 @@ void Server::acceptConnections()
 
       if (!NET_AcceptClient(_net_server.get(), &accepted_socket))
       {
-         qDebug("Server::acceptConnections: accept failed: %s", SDL_GetError());
+         Log::info(std::format("Server::acceptConnections: accept failed: {}", SDL_GetError()));
          break;
       }
 
@@ -139,7 +139,7 @@ void Server::acceptConnections()
       auto connection =
          std::make_unique<Connection>(connection_id, NetStreamSocketHandle(accepted_socket, &NET_DestroyStreamSocket), _player_id++);
 
-      qDebug("Server::acceptConnections: peer address: %s, connection: %d", connection->getPeerAddress().c_str(), connection_id);
+      Log::info(std::format("Server::acceptConnections: peer address: {}, connection: {}", connection->getPeerAddress(), connection_id));
 
       _connections[connection_id] = std::move(connection);
    }
@@ -232,14 +232,14 @@ void Server::processPlayerSynchronize(Connection& connection, const PlayerSynchr
 
          player.setLoadingSynchronized(true);
 
-         qDebug("Server::processPlayerSynchronize: game: %d player: '%s'", game->get().getId(), player.getNick().c_str());
+         Log::info(std::format("Server::processPlayerSynchronize: game: {} player: '{}'", game->get().getId(), player.getNick()));
       }
    }
 }
 
 void Server::processLoginRequest(Connection& connection, const LoginRequestPacket& request)
 {
-   qDebug("Server::processLoginRequest: login request packet received");
+   Log::info("Server::processLoginRequest: login request packet received");
 
    Player& player = connection.getPlayer();
 
@@ -435,7 +435,7 @@ void Server::readSocket(int32_t connection_id)
 
             case Packet::INVALID:
             {
-               qWarning("Server::readSocket: Packet::INVALID received");
+               Log::warning("Server::readSocket: Packet::INVALID received");
                break;
             }
 
@@ -453,7 +453,7 @@ void Server::readSocket(int32_t connection_id)
 
 void Server::disconnectSocket(int32_t connection_id)
 {
-   qDebug("Server::disconnectSocket");
+   Log::info("Server::disconnectSocket");
 
    const auto connection_iterator = _connections.find(connection_id);
 
@@ -473,12 +473,9 @@ void Server::processBroadcastLeaveGameResponse(const Player& player, Game& game)
 {
    for (Connection& connection : game.getConnections() | std::views::values)
    {
-      qDebug(
-         "Server::processBroadcastLeaveGameResponse: "
-         "informing '%s' that '%s' left",
-         connection.getPlayer().getNick().c_str(),
-         player.getNick().c_str()
-      );
+      Log::info(std::format(
+         "Server::processBroadcastLeaveGameResponse: informing '{}' that '{}' left", connection.getPlayer().getNick(), player.getNick()
+      ));
 
       sendPacket(connection, std::make_unique<LeaveGameResponsePacket>(game.getId(), player.getId()));
    }

@@ -1,7 +1,8 @@
 #include "startgameresponsepacket.h"
 
-#include "logging.h"
+#include "log.h"
 
+#include <format>
 #include <string_view>
 
 namespace
@@ -41,5 +42,5 @@ void StartGameResponsePacket::dequeue(BinaryReader& in)
 
 void StartGameResponsePacket::debug()
 {
-   qDebug("StartGameResponsePacket:debug: id: %d, started: %d", _id, _started);
+   Log::info(std::format("StartGameResponsePacket:debug: id: {}, started: {}", _id, _started));
 }

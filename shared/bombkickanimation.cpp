@@ -2,7 +2,7 @@
 
 #include "bombmapitem.h"
 #include "constants.h"
-#include "logging.h"
+#include "log.h"
 #include "map.h"
 #include "mapitem.h"
 

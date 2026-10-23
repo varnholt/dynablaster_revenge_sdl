@@ -1,7 +1,8 @@
 #include "mapitempacket.h"
 
-#include "logging.h"
+#include "log.h"
 
+#include <format>
 #include <string_view>
 #include "mapitem.h"
 
@@ -60,5 +61,5 @@ void MapItemPacket::dequeue(BinaryReader& in)
 
 void MapItemPacket::debug()
 {
-   qDebug("MapItemPacketPacket: x: %d, y: %d", _x, _y);
+   Log::info(std::format("MapItemPacketPacket: x: {}, y: {}", _x, _y));
 }

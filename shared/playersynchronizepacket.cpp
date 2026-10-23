@@ -1,7 +1,8 @@
 #include "playersynchronizepacket.h"
 
-#include "logging.h"
+#include "log.h"
 
+#include <format>
 #include <string_view>
 
 namespace
@@ -44,5 +45,5 @@ void PlayerSynchronizePacket::dequeue(BinaryReader& in)
 
 void PlayerSynchronizePacket::debug()
 {
-   qDebug("PlayerSynchronizePacket::debug(): process: %d", getSynchronizeProcess());
+   Log::info(std::format("PlayerSynchronizePacket::debug(): process: {}", static_cast<int32_t>(getSynchronizeProcess())));
 }

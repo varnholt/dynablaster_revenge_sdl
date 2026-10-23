@@ -1,6 +1,6 @@
 #include "listgamesrequestpacket.h"
 
-#include "logging.h"
+#include "log.h"
 
 #include <string_view>
 
@@ -24,5 +24,5 @@ void ListGamesRequestPacket::dequeue(BinaryReader& /*in*/)
 
 void ListGamesRequestPacket::debug()
 {
-   qDebug("ListGamesRequestPacket:debug: no members");
+   Log::info("ListGamesRequestPacket:debug: no members");
 }

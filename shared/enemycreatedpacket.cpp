@@ -1,7 +1,8 @@
 #include "enemycreatedpacket.h"
 
-#include "logging.h"
+#include "log.h"
 
+#include <format>
 #include <string_view>
 
 namespace
@@ -66,5 +67,12 @@ void EnemyCreatedPacket::dequeue(BinaryReader& in)
 
 void EnemyCreatedPacket::debug()
 {
-   qDebug("EnemyCreatedPacket: id: %d, type: %d, x: %f, y: %f, angle: %f", static_cast<int32_t>(_id), static_cast<int32_t>(_type), _x, _y, _angle);
+   Log::info(std::format(
+      "EnemyCreatedPacket: id: {}, type: {}, x: {:.6f}, y: {:.6f}, angle: {:.6f}",
+      static_cast<int32_t>(_id),
+      static_cast<int32_t>(_type),
+      _x,
+      _y,
+      _angle
+   ));
 }

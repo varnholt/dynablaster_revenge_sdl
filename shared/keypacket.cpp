@@ -1,7 +1,8 @@
 #include "keypacket.h"
 
-#include "logging.h"
+#include "log.h"
 
+#include <format>
 #include <string_view>
 
 namespace
@@ -42,5 +43,5 @@ int8_t KeyPacket::getPlayerId() const
 
 void KeyPacket::debug()
 {
-   qDebug("KeyPacket: player id: %d, keys: %d", _player_id, _keys);
+   Log::info(std::format("KeyPacket: player id: {}, keys: {}", _player_id, _keys));
 }

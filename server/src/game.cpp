@@ -23,7 +23,7 @@
 #include "joingameresponsepacket.h"
 #include "keypacket.h"
 #include "listgamesresponsepacket.h"
-#include "logging.h"
+#include "log.h"
 #include "loginrequestpacket.h"
 #include "loginresponsepacket.h"
 #include "map.h"
@@ -79,7 +79,7 @@ int Game::_game_id_counter = 0;
 
 Game::Game()
 {
-   qDebug("Game::Game: initializing");
+   Log::info("Game::Game: initializing");
 
    // init config
    Settings settings(SERVER_CONFIG_FILE_SERVER, Settings::IniFormat);
@@ -115,7 +115,7 @@ Game::Game()
 
 Game::~Game()
 {
-   qDebug("Game::~Game");
+   Log::info("Game::~Game");
 
    // the bombs and their kick animations go first, the animations' destroy callbacks still
    // disconnect from this game's signals
@@ -229,7 +229,7 @@ void Game::initSkullSetup()
 
 void Game::initialize()
 {
-   qDebug("Game::initialize");
+   Log::info("Game::initialize");
 
    if (_create_game_data._story)
    {
@@ -418,7 +418,7 @@ void Game::initializeMap()
 
 void Game::initializeTimers()
 {
-   qDebug("Game::initializeTimers");
+   Log::info("Game::initializeTimers");
 
    // update timer
    _update_timer.timeoutSignal.connect([this]() { update(); });
@@ -513,7 +513,7 @@ void Game::broadcastStartGame()
 
 void Game::startGame()
 {
-   qDebug("Game::startNewGame");
+   Log::info("Game::startNewGame");
 
    // reset the number of players that left during the running game
    setGameOnlyPopulatedByBotsMessageShown(false);
@@ -1301,7 +1301,7 @@ void Game::setGameOnlyPopulatedByBotsMessageShown(bool value)
 
 void Game::processOnlyBotsLeft()
 {
-   qDebug("Game::processOnlyBotsLeft: the game is now only populated by bots");
+   Log::info("Game::processOnlyBotsLeft: the game is now only populated by bots");
 
    const std::string message = "The game is now only populated by bots. Press F10 to abort.";
 
@@ -2011,7 +2011,7 @@ void Game::updatePrepareGame()
 
    if (_preparation_counter == 0)
    {
-      qDebug("Game::updatePrepareGame: starting game now");
+      Log::info("Game::updatePrepareGame: starting game now");
 
       _preparation_timer.stop();
 
@@ -2019,7 +2019,7 @@ void Game::updatePrepareGame()
    }
    else
    {
-      qDebug("Game::updatePrepareGame: starting game in %d secs", _preparation_counter);
+      Log::info(std::format("Game::updatePrepareGame: starting game in {} secs", _preparation_counter));
    }
 }
 
@@ -2044,7 +2044,7 @@ void Game::stopGame()
    bool finished = false;
    _running = false;
 
-   qDebug("Game::updateGameoverCondition: game over");
+   Log::info("Game::updateGameoverCondition: game over");
 
    // when someone left the game it could be the case that there's only
    // one player left in the game; for that purpose the server triggers
@@ -2165,7 +2165,7 @@ void Game::synchronize()
       // time has elapsed, kick those who died trying
       for (Connection& connection : critical_connections)
       {
-         qDebug("Game::synchronize: time to kick '%s' out of the game", connection.getPlayer().getNick().c_str());
+         Log::info(std::format("Game::synchronize: time to kick '{}' out of the game", connection.getPlayer().getNick()));
 
          forceLeaveGameSignal(connection);
 
@@ -2367,13 +2367,13 @@ void Game::processPacket(Connection& connection, const Packet& packet)
 
       case Packet::POSITION:
       {
-         qWarning("Game::data(): Packet::POSITION received. no no no. wrong direction!");
+         Log::warning("Game::data(): Packet::POSITION received. no no no. wrong direction!");
          break;
       }
 
       case Packet::STOPGAMEREQUEST:
       {
-         qDebug("Game::data: Packet::STOPGAMEREQUEST received");
+         Log::info("Game::data: Packet::STOPGAMEREQUEST received");
 
          if (getState() == Constants::GameActive)
          {
@@ -2393,7 +2393,7 @@ void Game::processPacket(Connection& connection, const Packet& packet)
 
       case Packet::INVALID:
       {
-         qWarning("Game::data: Packet::INVALID received");
+         Log::warning("Game::data: Packet::INVALID received");
          break;
       }
 

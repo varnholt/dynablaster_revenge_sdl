@@ -1,7 +1,8 @@
 #include "mapcreaterequestpacket.h"
 
-#include "logging.h"
+#include "log.h"
 
+#include <format>
 #include <string_view>
 
 namespace
@@ -50,13 +51,12 @@ void MapCreateRequestPacket::dequeue(BinaryReader& in)
 
 void MapCreateRequestPacket::debug()
 {
-   qDebug(
-      "MapCreateRequestPacket:debug: width: %d, height: %d, stones: %d, "
-      "bombextras: %d, flamextras: %d",
+   Log::info(std::format(
+      "MapCreateRequestPacket:debug: width: {}, height: {}, stones: {}, bombextras: {}, flamextras: {}",
       _width,
       _height,
       _stone_count,
       _extra_bomb_count,
       _extra_flame_count
-   );
+   ));
 }

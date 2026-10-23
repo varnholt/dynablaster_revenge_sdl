@@ -27,7 +27,7 @@
 #include "render/texturepool.h"
 #include "timer.h"
 
-#include "logging.h"
+#include "log.h"
 
 #include <algorithm>
 #include <cmath>
@@ -203,7 +203,7 @@ void GameWinDrawable::initGameData()
       const PlayerScore player = w.getObject();
       int color_index = player._color - 1;
 
-      qDebug("GameWinDrawable::initGameData(): #%d: %s", w.getWeight(), player._nick.c_str());
+      Log::info(std::format("GameWinDrawable::initGameData(): #{}: {}", w.getWeight(), player._nick));
 
       PSDLayer& rank_layer = *_psd_layers[_ranks[row]];
       PSDLayer& name_layer = *_psd_layers[_names[row]];

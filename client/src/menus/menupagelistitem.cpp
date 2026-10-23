@@ -7,7 +7,7 @@
 #include "framework/gldevice.h"
 #include "math/matrix.h"
 
-#include "logging.h"
+#include "log.h"
 
 #include <algorithm>
 #include <cmath>
@@ -51,10 +51,7 @@ void MenuPageListItem::initializeItem(MenuPageListItemElement& element, int inde
    }
    else
    {
-      qWarning(
-         "MenuPageListItem::initializeItem: you can't initialize list items elements "
-         "without initializing the pagelist item"
-      );
+      Log::warning("MenuPageListItem::initializeItem: you can't initialize list items elements without initializing the pagelist item");
    }
 }
 

@@ -1,7 +1,8 @@
 #include "stonedroppacket.h"
 
-#include "logging.h"
+#include "log.h"
 
+#include <format>
 #include <string_view>
 
 namespace
@@ -42,5 +43,5 @@ void StoneDropPacket::dequeue(BinaryReader& in)
 
 void StoneDropPacket::debug()
 {
-   qDebug("StoneDropPacket: x: %d, y: %d", _x, _y);
+   Log::info(std::format("StoneDropPacket: x: {}, y: {}", _x, _y));
 }

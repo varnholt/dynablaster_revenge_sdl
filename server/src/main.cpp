@@ -5,18 +5,19 @@
 #include "server.h"
 
 // shared
-#include "logging.h"
+#include "log.h"
 #include "timer.h"
 
 // stdlib
 #include <chrono>
+#include <format>
 #include <thread>
 
 int main(int /*argc*/, char** /*argv*/)
 {
    if (!NET_Init())
    {
-      qWarning("Failed to initialize SDL_net: %s", SDL_GetError());
+      Log::warning(std::format("Failed to initialize SDL_net: {}", SDL_GetError()));
       return 1;
    }
 

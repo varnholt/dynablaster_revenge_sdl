@@ -1,7 +1,8 @@
 #include "listgamesresponsepacket.h"
 
-#include "logging.h"
+#include "log.h"
 
+#include <format>
 #include <string_view>
 
 namespace
@@ -49,5 +50,7 @@ void ListGamesResponsePacket::dequeue(BinaryReader& in)
 
 void ListGamesResponsePacket::debug()
 {
-   qDebug("ListGamesResponsePacket:debug: number of games sent: %d, update: %d", static_cast<int32_t>(_games.size()), isUpdate());
+   Log::info(
+      std::format("ListGamesResponsePacket:debug: number of games sent: {}, update: {}", static_cast<int32_t>(_games.size()), isUpdate())
+   );
 }

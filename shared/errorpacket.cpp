@@ -1,7 +1,8 @@
 #include "errorpacket.h"
 
-#include "logging.h"
+#include "log.h"
 
+#include <format>
 #include <string_view>
 
 namespace
@@ -57,5 +58,5 @@ void ErrorPacket::setErrorMessage(const std::string& message)
 
 void ErrorPacket::debug()
 {
-   qDebug("ErrorPacket:debug: type: %d, message: %s", _error_type, _error_message.c_str());
+   Log::info(std::format("ErrorPacket:debug: type: {}, message: {}", static_cast<int32_t>(_error_type), _error_message));
 }

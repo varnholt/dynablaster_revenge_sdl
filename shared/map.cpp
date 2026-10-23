@@ -3,7 +3,7 @@
 #include "blockmapitem.h"
 #include "bombmapitem.h"
 #include "extramapitem.h"
-#include "logging.h"
+#include "log.h"
 #include "mapitemcreatedpacket.h"
 #include "mapitemremovedpacket.h"
 #include "playerdisease.h"
@@ -335,7 +335,7 @@ std::unique_ptr<Map> Map::generateMap(
    }
    else
    {
-      qWarning("Map::generateMap: given map seems to be stoned.");
+      Log::warning("Map::generateMap: given map seems to be stoned.");
    }
 
    return map;

@@ -1,7 +1,8 @@
 #include "playermodifiedpacket.h"
 
-#include "logging.h"
+#include "log.h"
 
+#include <format>
 #include <string_view>
 
 namespace
@@ -36,5 +37,5 @@ void PlayerModifiedPacket::dequeue(BinaryReader& in)
 
 void PlayerModifiedPacket::debug()
 {
-   qDebug("PlayerModifiedPacket: player color: %d", _color);
+   Log::info(std::format("PlayerModifiedPacket: player color: {}", _color));
 }

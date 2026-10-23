@@ -25,7 +25,7 @@
 #include "stringutils.h"
 #include "timer.h"
 
-#include "logging.h"
+#include "log.h"
 
 #include <SDL3/SDL_keyboard.h>
 #include <SDL3_net/SDL_net.h>
@@ -167,7 +167,7 @@ void logUnhandled(const std::string& page, const std::string& action)
 
    if (needsBrowser(action))
    {
-      qDebug("MenuPageNavigator: page=%s action=%s needs opening an external browser (not implemented)", page.c_str(), action.c_str());
+      Log::info(std::format("MenuPageNavigator: page={} action={} needs opening an external browser (not implemented)", page, action));
    }
    // else: not a real menu action (e.g. an editablecombobox's own internal layer-name emission) -
    // the real GameMenuWorkflow doesn't log these either, so neither do we.
@@ -312,7 +312,7 @@ void MenuPageNavigator::onActionRequest(const std::string& page, const std::stri
          }
          else
          {
-            qDebug("MenuPageNavigator: JOIN clicked with no games known yet");
+            Log::info("MenuPageNavigator: JOIN clicked with no games known yet");
          }
       }
       else
@@ -517,7 +517,7 @@ void MenuPageNavigator::onLoginResponse(bool granted)
    }
    else
    {
-      qDebug("MenuPageNavigator: login denied");
+      Log::info("MenuPageNavigator: login denied");
    }
 }
 
@@ -565,7 +565,7 @@ void MenuPageNavigator::onGameStarted()
    // real gameplay handoff (level loading, HUD, in-game rendering/input) is the separate,
    // not-yet-scoped "Phase 5" - this proves the network state machine reaches GameActive for
    // real, nothing more.
-   qDebug("MenuPageNavigator: gameStarted() - real gameplay handoff not implemented yet (Phase 5)");
+   Log::info("MenuPageNavigator: gameStarted() - real gameplay handoff not implemented yet (Phase 5)");
 }
 
 void MenuPageNavigator::onPageChanged(const std::string& page)
@@ -1339,7 +1339,7 @@ void MenuPageNavigator::serializeControllerSettings()
       // like setKeyMapValid(false): one unreadable field keeps the whole key map
       if (key == SDLK_UNKNOWN)
       {
-         qWarning("MenuPageNavigator: '%s' is no key, keyboard controls not changed", item.getText().c_str());
+         Log::warning(std::format("MenuPageNavigator: '{}' is no key, keyboard controls not changed", item.getText()));
          return;
       }
 

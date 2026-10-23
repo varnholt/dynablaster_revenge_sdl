@@ -1,6 +1,6 @@
 #include "gamestatspacket.h"
 
-#include "logging.h"
+#include "log.h"
 
 #include <string_view>
 
@@ -74,5 +74,5 @@ void GameStatsPacket::dequeue(BinaryReader& in)
 
 void GameStatsPacket::debug()
 {
-   qDebug("GameStatsPacket:debug: ");
+   Log::info("GameStatsPacket:debug: ");
 }

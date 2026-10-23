@@ -1,7 +1,8 @@
 #include "enemykilledpacket.h"
 
-#include "logging.h"
+#include "log.h"
 
+#include <format>
 #include <string_view>
 
 namespace
@@ -59,5 +60,11 @@ void EnemyKilledPacket::dequeue(BinaryReader& in)
 
 void EnemyKilledPacket::debug()
 {
-   qDebug("EnemyKilledPacket: id: %d, killer_id: %d, reason: %d, points: %d", static_cast<int32_t>(_id), static_cast<int32_t>(_killer_id), static_cast<int32_t>(_reason), static_cast<int32_t>(_points));
+   Log::info(std::format(
+      "EnemyKilledPacket: id: {}, killer_id: {}, reason: {}, points: {}",
+      static_cast<int32_t>(_id),
+      static_cast<int32_t>(_killer_id),
+      static_cast<int32_t>(_reason),
+      static_cast<int32_t>(_points)
+   ));
 }
