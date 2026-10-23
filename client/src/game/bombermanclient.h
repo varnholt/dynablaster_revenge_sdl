@@ -233,6 +233,7 @@ public:
    Signal<int, bool> enemyKilledSignal;
    Signal<int, int> enemyHitSignal;
    Signal<int, int, int, int, int> storyStateSignal;
+   Signal<bool> pausedSignal;
    Signal<> leaveGameSignal;
 
 public:
@@ -299,6 +300,12 @@ public:
 
    //! the current game is a story mode game
    bool isStory() const;
+
+   //! asks the server to pause or resume the running story mode game
+   void togglePause();
+
+   //! the server confirmed the story mode game is paused
+   bool isPaused() const;
 
    //! stop a game
    void stopGame(int game);
@@ -472,6 +479,9 @@ private:
 
    //! player alive
    bool _dead = true;
+
+   //! story mode game paused
+   bool _paused = false;
 
    //! map items by unique id
    std::unordered_map<int, std::unique_ptr<MapItem>> _map_items;

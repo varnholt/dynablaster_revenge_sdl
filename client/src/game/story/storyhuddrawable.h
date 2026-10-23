@@ -20,6 +20,9 @@ public:
    //! state as sent by the server (StoryStatePacket)
    void setState(int32_t stage, int32_t lives, int32_t score, int32_t state, int32_t enemies_left);
 
+   //! shows the pause screen
+   void setPaused(bool paused);
+
 private:
    void showBanner(const std::string& title, const std::string& subtitle);
 
@@ -33,4 +36,5 @@ private:
    std::string _banner_subtitle;
    float _banner_time = -1.0f;
    float _last_time = 0.0f;
+   bool _paused = false;
 };

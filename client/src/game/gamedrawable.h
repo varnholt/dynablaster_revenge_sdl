@@ -150,6 +150,8 @@ public:
    void setStoryStage(int stage);
    //! opens the exit once every enemy is gone, it stays open for the rest of the stage
    void setStoryEnemiesLeft(int enemies_left);
+   //! the field stands still while the story mode is paused
+   void setPaused(bool paused);
 
 private:
    //! game state was changed
@@ -214,6 +216,7 @@ private:
    std::unique_ptr<ExitPortal> _exit_portal;
    int _story_enemies_left = -1;
    int _story_stage = -1;
+   bool _paused = false;
 
    //! bomberman shaped enemies are drawn as players with ids from here on
    static constexpr int ENEMY_PLAYER_ID_OFFSET = 1000;

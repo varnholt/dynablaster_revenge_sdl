@@ -28,6 +28,9 @@ public:
    void stop();
    [[nodiscard]] bool isActive() const;
 
+   //! a paused timer stays active but doesn't fire, resuming continues with the time that was left
+   void setPaused(bool paused);
+
    Signal<> timeoutSignal;
 
    static void singleShot(int32_t milliseconds, std::function<void()> callback);
@@ -42,6 +45,8 @@ private:
    std::chrono::steady_clock::time_point _start_time;
    std::thread::id _owner_thread{};
    bool _active = false;
+   bool _paused = false;
+   std::chrono::steady_clock::duration _paused_elapsed{0};
 
    static std::mutex _mutex;
 

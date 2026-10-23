@@ -404,6 +404,20 @@ void Map::stopBombs()
    }
 }
 
+void Map::setBombsPaused(bool paused)
+{
+   const auto pause = [paused](const std::shared_ptr<MapItem>& item)
+   {
+      if (item && item->getType() == MapItem::Bomb)
+      {
+         static_cast<BombMapItem&>(*item).setPaused(paused);
+      }
+   };
+
+   std::ranges::for_each(_map, pause);
+   std::ranges::for_each(_lifted_items, pause);
+}
+
 int32_t Map::getManhattanLength(int32_t x1, int32_t y1, int32_t x2, int32_t y2)
 {
    return std::abs(std::abs(x1) - std::abs(x2)) + std::abs(std::abs(y1) - std::abs(y2));

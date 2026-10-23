@@ -134,6 +134,8 @@ set(DYNABLASTER_SHARED_SOURCES
     ../shared/messagepacket.h
     ../shared/packet.cpp
     ../shared/packet.h
+    ../shared/pausepacket.cpp
+    ../shared/pausepacket.h
     ../shared/packetstreambuffer.cpp
     ../shared/packetstreambuffer.h
     ../shared/player.cpp

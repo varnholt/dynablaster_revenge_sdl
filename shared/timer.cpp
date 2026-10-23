@@ -50,6 +50,7 @@ void Timer::start()
    _start_time = std::chrono::steady_clock::now();
    _owner_thread = std::this_thread::get_id();
    _active = true;
+   _paused = false;
 
    std::lock_guard<std::mutex> lock(_mutex);
    _timers.insert_or_assign(_id, std::ref(*this));
@@ -74,6 +75,28 @@ bool Timer::isActive() const
    return _active;
 }
 
+void Timer::setPaused(bool paused)
+{
+   if (paused == _paused)
+   {
+      return;
+   }
+
+   std::lock_guard<std::mutex> lock(_mutex);
+   const auto now = std::chrono::steady_clock::now();
+
+   if (paused)
+   {
+      _paused_elapsed = now - _start_time;
+   }
+   else
+   {
+      _start_time = now - _paused_elapsed;
+   }
+
+   _paused = paused;
+}
+
 void Timer::singleShot(int32_t milliseconds, std::function<void()> callback)
 {
    std::lock_guard<std::mutex> lock(_single_shot_mutex);
@@ -92,7 +115,8 @@ void Timer::update()
       std::lock_guard<std::mutex> lock(_mutex);
       for (const auto& [id, timer] : _timers)
       {
-         if (timer.get()._owner_thread == calling_thread && now - timer.get()._start_time >= timer.get()._interval)
+         if (timer.get()._owner_thread == calling_thread && !timer.get()._paused &&
+             now - timer.get()._start_time >= timer.get()._interval)
          {
             due.push_back(id);
          }

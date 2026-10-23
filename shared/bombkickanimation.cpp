@@ -72,6 +72,11 @@ void BombKickAnimation::stop()
    _timer.stop();
 }
 
+void BombKickAnimation::setPaused(bool paused)
+{
+   _timer.setPaused(paused);
+}
+
 void BombKickAnimation::setX(float x)
 {
    _x = x;

@@ -34,6 +34,7 @@
 #include "mapitemmovepacket.h"
 #include "mapitemremovedpacket.h"
 #include "messagepacket.h"
+#include "pausepacket.h"
 #include "playerinfectedpacket.h"
 #include "playerkilledpacket.h"
 #include "playermodifiedpacket.h"
@@ -242,6 +243,9 @@ std::unique_ptr<Packet> Packet::deserialize(BinaryReader& in)
          break;
       case Packet::STORYSTATE:
          packet = std::make_unique<StoryStatePacket>();
+         break;
+      case Packet::PAUSE:
+         packet = std::make_unique<PausePacket>();
          break;
       default:
          break;

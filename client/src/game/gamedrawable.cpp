@@ -1125,6 +1125,12 @@ void GameDrawable::gameStateChanged()
  */
 void GameDrawable::animate(float time)
 {
+   if (_paused)
+   {
+      _time = time;
+      return;
+   }
+
    if (_detonations)
       _detonations->update(time / 62.5f);
 
@@ -1320,6 +1326,11 @@ void GameDrawable::setStoryStage(int stage)
    {
       _level->setWeather(_story_field->getWeather());
    }
+}
+
+void GameDrawable::setPaused(bool paused)
+{
+   _paused = paused;
 }
 
 void GameDrawable::setStoryEnemiesLeft(int enemies_left)

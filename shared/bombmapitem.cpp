@@ -50,6 +50,16 @@ void BombMapItem::detonateIn(int32_t ms)
    }
 }
 
+void BombMapItem::setPaused(bool paused)
+{
+   _timer.setPaused(paused);
+
+   if (_animation)
+   {
+      _animation->setPaused(paused);
+   }
+}
+
 void BombMapItem::setRemoteControlled(bool remote)
 {
    _remote_controlled = remote;

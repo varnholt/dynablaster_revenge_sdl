@@ -42,6 +42,7 @@
 #include "mapitemremovedpacket.h"
 #include "math/vector.h"
 #include "messagepacket.h"
+#include "pausepacket.h"
 #include "playerinfectedpacket.h"
 #include "playerkilledpacket.h"
 #include "playerstats.h"
@@ -1406,6 +1407,13 @@ void BombermanClient::processPacket(const Packet& packet)
          break;
       }
 
+      case Packet::PAUSE:
+      {
+         _paused = static_cast<const PausePacket&>(packet).isPaused();
+         pausedSignal(_paused);
+         break;
+      }
+
       case Packet::INVALID:
       {
          Log::warning("BombermanClient::data: Packet::INVALID received");
@@ -1710,6 +1718,12 @@ void BombermanClient::processKeyPressed(int key)
       stopGame();
    }
 
+   // pause the story mode (P/controller start)
+   else if (key == SDLK_P && isStory())
+   {
+      togglePause();
+   }
+
    // care about movement
    else
    {
@@ -1877,6 +1891,12 @@ void BombermanClient::resetGameData()
    _games.clear();
 
    setGameId(-1);
+
+   if (_paused)
+   {
+      _paused = false;
+      pausedSignal(false);
+   }
 
    GameStateMachine::getInstance().setState(Constants::GameStopped);
 }
@@ -2073,6 +2093,27 @@ void BombermanClient::startGame(int game)
 
    StartGameRequestPacket packet(game);
    send(packet);
+}
+
+//-----------------------------------------------------------------------------
+/*!
+ */
+void BombermanClient::togglePause()
+{
+   if (isStory() && GameStateMachine::getInstance().getState() == Constants::GameActive)
+   {
+      PausePacket request(!_paused);
+      send(request);
+   }
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \return true if the server paused the game
+*/
+bool BombermanClient::isPaused() const
+{
+   return _paused;
 }
 
 //-----------------------------------------------------------------------------

@@ -31,6 +31,9 @@ public:
    // stop moving for good, e.g. once the bomb exploded
    void stop();
 
+   //! the bomb stays where it is until resumed
+   void setPaused(bool paused);
+
    [[nodiscard]] Map& getMap() const;
 
    void setX(float x);

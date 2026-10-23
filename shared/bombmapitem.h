@@ -65,6 +65,9 @@ public:
    //! (re)starts the fuse to go off in ms, never delays a fuse that is already shorter
    void detonateIn(int32_t ms);
 
+   //! holds the fuse and a kick in progress
+   void setPaused(bool paused);
+
    //! remote controlled bombs wait for their owner instead of ticking
    void setRemoteControlled(bool remote);
    [[nodiscard]] bool isRemoteControlled() const;
