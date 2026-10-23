@@ -1,4 +1,4 @@
--- spidfire (setsutore): boss of round 7, wanders and periodically stops behind a force field to
+-- crab: boss of round 7, wanders and periodically stops behind a force field to
 -- spray fire four tiles into every direction
 local common = require("common")
 

@@ -9,39 +9,39 @@
 
 return {
    -- moves in a repetitive manner, only turns when hitting a wall
-   ballom = { behaviour = "patrol", speed = 1.0, points = 100, hit_points = 1 },
-   boma = { behaviour = "patrol", speed = 1.5, points = 100, hit_points = 1 },
-   flapper = { behaviour = "patrol", speed = 1.5, points = 100, hit_points = 1 },
-   minvo = { behaviour = "patrol", speed = 1.5, points = 100, hit_points = 1 },
-   nagachamu = { behaviour = "patrol", speed = 1.5, points = 100, hit_points = 1 },
-   ojin = { behaviour = "patrol", speed = 1.5, points = 400, hit_points = 1 },
-   maron = { behaviour = "patrol", speed = 1.6, points = 100, hit_points = 1 },
+   balloon = { behaviour = "patrol", speed = 1.0, points = 100, hit_points = 1 },
+   frog = { behaviour = "patrol", speed = 1.5, points = 100, hit_points = 1 },
+   hothead = { behaviour = "patrol", speed = 1.5, points = 100, hit_points = 1 },
+   grinner = { behaviour = "patrol", speed = 1.5, points = 100, hit_points = 1 },
+   statue = { behaviour = "patrol", speed = 1.5, points = 100, hit_points = 1 },
+   chomper = { behaviour = "patrol", speed = 1.5, points = 400, hit_points = 1 },
+   sprout = { behaviour = "patrol", speed = 1.6, points = 100, hit_points = 1 },
 
    -- moves aimlessly, willing to change direction at random
-   boyon = { behaviour = "roam", speed = 1.5, points = 1000, hit_points = 1, turn_chance = 25 },
-   buffer = { behaviour = "roam", speed = 1.5, points = 400, hit_points = 1, turn_chance = 25 },
-   gacha = { behaviour = "roam", speed = 1.5, points = 100, hit_points = 1, turn_chance = 25 },
-   korisuke = { behaviour = "roam", speed = 1.0, points = 400, hit_points = 1, turn_chance = 25 },
-   sashakin = { behaviour = "roam", speed = 1.5, points = 400, hit_points = 1, turn_chance = 25 },
-   uotan = { behaviour = "roam", speed = 1.5, points = 400, hit_points = 1, turn_chance = 25 },
-   onil = { behaviour = "roam", speed = 2.0, points = 400, hit_points = 1, turn_chance = 25 },
-   ekutopu = { behaviour = "roam", speed = 1.0, points = 400, hit_points = 1, turn_chance = 50 },
-   pomori = { behaviour = "roam", speed = 1.5, points = 800, hit_points = 1, turn_chance = 25, wall_pass = true },
-   telpio = { behaviour = "roam", speed = 1.9, points = 1000, hit_points = 1, turn_chance = 40, wall_pass = true },
+   droplet = { behaviour = "roam", speed = 1.5, points = 1000, hit_points = 1, turn_chance = 25 },
+   gourd = { behaviour = "roam", speed = 1.5, points = 400, hit_points = 1, turn_chance = 25 },
+   croc = { behaviour = "roam", speed = 1.5, points = 100, hit_points = 1, turn_chance = 25 },
+   spinner = { behaviour = "roam", speed = 1.0, points = 400, hit_points = 1, turn_chance = 25 },
+   jester = { behaviour = "roam", speed = 1.5, points = 400, hit_points = 1, turn_chance = 25 },
+   blob = { behaviour = "roam", speed = 1.5, points = 400, hit_points = 1, turn_chance = 25 },
+   onion = { behaviour = "roam", speed = 2.0, points = 400, hit_points = 1, turn_chance = 25 },
+   octopus = { behaviour = "roam", speed = 1.0, points = 400, hit_points = 1, turn_chance = 50 },
+   imp = { behaviour = "roam", speed = 1.5, points = 800, hit_points = 1, turn_chance = 25, wall_pass = true },
+   totem = { behaviour = "roam", speed = 1.9, points = 1000, hit_points = 1, turn_chance = 40, wall_pass = true },
 
    -- goes after the player
-   pass = { behaviour = "hunt", speed = 2.3, points = 2000, hit_points = 1, reach = 12, turn_chance = 25, avoid_danger = true },
-   pontan = { behaviour = "hunt", speed = 2.8, points = 200, hit_points = 1, reach = 64, turn_chance = 25, wall_pass = true },
-   -- bubbles' pink cloud, slowly drifting after the player
+   tiger = { behaviour = "hunt", speed = 2.3, points = 2000, hit_points = 1, reach = 12, turn_chance = 25, avoid_danger = true },
+   coin = { behaviour = "hunt", speed = 2.8, points = 200, hit_points = 1, reach = 64, turn_chance = 25, wall_pass = true },
+   -- the puffer's pink cloud, slowly drifting after the player
    cloud = { behaviour = "hunt", speed = 0.8, points = 100, hit_points = 1, reach = 64, turn_chance = 25, wall_pass = true },
-   -- warp man's one-eyed blob
-   warp_man_child = { behaviour = "hunt", speed = 1.2, points = 100, hit_points = 3, reach = 16, turn_chance = 25 },
+   -- the cyclops' offspring
+   eyeball = { behaviour = "hunt", speed = 1.2, points = 100, hit_points = 3, reach = 16, turn_chance = 25 },
 
    -- bosses have a behaviour of their own
-   arion = { behaviour = "arion", speed = 1.2, points = 20000, hit_points = 5 },
-   bubbles = { behaviour = "bubbles", speed = 1.3, points = 20000, hit_points = 2 },
-   warp_man = { behaviour = "warp_man", speed = 1.4, points = 30000, hit_points = 3 },
-   spidfire = { behaviour = "spidfire", speed = 1.5, points = 30000, hit_points = 3 },
-   black_bomberman = { behaviour = "black_bomberman", speed = 1.6, points = 50000, hit_points = 5 },
-   bomberman = { behaviour = "bomberman", speed = 1.6, points = 1000, hit_points = 2 },
+   serpent = { behaviour = "serpent", speed = 1.2, points = 20000, hit_points = 5 },
+   puffer = { behaviour = "puffer", speed = 1.3, points = 20000, hit_points = 2 },
+   cyclops = { behaviour = "cyclops", speed = 1.4, points = 30000, hit_points = 3 },
+   crab = { behaviour = "crab", speed = 1.5, points = 30000, hit_points = 3 },
+   shadow_bomber = { behaviour = "shadow_bomber", speed = 1.6, points = 50000, hit_points = 5 },
+   henchman = { behaviour = "henchman", speed = 1.6, points = 1000, hit_points = 2 },
 }

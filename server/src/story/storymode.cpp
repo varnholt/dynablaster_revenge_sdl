@@ -258,7 +258,7 @@ void StoryMode::spawnAround(int32_t x, int32_t y, int32_t count)
    std::vector<EnemyType> types;
    for (const EnemyType type : getStage()._enemies)
    {
-      if (!isBoss(type) && type != EnemyType::Bomberman)
+      if (!isBoss(type) && type != EnemyType::Henchman)
       {
          types.push_back(type);
       }
@@ -266,7 +266,7 @@ void StoryMode::spawnAround(int32_t x, int32_t y, int32_t count)
 
    if (types.empty())
    {
-      types.push_back(EnemyType::Pontan);
+      types.push_back(EnemyType::Coin);
    }
 
    // all of one kind, like in the original
@@ -330,7 +330,7 @@ void StoryMode::updateEnemies(float dt)
       }
    }
 
-   // children of a fallen boss go with it (warp man's blobs, bubbles' clouds)
+   // children of a fallen boss go with it (the cyclops' eyeballs, the puffer's clouds)
    for (const auto& enemy : _enemies)
    {
       if (enemy->isDead() || enemy->getParentId() < 0)
@@ -619,11 +619,11 @@ void StoryMode::timeUp()
       enemy->remove();
    }
 
-   for (int32_t i = 0; i < STORY_TIMEOUT_PONTANS; i++)
+   for (int32_t i = 0; i < STORY_TIMEOUT_COINS; i++)
    {
       if (const auto tile = getRandomFreeTile(SPAWN_DISTANCE))
       {
-         spawnEnemy(EnemyType::Pontan, static_cast<float>(tile->x()) + 0.5f, static_cast<float>(tile->y()) + 0.5f, -1);
+         spawnEnemy(EnemyType::Coin, static_cast<float>(tile->x()) + 0.5f, static_cast<float>(tile->y()) + 0.5f, -1);
       }
    }
 }

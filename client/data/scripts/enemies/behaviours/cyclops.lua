@@ -1,4 +1,4 @@
--- warp man: boss of rounds 4 and 6, wanders, teleports now and then and breeds one-eyed blobs
+-- cyclops: boss of rounds 4 and 6, wanders, teleports now and then and breeds eyeballs
 local common = require("common")
 
 local TELEPORT_TIMER = 1
@@ -15,8 +15,8 @@ function timeout(id)
       teleport(5)
       timer(6000 + random(3000), TELEPORT_TIMER)
    elseif id == CHILD_TIMER then
-      if count("warp_man_child") < MAX_CHILDREN then
-         spawn("warp_man_child")
+      if count("eyeball") < MAX_CHILDREN then
+         spawn("eyeball")
       end
       timer(5000, CHILD_TIMER)
    end

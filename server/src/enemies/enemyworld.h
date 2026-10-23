@@ -44,6 +44,6 @@ public:
    //! enemy fire travelling up to range tiles into each direction, only harming players
    virtual void spitFire(int32_t x, int32_t y, int32_t range) = 0;
 
-   //! enemies dropping bombs (black bomberman)
+   //! enemies dropping bombs (shadow bomber)
    virtual void dropBomb(int32_t x, int32_t y, int32_t flames) = 0;
 };
