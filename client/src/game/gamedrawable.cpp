@@ -18,7 +18,6 @@
 #include "effects/ribbons/ribbonanimationfactory.h"
 #include "extra.h"
 #include "extraanimations.h"
-#include "soundmanager.h"
 #include "extramapitem.h"
 #include "fuseparticlesystem.h"
 #include "gameplayernamedisplay.h"
@@ -35,6 +34,7 @@
 #include "postproduction/shroomfilter.h"
 #include "sdlglobaltime.h"
 #include "skull.h"
+#include "soundmanager.h"
 #include "startalersfactory.h"
 #include "story/enemyrenderer.h"
 #include "story/exitportal.h"
@@ -221,6 +221,20 @@ void GameDrawable::clear()
    if (_enemies)
    {
       _enemies->clear();
+   }
+
+   std::vector<int> enemy_player_ids;
+   for (const auto& [player_id, player] : _player_list)
+   {
+      if (player_id >= ENEMY_PLAYER_ID_OFFSET)
+      {
+         enemy_player_ids.push_back(player_id);
+      }
+   }
+
+   for (const int player_id : enemy_player_ids)
+   {
+      deletePlayer(player_id);
    }
 }
 
@@ -457,9 +471,11 @@ Mesh& GameDrawable::createExtra(const ExtraMapItem& extra)
 {
    SceneGraph& playfield = _level->getScene();
    const Mesh& extra_mesh = playfield.findNode<Mesh>("Extra").value();
-   Mesh& mesh = playfield.addNode(std::make_unique<Extra>(
-      extra.getExtraType(), extra_mesh.getPart(0), static_cast<float>(extra.getX()), static_cast<float>(extra.getY())
-   ));
+   Mesh& mesh = playfield.addNode(
+      std::make_unique<Extra>(
+         extra.getExtraType(), extra_mesh.getPart(0), static_cast<float>(extra.getX()), static_cast<float>(extra.getY())
+      )
+   );
    getExtraMaterial(extra.getExtraType()).addMesh(mesh);
    _extra_animations->addReveal(extra.getX(), extra.getY());
    return mesh;
@@ -1270,7 +1286,15 @@ void GameDrawable::enemyKilled(int id, bool removed)
 {
    if (getPlayer(id + ENEMY_PLAYER_ID_OFFSET))
    {
-      removePlayer(id + ENEMY_PLAYER_ID_OFFSET);
+      // removed at a stage change: gone at once, killed: death animation
+      if (removed)
+      {
+         deletePlayer(id + ENEMY_PLAYER_ID_OFFSET);
+      }
+      else
+      {
+         removePlayer(id + ENEMY_PLAYER_ID_OFFSET);
+      }
       return;
    }
 
@@ -1542,20 +1566,46 @@ void GameDrawable::resetPlayers()
       _invisible_player_effect->removeAllPlayers();
    }
 
-   auto it = _player_list.begin();
-   while (it != _player_list.end())
+   // the story mode's bomberman enemies are created before the countdown, they stay until the
+   // server removes them or the level is deleted
+   std::vector<int> player_ids;
+   for (const auto& [player_id, player] : _player_list)
    {
-      const std::unique_ptr<PlayerItem> player = std::move(it->second);
-      it = _player_list.erase(it);
-
-      int color = static_cast<int32_t>(player->getColor());
-      Mesh& mesh = player->getMesh();
-      SceneGraph& players = _level->getPlayers();
-      Material& player_material = players.getMaterial(static_cast<int32_t>(color - 1));
-      player_material.removeMesh(mesh);
-      _level->getShadowBillboard().removeMesh(mesh);
-      players.removeNode(mesh);
+      if (player_id < ENEMY_PLAYER_ID_OFFSET)
+      {
+         player_ids.push_back(player_id);
+      }
    }
+
+   for (const int player_id : player_ids)
+   {
+      deletePlayer(player_id);
+   }
+}
+
+void GameDrawable::deletePlayer(int id)
+{
+   const auto it = _player_list.find(id);
+   if (it == _player_list.end())
+   {
+      return;
+   }
+
+   const std::unique_ptr<PlayerItem> player = std::move(it->second);
+   _player_list.erase(it);
+
+   if (!_level)
+   {
+      return;
+   }
+
+   int color = static_cast<int32_t>(player->getColor());
+   Mesh& mesh = player->getMesh();
+   SceneGraph& players = _level->getPlayers();
+   Material& player_material = players.getMaterial(static_cast<int32_t>(color - 1));
+   player_material.removeMesh(mesh);
+   _level->getShadowBillboard().removeMesh(mesh);
+   players.removeNode(mesh);
 }
 
 //-----------------------------------------------------------------------------

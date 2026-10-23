@@ -28,6 +28,20 @@ public:
       Vector _tint = Vector(1.0f, 1.0f, 1.0f);
    };
 
+   //! a light's glow, from a node's extras: "glow": [r, g, b, size, mode]
+   struct Glow
+   {
+      //! model space, z-up, in the bind pose
+      Vector _position;
+      Vector _color;
+
+      //! radius of the halo
+      float _size = 0.5f;
+
+      //! 0 steady, 1 flickering flame, 2 blinking, 3 pulsing
+      int32_t _mode = 0;
+   };
+
    explicit GltfModel(const std::string& filename);
    ~GltfModel();
 
@@ -46,6 +60,9 @@ public:
    [[nodiscard]] const Vector& getMinimum() const;
    [[nodiscard]] const Vector& getMaximum() const;
 
+   //! the lights placed in the model
+   [[nodiscard]] const std::vector<Glow>& getGlows() const;
+
    //! uploads the gpu resources, needs the gl context
    void initializeGL();
 
@@ -55,6 +72,17 @@ public:
    //! the shader and its state for a batch of draw() calls
    static void begin();
    static void end();
+
+   //! draws() skip fragments above this height (world z), for mirror images; a huge value turns it off
+   static void setClipHeight(float height);
+
+   //! the water surfaces, primitives of nodes with "water": [r, g, b] (the deep colour) in their extras;
+   //! draw() leaves them out, drawWater() draws them with the shader that's set, texture unit 0 holds
+   //! their texture, attributes 0..2 are position, normal and uv
+   [[nodiscard]] bool hasWater() const;
+   [[nodiscard]] float getWaterLevel() const;
+   [[nodiscard]] const Vector& getWaterColor() const;
+   void drawWater(const Matrix& transform);
 
 private:
    using Matrix4 = std::array<float, 16>;
@@ -72,6 +100,7 @@ private:
    {
       int32_t _node = -1;
       bool _skinned = false;
+      bool _water = false;
       std::vector<Vertex> _vertices;
       std::vector<uint32_t> _indices;
       int32_t _color_image = -1;
@@ -126,6 +155,10 @@ private:
    std::vector<Image> _images;
    std::vector<int32_t> _joints;
    std::vector<Matrix4> _inverse_bind;
+   std::vector<Glow> _glows;
+   bool _has_water = false;
+   float _water_level = 0.0f;
+   Vector _water_color;
    Vector _minimum;
    Vector _maximum;
 };

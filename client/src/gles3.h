@@ -125,6 +125,8 @@ using GLsizeiptr = intptr_t;
 
 #define GL_DEPTH_TEST 0x0B71
 #define GL_CULL_FACE 0x0B44
+#define GL_CW 0x0900
+#define GL_CCW 0x0901
 #define GL_SCISSOR_TEST 0x0C11
 
 // Fixed-function alpha testing (glAlphaFunc) has no GLES equivalent at all - it becomes a
@@ -223,6 +225,7 @@ using PFNGLVERTEXATTRIBPOINTERPROC = void (*)(GLuint, GLint, GLenum, GLboolean, 
 using PFNGLENABLEVERTEXATTRIBARRAYPROC = void (*)(GLuint);
 using PFNGLDISABLEVERTEXATTRIBARRAYPROC = void (*)(GLuint);
 using PFNGLDEPTHMASKPROC = void (*)(GLboolean);
+using PFNGLFRONTFACEPROC = void (*)(GLenum);
 
 using PFNGLGENTEXTURESPROC = void (*)(GLsizei, GLuint*);
 using PFNGLBINDTEXTUREPROC = void (*)(GLenum, GLuint);
@@ -325,6 +328,7 @@ extern PFNGLVERTEXATTRIBPOINTERPROC glVertexAttribPointer;
 extern PFNGLENABLEVERTEXATTRIBARRAYPROC glEnableVertexAttribArray;
 extern PFNGLDISABLEVERTEXATTRIBARRAYPROC glDisableVertexAttribArray;
 extern PFNGLDEPTHMASKPROC glDepthMask;
+extern PFNGLFRONTFACEPROC glFrontFace;
 
 extern PFNGLGENTEXTURESPROC glGenTextures;
 extern PFNGLBINDTEXTUREPROC glBindTexture;

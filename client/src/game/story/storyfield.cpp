@@ -1,6 +1,9 @@
 #include "storyfield.h"
 
 #include "engine/gltf/gltfmodel.h"
+#include "engine/render/glowsprites.h"
+#include "engine/render/watersurface.h"
+#include "framework/gldevice.h"
 #include "gles3.h"
 #include "math/matrix.h"
 #include "settings.h"
@@ -114,19 +117,89 @@ StoryField::Kit& StoryField::getKit()
    return it->second;
 }
 
+GltfModel& StoryField::getScenery(Kit& kit)
+{
+   auto& scenery = kit._scenery[{_width, _height}];
+
+   if (!scenery)
+   {
+      scenery = std::make_unique<GltfModel>(std::format("story/world{}/surroundings_{}x{}.glb", _world, _width, _height));
+   }
+
+   return *scenery;
+}
+
+void StoryField::drawBorder(Kit& kit, const Matrix& transform)
+{
+   if (!kit._border->isValid())
+   {
+      return;
+   }
+
+   const GltfModel::Look look;
+   constexpr float quarter = 0.5f * std::numbers::pi_v<float>;
+
+   // pieces face the field
+   for (int32_t x = 0; x < _width; x++)
+   {
+      kit._border->draw(at(static_cast<float>(x), -1.0f) * transform, -1, 0.0f, look);
+      kit._border->draw(at(static_cast<float>(x), static_cast<float>(_height), 2.0f * quarter) * transform, -1, 0.0f, look);
+   }
+
+   for (int32_t y = 0; y < _height; y++)
+   {
+      kit._border->draw(at(-1.0f, static_cast<float>(y), quarter) * transform, -1, 0.0f, look);
+      kit._border->draw(at(static_cast<float>(_width), static_cast<float>(y), -quarter) * transform, -1, 0.0f, look);
+   }
+
+   GltfModel& corner = kit._corner->isValid() ? *kit._corner : *kit._border;
+   corner.draw(at(-1.0f, -1.0f) * transform, -1, 0.0f, look);
+   corner.draw(at(static_cast<float>(_width), -1.0f, -quarter) * transform, -1, 0.0f, look);
+   corner.draw(at(-1.0f, static_cast<float>(_height), quarter) * transform, -1, 0.0f, look);
+   corner.draw(at(static_cast<float>(_width), static_cast<float>(_height), 2.0f * quarter) * transform, -1, 0.0f, look);
+}
+
 void StoryField::render()
 {
    Kit& kit = getKit();
    const GltfModel::Look look;
-   constexpr float quarter = 0.5f * std::numbers::pi_v<float>;
+
+   GltfModel& scenery = getScenery(kit);
+   const bool water = scenery.isValid() && scenery.hasWater();
+
+   // the water's mirror image: the scenery and the border standing around it
+   if (water)
+   {
+      if (!_water)
+      {
+         _water = std::make_unique<WaterSurface>();
+      }
+
+      _water->renderReflection(
+         scenery.getWaterLevel(),
+         [&](const Matrix& mirror)
+         {
+            GltfModel::begin();
+            scenery.draw(mirror, -1, 0.0f, look);
+            drawBorder(kit, mirror);
+            GltfModel::end();
+         }
+      );
+   }
 
    GltfModel::begin();
+
+   // the scenery made for this field size stands around it as it is, its ground lies below the floor
+   if (scenery.isValid())
+   {
+      scenery.draw(Matrix(), -1, 0.0f, look);
+   }
 
    // the ground never hides anything standing on it
    glDepthMask(GL_FALSE);
 
-   // the land around the field, sized to it
-   if (kit._surroundings->isValid())
+   // otherwise the land around the field, sized to it
+   if (!scenery.isValid() && kit._surroundings->isValid())
    {
       const Matrix transform = Matrix::scale(static_cast<float>(_width), static_cast<float>(_height), 1.0f) *
                                Matrix::position(_width * 0.5f, -_height * 0.5f, 0.0f);
@@ -146,27 +219,35 @@ void StoryField::render()
 
    glDepthMask(GL_TRUE);
 
-   if (kit._border->isValid())
-   {
-      // pieces face the field
-      for (int32_t x = 0; x < _width; x++)
-      {
-         kit._border->draw(at(static_cast<float>(x), -1.0f), -1, 0.0f, look);
-         kit._border->draw(at(static_cast<float>(x), static_cast<float>(_height), 2.0f * quarter), -1, 0.0f, look);
-      }
-
-      for (int32_t y = 0; y < _height; y++)
-      {
-         kit._border->draw(at(-1.0f, static_cast<float>(y), quarter), -1, 0.0f, look);
-         kit._border->draw(at(static_cast<float>(_width), static_cast<float>(y), -quarter), -1, 0.0f, look);
-      }
-
-      GltfModel& corner = kit._corner->isValid() ? *kit._corner : *kit._border;
-      corner.draw(at(-1.0f, -1.0f), -1, 0.0f, look);
-      corner.draw(at(static_cast<float>(_width), -1.0f, -quarter), -1, 0.0f, look);
-      corner.draw(at(-1.0f, static_cast<float>(_height), quarter), -1, 0.0f, look);
-      corner.draw(at(static_cast<float>(_width), static_cast<float>(_height), 2.0f * quarter), -1, 0.0f, look);
-   }
+   drawBorder(kit, Matrix());
 
    GltfModel::end();
+
+   // the water over the ground drawn so far
+   if (water)
+   {
+      // the camera sits where the inverted view projection puts the clip space's z axis
+      const Matrix inverse = static_cast<GLDevice&>(activeDevice()).getProjectionMatrix().invert4x4();
+      const Vector eye(inverse.xz / inverse.wz, inverse.yz / inverse.wz, inverse.zz / inverse.wz);
+
+      _water->captureRefraction();
+      _water->render(scenery, eye);
+   }
+
+   // the scenery's lights
+   if (scenery.isValid() && !scenery.getGlows().empty())
+   {
+      if (!_glows)
+      {
+         _glows = std::make_unique<GlowSprites>();
+      }
+
+      if (_glow_source != &scenery)
+      {
+         _glows->set(scenery.getGlows());
+         _glow_source = &scenery;
+      }
+
+      _glows->render(Matrix());
+   }
 }

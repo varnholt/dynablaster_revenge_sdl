@@ -8,6 +8,9 @@
 #include "levels/level.h"
 
 class GltfModel;
+class GlowSprites;
+class Matrix;
+class WaterSurface;
 
 //! the floor and border of a story mode stage, tiled from the current world's glTF kit;
 //! also scrolls the camera over stages larger than one screen
@@ -47,9 +50,18 @@ private:
       std::unique_ptr<GltfModel> _border;
       std::unique_ptr<GltfModel> _corner;
       std::unique_ptr<GltfModel> _surroundings;
+
+      //! scenery per field size (surroundings_<width>x<height>.glb), in field coordinates
+      std::map<std::pair<int32_t, int32_t>, std::unique_ptr<GltfModel>> _scenery;
    };
 
    Kit& getKit();
+
+   //! the world's scenery for the current field size, invalid if the world has none for it
+   GltfModel& getScenery(Kit& kit);
+
+   //! the border pieces around the field, transform comes after their own placement
+   void drawBorder(Kit& kit, const Matrix& transform);
 
    std::map<int32_t, Kit> _kits;
    int32_t _world = 1;
@@ -59,4 +71,11 @@ private:
    float _offset_x = 0.0f;
    float _offset_y = 0.0f;
    bool _snap = true;
+
+   //! the lights of the scenery last drawn
+   std::unique_ptr<GlowSprites> _glows;
+   const GltfModel* _glow_source = nullptr;
+
+   //! reflection and refraction of the scenery's water
+   std::unique_ptr<WaterSurface> _water;
 };
