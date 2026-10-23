@@ -4,6 +4,7 @@
 #include "engine/render/glowsprites.h"
 #include "engine/render/watersurface.h"
 #include "framework/gldevice.h"
+#include "framework/globaltime.h"
 #include "gles3.h"
 #include "math/matrix.h"
 #include "settings.h"
@@ -167,6 +168,10 @@ void StoryField::render()
    GltfModel& scenery = getScenery(kit);
    const bool water = scenery.isValid() && scenery.hasWater();
 
+   // what moves in the scenery (gears and the like) loops in its "spin" animation
+   const int32_t spin = scenery.isValid() ? scenery.findAnimation("spin") : -1;
+   const float time = GlobalTime::Instance().getTime();
+
    // the water's mirror image: the scenery and the border standing around it
    if (water)
    {
@@ -180,7 +185,7 @@ void StoryField::render()
          [&](const Matrix& mirror)
          {
             GltfModel::begin();
-            scenery.draw(mirror, -1, 0.0f, look);
+            scenery.draw(mirror, spin, time, look);
             drawBorder(kit, mirror);
             GltfModel::end();
          }
@@ -192,7 +197,7 @@ void StoryField::render()
    // the scenery made for this field size stands around it as it is, its ground lies below the floor
    if (scenery.isValid())
    {
-      scenery.draw(Matrix(), -1, 0.0f, look);
+      scenery.draw(Matrix(), spin, time, look);
    }
 
    // the ground never hides anything standing on it
