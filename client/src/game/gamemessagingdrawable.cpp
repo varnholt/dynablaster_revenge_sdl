@@ -112,7 +112,11 @@ void GameMessagingDrawable::keyPressEvent(const KeyEvent& event)
 {
    if (GameStateMachine::getInstance().getState() == Constants::GameActive)
    {
-      if (event.key() == SDLK_RETURN || event.key() == SDLK_KP_ENTER)
+      if (BombermanClient::getInstance().isDetonateKey(event.key()))
+      {
+         // no chat in the story mode
+      }
+      else if (event.key() == SDLK_RETURN || event.key() == SDLK_KP_ENTER)
       {
          bool was_active = isActive();
          toggleActive();

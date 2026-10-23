@@ -28,11 +28,12 @@ public:
       ButtonDown = 0x0002,
       ButtonLeft = 0x0004,
       ButtonRight = 0x0008,
-      ButtonBomb = 0x0010,  //!< south, east, west or north
+      ButtonBomb = 0x0010,  //!< south, west or north
       ButtonShoulderLeft = 0x0020,
       ButtonShoulderRight = 0x0040,
       ButtonStart = 0x0080,
-      ButtonLast = ButtonStart,
+      ButtonDetonate = 0x0100,  //!< east, sets off remote controlled bombs in the story mode, drops bombs everywhere else
+      ButtonLast = ButtonDetonate,
    };
 
    //! SDL instance id, stable while the controller stays connected
@@ -66,7 +67,7 @@ public:
    void poll();
 
    /// \brief poll() plus feeding the game while it is visible
-   void update(bool in_game, GameDrawable& game);
+   void update(bool in_game, bool story, GameDrawable& game);
 
    /// \brief rumbles the controllers steering the main player, intensity 0..1
    void rumble(float intensity, int32_t duration_ms);
@@ -99,7 +100,7 @@ private:
    void removeDevice(Id id);
    uint32_t readButtons(const Device& device) const;
    void refreshButtons(Device& device);
-   void updateGame(bool in_game, GameDrawable& game);
+   void updateGame(bool in_game, bool story, GameDrawable& game);
 
    bool _initialized = false;
    std::unordered_map<Id, Device> _devices;

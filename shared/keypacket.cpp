@@ -15,7 +15,7 @@ KeyPacket::KeyPacket() : Packet(Packet::KEY)
    _packet_name = PACKETNAME;
 }
 
-KeyPacket::KeyPacket(int8_t player_id, int8_t keys) : Packet(Packet::KEY), _player_id(player_id), _keys(keys)
+KeyPacket::KeyPacket(int8_t player_id, int16_t keys) : Packet(Packet::KEY), _player_id(player_id), _keys(keys)
 {
    _packet_name = PACKETNAME;
 }
@@ -31,7 +31,7 @@ void KeyPacket::dequeue(BinaryReader& in)
    in >> _player_id >> _keys;
 }
 
-int8_t KeyPacket::getKeys() const
+int16_t KeyPacket::getKeys() const
 {
    return _keys;
 }

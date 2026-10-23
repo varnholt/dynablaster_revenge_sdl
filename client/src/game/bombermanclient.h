@@ -307,6 +307,9 @@ public:
    //! the server confirmed the story mode game is paused
    bool isPaused() const;
 
+   //! return and enter set off the remote controlled bombs in the story mode, they open the chat otherwise
+   bool isDetonateKey(int key) const;
+
    //! stop a game
    void stopGame(int game);
 

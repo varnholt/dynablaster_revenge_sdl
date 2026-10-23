@@ -94,6 +94,10 @@ public:
    bool isBombKeyLocked() const;
    void setBombKeyLocked(bool processed);
 
+   //! the detonate key was pressed and waits for the next update, like the bomb key
+   [[nodiscard]] bool isDetonateKeyLocked() const;
+   void setDetonateKeyLocked(bool locked);
+
    // story mode abilities
    void setWallPass(bool enabled);
    [[nodiscard]] bool hasWallPass() const;
@@ -119,6 +123,7 @@ private:
    int32_t _keys_previously_pressed = 0;
    int32_t _bombs_dropped_count = 0;
    bool _bomb_key_locked = false;
+   bool _detonate_key_locked = false;
    PlayerRotation _player_rotation;
    bool _killed = false;
    bool _kick_enabled = false;

@@ -68,14 +68,14 @@ void PlayerDisease::randomizeType()
    setType(static_cast<Constants::SkullType>(Random::bounded(static_cast<int32_t>(Constants::SkullReset))));
 }
 
-void PlayerDisease::applyAutofire(int8_t& keys_pressed)
+void PlayerDisease::applyAutofire(int16_t& keys_pressed)
 {
    keys_pressed |= Constants::KeyBomb;
 }
 
-void PlayerDisease::applyKeyboardInvert(int8_t& keys_pressed)
+void PlayerDisease::applyKeyboardInvert(int16_t& keys_pressed)
 {
-   int8_t inverted_keys = 0;
+   int16_t inverted_keys = 0;
 
    // pass bomb bit
    if (keys_pressed & Constants::KeyBomb)

@@ -721,7 +721,7 @@ int main(int /*argc*/, char** /*argv*/)
       }
 
 #ifndef __SWITCH__
-      controller_input.update(game_drawable.isVisible(), game_drawable);
+      controller_input.update(game_drawable.isVisible(), bomberman_client.isStory(), game_drawable);
       menu_controller_handler.update();
       controls_page.update();
       controller_test_view.update();

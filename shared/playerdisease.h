@@ -47,8 +47,8 @@ public:
    [[nodiscard]] static std::vector<Constants::SkullType> generateSkullFaces();
 
    // skull type implementations
-   void applyAutofire(int8_t& keys_pressed);
-   void applyKeyboardInvert(int8_t& keys_pressed);
+   void applyAutofire(int16_t& keys_pressed);
+   void applyKeyboardInvert(int16_t& keys_pressed);
 
    // abort infection
    void abort();

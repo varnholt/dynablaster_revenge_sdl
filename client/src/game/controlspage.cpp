@@ -388,6 +388,7 @@ void ControlsPage::onControllerButtonPressed(ControllerInput::Id id, ControllerI
          pulse(*_setup.findColumn(device));
          break;
       case ControllerInput::ButtonBomb:
+      case ControllerInput::ButtonDetonate:
       case ControllerInput::ButtonStart:
          confirm();
          return;
