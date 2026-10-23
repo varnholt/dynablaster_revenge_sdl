@@ -470,6 +470,8 @@ int main(int /*argc*/, char** /*argv*/)
    DevScript dev_script;
    dev_script._click = [&](int32_t x, int32_t y)
    {
+      // like a real click: buttons only take it while hovered
+      menu_drawable.mouseMoveEvent(x, y);
       menu_drawable.mousePressEvent(x, y);
       menu_drawable.mouseReleaseEvent();
    };
