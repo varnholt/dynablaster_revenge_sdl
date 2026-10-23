@@ -12,7 +12,7 @@
 #define TEXT_ERROR_UNABLE_TO_JOIN "Unable to join;the game!"
 #define TEXT_ERROR_UNABLE_TO_BIND "Unable to bind;server on;localhost!"
 
-#define TEXT_MAIN_SINGLE "To play against;computer enemies;click SINGLE."
+#define TEXT_MAIN_SINGLE "To play the 64;stages of the story;click SINGLE."
 #define TEXT_MAIN_MULTI "To start a game;with your friends;click MULTI."
 #define TEXT_MAIN_SERVER "Host a multi player;game by choosing;127.0.0.1 as IP."
 #define TEXT_SELECT_GAME_SELECT "Select a game;from the list and;click join."

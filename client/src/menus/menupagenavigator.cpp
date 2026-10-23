@@ -104,10 +104,11 @@ const std::string kLoungeAddPlayer = "button_addplayer";
 const std::string kLoungeLineeditSay = "lineedit_say";
 const std::string kLoungeTableMain = "table_lounge_main";
 
+// SINGLE starts the story mode, a game against bots is MULTI hosted on this machine
 const std::string kMainMenuActionSingle = "button_single_active";
 
-// the orange led of the login window, a hidden way into the story mode
-const std::string kMainMenuActionStory = "led_orange";
+// the orange led of the login window, the original single player game against bots (disabled, see below)
+// const std::string kMainMenuActionBots = "led_orange";
 const std::string kMainMenuActionMulti = "button_multi_active";
 const std::string kMainMenuActionPouet = "button_pouet_active";
 const std::string kMainMenuActionFacebook = "button_facebook_active";
@@ -252,15 +253,16 @@ void MenuPageNavigator::onActionRequest(const std::string& page, const std::stri
       {
          quitRequestSignal();
       }
+      // the original single player game against bots, the same as MULTI hosted on this machine
+      // else if (action == kMainMenuActionBots)
+      // {
+      //    // matches GameMenuWorkflow's MAINMENU_ACTION_SINGLE handler exactly: single player
+      //    // always hosts an in-process server and logs into it over loopback.
+      //    BombermanClient::getInstance().setGameMode(Constants::GameModeSinglePlayer);
+      //    BombermanClient::getInstance().host();
+      //    BombermanClient::getInstance().loginRequest("127.0.0.1", GameSettings::getInstance().getLoginSettings().getNick());
+      // }
       else if (action == kMainMenuActionSingle)
-      {
-         // matches GameMenuWorkflow's MAINMENU_ACTION_SINGLE handler exactly: single player
-         // always hosts an in-process server and logs into it over loopback.
-         BombermanClient::getInstance().setGameMode(Constants::GameModeSinglePlayer);
-         BombermanClient::getInstance().host();
-         BombermanClient::getInstance().loginRequest("127.0.0.1", GameSettings::getInstance().getLoginSettings().getNick());
-      }
-      else if (action == kMainMenuActionStory)
       {
          // a single player game against the original's 64 stages, also on an in-process server
          BombermanClient::getInstance().setGameMode(Constants::GameModeStory);
