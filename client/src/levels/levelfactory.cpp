@@ -3,6 +3,7 @@
 // levels
 #include "castle/levelcastle.h"
 #include "mansion/levelmansion.h"
+#include "pirate/levelpirate.h"
 #include "space/levelspace.h"
 
 // game
@@ -21,6 +22,8 @@ std::unique_ptr<Level> LevelFactory::getLevelInstance(Level::LevelType type)
          return std::make_unique<LevelMansion>();
       case Level::LevelSpace:
          return std::make_unique<LevelSpace>();
+      case Level::LevelPirate:
+         return std::make_unique<LevelPirate>();
       default:
          return nullptr;
    }
@@ -30,7 +33,7 @@ std::unique_ptr<Level> LevelFactory::getLevelInstance(const std::string& level_n
 {
    Level::LevelType level_type = Level::LevelCastle;
 
-   for (const auto type : std::array{Level::LevelCastle, Level::LevelMansion, Level::LevelSpace})
+   for (const auto type : std::array{Level::LevelCastle, Level::LevelMansion, Level::LevelSpace, Level::LevelPirate})
    {
       const auto directory = Level::getLevelDirectoryName(type);
 

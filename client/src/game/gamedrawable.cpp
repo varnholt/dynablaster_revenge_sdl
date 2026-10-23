@@ -1492,7 +1492,7 @@ void GameDrawable::paintGL()
       }
       else
       {
-         _level->getLevel().render(_camera_anim, shake);
+         _level->drawLevel(_camera_anim, shake);
       }
 
       _exit_portal->render(dt);

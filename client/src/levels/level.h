@@ -27,6 +27,7 @@ public:
       LevelCastle,
       LevelMansion,
       LevelSpace,
+      LevelPirate,
       LevelDummy
    };
 
@@ -42,6 +43,9 @@ public:
 
    virtual void initialize();
    virtual void draw();
+
+   //! draws the level's own geometry around the field
+   virtual void drawLevel(float frame, const Matrix& view);
    virtual void drawBackground();
    virtual void animate(float dt);
    virtual void reset();

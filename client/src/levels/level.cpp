@@ -16,6 +16,7 @@ namespace
 constexpr auto LEVEL_CASTLE = "level-castle";
 constexpr auto LEVEL_MANSION = "level-mansion";
 constexpr auto LEVEL_SPACE = "level-space";
+constexpr auto LEVEL_PIRATE = "level-pirate";
 constexpr auto LEVEL_DUMMY = "level-dummy";
 }  // namespace
 
@@ -62,6 +63,11 @@ void Level::initialize()
 
 void Level::draw()
 {
+}
+
+void Level::drawLevel(float frame, const Matrix& view)
+{
+   _level->render(frame, view);
 }
 
 void Level::drawBackground()
@@ -147,6 +153,8 @@ std::string Level::getLevelDirectoryName(Level::LevelType level_type)
          return LEVEL_MANSION;
       case LevelSpace:
          return LEVEL_SPACE;
+      case LevelPirate:
+         return LEVEL_PIRATE;
       case LevelDummy:
          return LEVEL_DUMMY;
       default:
@@ -162,6 +170,8 @@ std::string Level::getLevelName(Level::LevelType level_type)
          return "the mansion";
       case LevelSpace:
          return "space";
+      case LevelPirate:
+         return "the pirate ship";
       case LevelDummy:
          return "dummy";
       default:
