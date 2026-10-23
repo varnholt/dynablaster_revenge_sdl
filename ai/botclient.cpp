@@ -913,14 +913,15 @@ void BotClient::walk(int8_t keys_pressed)
       _keys_pressed = keys_pressed;
 
       // cool bots don't get their keyboards flipped
+      int16_t keys = keys_pressed;
       const BotPlayerInfo& info = getBot().getPlayerInfo();
       if (info.isInfected() && info.getDisease().getType() == Constants::SkullKeyboardInvert)
       {
-         info.getDisease().applyKeyboardInvert(keys_pressed);
+         info.getDisease().applyKeyboardInvert(keys);
       }
 
       // build keypacket
-      KeyPacket key_packet(_player_id, keys_pressed);
+      KeyPacket key_packet(_player_id, keys);
       send(key_packet);
    }
 }

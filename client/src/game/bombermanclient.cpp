@@ -1534,7 +1534,8 @@ void BombermanClient::keyPressed(const KeyEvent& event)
    bool control_key = event.key() == controller_settings.getUpKey() || event.key() == controller_settings.getDownKey() ||
                       event.key() == controller_settings.getLeftKey() || event.key() == controller_settings.getRightKey() ||
                       event.key() == controller_settings.getBombKey() || event.key() == controller_settings.getZoomInKey() ||
-                      event.key() == controller_settings.getZoomOutKey() || event.key() == controller_settings.getStartKey();
+                      event.key() == controller_settings.getZoomOutKey() || event.key() == controller_settings.getStartKey() ||
+                      isDetonateKey(event.key());
 
    if ((control_key && !event.isAutoRepeat()) || !control_key)
    {
@@ -1660,7 +1661,18 @@ void BombermanClient::removeBombKeyFlag()
 */
 void BombermanClient::processKeyPressed(int key)
 {
-   if (key == SDLK_RETURN || key == SDLK_KP_ENTER)
+   // there's nobody to chat with in the story mode, return sets off the remote controlled bombs like in the original
+   if (isDetonateKey(key))
+   {
+      if (GameStateMachine::getInstance().getState() == Constants::GameActive && !_dead)
+      {
+         _keys_pressed |= Constants::KeyDetonate;
+         sendKeysPressedPacket();
+         _keys_pressed &= ~Constants::KeyDetonate;
+      }
+   }
+
+   else if (key == SDLK_RETURN || key == SDLK_KP_ENTER)
    {
       if (GameStateMachine::getInstance().getState() == Constants::GameActive)
       {
@@ -2081,6 +2093,11 @@ bool BombermanClient::isStory() const
 {
    const auto info = getCurrentGameInformation();
    return info && info->get().isStory();
+}
+
+bool BombermanClient::isDetonateKey(int key) const
+{
+   return (key == SDLK_RETURN || key == SDLK_KP_ENTER) && isStory();
 }
 
 //-----------------------------------------------------------------------------

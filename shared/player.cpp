@@ -29,6 +29,7 @@ void Player::reset()
    _keys_previously_pressed = 0;
    _position_skipped_counter = 0;
    _bomb_key_locked = false;
+   _detonate_key_locked = false;
 }
 
 void Player::setLoggedIn(bool logged_in)
@@ -387,4 +388,14 @@ bool Player::isBombKeyLocked() const
 void Player::setBombKeyLocked(bool processed)
 {
    _bomb_key_locked = processed;
+}
+
+bool Player::isDetonateKeyLocked() const
+{
+   return _detonate_key_locked;
+}
+
+void Player::setDetonateKeyLocked(bool locked)
+{
+   _detonate_key_locked = locked;
 }

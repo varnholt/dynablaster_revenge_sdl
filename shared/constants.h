@@ -74,7 +74,9 @@ public:
       KeyBomb = 0x10,
       KeyZoomIn = 0x20,
       KeyZoomOut = 0x40,
-      KeyStart = 0x80
+      KeyStart = 0x80,
+      //! sets off the oldest remote controlled bomb (story mode)
+      KeyDetonate = 0x100
    };
 
    //! directions

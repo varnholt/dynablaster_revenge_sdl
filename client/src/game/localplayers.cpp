@@ -13,12 +13,13 @@ namespace
 {
 uint8_t keysForButtons(uint32_t buttons)
 {
-   constexpr std::array<std::pair<uint32_t, uint8_t>, 5> key_map{{
+   constexpr std::array<std::pair<uint32_t, uint8_t>, 6> key_map{{
       {ControllerInput::ButtonUp, Constants::KeyUp},
       {ControllerInput::ButtonDown, Constants::KeyDown},
       {ControllerInput::ButtonLeft, Constants::KeyLeft},
       {ControllerInput::ButtonRight, Constants::KeyRight},
       {ControllerInput::ButtonBomb, Constants::KeyBomb},
+      {ControllerInput::ButtonDetonate, Constants::KeyBomb},
    }};
 
    uint8_t keys = 0;

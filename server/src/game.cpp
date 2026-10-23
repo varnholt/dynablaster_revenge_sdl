@@ -1191,25 +1191,37 @@ void Game::updateBombs()
          }
       }
 
-      // the detonation switch: the bomb key sets off the oldest waiting bomb when no new one can be dropped
-      else if (player.hasRemoteControl() && !player.isKilled())
-      {
-         std::erase_if(_remote_bombs, [](const auto& bomb) { return bomb.expired() || !bomb.lock()->isRemoteControlled(); });
-
-         const auto own =
-            std::ranges::find_if(_remote_bombs, [&player](const auto& bomb) { return bomb.lock()->getPlayerId() == player.getId(); });
-
-         if (own != _remote_bombs.end())
-         {
-            own->lock()->detonateIn(1);
-            _remote_bombs.erase(own);
-         }
-      }
-
       // remove bomb key once a bomb has been dropped
       player.setKeysPressed(player.getKeysPressed() & ~Constants::KeyBomb);
 
       player.setBombKeyLocked(false);
+   }
+
+   // the detonation switch sets off the oldest of the player's waiting bombs
+   for (Player& player : playersOf(_players))
+   {
+      if (!player.isDetonateKeyLocked())
+      {
+         continue;
+      }
+
+      player.setDetonateKeyLocked(false);
+
+      if (!player.hasRemoteControl() || player.isKilled())
+      {
+         continue;
+      }
+
+      std::erase_if(_remote_bombs, [](const auto& bomb) { return bomb.expired() || !bomb.lock()->isRemoteControlled(); });
+
+      const auto own =
+         std::ranges::find_if(_remote_bombs, [&player](const auto& bomb) { return bomb.lock()->getPlayerId() == player.getId(); });
+
+      if (own != _remote_bombs.end())
+      {
+         own->lock()->detonateIn(1);
+         _remote_bombs.erase(own);
+      }
    }
 }
 
@@ -2297,8 +2309,15 @@ void Game::processPacket(Connection& connection, const Packet& packet)
             // fix up the player's inputs to not get confused in
             // any way (the player may to go to the left and to
             // the right at the same time for example)
-            int8_t keys = key_packet.getKeys();
-            const auto previous_keys = static_cast<int8_t>(player.getKeysPressed());
+            int16_t keys = key_packet.getKeys();
+            const auto previous_keys = static_cast<int16_t>(player.getKeysPressed());
+
+            // a single press, the bomb is set off with the next update
+            if (keys & Constants::KeyDetonate)
+            {
+               player.setDetonateKeyLocked(true);
+               keys &= ~Constants::KeyDetonate;
+            }
 
             if ((previous_keys & Constants::KeyRight) && (keys & Constants::KeyLeft))
             {

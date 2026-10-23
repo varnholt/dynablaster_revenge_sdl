@@ -15,7 +15,7 @@ constexpr std::array<std::pair<SDL_GamepadButton, uint32_t>, 11> button_map{{
    {SDL_GAMEPAD_BUTTON_DPAD_LEFT, ControllerInput::ButtonLeft},
    {SDL_GAMEPAD_BUTTON_DPAD_RIGHT, ControllerInput::ButtonRight},
    {SDL_GAMEPAD_BUTTON_SOUTH, ControllerInput::ButtonBomb},
-   {SDL_GAMEPAD_BUTTON_EAST, ControllerInput::ButtonBomb},
+   {SDL_GAMEPAD_BUTTON_EAST, ControllerInput::ButtonDetonate},
    {SDL_GAMEPAD_BUTTON_WEST, ControllerInput::ButtonBomb},
    {SDL_GAMEPAD_BUTTON_NORTH, ControllerInput::ButtonBomb},
    {SDL_GAMEPAD_BUTTON_LEFT_SHOULDER, ControllerInput::ButtonShoulderLeft},
@@ -184,13 +184,13 @@ void ControllerInput::poll()
    }
 }
 
-void ControllerInput::update(bool in_game, GameDrawable& game)
+void ControllerInput::update(bool in_game, bool story, GameDrawable& game)
 {
    poll();
-   updateGame(in_game, game);
+   updateGame(in_game, story, game);
 }
 
-void ControllerInput::updateGame(bool in_game, GameDrawable& game)
+void ControllerInput::updateGame(bool in_game, bool story, GameDrawable& game)
 {
    // the unassigned controllers share the main player, keys are synthesized from their combined state
    std::vector<SDL_Keycode> keys;
@@ -206,7 +206,7 @@ void ControllerInput::updateGame(bool in_game, GameDrawable& game)
       }
 
       const auto& controls = GameSettings::getInstance().getControllerSettings();
-      const std::array<std::pair<uint32_t, SDL_Keycode>, 8> key_map{{
+      const std::array<std::pair<uint32_t, SDL_Keycode>, 9> key_map{{
          {ButtonUp, controls.getUpKey()},
          {ButtonDown, controls.getDownKey()},
          {ButtonLeft, controls.getLeftKey()},
@@ -215,11 +215,12 @@ void ControllerInput::updateGame(bool in_game, GameDrawable& game)
          {ButtonShoulderLeft, controls.getZoomOutKey()},
          {ButtonShoulderRight, controls.getZoomInKey()},
          {ButtonStart, SDLK_P},
+         {ButtonDetonate, story ? SDLK_RETURN : controls.getBombKey()},
       }};
 
       for (const auto& [mask, key] : key_map)
       {
-         if (buttons & mask)
+         if ((buttons & mask) && std::ranges::find(keys, key) == keys.end())
          {
             keys.push_back(key);
          }

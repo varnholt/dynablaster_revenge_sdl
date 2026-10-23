@@ -148,6 +148,7 @@ void MenuControllerHandler::buttonPressed(ControllerInput::Button button)
       case ControllerInput::ButtonLeft:
       case ControllerInput::ButtonRight:
       case ControllerInput::ButtonBomb:
+      case ControllerInput::ButtonDetonate:
          break;
       default:
          return;
@@ -191,6 +192,7 @@ void MenuControllerHandler::processButtonQueue()
          graph.walk(MenuControllerGraph::Direction::East);
          break;
       case ControllerInput::ButtonBomb:
+      case ControllerInput::ButtonDetonate:
          graph.click();
          break;
       default:
