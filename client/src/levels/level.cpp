@@ -129,6 +129,10 @@ void Level::setWeather(Weather /*weather*/)
 {
 }
 
+void Level::setDayTime(float /*phase*/)
+{
+}
+
 std::optional<std::reference_wrapper<Material>> Level::getStoryExtra(int32_t type) const
 {
    const auto it = _story_extras.find(type);

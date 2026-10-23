@@ -18,6 +18,7 @@ GlowSprites::GlowSprites()
 {
    _shader = activeDevice().loadShader("glow-vert.glsl", "glow-frag.glsl");
    _time_param = activeDevice().getParameterIndex("u_time");
+   _brightness_param = activeDevice().getParameterIndex("u_brightness");
    _aspect_param = activeDevice().getParameterIndex("u_aspect");
 
    glGenBuffers(1, &_vertex_buffer);
@@ -83,6 +84,7 @@ void GlowSprites::render(const Matrix& transform)
    activeDevice().setShader(_shader);
    activeDevice().setParameter(_time_param, GlobalTime::Instance().getTime());
    activeDevice().setParameter(_aspect_param, aspect);
+   activeDevice().setParameter(_brightness_param, _brightness);
    activeDevice().push(transform);
 
    glBindBuffer(GL_ARRAY_BUFFER, _vertex_buffer);
@@ -111,4 +113,9 @@ void GlowSprites::render(const Matrix& transform)
    glDepthMask(GL_TRUE);
    glDisable(GL_BLEND);
    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+}
+
+void GlowSprites::setBrightness(float brightness)
+{
+   _brightness = brightness;
 }

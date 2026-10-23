@@ -1333,6 +1333,13 @@ void GameDrawable::setPaused(bool paused)
    _paused = paused;
 }
 
+void GameDrawable::setGameTimeLeft(int time_left, int duration)
+{
+   _round_time_left = time_left;
+   _round_duration = duration;
+   _round_time_received = GlobalTime::Instance().getTime();
+}
+
 void GameDrawable::setStoryEnemiesLeft(int enemies_left)
 {
    _story_enemies_left = enemies_left;
@@ -1474,6 +1481,23 @@ void GameDrawable::paintGL()
    }
 
    Matrix shake = Matrix::position(bounce_x, bounce_y, 0.0f) * view;
+
+   // the time of day: how far the game has come through its rounds
+   if (_level)
+   {
+      if (const auto info = BombermanClient::getInstance().getCurrentGameInformation())
+      {
+         const int rounds = std::max(1, info->get().getRoundCount());
+         float round_progress = 0.0f;
+         if (_round_duration > 0)
+         {
+            const float elapsed = static_cast<float>(_round_duration - _round_time_left) +
+                                  (_paused ? 0.0f : GlobalTime::Instance().getTime() - _round_time_received);
+            round_progress = std::clamp(elapsed / static_cast<float>(_round_duration), 0.0f, 1.0f);
+         }
+         _level->setDayTime((static_cast<float>(info->get().getCurrentRound()) + round_progress) / static_cast<float>(rounds));
+      }
+   }
 
    // clears the frame, space draws its starfield and earth here
    if (_level)

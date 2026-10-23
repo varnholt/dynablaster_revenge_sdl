@@ -76,6 +76,9 @@ public:
    //! draws() skip fragments above this height (world z), for mirror images; a huge value turns it off
    static void setClipHeight(float height);
 
+   //! 1 draws the colour textures, 0 the primitives' night textures (where they have one), between blends them
+   static void setDaylight(float daylight);
+
    //! the water surfaces, primitives of nodes with "water": [r, g, b] (the deep colour) in their extras;
    //! draw() leaves them out, drawWater() draws them with the shader that's set, texture unit 0 holds
    //! their texture, attributes 0..2 are position, normal and uv
@@ -110,6 +113,9 @@ private:
       std::vector<uint32_t> _indices;
       int32_t _color_image = -1;
       int32_t _occlusion_image = -1;
+
+      //! the colour by night, from the material's emissive texture, blended in by setDaylight()
+      int32_t _night_image = -1;
       uint32_t _vertex_buffer = 0;
       uint32_t _index_buffer = 0;
    };

@@ -18,6 +18,9 @@
 #include "framework/globaltime.h"
 #include "render/texturepool.h"
 
+#include <algorithm>
+#include <array>
+#include <cmath>
 #include <format>
 
 LevelPirate::LevelPirate() : Level(Level::LevelPirate)
@@ -106,6 +109,35 @@ void LevelPirate::loadData()
    }
 }
 
+void LevelPirate::setDayTime(float phase)
+{
+   // (phase, daylight): morning, noon, afternoon, sunset, night, dawn
+   constexpr std::array<std::array<float, 2>, 7> day{{
+      {0.0f, 0.8f},
+      {0.25f, 1.0f},
+      {0.5f, 0.9f},
+      {0.62f, 0.45f},
+      {0.72f, 0.0f},
+      {0.94f, 0.0f},
+      {1.0f, 0.35f},
+   }};
+
+   phase = std::clamp(phase, 0.0f, 1.0f);
+   for (size_t i = 0; i + 1 < day.size(); i++)
+   {
+      if (phase <= day[i + 1][0])
+      {
+         const float t = (phase - day[i][0]) / (day[i + 1][0] - day[i][0]);
+         const float smooth = t * t * (3.0f - 2.0f * t);
+         _day = day[i][1] + (day[i + 1][1] - day[i][1]) * smooth;
+         break;
+      }
+   }
+
+   // the warm light while the sun is low
+   _dusk = std::max(0.0f, 1.0f - std::fabs(_day - 0.45f) / 0.35f) * (phase > 0.5f || phase < 0.1f ? 1.0f : 0.0f);
+}
+
 void LevelPirate::drawLevel(float /*frame*/, const Matrix& view)
 {
    // the camera is all in the view matrix, the level's scene graph has none
@@ -116,8 +148,12 @@ void LevelPirate::drawLevel(float /*frame*/, const Matrix& view)
       return;
    }
 
-   const GltfModel::Look look;
+   GltfModel::Look look;
+   look._tint = Vector(1.0f, 1.0f - 0.12f * _dusk, 1.0f - 0.3f * _dusk);
    const float time = GlobalTime::Instance().getTime();
+
+   // the ship's textures by day and by night blended, other glTF models are always drawn by day
+   GltfModel::setDaylight(_day);
 
    // the ship and the sky in the sea
    if (_ship->hasWater())
@@ -152,6 +188,8 @@ void LevelPirate::drawLevel(float /*frame*/, const Matrix& view)
       _water->render(*_ship, eye);
    }
 
+   GltfModel::setDaylight(1.0f);
+
    // the lanterns and the moon
    if (!_ship->getGlows().empty())
    {
@@ -161,6 +199,8 @@ void LevelPirate::drawLevel(float /*frame*/, const Matrix& view)
          _glows->set(_ship->getGlows());
       }
 
+      // the lanterns are lit towards the evening
+      _glows->setBrightness(std::clamp(1.0f - _day * 1.25f, 0.0f, 1.0f));
       _glows->render(Matrix());
    }
 }

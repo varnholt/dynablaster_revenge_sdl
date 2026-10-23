@@ -153,6 +153,9 @@ public:
    //! the field stands still while the story mode is paused
    void setPaused(bool paused);
 
+   //! the round's time left and length (seconds), for the level's time of day
+   void setGameTimeLeft(int time_left, int duration);
+
 private:
    //! game state was changed
    void gameStateChanged();
@@ -242,6 +245,11 @@ private:
    Map2d<std::optional<int32_t>> _map;
 
    float _camera_anim = 0.0f;
+
+   // the round's clock as last sent by the server, and when it arrived (GlobalTime seconds)
+   int _round_time_left = 0;
+   int _round_duration = 0;
+   float _round_time_received = 0.0f;
    float _camera_zoom = 1.0f;
 
    bool _time_reset = true;

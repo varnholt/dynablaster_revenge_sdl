@@ -63,6 +63,10 @@ public:
    //! weather effects the level comes with, levels without any ignore it
    virtual void setWeather(Weather weather);
 
+   //! how far the game has come through its rounds, 0..1 from the first round's start to the last one's end;
+   //! levels with a time of day go through one day and night in it
+   virtual void setDayTime(float phase);
+
    std::string path() const;
    SceneGraph& getScene() const;
    SceneGraph& getLevel() const;

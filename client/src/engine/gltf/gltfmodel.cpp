@@ -42,12 +42,18 @@ struct Shader
    int32_t _tint = -1;
    int32_t _clip = -1;
    int32_t _time = -1;
+   int32_t _night = -1;
+   int32_t _has_night = -1;
+   int32_t _day = -1;
 };
 
 Shader shader;
 
 // fragments higher than this are dropped, for drawing mirror images
 float clip_height = 1e9f;
+
+// 1 by day, 0 by night
+float day_share = 1.0f;
 
 // column-major, a * b applies b first
 Matrix4 multiply(const Matrix4& a, const Matrix4& b)
@@ -462,6 +468,7 @@ void GltfModel::load(const std::string& filename)
          {
             primitive._color_image = image_of(source.material->pbr_metallic_roughness.base_color_texture);
             primitive._occlusion_image = image_of(source.material->occlusion_texture);
+            primitive._night_image = image_of(source.material->emissive_texture);
          }
 
          _primitives.push_back(std::move(primitive));
@@ -722,12 +729,17 @@ void GltfModel::begin()
       shader._tint = activeDevice().getParameterIndex("u_tint");
       shader._clip = activeDevice().getParameterIndex("u_clip");
       shader._time = activeDevice().getParameterIndex("u_time");
+      shader._night = activeDevice().getParameterIndex("u_night");
+      shader._has_night = activeDevice().getParameterIndex("u_has_night");
+      shader._day = activeDevice().getParameterIndex("u_daylight");
    }
 
    activeDevice().setShader(shader._program);
    activeDevice().bindSampler(shader._color, 0);
    activeDevice().bindSampler(shader._occlusion, 1);
    activeDevice().setParameter(shader._clip, clip_height);
+   activeDevice().bindSampler(shader._night, 2);
+   activeDevice().setParameter(shader._day, day_share);
 
    for (GLuint attribute = 0; attribute < 6; attribute++)
    {
@@ -801,6 +813,9 @@ void GltfModel::draw(const Matrix& transform, int32_t animation, float time, con
          return image >= 0 && _images[static_cast<size_t>(image)]._texture ? _images[static_cast<size_t>(image)]._texture : whiteTexture();
       };
 
+      activeDevice().setParameter(shader._has_night, primitive._night_image >= 0 ? 1.0f : 0.0f);
+      glActiveTexture(GL_TEXTURE2);
+      glBindTexture(GL_TEXTURE_2D, texture_of(primitive._night_image));
       glActiveTexture(GL_TEXTURE1);
       glBindTexture(GL_TEXTURE_2D, texture_of(primitive._occlusion_image));
       glActiveTexture(GL_TEXTURE0);
@@ -874,6 +889,11 @@ float GltfModel::getWaterLevel() const
 const Vector& GltfModel::getWaterColor() const
 {
    return _water_color;
+}
+
+void GltfModel::setDaylight(float value)
+{
+   day_share = value;
 }
 
 void GltfModel::setClipHeight(float height)
