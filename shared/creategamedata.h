@@ -25,4 +25,10 @@ public:
    bool _extra_kick_enabled = false;
    bool _extra_skulls_enabled = false;
    Constants::Dimension _dimension = Constants::Dimension13x11;
+
+   //! story mode instead of a battle
+   bool _story = false;
+
+   //! story stage to begin with (0..63)
+   int32_t _story_stage = 0;
 };

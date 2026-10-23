@@ -134,6 +134,7 @@ using GLsizeiptr = intptr_t;
 // real blending on top for the same visual effect.
 #define GL_ALPHA_TEST 0x0BC0
 #define GL_LEQUAL 0x0203
+#define GL_ALWAYS 0x0207
 #define GL_BLEND 0x0BE2
 #define GL_FRAMEBUFFER_SRGB_EXT 0x8DB9  // GL_EXT_sRGB_write_control
 #define GL_ZERO 0
@@ -228,6 +229,7 @@ using PFNGLBINDTEXTUREPROC = void (*)(GLenum, GLuint);
 using PFNGLTEXIMAGE2DPROC = void (*)(GLenum, GLint, GLint, GLsizei, GLsizei, GLint, GLenum, GLenum, const void*);
 using PFNGLTEXIMAGE3DPROC = void (*)(GLenum, GLint, GLint, GLsizei, GLsizei, GLsizei, GLint, GLenum, GLenum, const void*);
 using PFNGLTEXPARAMETERIPROC = void (*)(GLenum, GLenum, GLint);
+using PFNGLGENERATEMIPMAPPROC = void (*)(GLenum);
 using PFNGLDELETETEXTURESPROC = void (*)(GLsizei, const GLuint*);
 using PFNGLACTIVETEXTUREPROC = void (*)(GLenum);
 using PFNGLCOPYTEXIMAGE2DPROC = void (*)(GLenum, GLint, GLenum, GLint, GLint, GLsizei, GLsizei, GLint);
@@ -329,6 +331,7 @@ extern PFNGLBINDTEXTUREPROC glBindTexture;
 extern PFNGLTEXIMAGE2DPROC glTexImage2D;
 extern PFNGLTEXIMAGE3DPROC glTexImage3D;
 extern PFNGLTEXPARAMETERIPROC glTexParameteri;
+extern PFNGLGENERATEMIPMAPPROC glGenerateMipmap;
 extern PFNGLDELETETEXTURESPROC glDeleteTextures;
 extern PFNGLACTIVETEXTUREPROC glActiveTexture;
 extern PFNGLCOPYTEXIMAGE2DPROC glCopyTexImage2D;

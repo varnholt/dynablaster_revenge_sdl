@@ -99,8 +99,62 @@ int32_t GameInformation::getGamesPlayed() const
    return _games_played;
 }
 
+void GameInformation::setStory(bool story, int32_t field_width, int32_t field_height)
+{
+   _story = story;
+   _field_width = field_width;
+   _field_height = field_height;
+}
+
+bool GameInformation::isStory() const
+{
+   return _story;
+}
+
+int32_t GameInformation::getFieldWidth() const
+{
+   if (_field_width > 0)
+   {
+      return _field_width;
+   }
+
+   switch (getMapDimensions())
+   {
+      case Constants::Dimension19x17:
+         return 19;
+      case Constants::Dimension25x21:
+         return 25;
+      default:
+         return 13;
+   }
+}
+
+int32_t GameInformation::getFieldHeight() const
+{
+   if (_field_height > 0)
+   {
+      return _field_height;
+   }
+
+   switch (getMapDimensions())
+   {
+      case Constants::Dimension19x17:
+         return 17;
+      case Constants::Dimension25x21:
+         return 21;
+      default:
+         return 11;
+   }
+}
+
 float GameInformation::getMapScaleX() const
 {
+   // story fields are shown at their real size and scroll
+   if (_story)
+   {
+      return 1.0f;
+   }
+
    switch (getMapDimensions())
    {
       case Constants::Dimension19x17:
@@ -116,6 +170,11 @@ float GameInformation::getMapScaleX() const
 
 float GameInformation::getMapScaleY() const
 {
+   if (_story)
+   {
+      return 1.0f;
+   }
+
    switch (getMapDimensions())
    {
       case Constants::Dimension19x17:
@@ -163,6 +222,9 @@ BinaryWriter& operator<<(BinaryWriter& out, const GameInformation& info)
    out << info._games_played;
    out << info._current_round;
    out << info._round_count;
+   out << info._story;
+   out << info._field_width;
+   out << info._field_height;
 
    return out;
 }
@@ -183,6 +245,9 @@ BinaryReader& operator>>(BinaryReader& in, GameInformation& info)
    in >> info._games_played;
    in >> info._current_round;
    in >> info._round_count;
+   in >> info._story;
+   in >> info._field_width;
+   in >> info._field_height;
 
    info._dimensions = static_cast<Constants::Dimension>(dimensions);
 

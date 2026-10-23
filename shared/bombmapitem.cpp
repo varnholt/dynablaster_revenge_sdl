@@ -41,6 +41,30 @@ void BombMapItem::stopTimer()
    _timer.stop();
 }
 
+void BombMapItem::detonateIn(int32_t ms)
+{
+   if (!_timer.isActive() || _timer.interval() > ms)
+   {
+      _remote_controlled = false;
+      _timer.start(ms);
+   }
+}
+
+void BombMapItem::setRemoteControlled(bool remote)
+{
+   _remote_controlled = remote;
+
+   if (remote)
+   {
+      _timer.stop();
+   }
+}
+
+bool BombMapItem::isRemoteControlled() const
+{
+   return _remote_controlled;
+}
+
 void BombMapItem::kick()
 {
    // only connect these signals once

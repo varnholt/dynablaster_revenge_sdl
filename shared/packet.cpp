@@ -10,6 +10,10 @@
 #include "creategamerequestpacket.h"
 #include "creategameresponsepacket.h"
 #include "detonationpacket.h"
+#include "enemycreatedpacket.h"
+#include "enemyhitpacket.h"
+#include "enemykilledpacket.h"
+#include "enemypositionpacket.h"
 #include "errorpacket.h"
 #include "extramapitemcreatedpacket.h"
 #include "extrashakepacket.h"
@@ -40,6 +44,7 @@
 #include "stonedroppacket.h"
 #include "stopgamerequestpacket.h"
 #include "stopgameresponsepacket.h"
+#include "storystatepacket.h"
 #include "timepacket.h"
 
 namespace
@@ -222,6 +227,21 @@ std::unique_ptr<Packet> Packet::deserialize(BinaryReader& in)
          break;
       case Packet::ERROR:
          packet = std::make_unique<ErrorPacket>();
+         break;
+      case Packet::ENEMYCREATED:
+         packet = std::make_unique<EnemyCreatedPacket>();
+         break;
+      case Packet::ENEMYPOSITION:
+         packet = std::make_unique<EnemyPositionPacket>();
+         break;
+      case Packet::ENEMYKILLED:
+         packet = std::make_unique<EnemyKilledPacket>();
+         break;
+      case Packet::ENEMYHIT:
+         packet = std::make_unique<EnemyHitPacket>();
+         break;
+      case Packet::STORYSTATE:
+         packet = std::make_unique<StoryStatePacket>();
          break;
       default:
          break;

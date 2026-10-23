@@ -6,6 +6,7 @@
 #include "connection.h"
 #include "extrashakepackethandler.h"
 #include "extraspawn.h"
+#include "story/storymode.h"
 
 // shared
 #include "bombkickanimation.h"
@@ -54,6 +55,7 @@
 #include <format>
 #include <functional>
 #include <iterator>
+#include <limits>
 #include <memory>
 #include <numbers>
 #include <ranges>
@@ -229,6 +231,15 @@ void Game::initialize()
 {
    qDebug("Game::initialize");
 
+   if (_create_game_data._story)
+   {
+      _story = std::make_unique<StoryMode>(*this, _create_game_data._story_stage);
+      _create_game_data._duration = STORY_STAGE_TIME;
+
+      // the campaign decides when it's over, every attempt at a stage is one round
+      _game_round.setCount(std::numeric_limits<int32_t>::max());
+   }
+
    initializeMap();
    initializeTimers();
 }
@@ -243,6 +254,14 @@ void Game::initializeMap()
 
    // if there was a map before, delete it
    _map.reset();
+   _remote_bombs.clear();
+
+   if (_story)
+   {
+      _map = _story->createMap();
+      _immune_times.assign(static_cast<size_t>(_map->getWidth() * _map->getHeight()), 0);
+      return;
+   }
 
    int width = 0;
    int height = 0;
@@ -433,6 +452,11 @@ void Game::initializePlayerStartPositions()
       current_player.reset();
       current_player.getPlayerRotation().reset();
 
+      if (_story)
+      {
+         _story->applyPlayerState(current_player);
+      }
+
       // reposition player
       const Point start_position = _map->getStartPosition(start_position_index);
       current_player.setX(start_position.x() + 0.5f);
@@ -514,11 +538,16 @@ void Game::startGame()
 
    // broadcast "started" to all players
    broadcastStartGame();
+
+   if (_story)
+   {
+      _story->startStage();
+   }
 }
 
 GameInformation Game::getGameInformation()
 {
-   return GameInformation(
+   GameInformation info(
       getId(),
       getPlayerCount(),
       getMaximumPlayerCount(),
@@ -533,6 +562,13 @@ GameInformation Game::getGameInformation()
       getGameRound().getCount(),
       isSpawnExtrasEnabled()
    );
+
+   if (_story && _map)
+   {
+      info.setStory(true, _map->getWidth(), _map->getHeight());
+   }
+
+   return info;
 }
 
 //! the main update loop
@@ -557,6 +593,16 @@ void Game::update()
 
       // check if infected players collide
       updateInfections();
+
+      if (_story)
+      {
+         for (Player& player : playersOf(_players))
+         {
+            player.setVestTime(std::max(0, player.getVestTime() - 1000 / SERVER_HEARTBEAT_IN_HZ));
+         }
+
+         _story->update(1.0f / static_cast<float>(SERVER_HEARTBEAT_IN_HZ));
+      }
    }
 
    // send outgoing packets
@@ -991,7 +1037,13 @@ void Game::updateExtras()
       // keeps the extra alive until it is fully processed
       const auto map_item = _map->getItem(x, y);
 
-      if (!map_item || map_item->getType() != MapItem::Extra)
+      if (!map_item || map_item->getType() != MapItem::Extra || player.isKilled())
+      {
+         continue;
+      }
+
+      // the exit door stays, the story mode checks for players standing on it
+      if (static_cast<const ExtraMapItem&>(*map_item).getExtraType() == Constants::ExtraExit)
       {
          continue;
       }
@@ -1031,6 +1083,16 @@ void Game::updateExtras()
          case Constants::ExtraSkull:
          {
             infectFromExtra(player, extra);
+            break;
+         }
+
+         default:
+         {
+            if (_story)
+            {
+               _story->extraCollected(player, extra.getExtraType());
+            }
+
             break;
          }
       }
@@ -1109,25 +1171,32 @@ void Game::updateBombs()
       const int y = static_cast<int32_t>(std::floor(player.getY()));
 
       // if player is allowed to drop more bombs
-      if (!_map->getItem(x, y) && player.getBombsDroppedCount() < player.getBombCount())
+      if (!_map->getItem(x, y) && player.getBombsDroppedCount() < player.getBombCount() && !player.isKilled())
       {
          player.setBombsDroppedCount(player.getBombsDroppedCount() + 1);
+         placeBomb(player.getId(), player.getFlameCount(), x, y);
 
-         auto bomb = std::make_shared<BombMapItem>(player.getId(), player.getFlameCount(), -1, x, y);
+         if (player.hasRemoteControl())
+         {
+            auto& bomb = static_cast<BombMapItem&>(*_map->getItem(x, y));
+            bomb.setRemoteControlled(true);
+            _remote_bombs.push_back(std::static_pointer_cast<BombMapItem>(bomb.shared_from_this()));
+         }
+      }
 
-         bomb->explodedSignal.connect(
-            [this, lifetime = std::weak_ptr<bool>(_lifetime)](BombMapItem& exploded_bomb, bool recursive)
-            {
-               if (!lifetime.expired())
-               {
-                  bombExploded(exploded_bomb, recursive);
-               }
-            }
-         );
+      // the detonation switch: the bomb key sets off the oldest waiting bomb when no new one can be dropped
+      else if (player.hasRemoteControl() && !player.isKilled())
+      {
+         std::erase_if(_remote_bombs, [](const auto& bomb) { return bomb.expired() || !bomb.lock()->isRemoteControlled(); });
 
-         _outgoing_packets.push_back(std::make_unique<MapItemCreatedPacket>(*bomb, player.getId()));
+         const auto own =
+            std::ranges::find_if(_remote_bombs, [&player](const auto& bomb) { return bomb.lock()->getPlayerId() == player.getId(); });
 
-         _map->setItem(x, y, std::move(bomb));
+         if (own != _remote_bombs.end())
+         {
+            own->lock()->detonateIn(1);
+            _remote_bombs.erase(own);
+         }
       }
 
       // remove bomb key once a bomb has been dropped
@@ -1135,6 +1204,54 @@ void Game::updateBombs()
 
       player.setBombKeyLocked(false);
    }
+}
+
+bool Game::placeBomb(int8_t owner_id, int32_t flames, int32_t x, int32_t y)
+{
+   if (_map->getItem(x, y))
+   {
+      return false;
+   }
+
+   auto bomb = std::make_shared<BombMapItem>(owner_id, flames, -1, x, y);
+
+   bomb->explodedSignal.connect(
+      [this, lifetime = std::weak_ptr<bool>(_lifetime)](BombMapItem& exploded_bomb, bool recursive)
+      {
+         if (!lifetime.expired())
+         {
+            bombExploded(exploded_bomb, recursive);
+         }
+      }
+   );
+
+   _outgoing_packets.push_back(std::make_unique<MapItemCreatedPacket>(*bomb, owner_id));
+
+   _map->setItem(x, y, std::move(bomb));
+   return true;
+}
+
+void Game::killPlayerByEnemy(Player& player)
+{
+   if (player.isKilled())
+   {
+      return;
+   }
+
+   player.setKilled(true);
+   player.setKeysPressed(Constants::KeyDown);
+
+   updateStatsPlayerKilled(std::nullopt, player);
+   playerKilledSignal(player.getId());
+
+   _outgoing_packets.push_back(std::make_unique<PlayerKilledPacket>(player.getId(), -1, Constants::DirectionDown, 1.0f));
+
+   updateGameoverCondition();
+}
+
+StoryMode* Game::getStory() const
+{
+   return _story.get();
 }
 
 void Game::updateStatsPlayerKilled(std::optional<std::reference_wrapper<Player>> killer, Player& victim)
@@ -1524,6 +1641,12 @@ void Game::bombExploded(BombMapItem& bomb, bool /*unused*/)
             }
          }
 
+         // story mode enemies in the flame
+         if (_story)
+         {
+            _story->flameReached(x_distance, y_distance, bomb.getPlayerId());
+         }
+
          // ignite bombs that are kicked right into a detonation
          BombKickAnimation::ignite(x_distance, y_distance);
 
@@ -1544,7 +1667,18 @@ void Game::bombExploded(BombMapItem& bomb, bool /*unused*/)
          {
             stop_detonation = true;
 
-            if (map_item->isDestroyable() && !map_item->isCurrentlyDestroyed() && map_item->getType() != MapItem::Bomb)
+            const bool is_exit = map_item->getType() == MapItem::Extra &&
+                                 static_cast<const ExtraMapItem&>(*map_item).getExtraType() == Constants::ExtraExit;
+
+            // the exit door can't be destroyed, bombing it releases enemies instead
+            if (is_exit)
+            {
+               if (_story)
+               {
+                  _story->exitBombed(map_item->getX(), map_item->getY());
+               }
+            }
+            else if (map_item->isDestroyable() && !map_item->isCurrentlyDestroyed() && map_item->getType() != MapItem::Bomb)
             {
                // map item was destroyed
                remove_items.push_back(
@@ -1557,6 +1691,11 @@ void Game::bombExploded(BombMapItem& bomb, bool /*unused*/)
                   _outgoing_packets.push_back(
                      std::make_unique<GameEventPacket>(GameEventPacket::ExtraDestroyed, 1.0f, map_item->getX(), map_item->getY())
                   );
+
+                  if (_story)
+                  {
+                     _story->itemBombed(map_item->getX(), map_item->getY());
+                  }
                }
 
                // mark the current item as "is being destroyed"
@@ -1603,8 +1742,15 @@ void Game::bombExploded(BombMapItem& bomb, bool /*unused*/)
                   neighbour_bomb.setDetonationOrigin(BombMapItem::Bottom);
                }
 
+               // remote controlled bombs don't tick, they're lit by the chain reaction
+               if (neighbour_bomb.isRemoteControlled())
+               {
+                  neighbour_bomb.setIgniterId(bomb.getPlayerId());
+                  neighbour_bomb.detonateIn(SERVER_BOMB_NEIGHBOUR_DELAY);
+               }
+
                // trigger recursive explosion
-               if (neighbour_bomb.getInterval() > SERVER_BOMB_NEIGHBOUR_DELAY)
+               else if (neighbour_bomb.getInterval() > SERVER_BOMB_NEIGHBOUR_DELAY)
                {
                   // the id of the player who ignited another bomb
                   // with his own one is inherited here; this is done
@@ -1777,6 +1923,18 @@ bool Game::isGamePopulatedByBots() const
 
 void Game::updateGameoverCondition()
 {
+   if (_story)
+   {
+      const bool all_dead = std::ranges::all_of(playersOf(_players), [](const Player& player) { return player.isKilled(); });
+
+      if (getState() == Constants::GameActive && all_dead)
+      {
+         _story->playersDied();
+      }
+
+      return;
+   }
+
    int alive_player_count = 0;
    std::optional<std::reference_wrapper<Player>> potential_winner;
 
@@ -1816,6 +1974,13 @@ void Game::prepareGame()
 {
    // tell clients to clear their maps
    initMapRelatedItems();
+
+   if (_story)
+   {
+      // the stage size may have changed
+      broadcastGameInformation();
+      _story->prepareStage();
+   }
 
    // start countdown
    if (_skip_countdown)
@@ -1887,7 +2052,16 @@ void Game::stopGame()
    // therefore the round is over. but that is not sufficient:
    // we don't want to start any more new rounds with only one player left
    // => end the game in that case
-   if (getPlayerCount() <= 1 && getPlayersLeftTheGameCount() > 0)
+   if (_story)
+   {
+      finished = _story->isFinished() || getPlayerCount() == 0;
+
+      if (!finished)
+      {
+         nextRound();
+      }
+   }
+   else if (getPlayerCount() <= 1 && getPlayersLeftTheGameCount() > 0)
    {
       finished = true;
    }
@@ -1925,7 +2099,8 @@ void Game::nextRound()
    // restart game until all rounds are finished
    if (!_game_round.isFinished())
    {
-      const int delay = SHOW_WINNER_DISPLAY_TIME + SHOW_WINNER_FADE_IN_TIME + SHOW_WINNER_FADE_OUT_TIME + SHOW_WINNER_ADDITIONAL_TIME;
+      const int delay = _story ? _story->getNextStageDelay()
+                               : SHOW_WINNER_DISPLAY_TIME + SHOW_WINNER_FADE_IN_TIME + SHOW_WINNER_FADE_OUT_TIME + SHOW_WINNER_ADDITIONAL_TIME;
 
       singleShotWhileAlive(delay, [this]() { prepareGame(); });
    }
@@ -2427,10 +2602,17 @@ void Game::processGameTime()
 
       if (time_left <= 0)
       {
-         finishGame();
+         if (_story)
+         {
+            _story->timeUp();
+         }
+         else
+         {
+            finishGame();
+         }
       }
 
-      _outgoing_packets.push_back(std::make_unique<TimePacket>(time_left));
+      _outgoing_packets.push_back(std::make_unique<TimePacket>(std::max(0, time_left)));
    }
 }
 

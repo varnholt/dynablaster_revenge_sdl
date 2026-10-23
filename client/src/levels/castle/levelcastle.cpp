@@ -28,6 +28,9 @@
 #include "gldevice.h"
 
 #include <format>
+#include <utility>
+
+#include "constants.h"
 
 LevelCastle::LevelCastle() : Level(Level::LevelCastle), _snow_animation(std::make_unique<SnowAnimation>())
 {
@@ -39,8 +42,18 @@ void LevelCastle::initialize()
 {
 }
 
+void LevelCastle::setWeather(Weather weather)
+{
+   _weather = weather;
+}
+
 void LevelCastle::draw()
 {
+   if (_weather != Weather::Snow)
+   {
+      return;
+   }
+
    // the snow's unit square spans the level, -8 compensates the wind drift
    Matrix transform = Matrix::scale(15.0f, 15.0f, 15.0f);
    transform.translate(Vector(-8.0f, -17.0f, 0.0f));
@@ -49,6 +62,11 @@ void LevelCastle::draw()
 
 void LevelCastle::animate(float dt)
 {
+   if (_weather != Weather::Snow)
+   {
+      return;
+   }
+
    _snow_animation->animate(dt);
 }
 
@@ -154,6 +172,20 @@ void LevelCastle::loadData()
       _extra_speedup = _scene->addMaterial(std::make_unique<ExtraMapping>("extra_speedup"));
       _extra_kick = _scene->addMaterial(std::make_unique<ExtraMapping>("extra_kick"));
       _extra_skull = _scene->addMaterial(std::make_unique<ExtraMapping>("extra_skull"));
+
+      // story mode
+      const std::pair<int32_t, const char*> story_extras[] = {
+         {Constants::ExtraWallPass, "extra_wallpass"},
+         {Constants::ExtraBombPass, "extra_bombpass"},
+         {Constants::ExtraRemote, "extra_remote"},
+         {Constants::ExtraVest, "extra_vest"},
+         {Constants::ExtraOneUp, "extra_oneup"},
+         {Constants::ExtraExit, "extra_exit"},
+      };
+      for (const auto& [type, texture] : story_extras)
+      {
+         _story_extras[type] = _scene->addMaterial(std::make_unique<ExtraMapping>(texture));
+      }
    }
 
    TexturePool::Instance().update();

@@ -511,7 +511,8 @@ void GameWinDrawable::stateChanged()
    if (GameStateMachine::getInstance().getState() == Constants::GameStopped)
    {
       // if the player pressed ESC, there's no valid game id anymore - and no results screen to show.
-      if (BombermanClient::getInstance().isGameIdValid())
+      // story stages have no winner, the story hud announces how a stage went
+      if (BombermanClient::getInstance().isGameIdValid() && !BombermanClient::getInstance().isStory())
       {
          SoundManager::getInstance().fadeOut(1000);
 

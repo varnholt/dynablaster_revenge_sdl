@@ -62,6 +62,13 @@ public:
    // let the bomb explode now
    void stopTimer();
 
+   //! (re)starts the fuse to go off in ms, never delays a fuse that is already shorter
+   void detonateIn(int32_t ms);
+
+   //! remote controlled bombs wait for their owner instead of ticking
+   void setRemoteControlled(bool remote);
+   [[nodiscard]] bool isRemoteControlled() const;
+
    Signal<BombMapItem&, bool> explodedSignal;
 
    // kick animation was started or stopped
@@ -89,4 +96,5 @@ protected:
    static int32_t _tick_time;
 
    int8_t _igniter_id = -1;
+   bool _remote_controlled = false;
 };

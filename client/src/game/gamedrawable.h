@@ -15,6 +15,7 @@
 
 // game
 #include "constants.h"
+#include "enemytype.h"
 #include "playerboundingrect.h"
 
 // engine
@@ -29,6 +30,9 @@
 
 // forward declarations
 class DetonationManager;
+class EnemyRenderer;
+class StoryField;
+class ExitPortal;
 class ExtraMapItem;
 class FuseParticleSystem;
 class GamePlayerNameDisplay;
@@ -138,6 +142,15 @@ public:
    //! set zoom factor of camera. default is 1.0f
    void setCameraZoom(float zoom);
 
+   // story mode
+   void addEnemy(int id, EnemyType type, float x, float y, float angle);
+   void setEnemyPosition(int id, float x, float y, float angle, float dx, float dy, int flags);
+   void enemyHit(int id);
+   void enemyKilled(int id, bool removed);
+   void setStoryStage(int stage);
+   //! opens the exit once every enemy is gone, it stays open for the rest of the stage
+   void setStoryEnemiesLeft(int enemies_left);
+
 private:
    //! game state was changed
    void gameStateChanged();
@@ -194,6 +207,14 @@ private:
    std::unique_ptr<ExtraAnimations> _extra_animations;
    std::unique_ptr<RibbonAnimationFactory> _ribbon_animation_factory;
    std::unique_ptr<LensFlareFactory> _lens_flare_factory;
+   std::unique_ptr<EnemyRenderer> _enemies;
+   std::unique_ptr<StoryField> _story_field;
+   std::unique_ptr<ExitPortal> _exit_portal;
+   int _story_enemies_left = -1;
+   int _story_stage = -1;
+
+   //! bomberman shaped enemies are drawn as players with ids from here on
+   static constexpr int ENEMY_PLAYER_ID_OFFSET = 1000;
    bool _player_names_enabled = true;
 
    float _time = 0.0f;

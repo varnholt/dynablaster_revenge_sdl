@@ -47,6 +47,7 @@ PFNGLBINDTEXTUREPROC glBindTexture;
 PFNGLTEXIMAGE2DPROC glTexImage2D;
 PFNGLTEXIMAGE3DPROC glTexImage3D;
 PFNGLTEXPARAMETERIPROC glTexParameteri;
+PFNGLGENERATEMIPMAPPROC glGenerateMipmap;
 PFNGLDELETETEXTURESPROC glDeleteTextures;
 PFNGLACTIVETEXTUREPROC glActiveTexture;
 PFNGLCOPYTEXIMAGE2DPROC glCopyTexImage2D;
@@ -147,6 +148,7 @@ bool loadGles3Functions()
    ok &= load(glTexImage2D, "glTexImage2D");
    ok &= load(glTexImage3D, "glTexImage3D");
    ok &= load(glTexParameteri, "glTexParameteri");
+   ok &= load(glGenerateMipmap, "glGenerateMipmap");
    ok &= load(glDeleteTextures, "glDeleteTextures");
    ok &= load(glActiveTexture, "glActiveTexture");
    ok &= load(glCopyTexImage2D, "glCopyTexImage2D");

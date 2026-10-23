@@ -5,6 +5,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -49,6 +50,15 @@ public:
    //! key of this level's lens flare in flares.ini, empty for none
    virtual std::string getLensFlareKey() const;
 
+   enum class Weather
+   {
+      Clear,
+      Snow
+   };
+
+   //! weather effects the level comes with, levels without any ignore it
+   virtual void setWeather(Weather weather);
+
    std::string path() const;
    SceneGraph& getScene() const;
    SceneGraph& getLevel() const;
@@ -58,6 +68,9 @@ public:
    Material& getBombExtra() const;
    Material& getFlameExtra() const;
    Material& getSkullExtra() const;
+
+   //! the story mode's extras and exit door, empty for levels without them
+   std::optional<std::reference_wrapper<Material>> getStoryExtra(int32_t type) const;
 
    // the four destruction animations, owned by the level
    const std::vector<std::reference_wrapper<Node>>& getDestructions() const;
@@ -109,4 +122,5 @@ protected:
    MaterialRef _bombs;
    MaterialRef _shadow_billboards;
    MaterialRef _shadow_blocks;
+   std::map<int32_t, MaterialRef> _story_extras;
 };
