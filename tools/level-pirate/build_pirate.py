@@ -28,7 +28,7 @@ YC = -5.5  # the ship's centre line, through the field's middle
 HB = RAIL_Y + WALL - YC  # half the beam, outside the bulwarks
 DECK_X0, DECK_X1 = -11.0, 24.0  # the main deck's planar mapped part, the stern
 DECK_Y0 = YC - HB + WALL  # inner face of the bulwark on the viewer's side
-BOW_X = -38.0  # the stem
+BOW_X = -31.0  # the stem at the waterline
 TAPER_X = -10.0  # where the sides start curving in towards the bow
 STERN_X = DECK_X1 + 0.1
 DECK_TEX = (4096, 2048)
@@ -137,8 +137,10 @@ def palette():
         brass=material("brass", (0.72, 0.56, 0.26), 0.10, 9.0),
         sail=material("sail", (0.86, 0.80, 0.66), 0.08, 7.0),
         darkrope=material("darkrope", (0.30, 0.21, 0.12), 0.15, 12.0),
-        keelside=material("keelside", (0.20, 0.12, 0.08), 0.15, 2.0, "planks", axes="xz", plank=(3.4, 0.3)),
-        transom=material("transom", (0.36, 0.2, 0.1), 0.15, 2.0, "planks", axes="yz", plank=(3.0, 0.3)),
+        transom=material("transom", (0.52, 0.27, 0.13), 0.15, 2.0, "planks", axes="yz", plank=(3.0, 0.3)),
+        planking=material("planking", (0.58, 0.31, 0.15), 0.16, 2.0, "planks", axes="xz", plank=(3.6, 0.28)),
+        wale=material("wale", (0.27, 0.14, 0.07), 0.15, 4.0),
+        bottom=material("bottom", (0.44, 0.24, 0.12), 0.16, 2.0, "planks", axes="xz", plank=(3.6, 0.3)),
         black=material("black", (0.05, 0.05, 0.06), 0.2, 6.0),
         sailcloth=material("sailcloth", (0.84, 0.78, 0.64), 0.1, 5.0),
         redcross=material("redcross", (0.62, 0.08, 0.06), 0.1, 5.0),
@@ -376,45 +378,59 @@ def side_bulwarks(m):
     exterior(bow, m)
 
 
-FORECASTLE_X = -28.5  # the forecastle's front wall, facing aft
-FORE_Z = 3.5  # the forecastle's deck
+FORECASTLE_X = -21.0  # the forecastle's front wall, facing aft
+FORE_Z = 4.6  # the forecastle's deck
 AFT_X = 20.0  # the aftcastle's upper tier starts here
-AFT_Z = POOP_Z + 2.1
+AFT_Z = POOP_Z + 2.6
+
+
+def smoothstep(t):
+    t = min(max(t, 0.0), 1.0)
+    return t * t * (3 - 2 * t)
 
 
 def half_beam(x):
-    """Half the ship's width at its rail at x: straight aft of TAPER_X, a full, round carrack bow forward."""
+    """Half the ship's width at its rail at x: straight along the waist, a full, round bow forward."""
     x = np.asarray(x, dtype=float)
     t = np.clip((TAPER_X - x) / (TAPER_X - BOW_X), 0, 1)
-    return HB * np.clip(1 - t ** 2.4, 0, 1) ** 0.42
+    return HB * np.clip(1 - t ** 2.2, 0, 1) ** 0.45
 
 
 def sheer(x):
-    """Height of the ship's side at x: the waist's rail, stepping up to the forecastle forward and the two tiers of
-    the aftcastle aft, each rising a little towards its end."""
+    """Height of the ship's side at x, after the Santa Maria: the low waist (where the game is played) sweeping up
+    into the high forecastle, the stern deck's rail and the aftcastle's upper tier aft (railed on top)."""
     if x >= AFT_X:
-        return AFT_Z + 0.95 + 0.5 * (x - AFT_X) / (STERN_X - AFT_X)
+        return AFT_Z + 0.35 + 0.35 * (x - AFT_X) / (STERN_X - AFT_X)
     if x >= POOP_X:
         return POOP_Z + 0.95
     if x <= FORECASTLE_X:
-        return FORE_Z + 1.0 + 0.9 * ((FORECASTLE_X - x) / (FORECASTLE_X - BOW_X)) ** 1.5
-    t = max(0.0, (TAPER_X - x) / (TAPER_X - FORECASTLE_X))
-    return 1.37 + 0.35 * t * t
+        return FORE_Z + 0.4 + 0.9 * ((FORECASTLE_X - x) / (FORECASTLE_X - BOW_X)) ** 1.6
+    return 1.37 + (FORE_Z + 0.4 - 1.37) * smoothstep((DECK_X0 - x) / (DECK_X0 - FORECASTLE_X))
 
 
 def bow_rake(x, z):
-    """How far the stem leans forward at height z: the bow's upper part overhangs."""
+    """How far the stem leans forward at height z: the forecastle overhangs the bow."""
     t = max(0.0, (TAPER_X - x) / (TAPER_X - BOW_X))
-    return -(z + 4.9) * 0.55 * t ** 3
+    return -(z + 5.4) * 0.5 * t ** 3
 
 
 def rail_sections():
-    xs = np.linspace(DECK_X0, BOW_X + 1.2, 48)
+    xs = np.linspace(DECK_X0, BOW_X + 1.0, 52)
     return sorted(set(np.round(np.concatenate([xs, [FORECASTLE_X + 0.02, FORECASTLE_X - 0.02]]), 3)), reverse=True)
 
 
+def rail_run(m, points, height=0.85, spacing=0.45):
+    """An open rail along the points (on the castles): turned balusters and a rail on top."""
+    for a, b in zip(points, points[1:]):
+        count = max(1, int((b - a).length / spacing))
+        for i in range(count):
+            baluster(m, tuple(a.lerp(b, i / count)), height)
+        bar(a + Vector((0, 0, height)), b + Vector((0, 0, height)), 0.13, 0.09, m["redwood"])
+    baluster(m, tuple(points[-1]), height)
+
+
 def bow(m):
-    """The deck forward of the planar mapped part, the forecastle over the bow, bulwarks along the sides."""
+    """The deck forward of the planar mapped part, rising with the waist's sheer, the forecastle over the bow."""
     xs = rail_sections()
     inner = [float(half_beam(x)) - WALL for x in xs]
 
@@ -435,21 +451,27 @@ def bow(m):
 
     deck_strip("bow_deck", DECK_Z, lambda x: x >= FORECASTLE_X - 0.05)
     deck_strip("forecastle_deck", FORE_Z, lambda x: x <= FORECASTLE_X + 0.05)
-    # the forecastle's front wall with its door and the rail on its edge
+    # the forecastle's front wall with its door, windows, two ladders up and the rail on its edge
     b = float(half_beam(FORECASTLE_X)) - WALL
     slab(FORECASTLE_X, FORECASTLE_X + 0.3, YC - b, YC + b, DECK_Z, FORE_Z, m["wall"])
     slab(FORECASTLE_X + 0.3, FORECASTLE_X + 0.42, YC - b, YC + b, FORE_Z - 0.25, FORE_Z, m["redwood"], bevel=0.03)
-    slab(FORECASTLE_X + 0.3, FORECASTLE_X + 0.36, YC - 0.6, YC + 0.6, DECK_Z, 1.75, m["redwood"])
-    for y in (YC - 3.5, YC + 3.5):
-        slab(FORECASTLE_X + 0.3, FORECASTLE_X + 0.36, y - 0.4, y + 0.4, 0.8, 1.5, m["glass"])
-        glow((FORECASTLE_X + 0.6, y, 1.15), (1.0, 0.68, 0.34), 0.9, GLOW_PULSE)
-    count = int(2 * b / 0.3)
-    for i in range(1, count):
-        baluster(m, (FORECASTLE_X + 0.15, YC - b + 2 * b * i / count, FORE_Z), 0.85)
-    bar((FORECASTLE_X + 0.15, YC - b, FORE_Z + 0.85), (FORECASTLE_X + 0.15, YC + b, FORE_Z + 0.85), 0.13, 0.09,
-        m["redwood"])
-    # bulwarks: wall pieces and the gold cap along both sides
+    slab(FORECASTLE_X + 0.3, FORECASTLE_X + 0.36, YC - 0.7, YC + 0.7, DECK_Z, 2.0, m["redwood"])
+    for y in (YC - 2.0, YC + 2.0):
+        slab(FORECASTLE_X + 0.3, FORECASTLE_X + 0.36, y - 0.45, y + 0.45, 1.0, 1.8, m["glass"])
+        glow((FORECASTLE_X + 0.6, y, 1.4), (1.0, 0.68, 0.34), 0.9, GLOW_PULSE)
+    for y in (YC - 5.0, YC + 5.0):
+        steps = 11
+        for k in range(steps):
+            x = FORECASTLE_X + 0.3 + (steps - k) * 0.42
+            z = DECK_Z + (k + 1) * (FORE_Z - DECK_Z) / steps
+            slab(x - 0.42, x, y - 0.65, y + 0.65, z - 0.12, z, m["redwood"])
+        for side in (-1, 1):
+            bar(Vector((FORECASTLE_X + 0.3 + steps * 0.42, y + side * 0.7, DECK_Z + 0.9)),
+                Vector((FORECASTLE_X + 0.3, y + side * 0.7, FORE_Z + 0.9)), 0.08, 0.08, m["redwood"])
+    rail_run(m, [Vector((FORECASTLE_X + 0.15, YC - b, FORE_Z)), Vector((FORECASTLE_X + 0.15, YC + b, FORE_Z))])
+    # bulwarks along both sides: planked up to the sheer, the forecastle's railed on top
     for side in (1, -1):
+        rails = []
         for i in range(len(xs) - 1):
             xa, xc = xs[i], xs[i + 1]
             top_a, top_c = sheer(xa) - 0.12, sheer(xc) - 0.12
@@ -459,11 +481,17 @@ def bow(m):
             mid = (top_a + top_c) / 2
             bar(Vector((a.x, a.y, (floor + mid) / 2)), Vector((c.x, c.y, (floor + mid) / 2)), WALL, mid - floor,
                 m["hull"])
-            bar(Vector((a.x, a.y, top_a + 0.06)), Vector((c.x, c.y, top_c + 0.06)), WALL + 0.16, 0.12, m["gold"])
+            castle = xc < FORECASTLE_X
+            bar(Vector((a.x, a.y, top_a + 0.06)), Vector((c.x, c.y, top_c + 0.06)), WALL + 0.16, 0.12,
+                m["redwood" if castle else "gold"])
+            if castle:
+                rails.append(Vector((a.x, a.y, top_a + 0.12)))
+        if rails:
+            rail_run(m, rails)
 
 
 def aftcastle(m):
-    """The aftcastle's upper tier over the stern deck's after part: a cabin with lit windows, its roof railed."""
+    """The aftcastle's upper tier over the stern deck's after part: a cabin with lit windows, railed all round."""
     y0, y1 = DECK_Y0, RAIL_Y
     slab(AFT_X, STERN_X, y0, y1, POOP_Z, AFT_Z - 0.1, m["wall"])
     slab(AFT_X - 0.1, STERN_X, y0, y1, AFT_Z - 0.1, AFT_Z, m["deck"])
@@ -472,13 +500,12 @@ def aftcastle(m):
         slab(AFT_X - 0.05, AFT_X, y - 0.6, y + 0.6, POOP_Z + 0.5, POOP_Z + 1.5, m["lamp"])
         slab(AFT_X - 0.14, AFT_X - 0.05, y - 0.7, y + 0.7, POOP_Z + 0.4, POOP_Z + 0.5, m["gold"])
     slab(AFT_X - 0.05, AFT_X, YC - 0.55, YC + 0.55, POOP_Z, POOP_Z + 1.75, m["redwood"])
-    # rail around the roof
-    for a, b in (((AFT_X + 0.1, y0 + 0.1), (AFT_X + 0.1, y1 - 0.1)),):
-        a, b = Vector((*a, AFT_Z)), Vector((*b, AFT_Z))
-        count = int((b - a).length / 0.3)
-        for i in range(1, count):
-            baluster(m, tuple(a + (b - a) * i / count), 0.85)
-        bar(a + Vector((0, 0, 0.85)), b + Vector((0, 0, 0.85)), 0.12, 0.09, m["redwood"])
+    # the rail round the roof, on the sides on top of the hull
+    z_side = lambda x: sheer(x)
+    rail_run(m, [Vector((AFT_X + 0.1, y0 + 0.1, AFT_Z)), Vector((AFT_X + 0.1, y1 - 0.1, AFT_Z))])
+    for side_y in (YC + HB - 0.2, YC - HB + 0.2):
+        rail_run(m, [Vector((x, side_y, z_side(x))) for x in np.linspace(AFT_X + 0.2, STERN_X - 0.2, 6)])
+    rail_run(m, [Vector((STERN_X - 0.2, y, sheer(STERN_X - 0.2))) for y in (y0 + 0.1, y1 - 0.1)])
 
 
 # --- the stern deck -------------------------------------------------------------------------------
@@ -822,9 +849,10 @@ def furled_sail(m, root, tip, size=1.0, t0=0.1, t1=0.94, ties=6):
 
 
 MAIN = Vector((-2.4, -4.1, 34.0))  # the main mast's top
-FORE = Vector((-22.0, YC, 28.0))
-MIZZEN = Vector((22.0, YC, 24.0))
-BOWSPRIT = Vector((BOW_X - 13.0, YC, 10.0))
+MAIN_TOP_Z = 23.6  # its round top (crow's nest)
+FORE = Vector((-25.0, YC, 21.0))
+MIZZEN = Vector((21.8, YC, 21.0))
+BOWSPRIT = Vector((BOW_X - 15.0, YC, 13.5))
 
 
 def shrouds(m, feet, top, ratlines=8):
@@ -833,17 +861,8 @@ def shrouds(m, feet, top, ratlines=8):
         rod(foot, top, 0.035, m["rope"], 6)
         sphere(tuple(foot + Vector((0, 0, 0.05))), 0.1, m["darkwood"], scale=(1, 1, 0.7), subdiv=1)
     for k in range(1, ratlines + 1):
-        t = k * 0.03
+        t = k * 0.035
         rod(feet[0].lerp(top, t), feet[-1].lerp(top, t), 0.02, m["rope"], 5)
-
-
-def yard(m, mast_top, z, half, sail=True, size=1.0, x=None):
-    """A yard across the ship, its sail furled on top of it."""
-    centre = Vector((mast_top.x if x is None else x, mast_top.y, z))
-    a, b = centre + Vector((0, half, 0)), centre - Vector((0, half, 0))
-    lathe(a, b, ((0, 0.12), (0.5, 0.22), (1, 0.12)), m["wood"], 10)
-    if sail:
-        furled_sail(m, a, b, size=size, t0=0.04, t1=0.96, ties=7)
 
 
 def cloth(m, name, point, nu, nv, wave, cross=None, base="sailcloth", emblem="redcross"):
@@ -880,39 +899,51 @@ def cloth(m, name, point, nu, nv, wave, cross=None, base="sailcloth", emblem="re
     return obj
 
 
+def cross_pattee(u, v, width, height, size=0.62, centre=0.46):
+    """Inside a red cross with flared arms (like the Santa Maria's), in a sail's u (across) and v (down)."""
+    x = (u - 0.5) * width
+    y = (v - centre) * height
+    arm = size * min(width, height) * 0.5
+    flare = lambda d: arm * (0.1 + 0.2 * (d / arm) ** 1.6)
+    horizontal = abs(x) < arm and abs(y) < flare(abs(x))
+    vertical = abs(y) < arm and abs(x) < flare(abs(y))
+    return horizontal or vertical
+
+
 def square_sail(m, mast, top, bottom, half_top, half_bottom, billow, crossed=False):
     """A square sail set from its yard at top down to bottom, bellied forward by the wind from astern."""
-    lathe(Vector((mast.x, mast.y + half_top + 0.3, top)), Vector((mast.x, mast.y - half_top - 0.3, top)),
-          ((0, 0.12), (0.5, 0.24), (1, 0.12)), m["wood"], 10)
+    lathe(Vector((mast.x, mast.y + half_top + 0.4, top)), Vector((mast.x, mast.y - half_top - 0.4, top)),
+          ((0, 0.12), (0.5, 0.26), (1, 0.12)), m["wood"], 10)
 
     def point(u, v):
         half = half_top + (half_bottom - half_top) * v
-        belly = math.sin(math.pi * u) * math.sin(math.pi * (0.12 + 0.88 * v)) ** 0.8
-        z = top - 0.15 - (top - 0.15 - bottom) * v + 0.35 * math.sin(math.pi * u) * v
+        belly = math.sin(math.pi * u) * math.sin(math.pi * (0.1 + 0.9 * v)) ** 0.8
+        # the foot curves up between the corners
+        z = top - 0.15 - (top - 0.15 - bottom) * v + 0.6 * math.sin(math.pi * u) * v ** 2
         return Vector((mast.x - 0.35 - billow * belly, mast.y + half * (1 - 2 * u), z))
 
-    def cross(u, v):
-        return 0.2 < u < 0.8 and 0.12 < v < 0.88 and (abs(u - 0.5) < 0.055 or abs(v - 0.42) < 0.065)
+    width, height = half_top + half_bottom, top - bottom
 
     def wave(u, v):
         # fixed on the yard, the belly and the free foot move
         return (-1.0, 0.0, 0.0), 0.4 * math.sin(math.pi * u) * v ** 0.7
 
-    cloth(m, "square_sail", point, 24, 16, wave, cross if crossed else None)
+    cross = (lambda u, v: cross_pattee(u, v, width, height)) if crossed else None
+    cloth(m, "square_sail", point, 36, 28, wave, cross)
 
 
 def lateen_sail(m, mast):
     """The mizzen's triangular sail on its long slanted yard, bellied out to one side."""
-    low = Vector((mast.x + 6.5, mast.y, AFT_Z + 2.4))
-    high = Vector((mast.x - 5.5, mast.y, mast.z - 1.0))
+    low = Vector((mast.x + 6.0, mast.y, AFT_Z + 2.0))
+    high = Vector((mast.x - 6.0, mast.y, mast.z - 0.5))
     lathe(low - (high - low).normalized() * 0.6, high, ((0, 0.12), (0.4, 0.2), (1, 0.08)), m["wood"], 10)
-    clew = Vector((mast.x + 5.8, mast.y, AFT_Z + 1.3))
+    clew = Vector((mast.x + 5.4, mast.y, AFT_Z + 1.4))
 
     def point(u, v):
         # u along the yard, v from the yard down towards the clew
         top = low.lerp(high, u)
-        p = top.lerp(clew, v * (1 - u) ** 0.6) + Vector((0, 0, -v * u * 6.0))
-        belly = math.sin(math.pi * u) * math.sin(math.pi * min(v, 1.0)) * 1.4
+        p = top.lerp(clew, v * (1 - u) ** 0.6) + Vector((0, 0, -v * u * 7.5))
+        belly = math.sin(math.pi * u) * math.sin(math.pi * min(v, 1.0)) * 1.5
         return p + Vector((0, belly, 0)) + Vector((0, 0.2, -0.15))
 
     def wave(u, v):
@@ -948,90 +979,106 @@ def jolly_roger(m, pole_top):
 
 
 def crows_nest(m, mast, z, radius):
-    lathe(Vector((mast.x, mast.y, z)), Vector((mast.x, mast.y, z + 0.35)), ((0, radius * 0.6), (1, radius)),
-          m["darkwood"], 24)
-    lathe(Vector((mast.x, mast.y, z + 0.35)), Vector((mast.x, mast.y, z + 1.2)),
-          ((0, radius), (0.7, radius * 1.05), (1, radius * 1.1)), m["redwood"], 24, caps=False)
+    """A round top: a bowl around the mast, planked, with a rim."""
+    lathe(Vector((mast.x, mast.y, z - 0.8)), Vector((mast.x, mast.y, z)), ((0, 0.45), (0.6, radius * 0.7),
+                                                                         (1, radius)), m["darkwood"], 24)
+    lathe(Vector((mast.x, mast.y, z)), Vector((mast.x, mast.y, z + 1.3)),
+          ((0, radius), (0.6, radius * 1.06), (1, radius * 1.1)), m["redwood"], 24, caps=False)
+    lathe(Vector((mast.x, mast.y, z + 1.25)), Vector((mast.x, mast.y, z + 1.4)), ((0, radius * 1.14),
+                                                                                 (1, radius * 1.14)), m["darkwood"], 24)
 
 
 def rigging(m, mast_xy):
-    """The main mast's shrouds down to the rail behind the field (the other side's would cross the game's view)."""
+    """The main mast's shrouds, a little abaft the mast, down to the rail behind the field (the other side's would
+    cross the game's view)."""
     north = RAIL_Y + 0.2
-    for xs in ((-8.6, -7.8, -7.0, -6.2), (1.4, 2.2, 3.0, 3.8)):
-        shrouds(m, [Vector((x, north, 1.37)) for x in xs], MAIN)
+    top = Vector((MAIN.x, MAIN.y, MAIN_TOP_Z - 0.7))
+    for xs in ((-1.9, -1.1, -0.3, 0.5), (1.7, 2.5, 3.3, 4.1)):
+        shrouds(m, [Vector((x, north, 1.37)) for x in xs], top)
 
 
 def masts(m):
-    """What only the fly-in shows, after a carrack like the Santa Maria: the main course furled (it would hang into
-    the game's view), its topsail set with a red cross, the foremast's sails set, a lateen sail on the mizzen, a
-    spritsail under the bowsprit, crow's nests and the flag."""
-    yard(m, MAIN, 13.0, 8.4, size=1.3)
-    square_sail(m, MAIN, 23.5, 14.2, 6.6, 8.4, 2.4, crossed=True)
-    crows_nest(m, MAIN, 25.0, 1.5)
-    lathe(Vector((MAIN.x, MAIN.y, 26.0)), Vector((MAIN.x, MAIN.y, 31.0)), ((0, 0.25), (1, 0.2)), m["wood"], 12)
-    square_sail(m, Vector((MAIN.x, MAIN.y, 0)), 31.2, 26.4, 3.8, 5.2, 1.1)
+    """What only the fly-in shows, after the Santa Maria: the main mast's big course and small topsail with red
+    crosses, a round top and the flag; the short foremast on the forecastle with its course; a lateen sail on the
+    mizzen; a spritsail under the steep bowsprit."""
+    # main mast (the mast itself stands on the deck, see mast())
+    square_sail(m, MAIN, 21.6, 8.6, 10.4, 11.6, 3.2, crossed=True)
+    crows_nest(m, MAIN, MAIN_TOP_Z, 1.7)
+    lathe(Vector((MAIN.x, MAIN.y, MAIN_TOP_Z + 1.4)), Vector((MAIN.x, MAIN.y, 34.0)), ((0, 0.26), (1, 0.18)),
+          m["wood"], 12)
+    square_sail(m, Vector((MAIN.x, MAIN.y, 0)), 32.0, 26.0, 3.6, 5.0, 1.2, crossed=True)
     jolly_roger(m, MAIN + Vector((0, 0, 2.6)))
     # foremast
-    lathe(Vector((FORE.x, FORE.y, DECK_Z)), FORE, ((0, 0.45), (1, 0.28)), m["wood"], 16)
-    square_sail(m, FORE, 14.0, 5.8, 7.0, 8.2, 2.6, crossed=True)
-    crows_nest(m, FORE, 18.6, 1.15)
-    square_sail(m, FORE, 25.5, 19.6, 4.6, 6.0, 1.6)
+    lathe(Vector((FORE.x, FORE.y, FORE_Z)), FORE, ((0, 0.42), (1, 0.28)), m["wood"], 16)
+    square_sail(m, FORE, 19.4, 9.6, 6.4, 7.4, 2.6)
+    crows_nest(m, FORE, 19.9, 0.9)
     # mizzen on the aftcastle
-    lathe(Vector((MIZZEN.x, MIZZEN.y, AFT_Z)), MIZZEN, ((0, 0.36), (1, 0.24)), m["wood"], 16)
+    lathe(Vector((MIZZEN.x, MIZZEN.y, AFT_Z)), MIZZEN, ((0, 0.34), (1, 0.22)), m["wood"], 16)
     lateen_sail(m, MIZZEN)
     # bowsprit with its spritsail
-    root = Vector((FORECASTLE_X - 2.0, YC, FORE_Z + 0.6))
+    root = Vector((FORECASTLE_X - 2.5, YC, FORE_Z + 0.5))
     lathe(root, BOWSPRIT, ((0, 0.45), (1, 0.18)), m["wood"], 12)
     axis = (BOWSPRIT - root).normalized()
-    for t in (0.3, 0.55):
+    for t in (0.35, 0.6):
         q = root.lerp(BOWSPRIT, t)
         r = 0.45 - 0.27 * t + 0.03
         lathe(q - axis * 0.06, q + axis * 0.06, ((0, r), (1, r)), m["iron"], 12)
-    sprit = root.lerp(BOWSPRIT, 0.72)
-    square_sail(m, Vector((sprit.x, YC, 0)), sprit.z - 0.3, sprit.z - 4.2, 3.4, 3.8, 1.2)
+    sprit = root.lerp(BOWSPRIT, 0.78)
+    square_sail(m, Vector((sprit.x, YC, 0)), sprit.z - 0.3, sprit.z - 4.6, 3.6, 4.0, 1.2)
     # shrouds of the fore and mizzen masts, stays between the tops and out to the bowsprit
     for sign in (1, -1):
-        feet = [Vector((x + bow_rake(x, sheer(x)), YC + sign * (float(half_beam(x)) - 0.1), sheer(x) + 0.05))
-                for x in (-24.2, -23.2, -22.2, -21.2)]
-        shrouds(m, feet, FORE - Vector((0, 0, 8.0)), ratlines=6)
-        feet = [Vector((x, YC + sign * (HB - 0.1), AFT_Z + 1.0)) for x in (20.6, 21.6, 22.6, 23.6)]
-        shrouds(m, feet, MIZZEN - Vector((0, 0, 4.0)), ratlines=5)
-    for a, b in ((MAIN, FORE), (FORE, BOWSPRIT), (MIZZEN, MAIN - Vector((0, 0, 4.0))),
-                 (FORE - Vector((0, 0, 12.0)), BOWSPRIT.lerp(root, 0.35))):
+        feet = []
+        for x in (-26.4, -25.6, -24.8, -24.0):
+            z = sheer(x) + 0.05
+            feet.append(Vector((x + bow_rake(x, z), YC + sign * (float(half_beam(x)) - 0.1), z)))
+        shrouds(m, feet, Vector((FORE.x, FORE.y, 19.4)), ratlines=6)
+        feet = [Vector((x, YC + sign * (HB - 0.1), sheer(x) + 0.05)) for x in (20.8, 21.6, 22.4, 23.2)]
+        shrouds(m, feet, Vector((MIZZEN.x, MIZZEN.y, 18.0)), ratlines=5)
+    for a, b in ((Vector((MAIN.x, MAIN.y, MAIN_TOP_Z + 1.0)), Vector((FORE.x, FORE.y, 20.4))),
+                 (FORE, BOWSPRIT), (MAIN, FORE), (MIZZEN, Vector((MAIN.x, MAIN.y, MAIN_TOP_Z)))):
         rod(a, b, 0.045, m["rope"], 6)
 
 
 HULL_ROWS = (
-    # (share of the half beam at the rail, height or None for the side's top, material of the band below):
-    # wider at the waterline than at the rail (tumblehome), round below
-    (1.0, None, "hull"),
-    (1.015, 0.55, "gold"),
-    (1.03, 0.25, "hull"),
-    (1.07, -0.75, "gold"),
-    (1.075, -1.05, "keelside"),
-    (1.05, -2.2, "keelside"),
-    (0.88, -3.5, "keelside"),
-    (0.5, -4.5, "keelside"),
-    (0.0, -4.9, "keelside"),
+    # (share of the half beam at the rail, height at the waist, how much of the sheer's rise it follows,
+    #  material of the band below): the wales sweep up with the sheer, the hull is widest at the waterline
+    # (tumblehome) and round below
+    (1.0, 1.37, 1.0, "planking"),
+    (1.006, 0.95, 0.95, "wale"),
+    (1.012, 0.7, 0.93, "planking"),
+    (1.035, -0.25, 0.78, "wale"),
+    (1.04, -0.5, 0.76, "planking"),
+    (1.065, -1.55, 0.55, "wale"),
+    (1.068, -1.8, 0.53, "bottom"),
+    (1.04, -3.0, 0.32, "bottom"),
+    (0.86, -4.1, 0.16, "bottom"),
+    (0.46, -5.0, 0.05, "bottom"),
+    (0.0, -5.4, 0.0, "bottom"),
 )
+# how much the rows below the waterline narrow towards the stern (the run) and the bow (the forefoot)
+RUN = (0, 0, 0, 0, 0, 0, 0.05, 0.25, 0.5, 0.7, 0.0)
+
+
+def hull_point(x, row, side):
+    share, z_waist, follow, _ = HULL_ROWS[row]
+    z = z_waist + follow * (sheer(x) - 1.37)
+    aft = smoothstep((x - 12.0) / (STERN_X - 12.0))
+    fore = smoothstep((TAPER_X - x) / (TAPER_X - BOW_X))
+    share *= 1 - RUN[row] * (aft ** 1.5 + 0.5 * fore)
+    b = max(float(half_beam(x)), 0.03)
+    return Vector((x + bow_rake(x, z), YC + side * b * share, z))
 
 
 def hull(m):
-    """The ship's outside, lofted from the stem to the stern: planked sides with two gold wales, darker below the
-    waterline, the stem raked forward, the transom aft with two rows of lit gallery windows."""
+    """The ship's outside, lofted from the stem to the stern: warm planking with three dark wales sweeping up with
+    the sheer, skids along the waist, hawse holes, the rudder and the transom with its lit gallery."""
     steps = [POOP_X, AFT_X, FORECASTLE_X]
-    xs = np.concatenate([np.linspace(BOW_X, STERN_X, 110)] + [[x - 0.02, x + 0.02] for x in steps])
+    xs = np.concatenate([np.linspace(BOW_X, STERN_X, 120)] + [[x - 0.02, x + 0.02] for x in steps])
     xs = sorted(set(np.round(xs, 3)))
     rows = len(HULL_ROWS)
     # one ring per section: the north side from its top down to the keel, back up the south side
     ring = [(1, i) for i in range(rows)] + [(-1, i) for i in range(rows - 2, -1, -1)]
-    verts = []
-    for x in xs:
-        b = max(float(half_beam(x)), 0.03)
-        for side, i in ring:
-            share, z, _ = HULL_ROWS[i]
-            z = sheer(x) if z is None else z
-            verts.append(Vector((x + bow_rake(x, z), YC + side * b * share, z)))
+    verts = [hull_point(x, i, side) for x in xs for side, i in ring]
     n = len(ring)
     faces, bands = [], []
     for k in range(len(xs) - 1):
@@ -1039,7 +1086,7 @@ def hull(m):
             a, b = k * n + j, k * n + j + 1
             faces.append((a, b, b + n, a + n))
             side, i = ring[j]
-            bands.append(HULL_ROWS[i][2] if side > 0 else HULL_ROWS[ring[j + 1][1]][2])
+            bands.append(HULL_ROWS[i][3] if side > 0 else HULL_ROWS[ring[j + 1][1]][3])
     last = len(xs) - 1
     faces.append(tuple(last * n + j for j in range(n)))
     bands.append("transom")
@@ -1055,15 +1102,27 @@ def hull(m):
             poly.flip()
         poly.use_smooth = name != "transom"
 
-    # gunports along both sides between the wales
-    for x in np.arange(-8.0, 19.0, 3.6):
+    # skids down the waist's sides, from the lowest wale to the rail
+    for x in np.arange(-9.0, 16.0, 2.6):
         for side in (1, -1):
-            y = YC + side * (HB * 1.05 + 0.03)
-            slab(x - 0.42, x + 0.42, y - 0.08, y + 0.08, -0.62, 0.08, m["redwood"])
-            slab(x - 0.32, x + 0.32, y - 0.1 + side * 0.04, y + 0.1 + side * 0.04, -0.52, -0.02, m["hole"])
+            low, high = hull_point(x, 5, side), hull_point(x, 0, side)
+            out = Vector((0, side * 0.09, 0))
+            bar(low + out, high + out - Vector((0, 0, 0.1)), 0.2, 0.12, m["wale"])
+    # hawse holes in the bow, ports in the stern's quarters
+    for x, row in ((-25.5, 2), (-24.2, 2), (20.5, 4)):
+        for side in (1, -1):
+            p = hull_point(x, row, side) - Vector((0, 0, 0.35))
+            lathe(p - Vector((0, side * 0.25, 0)), p + Vector((0, side * 0.12, 0)), ((0, 0.26), (1, 0.26)),
+                  m["hole"], 12)
+            lathe(p + Vector((0, side * 0.05, 0)), p + Vector((0, side * 0.14, 0)), ((0, 0.36), (1, 0.36)),
+                  m["wale"], 12, caps=False)
+    # the rudder on the sternpost and its tiller through the transom
+    slab(STERN_X + 0.05, STERN_X + 1.5, YC - 0.2, YC + 0.2, -5.0, 1.6, m["wale"])
+    for z in (-3.5, -1.5, 0.6):
+        slab(STERN_X - 0.1, STERN_X + 0.6, YC - 0.24, YC + 0.24, z, z + 0.16, m["iron"])
     # the stern gallery: two rows of windows lit from inside, gold mouldings, lanterns on the corners
-    for row, (z0, z1) in enumerate(((0.55, 2.05), (POOP_Z + 0.5, POOP_Z + 1.8))):
-        count = 5 if row == 0 else 4
+    for row, (z0, z1) in enumerate(((1.2, 2.5), (POOP_Z + 0.7, POOP_Z + 1.9))):
+        count = 4 if row == 0 else 5
         for k in range(count):
             y = YC + (k - (count - 1) / 2) * 2.3
             slab(STERN_X, STERN_X + 0.14, y - 0.8, y + 0.8, z0, z1, m["gold"], bevel=0.03)
@@ -1072,10 +1131,10 @@ def hull(m):
             bar(Vector((STERN_X + 0.2, y - 0.62, (z0 + z1) / 2)), Vector((STERN_X + 0.2, y + 0.62, (z0 + z1) / 2)),
                 0.06, 0.06, m["darkwood"])
             glow((STERN_X + 0.6, y, (z0 + z1) / 2), (1.0, 0.7, 0.35), 1.6, GLOW_PULSE)
-    for z in (0.25, 2.35, POOP_Z + 0.2, POOP_Z + 2.05):
-        slab(STERN_X, STERN_X + 0.25, YC - 7.2, YC + 7.2, z, z + 0.22, m["gold"], bevel=0.04)
+    for z in (0.9, 2.75, POOP_Z + 0.4, POOP_Z + 2.1):
+        slab(STERN_X, STERN_X + 0.25, YC - 7.6, YC + 7.6, z, z + 0.22, m["gold"], bevel=0.04)
     for side in (1, -1):
-        base = Vector((STERN_X - 0.4, YC + side * (HB - 0.4), sheer(STERN_X - 0.4)))
+        base = Vector((STERN_X - 0.4, YC + side * (HB - 0.4), sheer(STERN_X - 0.4) + 0.85))
         rod(base, base + Vector((0, 0, 0.9)), 0.05, m["iron"], 6)
         lathe(base + Vector((0, 0, 0.9)), base + Vector((0, 0, 1.6)),
               ((0, 0.12), (0.2, 0.2), (0.8, 0.2), (1, 0.05)), m["iron"], 8)
