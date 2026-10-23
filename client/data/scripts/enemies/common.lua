@@ -1,6 +1,7 @@
--- movement helpers shared by the enemy scripts
+-- movement helpers shared by the enemy behaviours
 --
--- an enemy script sets a global 'properties' table and may define:
+-- a behaviour script finds the enemy's entry from enemies.lua in the global 'properties' table and may
+-- define:
 --   initialize(), think(blocked) -> direction, update(dt), timeout(id), hit(hit_points), died()
 -- think() runs whenever the enemy reaches a tile centre; 'blocked' has bit (1 << direction) set for
 -- every direction that can't be walked. returning NONE stops the enemy until it thinks again.

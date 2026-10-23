@@ -2,13 +2,6 @@
 -- after a while it starts the pursuit itself
 local common = require("common")
 
-properties = {
-   speed = 1.3,
-   points = 20000,
-   hit_points = 2,
-   wall_pass = false,
-}
-
 local CLOUD_TIMER = 1
 local PURSUIT_TIMER = 2
 local MAX_CLOUDS = 4

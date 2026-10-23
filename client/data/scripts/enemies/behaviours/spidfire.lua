@@ -2,13 +2,6 @@
 -- spray fire four tiles into every direction
 local common = require("common")
 
-properties = {
-   speed = 1.5,
-   points = 30000,
-   hit_points = 3,
-   wall_pass = false,
-}
-
 local STOP_TIMER = 1
 local FIRE_TIMER = 2
 local GO_TIMER = 3

@@ -1,13 +1,6 @@
 -- warp man: boss of rounds 4 and 6, wanders, teleports now and then and breeds one-eyed blobs
 local common = require("common")
 
-properties = {
-   speed = 1.4,
-   points = 30000,
-   hit_points = 3,
-   wall_pass = false,
-}
-
 local TELEPORT_TIMER = 1
 local CHILD_TIMER = 2
 local MAX_CHILDREN = 3
