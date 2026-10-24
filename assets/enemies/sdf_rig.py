@@ -108,6 +108,13 @@ def _die_pose(model, bone, t):
     name, side = bone.name, _side(bone.name)
     rot, loc, squash = [], Vector(), 1.0
 
+    if name == "body" and model.motion == "slither":
+        # too long to fall over backwards: it keels over onto its side where it lies
+        rot.append((Y, deg(35) * fall - deg(6) * settle))
+        if 0.5 < t < 0.75:
+            squash = 1 - 0.1 * math.sin(math.pi * (t - 0.5) / 0.25)
+        return rot, loc, squash
+
     if name == "body":
         rot.append((X, -deg(90) * fall + deg(8) * settle))
         if model.motion == "spin":
@@ -179,8 +186,8 @@ def _pose(model, bone, rest, phase, cycle):
             if walk:
                 loc.z = 0.05 * abs(math.sin(2 * phase)) * s
         elif motion == "slither":
-            rot.append((Z, deg(10 if walk else 4) * math.sin(phase)))
-            loc.z = 0.02 * (1 + math.sin(k * phase)) * s
+            # the head only sways a little, the wave runs down the body behind it
+            rot.append((Z, deg(7 if walk else 3) * math.sin(phase + 0.6)))
         return rot, loc, squash
 
     if name.startswith("leg"):
@@ -218,9 +225,10 @@ def _pose(model, bone, rest, phase, cycle):
         return rot, loc, squash
 
     if name.startswith("seg") or name == "tail":
+        # each joint bends a little more than the last and later, so an S-wave travels from head to tail
         i = 5 if name == "tail" else int(name[3])
-        a = deg(11 if walk else 3) * (1.5 if name == "tail" else 1.0)
-        rot.append((Z, a * math.sin(phase - (i + 1) * 0.9)))
+        a = deg(16 if walk else 5) * (1 + 0.12 * i)
+        rot.append((Z, -a * math.sin(phase - (i + 1) * 1.1)))
         return rot, loc, squash
 
     # horns, tops, spikes, noses and the dangling stalk trail the body's bounce

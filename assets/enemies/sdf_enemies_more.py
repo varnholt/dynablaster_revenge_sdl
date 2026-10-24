@@ -171,22 +171,22 @@ def coin():
 
 
 def serpent():
+    # lies along its heading: the head leads towards -y and the body trails straight behind it
     m = Model("Serpent", boss=True, motion="slither")
     blue = hexcol("2860e0")
     for i in range(5):
-        x, y, z = 0.95 - i * 0.62, 0.6 + i * 0.25, 0.5
-        prev = (1.55, 0.2, 0.5) if i == 0 else (x + 0.62, y - 0.25, z)
+        x, y, z = 0.0, 0.72 + i * 0.62, 0.5
+        prev = (0.0, 0.0, 0.5) if i == 0 else (x, y - 0.62, z)
         m.add(Ellipsoid((x, y, z), (0.38, 0.38, 0.42), blue, blend=0.12), bone=f"seg{i}",
               parent="body" if i == 0 else f"seg{i - 1}", head=prev, tail=(x, y, z))
-        m.paint(Decal((x, y), (0.2, 0.16), WHITE, facing=(0, 0, 1)))
-    m.add(Capsule((-1.53, 1.6, 0.45), (-2.25, 1.85, 0.32), 0.3, 0.06, blue, blend=0.12), bone="tail",
-          parent="seg4")
-    m.add(Ellipsoid((1.55, 0.2, 0.7), (0.62, 0.55, 0.55), blue, blend=0.15))
-    m.add(Ellipsoid((1.85, -0.25, 0.55), (0.35, 0.3, 0.22), hexcol("6a98ff"), blend=0.1))
+        m.paint(Decal((x, y), (0.16, 0.2), WHITE, facing=(0, 0, 1)))
+    m.add(Capsule((0.0, 3.2, 0.45), (0.0, 3.95, 0.32), 0.3, 0.06, blue, blend=0.12), bone="tail", parent="seg4")
+    m.add(Ellipsoid((0.0, 0.0, 0.7), (0.55, 0.62, 0.55), blue, blend=0.15))
+    m.add(Ellipsoid((0.0, -0.5, 0.55), (0.3, 0.35, 0.22), hexcol("6a98ff"), blend=0.1))
     for side in (-1, 1):
-        m.add(Capsule((1.55 + side * 0.25, 0.3, 1.1), (1.55 + side * 0.3, 0.35, 1.5), 0.1, 0.06, WHITE, blend=0.08),
+        m.add(Capsule((side * 0.25, 0.1, 1.1), (side * 0.3, 0.15, 1.5), 0.1, 0.06, WHITE, blend=0.08),
               bone=f"horn.{side}")
-    m.eyes(0.22, 0.95, eye=(0.12, 0.14), pupil=(0.06, 0.07), cx=1.55)
+    m.eyes(0.22, 0.95, eye=(0.12, 0.14), pupil=(0.06, 0.07))
     return m
 
 
