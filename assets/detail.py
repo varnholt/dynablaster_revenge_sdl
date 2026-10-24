@@ -275,7 +275,7 @@ def ship_mask(rgb, slope):
 
 
 SETS = {
-    "nature": ([grass, soil, rock, pebbles], [0.5, 0.6, 0.3, 0.8], nature_mask),
+    "nature": ([grass, soil, rock, pebbles], [0.32, 0.6, 0.3, 0.8], nature_mask),
     "castle": ([worn, grit, brushed, stone], [0.5, 0.8, 0.6, 0.4], castle_mask),
     "ship": ([wood, canvas, paint, brushed], [0.45, 1.2, 0.6, 0.8], ship_mask),
     # the nature worlds' props: leaves on the green, bark on the brown
@@ -305,7 +305,7 @@ def mask(kind, rgb, slope):
     return SETS[kind][2](rgb, slope)
 
 
-STRENGTHS = {"ship": 0.5, "nature": 0.45, "foliage": 0.5}
+STRENGTHS = {"ship": 0.5, "nature": 0.3, "foliage": 0.5}
 
 # the story worlds' sets, "nature" for the others
 STORY_WORLDS = {6: "castle", 7: "castle", 8: "castle"}
