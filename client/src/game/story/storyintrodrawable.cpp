@@ -2,6 +2,7 @@
 
 #include "engine/gltf/gltfmodel.h"
 #include "engine/render/glowsprites.h"
+#include "engine/render/nightsky.h"
 #include "framework/gldevice.h"
 #include "log.h"
 #include "tools/datapaths.h"
@@ -17,15 +18,14 @@ namespace
 {
 constexpr const char* TIMELINE = "story/intro/intro.txt";
 constexpr const char* MODELS = "story/intro/";
+constexpr const char* SKY = "story/intro/sky";
 constexpr float FADE_IN = 1.5f;
 constexpr float FADE_OUT = 1.2f;
 constexpr float Z_NEAR = 0.3f;
 constexpr float Z_FAR = 400.0f;
 
-// the night sky
-constexpr float SKY_R = 0.012f;
-constexpr float SKY_G = 0.016f;
-constexpr float SKY_B = 0.05f;
+// moonlight on the scene
+const Vector NIGHT(0.72f, 0.78f, 0.98f);
 
 Matrix readMatrix(std::istream& in)
 {
@@ -164,6 +164,8 @@ bool StoryIntroDrawable::load()
       _glows->set(glows);
    }
 
+   _sky = std::make_unique<NightSky>(SKY);
+
    _loaded = true;
    return true;
 }
@@ -257,7 +259,7 @@ void StoryIntroDrawable::paintGL()
    GLDevice& device = static_cast<GLDevice&>(activeDevice());
    const float fade = getFade();
 
-   device.clear(SKY_R * fade, SKY_G * fade, SKY_B * fade, 1.0f);
+   device.clear(0.0f, 0.0f, 0.0f, 1.0f);
 
    if (!isPlaying() || fade <= 0.0f)
    {
@@ -270,8 +272,11 @@ void StoryIntroDrawable::paintGL()
    const float half_fov = _fov[frame] * 0.5f * std::numbers::pi_v<float> / 180.0f;
    device.setCamera(view, std::tan(half_fov) * 9.0f / 16.0f, Z_NEAR, Z_FAR);
 
+   _sky->setBrightness(fade);
+   _sky->render();
+
    GltfModel::Look look;
-   look._tint = Vector(fade, fade, fade);
+   look._tint = NIGHT * fade;
 
    GltfModel::setDaylight(1.0f);
    GltfModel::begin();

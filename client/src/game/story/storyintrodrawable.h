@@ -11,6 +11,7 @@
 
 class GlowSprites;
 class GltfModel;
+class NightSky;
 
 //! the story mode's intro after the original's: the dragon breaks out of Dr's lab with the princess and the black
 //! bomberman, the doctor and the player panic, the dragon flies off to its castle on the mountain.
@@ -84,6 +85,7 @@ private:
    bool _load_failed = false;
 
    std::unique_ptr<GlowSprites> _glows;
+   std::unique_ptr<NightSky> _sky;
 
    //! seconds into the intro, negative while it isn't playing
    float _time = -1.0f;

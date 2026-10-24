@@ -6,6 +6,7 @@
 #   build_doctor.py    the doctor
 #   build_lab.py       the lab from the first world's scenery, its dome in voronoi cells that burst
 #   build_backdrop.py  the mountains with the castle
+#   build_sky.py       the night sky's map (python, no blender)
 #   build_intro.py     stages them all: intro.txt, the timeline StoryIntroDrawable plays
 # Blender is found via the BLENDER environment variable or in its default install folder.
 import glob
@@ -18,7 +19,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "out")
 INTRO = os.path.join(HERE, "..", "..", "client", "data", "game", "story", "intro")
 FILES = ["lab.glb", "backdrop.glb", "dome.glb", "dragon.glb", "princess.glb", "doctor.glb",
-         "player.glb", "player_dark.glb", "intro.txt"]
+         "player.glb", "player_dark.glb", "sky.tga",
+         "intro.txt"]
 
 
 def blender():
@@ -44,6 +46,7 @@ os.makedirs(OUT, exist_ok=True)
 os.makedirs(INTRO, exist_ok=True)
 run_blender("import_hjb.py", os.path.join(OUT, "player.blend"), os.path.join(OUT, "player.glb"))
 run_blender("build_player.py", OUT, blend=os.path.join(OUT, "player.blend"))
+subprocess.run([sys.executable, os.path.join(HERE, "build_sky.py"), OUT], check=True)
 for script in ("build_dragon.py", "build_princess.py", "build_doctor.py", "build_lab.py", "build_backdrop.py",
                "build_intro.py"):
     run_blender(script, OUT)
