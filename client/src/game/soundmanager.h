@@ -159,4 +159,8 @@ protected:
    float _fade_start_volume = 1.0f;
    float _fade_duration_ms = 1000.0f;
    float _fade_elapsed_ms = 0.0f;
+
+   // set once a fade-out has silenced the music; updateMusic() then starts no further track
+   // until the playlist is restarted (restartPlayListAfterFadeOut, next/previous track)
+   bool _music_halted = false;
 };
