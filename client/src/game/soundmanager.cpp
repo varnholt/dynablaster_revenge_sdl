@@ -188,10 +188,13 @@ void SoundManager::restartPlayListAfterFadeOut(int delay)
    if (_music_stream)
       SDL_ClearAudioStream(_music_stream.get());
 
+   _music_halted = true;
+
    Timer::singleShot(
       delay,
       [this]()
       {
+         _fading = false;
          SDL_SetAudioStreamGain(_music_stream.get(), getMusicGain());
          playNextTrack();
       }
@@ -321,9 +324,15 @@ void SoundManager::playTrack(std::size_t index)
    spec.channels = info.channels;
    spec.freq = info.hz;
 
+   _music_halted = false;
+
    SDL_ClearAudioStream(_music_stream.get());
    SDL_SetAudioStreamFormat(_music_stream.get(), &spec, nullptr);
    SDL_PutAudioStreamData(_music_stream.get(), info.buffer, static_cast<int>(info.samples * sizeof(mp3d_sample_t)));
+
+   // the whole track is queued, flushing hands the resampler's held-back tail to the device as well -
+   // without it a few bytes stay queued forever and updateMusic() never notices the track ended
+   SDL_FlushAudioStream(_music_stream.get());
 
    free(info.buffer);
 
@@ -348,12 +357,13 @@ void SoundManager::updateMusic()
       {
          SDL_ClearAudioStream(_music_stream.get());
          _fading = false;
+         _music_halted = true;
       }
 
       return;
    }
 
-   if (!_playlist.empty() && SDL_GetAudioStreamQueued(_music_stream.get()) == 0)
+   if (!_music_halted && !_playlist.empty() && SDL_GetAudioStreamQueued(_music_stream.get()) == 0)
    {
       _track_index = (_track_index + 1) % _playlist.size();
       playTrack(_track_index);
