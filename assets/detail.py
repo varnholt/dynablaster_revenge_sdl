@@ -275,6 +275,14 @@ def mask(kind, rgb, slope):
 
 STRENGTHS = {"ship": 0.5}
 
+# the story worlds' sets, "nature" for the others
+STORY_WORLDS = {6: "castle", 7: "castle", 8: "castle"}
+
+
+def story_world(world):
+    """The detail set of a story world."""
+    return STORY_WORLDS.get(world, "nature")
+
 
 def strength(kind):
     """How strongly the set's detail shows."""
@@ -307,10 +315,28 @@ def to_bytes(image):
     return (np.clip(image, 0, 1) * 255 + 0.5).astype(np.uint8)
 
 
+def base_color(gltf, binary, material, size):
+    """A material's base colour texture from a glb (glb.read()) as rgb 0..1, size by size, rows bottom up as
+    mask() takes them. Needs Pillow, so not in Blender's python."""
+    import io
+
+    from PIL import Image
+
+    texture = gltf["textures"][material["pbrMetallicRoughness"]["baseColorTexture"]["index"]]
+    view = gltf["bufferViews"][gltf["images"][texture["source"]]["bufferView"]]
+    start = view.get("byteOffset", 0)
+    image = Image.open(io.BytesIO(bytes(binary[start:start + view["byteLength"]]))).convert("RGB")
+    image = image.resize((size, size), Image.BILINEAR)
+    return np.asarray(image, dtype=np.float32)[::-1] / 255.0
+
+
 def embed(path, masks, layers, repeats, strength=STRENGTH):
     """Adds the detail images and masks ({material name: mask}, rows bottom up, rgba weights) to the glb at path
-    and points each material at its mask and the images."""
+    and points each material at its mask and the images; a glb that has them already stays as it is. strength
+    is one for all or {material name: strength}."""
     gltf, binary = glb.read(path)
+    if any("detail" in m.get("extras", {}) for m in gltf.get("materials", []) if m.get("name") in masks):
+        return
 
     def add_image(content):
         while len(binary) % 4:
@@ -326,5 +352,6 @@ def embed(path, masks, layers, repeats, strength=STRENGTH):
         # gltf images run top down
         index = add_image(png(to_bytes(mask[::-1])))
         material = next(m for m in gltf["materials"] if m.get("name") == name)
-        material.setdefault("extras", {})["detail"] = [index] + shared + list(repeats) + [strength]
+        amount = strength.get(name, STRENGTH) if isinstance(strength, dict) else strength
+        material.setdefault("extras", {})["detail"] = [index] + shared + list(repeats) + [amount]
     glb.write(path, gltf, binary)

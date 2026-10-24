@@ -21,7 +21,6 @@ ONLY = [int(a) for a in ARGS[1:]]
 # field sizes: single screen, horizontal and vertical scrolling (shared/storystage.h)
 SIZES = {None: (13, 11), "H": (29, 11), "V": (13, 23)}
 GROUND_TEX = 2048
-DETAIL_KIND = {6: "castle", 7: "castle", 8: "castle"}  # the detail set per world, "nature" for the others
 PROP_TEX = 2048
 AO_TEX = 2048
 FLOOR_Z = -0.14
@@ -428,7 +427,7 @@ def terrain(st, height_fn, color_fn, name):
 WATER = []
 GROUND_DETAIL = []  # the ground's detail mask, see detail.ground_mask()
 PROPS_DETAIL = []  # the props'
-DETAIL = ["nature"]  # the world's detail set, see DETAIL_KIND
+DETAIL = ["nature"]  # the world's detail set, see detail.story_world()
 
 
 def water_surface(st, height_fn, level, deep_color, field_depth=None):
@@ -1280,7 +1279,7 @@ def border_occluders(w, h):
 
 def build(world, size_key):
     title, fn = WORLDS[world]
-    DETAIL[:] = [DETAIL_KIND.get(world, "nature")]
+    DETAIL[:] = [detail.story_world(world)]
     w, h = SIZES[size_key]
     bpy.ops.wm.read_factory_settings(use_empty=True)
     _MATERIALS.clear()
