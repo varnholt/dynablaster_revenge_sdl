@@ -11,6 +11,9 @@ import bpy
 import numpy as np
 from mathutils import Matrix
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import detail  # noqa: E402
+
 ARGS = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 OUT = ARGS[0] if ARGS else os.path.join(os.path.dirname(__file__), "surroundings")
 ONLY = [int(a) for a in ARGS[1:]]
@@ -18,6 +21,7 @@ ONLY = [int(a) for a in ARGS[1:]]
 # field sizes: single screen, horizontal and vertical scrolling (shared/storystage.h)
 SIZES = {None: (13, 11), "H": (29, 11), "V": (13, 23)}
 GROUND_TEX = 2048
+DETAIL_KIND = {6: "castle", 7: "castle", 8: "castle"}  # the detail set per world, "nature" for the others
 PROP_TEX = 2048
 AO_TEX = 2048
 FLOOR_Z = -0.14
@@ -388,6 +392,9 @@ def terrain(st, height_fn, color_fn, name):
     gy, gx = np.gradient(TZ, (st.y1 - st.y0) / GROUND_TEX, (st.x1 - st.x0) / GROUND_TEX)
     slope = np.hypot(gx, gy)
     rgb = color_fn(TX, TY, TZ, slope)
+    # where grass, soil, rock and pebbles show up close, at half the colour's resolution
+    half = GROUND_TEX // 2
+    GROUND_DETAIL[:] = [detail.mask(DETAIL[0], np.clip(rgb, 0, 1), slope).reshape(half, 2, half, 2, 4).mean(axis=(1, 3))]
     img = bpy.data.images.new(f"{name}_color", GROUND_TEX, GROUND_TEX)
     img.pixels.foreach_set(np.concatenate([np.clip(rgb, 0, 1), np.ones((GROUND_TEX, GROUND_TEX, 1))], 2)
                            .astype(np.float32).ravel())
@@ -402,6 +409,9 @@ def terrain(st, height_fn, color_fn, name):
 
 
 WATER = []
+GROUND_DETAIL = []  # the ground's detail mask, see detail.ground_mask()
+PROPS_DETAIL = []  # the props'
+DETAIL = ["nature"]  # the world's detail set, see DETAIL_KIND
 
 
 def water_surface(st, height_fn, level, deep_color, field_depth=None):
@@ -1253,6 +1263,7 @@ def border_occluders(w, h):
 
 def build(world, size_key):
     title, fn = WORLDS[world]
+    DETAIL[:] = [DETAIL_KIND.get(world, "nature")]
     w, h = SIZES[size_key]
     bpy.ops.wm.read_factory_settings(use_empty=True)
     _MATERIALS.clear()
@@ -1285,6 +1296,10 @@ def build(world, size_key):
     unbaked = (texels[:, 0] > 0.99) & (texels[:, 1] < 0.01) & (texels[:, 2] > 0.99)
     texels[unbaked, :3] = texels[~unbaked, :3].mean(axis=0)
     props_color.pixels.foreach_set(texels.ravel())
+    # the props' detail from their colours, as for the ground but with nothing steep
+    half = PROP_TEX // 2
+    rgb = texels.reshape(PROP_TEX, PROP_TEX, 4)[..., :3]
+    PROPS_DETAIL[:] = [detail.mask(DETAIL[0], rgb, np.zeros(rgb.shape[:2])).reshape(half, 2, half, 2, 4).mean(axis=(1, 3))]
     props_ao.pixels.foreach_set(np.tile(np.array([1.0, 0.0, 1.0, 1.0], np.float32), AO_TEX * AO_TEX))
     bake(props, "AO", props_ao)
     bake(ground, "AO", ground_ao)
@@ -1326,6 +1341,8 @@ def build(world, size_key):
                               export_image_format="JPEG", export_jpeg_quality=88, export_extras=True, **animation)
     if SPINNERS:
         merge_animations(path, "spin")
+    detail.embed(path, {"ground_export": GROUND_DETAIL[0], "props_export": PROPS_DETAIL[0]}, detail.images(DETAIL[0]),
+                 detail.repeats(DETAIL[0]))
     for img in (ground_color, props_color, props_ao, ground_ao, *(img for _, img in WATER)):
         img.pack()
     bpy.context.scene.name = f"world{world}_{title}_{w}x{h}"

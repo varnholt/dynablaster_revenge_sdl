@@ -1,7 +1,7 @@
 #version 300 es
 
 // glTF models (story mode enemies and stage pieces): optional linear blend skinning with up to
-// 16 joints, joint matrices are in model space; cloth waves in the wind by its a_wave
+// 40 joints, joint matrices are in model space; cloth waves in the wind by its a_wave
 
 layout(location = 0) in vec3 a_position;
 layout(location = 1) in vec3 a_normal;
@@ -24,6 +24,9 @@ out vec3 nrm;
 // world z, for the clip height of mirror images
 out float height;
 
+// world position, where the detail textures are tiled
+out highp vec3 world;
+
 void main()
 {
    mat4 skin = mat4(1.0);
@@ -41,6 +44,7 @@ void main()
 
    uv = a_texcoord0;
    nrm = normalize(mat3(u_model) * mat3(skin) * a_normal);
-   height = (u_model * skin * position).z;
+   world = (u_model * skin * position).xyz;
+   height = world.z;
    gl_Position = u_modelViewProjection * skin * position;
 }

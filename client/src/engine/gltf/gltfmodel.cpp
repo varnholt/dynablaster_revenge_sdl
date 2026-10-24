@@ -45,7 +45,15 @@ struct Shader
    int32_t _night = -1;
    int32_t _has_night = -1;
    int32_t _day = -1;
+   int32_t _detail_mask = -1;
+   std::array<int32_t, 4> _detail{-1, -1, -1, -1};
+   int32_t _detail_scales = -1;
+   int32_t _detail_strength = -1;
 };
+
+// texture units: colour, occlusion, night, then the detail mask and the detail images
+constexpr int32_t DETAIL_MASK_UNIT = 3;
+constexpr int32_t DETAIL_UNIT = 4;
 
 Shader shader;
 
@@ -469,6 +477,20 @@ void GltfModel::load(const std::string& filename)
             primitive._color_image = image_of(source.material->pbr_metallic_roughness.base_color_texture);
             primitive._occlusion_image = image_of(source.material->occlusion_texture);
             primitive._night_image = image_of(source.material->emissive_texture);
+
+            if (const auto detail = readExtras<10>(source.material->extras.data, "detail"))
+            {
+               const auto image = [data](float index)
+               { return index >= 0.0f && index < static_cast<float>(data->images_count) ? static_cast<int32_t>(index) : -1; };
+
+               primitive._detail_mask_image = image((*detail)[0]);
+               for (size_t i = 0; i < 4; i++)
+               {
+                  primitive._detail_images[i] = image((*detail)[1 + i]);
+               }
+               primitive._detail_scales = Vector4((*detail)[5], (*detail)[6], (*detail)[7], (*detail)[8]);
+               primitive._detail_strength = primitive._detail_mask_image >= 0 ? (*detail)[9] : 0.0f;
+            }
          }
 
          _primitives.push_back(std::move(primitive));
@@ -732,6 +754,13 @@ void GltfModel::begin()
       shader._night = activeDevice().getParameterIndex("u_night");
       shader._has_night = activeDevice().getParameterIndex("u_has_night");
       shader._day = activeDevice().getParameterIndex("u_daylight");
+      shader._detail_mask = activeDevice().getParameterIndex("u_detail_mask");
+      for (size_t i = 0; i < shader._detail.size(); i++)
+      {
+         shader._detail[i] = activeDevice().getParameterIndex(std::format("u_detail{}", i));
+      }
+      shader._detail_scales = activeDevice().getParameterIndex("u_detail_scales");
+      shader._detail_strength = activeDevice().getParameterIndex("u_detail_strength");
    }
 
    activeDevice().setShader(shader._program);
@@ -739,6 +768,11 @@ void GltfModel::begin()
    activeDevice().bindSampler(shader._occlusion, 1);
    activeDevice().setParameter(shader._clip, clip_height);
    activeDevice().bindSampler(shader._night, 2);
+   activeDevice().bindSampler(shader._detail_mask, DETAIL_MASK_UNIT);
+   for (size_t i = 0; i < shader._detail.size(); i++)
+   {
+      activeDevice().bindSampler(shader._detail[i], DETAIL_UNIT + static_cast<int32_t>(i));
+   }
    activeDevice().setParameter(shader._day, day_share);
 
    for (GLuint attribute = 0; attribute < 6; attribute++)
@@ -812,6 +846,19 @@ void GltfModel::draw(const Matrix& transform, int32_t animation, float time, con
       const auto texture_of = [this](int32_t image) {
          return image >= 0 && _images[static_cast<size_t>(image)]._texture ? _images[static_cast<size_t>(image)]._texture : whiteTexture();
       };
+
+      activeDevice().setParameter(shader._detail_strength, primitive._detail_strength);
+      if (primitive._detail_strength > 0.0f)
+      {
+         activeDevice().setParameter(shader._detail_scales, primitive._detail_scales);
+         glActiveTexture(GL_TEXTURE0 + static_cast<GLenum>(DETAIL_MASK_UNIT));
+         glBindTexture(GL_TEXTURE_2D, texture_of(primitive._detail_mask_image));
+         for (size_t i = 0; i < primitive._detail_images.size(); i++)
+         {
+            glActiveTexture(GL_TEXTURE0 + static_cast<GLenum>(DETAIL_UNIT) + static_cast<GLenum>(i));
+            glBindTexture(GL_TEXTURE_2D, texture_of(primitive._detail_images[i]));
+         }
+      }
 
       activeDevice().setParameter(shader._has_night, primitive._night_image >= 0 ? 1.0f : 0.0f);
       glActiveTexture(GL_TEXTURE2);
