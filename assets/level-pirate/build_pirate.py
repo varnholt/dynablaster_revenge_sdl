@@ -1488,12 +1488,15 @@ def sea():
     size = 2048
     u = (np.arange(size) + 0.5) / size
     TX, TY = np.meshgrid(x0 + u * (x1 - x0), y0 + u * (y1 - y0))
-    depth = np.ones_like(TX)
+    # the shallows round the islands show their sandy floor, the open sea is deep
+    depth = np.clip((SEA_Z - seabed(TX, TY)) / 6.0, 0, 1)
     # foam along the hull
     side = np.maximum(np.abs(TY - YC) - 1.075 * half_beam(np.clip(TX, BOW_X, STERN_X)), 0)
     ends = np.maximum(np.maximum(BOW_X - TX, TX - STERN_X), 0)
     away = np.hypot(side, ends)
     foam = np.clip(1.0 - away / 1.3, 0, 1) ** 2 * 0.8
+    # and the surf on the beaches
+    foam = np.maximum(foam, np.clip(1.0 - depth / 0.05, 0, 1) * (depth > 0.0) * 0.7)
     data = np.stack([depth, foam, np.zeros_like(depth), np.ones_like(depth)], axis=2)
     img = bpy.data.images.new("water_data", size, size)
     img.pixels.foreach_set(data.astype(np.float32).ravel())
@@ -1508,7 +1511,8 @@ def sea():
         tex.image = img
         mat.node_tree.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
     mesh.materials.append(mat)
-    obj["water"] = [0.02, 0.07, 0.16]
+    # a caribbean deep, blue going green
+    obj["water"] = [0.0, 0.30, 0.36]
     WATER.append((obj, img))
     return obj
 
@@ -1554,9 +1558,29 @@ def sky():
     angle = np.degrees(np.arccos(np.clip(cos_angle, -1, 1)))
     # by day: a pale horizon, deep blue overhead, the sun where the moon stands at night, its warm glow
     t = np.clip(elevation / math.radians(50), 0, 1) ** 0.7
-    day = np.array(_linear((0.78, 0.86, 0.94))) * (1 - t[..., None]) + np.array(_linear((0.34, 0.55, 0.86))) * t[..., None]
+    day = np.array(_linear((0.72, 0.86, 0.96))) * (1 - t[..., None]) + np.array(_linear((0.22, 0.50, 0.90))) * t[..., None]
     day += np.array(_linear((1.0, 0.86, 0.6)))[None, None, :] * (np.exp(-angle / 9.0) * 0.55)[..., None]
     day = np.where((angle < 1.8)[..., None], np.array(_linear((1.0, 0.98, 0.9))), day)
+    # trade wind cumulus low along the horizon: clusters of soft puffs, flat grey bases, lit tops
+    cloud_rng = np.random.default_rng(5)
+    cloud = np.zeros((sh, sw))
+    lit = np.zeros((sh, sw))
+    for _ in range(34):
+        cu = cloud_rng.uniform(0, 1)
+        floor = cloud_rng.uniform(math.radians(1.2), math.radians(4.5)) / (math.pi / 2)
+        width = cloud_rng.uniform(0.006, 0.02)
+        for _ in range(int(width * 900)):
+            pu = cu + cloud_rng.normal(0, width * 0.35)
+            radius = cloud_rng.uniform(0.0025, 0.006)
+            pv = floor + radius * 2.5 * cloud_rng.uniform(0.3, 1.0)
+            du = np.minimum(np.abs(U - pu), 1 - np.abs(U - pu)) / radius
+            dv = (V - pv) / (radius * 4.0)
+            puff = np.clip(1.0 - du ** 2 - dv ** 2, 0, 1) ** 0.6 * (V > floor)
+            cloud = np.maximum(cloud, puff)
+            lit = np.maximum(lit, puff * np.clip((V - pv) / (radius * 4.0) + 0.5, 0, 1))
+    cloud *= 0.92
+    white = np.array(_linear((0.74, 0.77, 0.82)))[None, None, :] * (1 - lit[..., None]) +         np.array(_linear((1.0, 0.99, 0.96)))[None, None, :] * lit[..., None]
+    day = day * (1 - cloud[..., None]) + white * cloud[..., None]
     day_pixels = np.concatenate([np.clip(day, 0, 1), np.ones((sh, sw, 1))], axis=2)
     day_img = bpy.data.images.new("sky_day", sw, sh)
     day_img.pixels.foreach_set(day_pixels.astype(np.float32).ravel())
@@ -1584,6 +1608,199 @@ def sky():
                             math.sin(moon_elevation))) * (SKY_RADIUS - 10.0)
     glow(moon, (0.75, 0.82, 1.0), 22.0, GLOW_STEADY)
     return obj, (day_img, img)
+
+
+# --- the caribbean: islands with white beaches, palms and turquoise shallows -----------------------------
+
+# x, y, radius, height of the land, seed; on the horizon behind the ship as the fly-in sees it, clear of the moon
+ISLANDS = [(-25.0, 125.0, 22.0, 9.0, 1), (80.0, 170.0, 14.0, 6.0, 2), (-115.0, 100.0, 30.0, 13.0, 3)]
+SHELF = 30.0  # how far the shallows reach out from the beach
+DEEP = SEA_Z - 7.0
+ISLAND_TEX = 1024
+PALM_WAVE = 0.45  # how far a frond's tip moves in the gusts
+
+
+def _coast(island, angle):
+    """The island's radius towards angle: a ragged, lobed coast."""
+    x, y, r, h, seed = island
+    rng = np.random.default_rng(seed)
+    phases = rng.uniform(0, 2 * math.pi, 4)
+    wobble = sum(np.sin(angle * k + phases[k - 2]) / k for k in range(2, 6))
+    return r * (1.0 + 0.18 * wobble)
+
+
+def seabed(x, y):
+    """The ground's height under the sea and on the islands: deep water, a sandy shelf rising to the beach,
+    the land behind it."""
+    z = np.full(np.shape(x), DEEP, dtype=float)
+    for island in ISLANDS:
+        cx, cy, r, h, seed = island
+        d = np.hypot(x - cx, y - cy)
+        coast = _coast(island, np.arctan2(y - cy, x - cx))
+        t = d / coast
+        rng = np.random.default_rng(seed + 10)
+        bumps = sum(np.sin((x * fx + y * fy) + p) for fx, fy, p in rng.uniform(-0.4, 0.4, (5, 3))) * 0.25
+        land = SEA_Z + 0.9 + h * np.clip(1.0 - t, 0, 1) ** 1.4 + bumps * np.clip(1.0 - t, 0, 1)
+        beach = SEA_Z + 0.9 - 1.2 * np.clip((d - coast) / 4.0, 0, 1)
+        shelf_t = np.clip((d - coast - 4.0) / SHELF, 0, 1)
+        shelf = SEA_Z - 0.3 + (DEEP - SEA_Z + 0.3) * (shelf_t * shelf_t * (3 - 2 * shelf_t))
+        height = np.where(t < 1.0, land, np.where(d < coast + 4.0, beach, shelf))
+        z = np.maximum(z, height)
+    return z
+
+
+def island_colors(x, y, z, distance):
+    """Day and night colours of the islands and the sea floor around them, the far ones fading into the horizon."""
+    above = z - SEA_Z
+    rng_x = np.sin(x * 1.7) * np.cos(y * 1.3) + np.sin(x * 0.37 + y * 0.51) * 1.5
+    jungle = np.array(_linear((0.13, 0.36, 0.12))) + np.array(_linear((0.05, 0.10, 0.03))) * rng_x[..., None]
+    sand = np.array(_linear((0.95, 0.90, 0.74)))
+    wet = np.array(_linear((0.80, 0.74, 0.58)))
+    floor = np.array(_linear((0.86, 0.84, 0.70)))
+    grass = np.array(_linear((0.30, 0.42, 0.22)))
+    t_land = np.clip((above - 1.1) / 0.8, 0, 1)[..., None]
+    t_beach = np.clip((above + 0.3) / 0.6, 0, 1)[..., None]
+    under = floor * (1 - 0.35 * np.clip(-above / 7.0, 0, 1))[..., None]
+    patches = (np.sin(x * 0.9 + 2.0) * np.sin(y * 0.7) > 0.6)[..., None]
+    under = np.where(patches & (above[..., None] < -1.5), grass, under)
+    color = under * (1 - t_beach) + (wet * (1 - t_beach) + sand * t_beach) * t_beach
+    color = color * (1 - t_land) + jungle * t_land
+    horizon = np.array(_linear((0.78, 0.86, 0.94)))
+    fade = np.clip((distance - 60.0) / 180.0, 0, 0.6)[..., None]
+    day = color * (1 - fade) + horizon * fade
+    night = color * np.array((0.10, 0.13, 0.22)) + np.array(_linear((0.02, 0.03, 0.07))) * fade
+    return np.clip(day, 0, 1), np.clip(night, 0, 1)
+
+
+def palette_image(name, colors):
+    """A row of flat swatches, for parts coloured whole."""
+    width = len(colors)
+    img = bpy.data.images.new(name, width * 8, 8)
+    pixels = np.zeros((8, width * 8, 4), np.float32)
+    for i, c in enumerate(colors):
+        pixels[:, i * 8:(i + 1) * 8, :3] = _linear(c)
+        pixels[:, i * 8:(i + 1) * 8, 3] = 1.0
+    img.pixels.foreach_set(pixels.ravel())
+    return img
+
+
+def palm(verts, faces, uvs, waves, base, lean, height, rng):
+    """A coconut palm: a trunk curving away from lean, a crown of drooping fronds; uvs pick the palette's trunk
+    (0.25) or frond (0.75) swatch, waves how the fronds give in the wind."""
+    wind = Vector((1.0, 0.35, 0.0)).normalized()
+    segments, sides = 7, 6
+    points = []
+    for k in range(segments + 1):
+        t = k / segments
+        points.append(base + Vector((lean.x * t * t * height * 0.35, lean.y * t * t * height * 0.35, t * height)))
+    for k, p in enumerate(points):
+        radius = 0.32 - 0.14 * k / segments
+        for s in range(sides):
+            a = 2 * math.pi * s / sides
+            verts.append(p + Vector((math.cos(a), math.sin(a), 0.0)) * radius)
+            uvs.append((0.25, 0.5))
+            waves.append((wind, 0.08 * (k / segments) ** 2))
+    start = len(verts) - (segments + 1) * sides
+    for k in range(segments):
+        for s in range(sides):
+            a = start + k * sides + s
+            b = start + k * sides + (s + 1) % sides
+            faces.append((a, b, b + sides, a + sides))
+    top = points[-1]
+    for f in range(9):
+        a = 2 * math.pi * f / 9 + rng.uniform(-0.2, 0.2)
+        out = Vector((math.cos(a), math.sin(a), 0.0))
+        side = Vector((-out.y, out.x, 0.0))
+        length = rng.uniform(3.2, 4.2)
+        row = []
+        for k in range(6):
+            t = k / 5
+            centre = top + out * length * t + Vector((0.0, 0.0, 0.9 * t - 2.2 * t * t))
+            width = 0.75 * math.sin(math.pi * min(t * 1.1, 1.0)) + 0.05
+            for edge in (-1, 1):
+                verts.append(centre + side * width * edge + Vector((0.0, 0.0, 0.08 * t)))
+                uvs.append((0.75, 0.5))
+                waves.append((wind, t))
+            row.append(len(verts) - 2)
+        for k in range(5):
+            a, b = row[k], row[k + 1]
+            faces.append((a, a + 1, b + 1, b))
+            faces.append((b, b + 1, a + 1, a))
+
+
+def islands():
+    """The islands with their sandy shallows as one object, the palms as another (they sway, see "wave")."""
+    objects, images = [], []
+    for index, island in enumerate(ISLANDS):
+        cx, cy, r, h, seed = island
+        reach = r * 1.25 + 4.0 + SHELF
+        step = 1.0
+        xs = np.arange(cx - reach, cx + reach + 1e-6, step)
+        ys = np.arange(cy - reach, cy + reach + 1e-6, step)
+        X, Y = np.meshgrid(xs, ys)
+        Z = seabed(X, Y)
+        nx, ny = len(xs), len(ys)
+        idx = np.arange(nx * ny).reshape(ny, nx)
+        quads = np.stack([idx[:-1, :-1].ravel(), idx[:-1, 1:].ravel(), idx[1:, 1:].ravel(), idx[1:, :-1].ravel()], 1)
+        keep = (Z.ravel()[quads] > DEEP + 0.05).any(axis=1)
+        mesh = bpy.data.meshes.new(f"island{index}")
+        mesh.from_pydata(np.stack([X.ravel(), Y.ravel(), Z.ravel()], 1).tolist(), [], quads[keep].tolist())
+        mesh.validate()
+        obj = bpy.data.objects.new(f"island{index}", mesh)
+        bpy.context.scene.collection.objects.link(obj)
+        uv = mesh.uv_layers.new(name="UVMap")
+        co = np.array([mesh.vertices[l.vertex_index].co[:] for l in mesh.loops])
+        uv.data.foreach_set("uv", np.stack([(co[:, 0] - xs[0]) / (xs[-1] - xs[0]),
+                                            (co[:, 1] - ys[0]) / (ys[-1] - ys[0])], 1).ravel())
+        for poly in mesh.polygons:
+            poly.use_smooth = True
+        u = (np.arange(ISLAND_TEX) + 0.5) / ISLAND_TEX
+        TX, TY = np.meshgrid(xs[0] + u * (xs[-1] - xs[0]), ys[0] + u * (ys[-1] - ys[0]))
+        TZ = seabed(TX, TY)
+        distance = np.hypot(TX - 6.5, TY - YC)
+        day, night = island_colors(TX, TY, TZ, distance)
+        day_img = bpy.data.images.new(f"island{index}_day", ISLAND_TEX, ISLAND_TEX)
+        day_img.pixels.foreach_set(np.concatenate([day, np.ones(day.shape[:2] + (1,))], 2).astype(np.float32).ravel())
+        night_img = bpy.data.images.new(f"island{index}_night", ISLAND_TEX, ISLAND_TEX)
+        night_img.pixels.foreach_set(np.concatenate([night, np.ones(night.shape[:2] + (1,))], 2).astype(np.float32).ravel())
+        obj.data.materials.append(export_material(f"island{index}_export", day_img, white_image(), night_img))
+        objects.append(obj)
+        images += [day_img, night_img]
+
+    verts, faces, uvs, waves = [], [], [], []
+    for island in ISLANDS:
+        cx, cy, r, h, seed = island
+        rng = np.random.default_rng(seed + 20)
+        for _ in range(int(r * 0.6)):
+            a = rng.uniform(0, 2 * math.pi)
+            d = _coast(island, a) * rng.uniform(0.55, 0.92)
+            x, y = cx + math.cos(a) * d, cy + math.sin(a) * d
+            base = Vector((x, y, float(seabed(np.array(x), np.array(y))) - 0.2))
+            lean = Vector((math.cos(a), math.sin(a), 0.0)) * rng.uniform(0.4, 1.0)
+            palm(verts, faces, uvs, waves, base, lean, rng.uniform(5.5, 8.0), rng)
+    mesh = bpy.data.meshes.new("palms")
+    mesh.from_pydata([tuple(v) for v in verts], [], faces)
+    mesh.validate()
+    obj = bpy.data.objects.new("palms", mesh)
+    bpy.context.scene.collection.objects.link(obj)
+    uv = mesh.uv_layers.new(name="UVMap")
+    for loop in mesh.loops:
+        uv.data[loop.index].uv = uvs[loop.vertex_index]
+    colors = mesh.color_attributes.new("wave", "FLOAT_COLOR", "POINT")
+    for i, (direction, amount) in enumerate(waves):
+        colors.data[i].color = (direction.x * 0.5 + 0.5, direction.y * 0.5 + 0.5, direction.z * 0.5 + 0.5, amount)
+    mesh.color_attributes.active_color = colors
+    mesh.color_attributes.render_color_index = mesh.color_attributes.active_color_index
+    # flat: the fronds' two sides share their vertices, smooth normals would cancel out
+    for poly in mesh.polygons:
+        poly.use_smooth = False
+    day = palette_image("palms_day", [(0.42, 0.30, 0.18), (0.20, 0.50, 0.14)])
+    night = palette_image("palms_night", [(0.05, 0.05, 0.07), (0.03, 0.06, 0.06)])
+    obj.data.materials.append(export_material("palms_export", day, white_image(), night))
+    obj["wave"] = [PALM_WAVE]
+    objects.append(obj)
+    images += [day, night]
+    return objects, images
 
 
 # --- baking ---------------------------------------------------------------------------------------
@@ -1854,8 +2071,11 @@ def build():
     sky_obj, sky_img = sky()
     setup_cycles()
 
+    shore, shore_images = islands()
     water.hide_render = True
     sky_obj.hide_render = True
+    for obj in shore:
+        obj.hide_render = True
     outside = join_props("exterior", EXTERIOR)
     sails = join_props("cloth", CLOTH)
     sails["wave"] = [1.0]
@@ -1911,6 +2131,8 @@ def build():
         img.pixels.foreach_set(ao.ravel())
     water.hide_render = False
     sky_obj.hide_render = False
+    for obj in shore:
+        obj.hide_render = False
 
     for obj, day_img, night_img, ao_img in ((deck_obj, deck_day, deck_lit, deck_ao),
                                             (props, props_day, props_lit, props_ao),
@@ -1933,7 +2155,7 @@ def build():
     bpy.ops.export_scene.gltf(filepath=path, export_format="GLB", use_selection=True, export_yup=True,
                               export_image_format="JPEG", export_jpeg_quality=90, export_extras=True, **colors)
     for img in (props_color, props_ao, deck_color, deck_ao, outside_lit, outside_ao, cloth_lit, cloth_ao, *sky_img,
-                deck_day, props_day, outside_day, cloth_day, white_image(),
+                deck_day, props_day, outside_day, cloth_day, white_image(), *shore_images,
                 *(img for _, img in WATER)):
         img.pack()
     preview_camera()

@@ -4,7 +4,7 @@ The countdown's digits are pre-rendered bitmaps (data/menus/countdown.psd), thei
 "Dynablaster Revolution". This script draws "PAUSED" in that font with the same orange gradient,
 yellow rim, black outline and downward extrusion, measured from the "go" layer.
 
-usage: python tools/hud/make_paused.py <Dynablaster Revolution.ttf> [out.psd]
+usage: python assets/hud/make_paused.py <Dynablaster Revolution.ttf> [out.psd]
 the font lives in the history repo: version1/dstar-projects/FINAL/font/Dynablaster Revolution (1.00).ttf
 """
 

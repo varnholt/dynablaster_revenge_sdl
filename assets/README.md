@@ -13,6 +13,8 @@ an `out/` folder of its own, which git ignores.
 | `intro/` | the story mode's intro: the cast, the lab, the mountains, the sky, the timeline | `client/data/game/story/intro/` | 20 s |
 | `enemies/` | the story mode's enemies and bosses, rigged with idle, walk and die cycles | `client/data/game/enemies/` | 2 min |
 | `story-worlds/` | per world of the story mode the floor, border and the dioramas around the stages | `client/data/game/story/world<n>/` | 10 min |
+| `level-pirate/` | the pirate ship level: the ship baked by day and by night, the Caribbean around it, its cameras, block skins | `client/data/level-pirate/` | 2.5 min |
+| `hud/` | `make_paused.py`, the story mode's PAUSED overlay (`client/data/menus/paused.psd`), needs the game's font | `client/data/menus/` | seconds |
 
 `python assets/<folder>/build_all.py` builds one set; `enemies` and `story-worlds` take names or numbers to build
 only some.
@@ -33,8 +35,9 @@ baked. The princess and the doctor go through it.
 
 `detail.py` makes small seamless images that the game's glTF shader tiles in world space over a material's colour,
 and per material a mask of where each shows; `embed()` puts them into a finished `.glb` (the material's extras name
-them). Two sets: nature (grass tufts, soil, cracked rock, pebbles) for worlds 1–5 and castle (worn tiles, brick
-grit, brushed metal, stone) for 6–8. The worlds' ground and props get their masks from their own colours.
+them). Three sets: nature (grass tufts, soil, cracked rock, pebbles) for worlds 1â€“5, castle (worn tiles, brick
+grit, brushed metal, stone) for 6â€“8, ship (wood grain, canvas, old paint, metal) for the pirate ship. Each
+material's mask comes from its own colours.
 
 ## How exact a rebuild is
 
