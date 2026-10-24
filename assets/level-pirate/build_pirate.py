@@ -1644,7 +1644,16 @@ def seabed(x, y):
         t = d / coast
         rng = np.random.default_rng(seed + 10)
         bumps = sum(np.sin((x * fx + y * fy) + p) for fx, fy, p in rng.uniform(-0.4, 0.4, (5, 3))) * 0.25
-        land = SEA_Z + 0.9 + h * np.clip(1.0 - t, 0, 1) ** 1.4 + bumps * np.clip(1.0 - t, 0, 1)
+        # a gentle rise from the beach, then a few rounded hills off the middle, not one peak
+        inland = np.clip(1.0 - t, 0, 1)
+        rise = 1.0 - (1.0 - inland) ** 2
+        hills = np.zeros(np.shape(x))
+        for k in range(3):
+            a, reach = rng.uniform(0, 2 * math.pi), rng.uniform(0.15, 0.45) * r
+            hx, hy = cx + math.cos(a) * reach, cy + math.sin(a) * reach
+            width, top = rng.uniform(0.35, 0.55) * r, rng.uniform(0.55, 1.0)
+            hills = np.maximum(hills, top * np.exp(-((x - hx) ** 2 + (y - hy) ** 2) / (width * width)))
+        land = SEA_Z + 0.9 + rise * (0.18 * h + 0.82 * h * hills) + bumps * inland
         beach = SEA_Z + 0.9 - 1.2 * np.clip((d - coast) / 4.0, 0, 1)
         shelf_t = np.clip((d - coast - 4.0) / SHELF, 0, 1)
         shelf = SEA_Z - 0.3 + (DEEP - SEA_Z + 0.3) * (shelf_t * shelf_t * (3 - 2 * shelf_t))

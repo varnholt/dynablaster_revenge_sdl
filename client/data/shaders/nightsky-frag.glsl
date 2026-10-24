@@ -59,14 +59,16 @@ void main()
    float azimuth = atan(direction.y, direction.x);
    vec3 color = texture(u_sky, vec2(azimuth / (2.0 * PI) + 0.5, elevation / PI + 0.5)).rgb;
 
-   // fewer and fainter down in the haze over the horizon
-   float clear = smoothstep(0.02, 0.3, direction.z);
+   // the moon's disc, the dark part of the crescent included
+   float angle = acos(clamp(dot(direction, u_moon), -1.0, 1.0));
+   float lit = 1.0 - smoothstep(u_moon_size * 0.9, u_moon_size, angle);
+
+   // fewer and fainter down in the haze over the horizon, none behind the moon
+   float clear = smoothstep(0.02, 0.3, direction.z) * (1.0 - lit);
    color += (stars(direction, 110.0, 0.09) + 0.45 * stars(direction.zxy, 220.0, 0.1)) * clear;
 
    // the moon: a crescent with a soft halo
-   float angle = acos(clamp(dot(direction, u_moon), -1.0, 1.0));
    vec3 shadow = normalize(u_moon + vec3(0.012, -0.004, 0.006));
-   float lit = 1.0 - smoothstep(u_moon_size * 0.9, u_moon_size, angle);
    float dark = 1.0 - smoothstep(u_moon_size * 0.85, u_moon_size, acos(clamp(dot(direction, shadow), -1.0, 1.0)));
    color = mix(color, vec3(1.0, 0.97, 0.86), lit * (1.0 - dark * 0.92));
    color += vec3(0.25, 0.3, 0.45) * exp(-angle / (u_moon_size * 3.0)) * 0.35;

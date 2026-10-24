@@ -321,18 +321,44 @@ def sway(obj, base, top, amount=1.0):
 
 # --- prop kinds -----------------------------------------------------------------------------------
 
+def branch(p0, p1, radius, mat):
+    """A tapering limb from p0 to p1."""
+    d = np.subtract(p1, p0)
+    length = float(np.linalg.norm(d))
+    bpy.ops.mesh.primitive_cone_add(vertices=6, radius1=radius, radius2=radius * 0.45, depth=length,
+                                    location=tuple(np.add(p0, p1) * 0.5))
+    obj = bpy.context.object
+    obj.rotation_mode = "QUATERNION"
+    from mathutils import Vector
+    obj.rotation_quaternion = Vector((0, 0, 1)).rotation_difference(Vector(d / length))
+    return _finish(obj, mat)
+
+
 def tree_round(st, x, y, z, s, leaves, trunk):
+    """A broadleaf: a trunk forking into a few limbs, each ending in a cluster of leaves, gaps between them
+    where the limbs show."""
     rng = st.rng
-    cylinder((x, y, z - 0.05), 0.09 * s, 0.75 * s, trunk, vertices=8)
     start = len(PROPS)
-    blobs = 3
-    for i in range(blobs):
-        a = 2 * math.pi * i / blobs + rng.uniform(0, 2)
-        r = 0.18 * s
-        sphere((x + math.cos(a) * r, y + math.sin(a) * r, z + (0.85 + rng.uniform(0, 0.25)) * s),
-               (0.36 + rng.uniform(0, 0.1)) * s, leaves, jitter=0.06, rng=rng)
-    sphere((x, y, z + 1.15 * s), 0.34 * s, leaves, jitter=0.06, rng=rng)
-    sway(fuse(start, 0.035 * s, 360, smooth_steps=2), z + 0.5 * s, z + 1.5 * s)
+    cylinder((x, y, z - 0.05), 0.09 * s, 0.7 * s, trunk, vertices=8)
+    fork = (x, y, z + 0.6 * s)
+    ends = []
+    for i in range(3):
+        a = 2 * math.pi * i / 3 + rng.uniform(-0.4, 0.4)
+        reach = rng.uniform(0.28, 0.38) * s
+        end = (x + math.cos(a) * reach, y + math.sin(a) * reach, z + rng.uniform(0.95, 1.15) * s)
+        branch(fork, end, 0.06 * s, trunk)
+        ends.append(end)
+    ends.append((x + rng.uniform(-0.05, 0.05) * s, y + rng.uniform(-0.05, 0.05) * s, z + 1.3 * s))
+    branch(fork, ends[-1], 0.06 * s, trunk)
+    fuse(start, 0.02 * s, 260)
+    # the leaves, a cluster round each limb's end
+    for end in ends:
+        cluster = len(PROPS)
+        for k in range(3):
+            o = rng.normal(0, 0.09, 3) * s
+            sphere((end[0] + o[0], end[1] + o[1], end[2] + o[2] + 0.06 * s), rng.uniform(0.17, 0.24) * s, leaves,
+                   jitter=0.1, rng=rng)
+        sway(fuse(cluster, 0.025 * s, 160, smooth_steps=1), z + 0.5 * s, z + 1.6 * s)
 
 
 def tree_pine(st, x, y, z, s, leaves, trunk):
@@ -427,7 +453,7 @@ def terrain(st, height_fn, color_fn, name):
 WATER = []
 GROUND_DETAIL = []  # the ground's detail mask, see detail.ground_mask()
 PROPS_DETAIL = []  # the props'
-DETAIL = ["nature"]  # the world's detail set, see detail.story_world()
+DETAIL = ["nature", "foliage"]  # the world's detail sets for the ground and the props, see detail.story_world()
 
 
 def water_surface(st, height_fn, level, deep_color, field_depth=None):
@@ -1279,7 +1305,7 @@ def border_occluders(w, h):
 
 def build(world, size_key):
     title, fn = WORLDS[world]
-    DETAIL[:] = [detail.story_world(world)]
+    DETAIL[:] = [detail.story_world(world), detail.story_world(world, props=True)]
     w, h = SIZES[size_key]
     bpy.ops.wm.read_factory_settings(use_empty=True)
     _MATERIALS.clear()
@@ -1324,7 +1350,7 @@ def build(world, size_key):
     # the props' detail from their colours, as for the ground but with nothing steep
     half = PROP_TEX // 2
     rgb = texels.reshape(PROP_TEX, PROP_TEX, 4)[..., :3]
-    PROPS_DETAIL[:] = [detail.mask(DETAIL[0], rgb, np.zeros(rgb.shape[:2])).reshape(half, 2, half, 2, 4).mean(axis=(1, 3))]
+    PROPS_DETAIL[:] = [detail.mask(DETAIL[1], rgb, np.zeros(rgb.shape[:2])).reshape(half, 2, half, 2, 4).mean(axis=(1, 3))]
     props_ao.pixels.foreach_set(np.tile(np.array([1.0, 0.0, 1.0, 1.0], np.float32), AO_TEX * AO_TEX))
     bake(props, "AO", props_ao)
     bake(ground, "AO", ground_ao)
@@ -1372,8 +1398,8 @@ def build(world, size_key):
                               export_image_format="JPEG", export_jpeg_quality=88, export_extras=True, **animation)
     if SPINNERS:
         merge_animations(path, "spin")
-    detail.embed(path, {"ground_export": GROUND_DETAIL[0], "props_export": PROPS_DETAIL[0]}, detail.images(DETAIL[0]),
-                 detail.repeats(DETAIL[0]))
+    for material, mask, kind in (("ground_export", GROUND_DETAIL[0], DETAIL[0]), ("props_export", PROPS_DETAIL[0], DETAIL[1])):
+        detail.embed(path, {material: mask}, detail.images(kind), detail.repeats(kind), detail.strength(kind))
     for img in (ground_color, props_color, props_ao, ground_ao, *(img for _, img in WATER)):
         img.pack()
     bpy.context.scene.name = f"world{world}_{title}_{w}x{h}"

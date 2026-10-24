@@ -76,7 +76,7 @@ def grass(rng):
     f1, _, nearest = cells(rng, size, 1400)
     tuft = np.clip(1.0 - f1 / 10.0, 0, 1) ** 1.5
     shades = rng.uniform(-0.6, 0.6, nearest.max() + 1)
-    image = tuft * 0.9 + shades[nearest] * 0.45
+    image = tuft * 0.7 + shades[nearest] * 0.3
     for _ in range(5000):
         x, y = rng.uniform(0, size, 2)
         angle = rng.uniform(0, 2 * np.pi)
@@ -84,8 +84,8 @@ def grass(rng):
         for t in np.linspace(0, 1, int(length)):
             px = int(x + np.cos(angle) * length * t) % size
             py = int(y + np.sin(angle) * length * t) % size
-            image[py, px] += 0.5 * t
-    return normalised(image, 0.22)
+            image[py, px] += 0.35 * t
+    return normalised(image, 0.15)
 
 
 def soil(rng):
@@ -114,6 +114,36 @@ def pebbles(rng):
     shades = rng.uniform(-1, 1, nearest.max() + 1)
     image = dome * 1.5 + shades[nearest] * 0.6 + periodic_noise(rng, size, 140) * 0.2
     return normalised(image, 0.2)
+
+
+def leaves(rng):
+    """Overlapping leaves seen from anywhere: small pointed ovals every which way, each a little lighter or darker,
+    a darker midrib, shadow where they overlap."""
+    size = SIZE
+    image = np.full((size, size), -1.2)
+    y, x = np.mgrid[-20:21, -20:21].astype(float)
+    for _ in range(5200):
+        cx, cy = rng.integers(0, size, 2)
+        a = rng.uniform(0, np.pi)
+        length, width = rng.uniform(12, 18), rng.uniform(5, 7)
+        u = x * np.cos(a) + y * np.sin(a)
+        v = -x * np.sin(a) + y * np.cos(a)
+        inside = (u / length) ** 2 + (v / (width * (1 - 0.5 * (u / length) ** 2))) ** 2 < 1
+        shade = rng.uniform(-0.8, 0.8) + u / length * 0.4 - (np.abs(v) < 0.6) * 0.6
+        rows, cols = (cy + y.astype(int)) % size, (cx + x.astype(int)) % size
+        image[rows[inside], cols[inside]] = shade[inside] if np.ndim(shade) else shade
+    return normalised(image, 0.17)
+
+
+def bark(rng):
+    """Bark: fibres running up, furrows between them."""
+    size = SIZE
+    noise = rng.standard_normal((size, size))
+    kernel = np.ones(40) / 40
+    fibres = np.real(np.fft.ifft(np.fft.fft(noise, axis=0) * np.fft.fft(kernel, size)[:, None], axis=0))
+    furrows = np.sin(np.arange(size)[None, :] * 2 * np.pi / 14 + periodic_noise(rng, size, 5) * 2.0)
+    image = fibres / fibres.std() * 0.6 - np.clip(furrows - 0.6, 0, 1) * 2.5
+    return normalised(image, 0.15)
 
 
 def worn(rng):
@@ -248,6 +278,8 @@ SETS = {
     "nature": ([grass, soil, rock, pebbles], [0.5, 0.6, 0.3, 0.8], nature_mask),
     "castle": ([worn, grit, brushed, stone], [0.5, 0.8, 0.6, 0.4], castle_mask),
     "ship": ([wood, canvas, paint, brushed], [0.45, 1.2, 0.6, 0.8], ship_mask),
+    # the nature worlds' props: leaves on the green, bark on the brown
+    "foliage": ([leaves, bark, rock, pebbles], [1.6, 1.4, 0.3, 0.8], nature_mask),
 }
 
 
@@ -273,15 +305,16 @@ def mask(kind, rgb, slope):
     return SETS[kind][2](rgb, slope)
 
 
-STRENGTHS = {"ship": 0.5}
+STRENGTHS = {"ship": 0.5, "nature": 0.45, "foliage": 0.5}
 
 # the story worlds' sets, "nature" for the others
 STORY_WORLDS = {6: "castle", 7: "castle", 8: "castle"}
 
 
-def story_world(world):
-    """The detail set of a story world."""
-    return STORY_WORLDS.get(world, "nature")
+def story_world(world, props=False):
+    """The detail set of a story world, of its props (trees, bushes) with props."""
+    kind = STORY_WORLDS.get(world, "nature")
+    return "foliage" if props and kind == "nature" else kind
 
 
 def strength(kind):

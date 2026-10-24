@@ -16,7 +16,7 @@ import bpy  # noqa: E402
 from mathutils import Vector  # noqa: E402
 
 import toy  # noqa: E402
-from toy import trs, turn  # noqa: E402
+from toy import turn  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCENERY = os.path.join(HERE, "..", "..", "client", "data", "game", "story", "world1", "surroundings_13x11.glb")
@@ -148,6 +148,23 @@ def seeds():
     return sorted(found, key=angle_from_impact)
 
 
+def loops(edges):
+    """The edges grouped into the loops they form."""
+    left, groups = set(edges), []
+    while left:
+        stack = [left.pop()]
+        group = set(stack)
+        while stack:
+            for v in stack.pop().verts:
+                for e in v.link_edges:
+                    if e in left:
+                        left.discard(e)
+                        group.add(e)
+                        stack.append(e)
+        groups.append(group)
+    return groups
+
+
 def cell(shell, seed, others):
     """The part of the shell nearer to seed than to any other: cut by the planes halfway, the cuts closed.
     Returns the glass and the cut faces as two bmeshes, None if nothing is left."""
@@ -160,8 +177,18 @@ def cell(shell, seed, others):
         if not bm.faces:
             bm.free()
             return None
+    # the cuts leave vertices a hair apart where planes meet, welded they don't split the cell open later
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-4)
+    bmesh.ops.dissolve_degenerate(bm, edges=bm.edges, dist=1e-4)
     before = set(bm.faces)
-    bmesh.ops.holes_fill(bm, edges=[e for e in bm.edges if e.is_boundary], sides=0)
+    # a cell inside the dome has two rims, round its outer face and its inner one: bridged, they become its
+    # sides; a cell at the dome's foot or the facade has one rim running round both, filled
+    boundary = [e for e in bm.edges if e.is_boundary]
+    if len(loops(boundary)) == 2:
+        bmesh.ops.bridge_loops(bm, edges=boundary)
+    else:
+        bmesh.ops.holes_fill(bm, edges=boundary, sides=0)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     cuts = [f for f in bm.faces if f not in before]
     bmesh.ops.triangulate(bm, faces=cuts)
     cuts = {f for f in bm.faces if f not in before}
