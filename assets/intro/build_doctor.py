@@ -9,6 +9,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import bpy  # noqa: E402
 
+import refine  # noqa: E402
 import toy  # noqa: E402
 from toy import FORWARD, LIFT, bone_keys, cone, cycle, mirror, sphere, trs, tube, turn  # noqa: E402
 
@@ -37,13 +38,15 @@ def build():
     # lab coat: flared below, round shoulders, a collar, buttons and a pen in the breast pocket
     b.add(cone(0.25, 0.16, 0.5, 32), "coat", "body", trs((0, 0, 0.13)))
     b.add(sphere(), "coat", "body", trs((0, 0, 0.58), (0, 0, 0), (0.19, 0.16, 0.08)))
+    # a collar round the neck, so the crease where the head sits on the coat is the coat's
+    b.add(sphere(), "coat", "body", trs((0, 0.01, 0.655), (0, 0, 0), (0.14, 0.13, 0.04)))
     for s in (1, -1):
         side = (lambda m: m) if s > 0 else mirror
         b.add(cone(0.06, 0.0, 0.14, 4), "coat_shade", "body", side(trs((0.06, -0.12, 0.62), (200, 0, 30),
-                                                                        (1, 0.4, 1))))
+                                                                        (1, 0.4, 1))), paint=True)
     for z in (0.22, 0.34, 0.46):
-        b.add(sphere(), "button", "body", trs((0, -0.2 - (0.46 - z) * 0.2, z), (0, 0, 0), 0.018))
-    b.add(tube([(0.0, 0.0, 0.0), (0.0, 0.0, 0.07)], [0.012, 0.012], 6), "pen", "body", trs((0.09, -0.155, 0.47)))
+        b.add(sphere(), "button", "body", trs((0, -0.2 - (0.46 - z) * 0.2, z), (0, 0, 0), 0.018), paint=True)
+    b.add(tube([(0.0, 0.0, 0.0), (0.0, 0.0, 0.07)], [0.012, 0.012], 6), "pen", "body", trs((0.09, -0.155, 0.47)), paint=True)
 
     # head: bald dome, white tufts over the ears and round the back, nose, moustache, bushy brows
     head = trs((0, 0, HEAD))
@@ -56,7 +59,7 @@ def build():
                                                             (0.06, 0.07, 0.07))))
         b.add(sphere(), "hair", "head", head @ side(trs((0.06, -0.205, -0.08), (0, 0, -15), (0.08, 0.035, 0.035))))
         b.add(sphere(), "hair", "head", head @ side(trs((0.08, -0.19, 0.08), (0, -10, 0), (0.06, 0.025, 0.022))))
-        b.add(sphere(), "black", "head", head @ side(trs((0.075, -0.19, 0.03), (0, 0, 0), (0.022, 0.015, 0.03))))
+        b.add(sphere(), "black", "head", head @ side(trs((0.075, -0.19, 0.03), (0, 0, 0), (0.022, 0.015, 0.03))), paint=True)
         b.add(sphere(), "skin", "head", head @ side(trs((0.205, 0.0, -0.01), (0, 0, 0), (0.035, 0.05, 0.06))))
     for x in (-0.06, 0.0, 0.06):
         b.add(sphere(), "hair", "head", head @ trs((x, 0.17, -0.06), (0, 0, 0), (0.07, 0.06, 0.07)))
@@ -122,6 +125,7 @@ def animate(rig):
 
 
 rig, mesh = build()
+mesh = refine.refine(rig, mesh, faces=3000)
 animate(rig)
 out = toy.out_dir()
 toy.export(rig, mesh, os.path.join(out, "doctor.glb"))

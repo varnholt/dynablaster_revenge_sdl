@@ -2,12 +2,16 @@
 # colours come from the nearest shape, face details are projected on as paint.
 import math
 import os
+import sys
 
 import bmesh
 import bpy
 import numpy as np
 import openvdb
 from mathutils import Vector
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+from uvs import unwrap  # noqa: E402
 
 # nothing thinner than this (in model units, before scale) survives as geometry
 MIN_RADIUS = 0.06
@@ -310,29 +314,50 @@ def _select(objects, active):
 
 
 def retopo(hi, target_tris, collection):
-    """Even quads via QuadriFlow, retried on a few voxel resolutions before falling back to decimate."""
+    """Even quads via QuadriFlow, retried on a few voxel resolutions, then on the same ones relaxed a little (the
+    voxel mesh's slivers make QuadriFlow turn some down as not manifold; relaxing spreads them but thins thin
+    limbs, so it comes second), before falling back to decimate."""
     name = hi.name.replace("_hi", "_SDF")
-    for divisions in (VOXELS_ACROSS, 120, 190, 100, 240):
-        low = hi.copy()
-        low.data = hi.data.copy()
-        collection.objects.link(low)
-        low.data.materials.clear()
-        for attr in [a.name for a in low.data.color_attributes]:
-            low.data.color_attributes.remove(low.data.color_attributes[attr])
-        _select([low], low)
-        remesh = low.modifiers.new("Remesh", "REMESH")
-        remesh.mode = "VOXEL"
-        remesh.voxel_size = max(low.dimensions) / divisions
-        bpy.ops.object.modifier_apply(modifier=remesh.name)
-        before = len(low.data.polygons)
-        try:
-            bpy.ops.object.quadriflow_remesh(target_faces=target_tris // 2, use_mesh_symmetry=False, smooth_normals=True)
-        except RuntimeError:
-            pass
-        if len(low.data.polygons) != before:
-            method = f"quadriflow@{divisions}"
-            break
-        bpy.data.objects.remove(low, do_unlink=True)
+    for relax in (False, True):
+        for divisions in (VOXELS_ACROSS, 120, 190, 100, 240):
+            low = hi.copy()
+            low.data = hi.data.copy()
+            collection.objects.link(low)
+            low.data.materials.clear()
+            for attr in [a.name for a in low.data.color_attributes]:
+                low.data.color_attributes.remove(low.data.color_attributes[attr])
+            _select([low], low)
+            remesh = low.modifiers.new("Remesh", "REMESH")
+            remesh.mode = "VOXEL"
+            remesh.voxel_size = max(low.dimensions) / divisions
+            bpy.ops.object.modifier_apply(modifier=remesh.name)
+            if relax:
+                bm = bmesh.new()
+                bm.from_mesh(low.data)
+                for _ in range(3):
+                    bmesh.ops.smooth_vert(bm, verts=bm.verts, factor=0.5, use_axis_x=True, use_axis_y=True,
+                                          use_axis_z=True)
+                bm.to_mesh(low.data)
+                bm.free()
+            before = len(low.data.polygons)
+            try:
+                bpy.ops.object.quadriflow_remesh(target_faces=target_tris // 2, use_mesh_symmetry=False,
+                                                 smooth_normals=True)
+            except RuntimeError:
+                pass
+            if len(low.data.polygons) != before:
+                method = f"quadriflow@{divisions}" + (" relaxed" if relax else "")
+                if relax:
+                    # back onto the surface the relaxing rounded off a little
+                    wrap = low.modifiers.new("wrap", "SHRINKWRAP")
+                    wrap.target = hi
+                    wrap.wrap_method = "NEAREST_SURFACEPOINT"
+                    bpy.ops.object.modifier_apply(modifier=wrap.name)
+                break
+            bpy.data.objects.remove(low, do_unlink=True)
+        else:
+            continue
+        break
     else:
         low = hi.copy()
         low.data = hi.data.copy()
@@ -424,13 +449,19 @@ def paint_texture(low, model, img, supersample=2):
     img.update()
 
 
+def regions(low, model):
+    """Per face the colour painted at its centre, shapes and decals: the seams go along the borders between them."""
+    pos = np.array([low.matrix_world @ p.center for p in low.data.polygons]) / model.scale
+    nrm = np.array([(low.matrix_world.to_3x3() @ p.normal).normalized() for p in low.data.polygons])
+    col = model.colors(pos)
+    for decal in model.decals:
+        col[decal.mask(pos, nrm)] = decal.color
+    return [tuple(np.round(c, 2)) for c in col]
+
+
 def bake(low, hi, out_dir, name, model):
     os.makedirs(out_dir, exist_ok=True)
-    _select([low], low)
-    bpy.ops.object.mode_set(mode="EDIT")
-    bpy.ops.mesh.select_all(action="SELECT")
-    bpy.ops.uv.smart_project(angle_limit=1.15, island_margin=0.02)
-    bpy.ops.object.mode_set(mode="OBJECT")
+    unwrap(low, regions(low, model))
 
     color_img = _image(f"{name}_color", out_dir)
     ao_img = _image(f"{name}_ao", out_dir)

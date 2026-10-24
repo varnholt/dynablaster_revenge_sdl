@@ -4,8 +4,10 @@
 # writes dragon.glb and dragon.blend. About 1.9 high without the wings, the player being 1.
 #
 # The body is one smooth shape, metaballs remeshed, the details are added on; their colours are worked out per
-# vertex (darker back, a striped belly, gradients along wings and horns) and baked with ambient occlusion into
-# textures, the way the game's glTF shader takes them. Faces -y, z up.
+# vertex (darker back, a striped belly, gradients along wings and horns). refine.py then fuses body and details
+# into one surface (horns, claws, spines and the wings, already in quads, stay as they are), lays it out in quads
+# and bakes the colours and the ambient occlusion into textures, the way the game's glTF shader takes them.
+# Faces -y, z up.
 import math
 import os
 import sys
@@ -13,10 +15,10 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import bmesh  # noqa: E402
 import bpy  # noqa: E402
-import numpy as np  # noqa: E402
 from mathutils import Matrix, Quaternion, Vector, noise  # noqa: E402
 from mathutils.bvhtree import BVHTree  # noqa: E402
 
+import refine  # noqa: E402
 import toy  # noqa: E402
 from toy import cone, sphere, trs, tube, turn  # noqa: E402
 
@@ -393,13 +395,22 @@ def segment_distance(p, a, b):
     return (a + ab * t - p).length
 
 
+PAINTED = {"eye", "pupil", "shine", "nostril", "mouth"}  # only colour the surface once refined
+# thin tapering shapes an even layout of quads can't follow, kept as they are on the fused body
+DETAILS = {"horn", "claw", "toe", "spine", "ear", "spade"}
+
+
 def join(body):
-    """Everything into one mesh with its paint, its region per vertex kept for the weights."""
+    """Everything into one mesh with its paint, its region per vertex kept for the weights, and per face what
+    refine.py needs: the part it belongs to, whether it's only painted on, the surface it fuses into (the body
+    with its brows, lids and tail; the thin details; each wing's arm and fingers; each membrane)."""
     regions = ["body", "head", "arm", "leg", "tail2", "wing.L", "wing.R"]
     paint = body.data.color_attributes.new("paint", "FLOAT_COLOR", "POINT")
     for v in body.data.vertices:
         paint.data[v.index].color = (*linear(body_colour(v.co, v.normal)), 1.0)
     objects = [(body, "body")] + PARTS
+    names = ["body"] + sorted({obj.name.split(".")[0] for obj, _ in PARTS})
+    shells = ["body", "detail", "wing.L", "wing.R", "membrane.L", "membrane.R"]
     for obj, region in objects:
         layer = obj.data.attributes.new("region", "INT", "POINT")
         layer.data.foreach_set("value", [regions.index(region)] * len(obj.data.vertices))
@@ -408,78 +419,37 @@ def join(body):
         if region.startswith("wing."):
             inverse = wing_matrix(1 if region.endswith("L") else -1).inverted()
             span.data.foreach_set("value", [(inverse @ v.co).x for v in obj.data.vertices])
+        name = obj.name.split(".")[0]
+        shell = region if region.startswith("wing.") else "body"
+        if name == "membrane":
+            shell = shell.replace("wing", "membrane")
+        elif name in DETAILS:
+            shell = "detail"
+        count = len(obj.data.polygons)
+        for attribute, value in (("part", names.index(name)), ("paint", name in PAINTED),
+                                 ("shell", shells.index(shell))):
+            obj.data.attributes.new(attribute, "INT", "FACE").data.foreach_set("value", [int(value)] * count)
     bpy.ops.object.select_all(action="DESELECT")
     for obj, _ in objects:
         obj.select_set(True)
     bpy.context.view_layer.objects.active = body
     bpy.ops.object.join()
     body.name = body.data.name = "dragon"
+    body.data["shells"] = shells
     return body, regions
 
 
-def bake(obj):
-    """The paint and the ambient occlusion into textures, the material the game reads them from."""
-    scene = bpy.context.scene
-    scene.render.engine = "CYCLES"
-    scene.cycles.device = "CPU"
-    scene.render.bake.use_clear = True
-    scene.world = bpy.data.worlds.new("bake")
-    select(obj)
-    bpy.ops.object.mode_set(mode="EDIT")
-    bpy.ops.mesh.select_all(action="SELECT")
-    bpy.ops.uv.smart_project(angle_limit=1.1, island_margin=0.006)
-    bpy.ops.object.mode_set(mode="OBJECT")
-
-    work = bpy.data.materials.new("dragon_bake")
-    work.use_nodes = True
-    nodes, links = work.node_tree.nodes, work.node_tree.links
+def paint_material(obj):
+    """The paint as the base colour, which refine.py bakes from."""
+    material = bpy.data.materials.new("dragon_paint")
+    material.use_nodes = True
+    nodes, links = material.node_tree.nodes, material.node_tree.links
     bsdf = next(n for n in nodes if n.type == "BSDF_PRINCIPLED")
     attribute = nodes.new("ShaderNodeAttribute")
     attribute.attribute_name = "paint"
     links.new(attribute.outputs["Color"], bsdf.inputs["Base Color"])
-    target = nodes.new("ShaderNodeTexImage")
-    nodes.active = target
     obj.data.materials.clear()
-    obj.data.materials.append(work)
-
-    images = {}
-    for kind in ("color", "ao"):
-        image = bpy.data.images.new(f"dragon_{kind}", TEXTURE, TEXTURE)
-        if kind == "ao":
-            image.colorspace_settings.name = "Non-Color"
-        target.image = image
-        if kind == "color":
-            scene.cycles.samples = 1
-            bpy.ops.object.bake(type="DIFFUSE", pass_filter={"COLOR"}, margin=8)
-        else:
-            scene.cycles.samples = 64
-            scene.world.light_settings.distance = 0.4
-            bpy.ops.object.bake(type="AO", margin=8)
-        image.pack()
-        images[kind] = image
-
-    final = bpy.data.materials.new("dragon")
-    final.use_nodes = True
-    nodes, links = final.node_tree.nodes, final.node_tree.links
-    bsdf = next(n for n in nodes if n.type == "BSDF_PRINCIPLED")
-    bsdf.inputs["Roughness"].default_value = 0.45
-    color = nodes.new("ShaderNodeTexImage")
-    color.image = images["color"]
-    links.new(color.outputs["Color"], bsdf.inputs["Base Color"])
-    ao = nodes.new("ShaderNodeTexImage")
-    ao.image = images["ao"]
-    split = nodes.new("ShaderNodeSeparateColor")
-    links.new(ao.outputs["Color"], split.inputs["Color"])
-    group = bpy.data.node_groups.get("glTF Material Output") or bpy.data.node_groups.new(
-        "glTF Material Output", "ShaderNodeTree")
-    if "Occlusion" not in [s.name for s in group.interface.items_tree]:
-        group.interface.new_socket("Occlusion", in_out="INPUT", socket_type="NodeSocketFloat")
-    out = nodes.new("ShaderNodeGroup")
-    out.node_tree = group
-    links.new(split.outputs[0], out.inputs["Occlusion"])
-    obj.data.materials.clear()
-    obj.data.materials.append(final)
-    obj.data.color_attributes.remove(obj.data.color_attributes["paint"])
+    obj.data.materials.append(material)
 
 
 def rig(obj, regions):
@@ -556,8 +526,10 @@ def build():
     tail_end()
     wings()
     dragon, regions = join(body)
-    bake(dragon)
+    paint_material(dragon)
     rig_obj = rig(dragon, regions)
+    dragon = refine.refine(rig_obj, dragon, faces=7000, texture=TEXTURE, voxel=0.012, shell=lambda bone: "body",
+                           keep=("detail", "wing.L", "wing.R", "membrane.L", "membrane.R"), reach=0.1)
     animate(rig_obj)
     return rig_obj, dragon
 

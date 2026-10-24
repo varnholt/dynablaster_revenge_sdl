@@ -8,6 +8,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import bpy  # noqa: E402
 
+import refine  # noqa: E402
 import toy  # noqa: E402
 from toy import FORWARD, LIFT, bone_keys, cone, cycle, mirror, sphere, trs, tube, turn  # noqa: E402
 
@@ -42,22 +43,24 @@ def build():
     # head: face, eyes, blush, a mop of hair with two bunches and a bow on top
     head = trs((0, 0, HEAD))
     b.add(sphere(), "skin", "head", head @ trs((0, 0, 0), (0, 0, 0), (0.24, 0.22, 0.23)))
-    b.add(sphere(), "hair", "head", head @ trs((0, 0.04, 0.06), (-15, 0, 0), (0.27, 0.25, 0.23)))
+    b.add(sphere(), "hair", "head", head @ trs((0, 0.04, 0.06), (-15, 0, 0), (0.27, 0.25, 0.23)), shell="hair")
     for i, x in enumerate((-0.12, -0.04, 0.04, 0.12)):
         # the fringe
         b.add(sphere(), "hair", "head", head @ trs((x, -0.17, 0.12 - abs(x) * 0.3), (20, 0, x * 100),
-                                                   (0.07, 0.05, 0.08)))
+                                                   (0.07, 0.05, 0.08)), shell="hair")
     for s in (1, -1):
         side = (lambda m: m) if s > 0 else mirror
-        b.add(sphere(), "white", "head", head @ side(trs((0.08, -0.2, -0.01), (0, 0, 0), (0.045, 0.02, 0.06))))
-        b.add(sphere(), "black", "head", head @ side(trs((0.08, -0.215, -0.015), (0, 0, 0), (0.032, 0.02, 0.05))))
-        b.add(sphere(), "blush", "head", head @ side(trs((0.14, -0.17, -0.08), (0, 0, 20), (0.04, 0.015, 0.025))))
+        b.add(sphere(), "white", "head", head @ side(trs((0.08, -0.2, -0.01), (0, 0, 0), (0.045, 0.02, 0.06))), paint=True)
+        b.add(sphere(), "black", "head", head @ side(trs((0.08, -0.215, -0.015), (0, 0, 0), (0.032, 0.02, 0.05))), paint=True)
+        b.add(sphere(), "white", "head", head @ side(trs((0.095, -0.24, 0.01), (0, 0, 0), (0.012, 0.012, 0.015))),
+              paint=True)
+        b.add(sphere(), "blush", "head", head @ side(trs((0.14, -0.17, -0.08), (0, 0, 20), (0.04, 0.015, 0.025))), paint=True)
         b.add(tube([(0.2, 0.05, 0.05), (0.3, 0.08, -0.08), (0.3, 0.1, -0.22)], [0.09, 0.08, 0.04], 14),
-              "hair", "head", head @ side(trs()))
-        b.add(sphere(), "bow", "head", head @ side(trs((0.08, 0.0, 0.27), (0, -30, 0), (0.08, 0.04, 0.06))))
-    b.add(sphere(), "bow", "head", head @ trs((0, 0.0, 0.25), (0, 0, 0), (0.04, 0.04, 0.04)))
+              "hair", "head", head @ side(trs()), shell="hair")
+        b.add(sphere(), "bow", "head", head @ side(trs((0.08, 0.0, 0.27), (0, -30, 0), (0.08, 0.04, 0.06))), shell="hair")
+    b.add(sphere(), "bow", "head", head @ trs((0, 0.0, 0.25), (0, 0, 0), (0.04, 0.04, 0.04)), shell="hair")
     b.add(tube([(-0.04, -0.215, -0.11), (0, -0.225, -0.12), (0.04, -0.215, -0.11)], [0.01, 0.012, 0.01], 6),
-          "bow", "head", head)
+          "bow", "head", head, paint=True)
 
     # arms in puffed sleeves, legs with shoes
     for side, s in (("L", 1), ("R", -1)):
@@ -89,6 +92,7 @@ def animate(rig):
 
 
 rig, mesh = build()
+mesh = refine.refine(rig, mesh, faces=3600, density={"hair": 2.5})
 animate(rig)
 out = toy.out_dir()
 toy.export(rig, mesh, os.path.join(out, "princess.glb"))

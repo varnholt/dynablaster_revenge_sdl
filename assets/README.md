@@ -17,6 +17,18 @@ an `out/` folder of its own, which git ignores.
 `python assets/<folder>/build_all.py` builds one set; `enemies` and `story-worlds` take names or numbers to build
 only some.
 
+## Reviewing a model
+
+`review.py` renders models side by side (textured from four sides, then wireframes) and measures what makes a mesh
+look made by hand: triangles, loose pieces, triangles cutting through each other, how evenly edges and texture
+resolution are spread. Compare a new model against the original player:
+
+    blender --background --factory-startup --python assets/review.py -- sheet.png assets/intro/out/player.glb <model.glb>
+
+`intro/refine.py` turns a character built from primitives into such a model: the parts fused into one surface per
+limb, laid out in even quads, unwrapped along the colour borders, colours, painted details and ambient occlusion
+baked. The princess and the doctor go through it.
+
 ## How exact a rebuild is
 
 The geometry comes out the same on every run. Baked textures can differ a little:

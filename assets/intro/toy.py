@@ -68,6 +68,9 @@ class Builder:
         self.bm = bmesh.new()
         self.uv_layer = self.bm.loops.layers.uv.new("UVMap")
         self.deform = self.bm.verts.layers.deform.new()
+        self.paint = self.bm.faces.layers.int.new("paint")
+        self.shell = self.bm.faces.layers.int.new("shell")
+        self.shells = [""]  # shell names by index, "" for the default by bone (see refine.limbs)
         self.groups = []
         self.bones = {}  # name -> (head, tail, parent, roll)
 
@@ -81,9 +84,12 @@ class Builder:
             self.groups.append(name)
         return self.groups.index(name)
 
-    def add(self, mesh_bm, color, bone=None, matrix=Matrix(), weights=None):
+    def add(self, mesh_bm, color, bone=None, matrix=Matrix(), weights=None, paint=False, shell=""):
         """Copies mesh_bm in, transformed, coloured; weights(co before the transform) -> {bone: w} overrides
-        the rigid bone."""
+        the rigid bone. Painted parts (eyes, cheeks) only colour the surface under them once refined (refine.py);
+        parts with a shell name fuse into a surface of their own there, like hair on a head."""
+        if shell not in self.shells:
+            self.shells.append(shell)
         uv = self.palette.uv(color)
         local = {v: v.co.copy() for v in mesh_bm.verts}
         mesh_bm.transform(matrix)
@@ -100,6 +106,8 @@ class Builder:
         for f in mesh_bm.faces:
             nf = self.bm.faces.new([mapping[v] for v in f.verts])
             nf.smooth = f.smooth
+            nf[self.paint] = paint
+            nf[self.shell] = self.shells.index(shell)
             for loop in nf.loops:
                 loop[self.uv_layer].uv = uv
         mesh_bm.free()
@@ -119,6 +127,7 @@ class Builder:
         mesh = bpy.data.meshes.new(self.name)
         self.bm.to_mesh(mesh)
         self.bm.free()
+        mesh["shells"] = self.shells
         mesh.materials.append(self.palette.material)
         obj = bpy.data.objects.new(self.name, mesh)
         bpy.context.scene.collection.objects.link(obj)
