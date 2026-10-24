@@ -109,7 +109,9 @@ def stage(actors):
     bpy.context.view_layer.update()
     for name, offset in (("rider", (0.0, 0.15, 1.58)), ("princess", (0.0, -0.5, 0.04))):
         holder = actors[name]["holder"]
-        world = Matrix.Translation(rig.matrix_world @ Vector(offset)) @ Matrix.Diagonal(
+        # turned as the dragon is, so they face where its head points (whichever way it's turned just now)
+        turned = rig.matrix_world.to_quaternion().to_matrix().to_4x4()
+        world = Matrix.Translation(rig.matrix_world @ Vector(offset)) @ turned @ Matrix.Diagonal(
             (ACTORS[name]["scale"],) * 3 + (1,))
         holder.parent = rig
         holder.parent_type = "BONE"
