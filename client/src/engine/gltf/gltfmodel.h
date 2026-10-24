@@ -8,6 +8,7 @@
 
 #include "math/matrix.h"
 #include "math/vector.h"
+#include "math/vector4.h"
 
 //! a model from a binary glTF (.glb): textured meshes, optionally skinned and animated
 //!
@@ -116,6 +117,14 @@ private:
 
       //! the colour by night, from the material's emissive texture, blended in by setDaylight()
       int32_t _night_image = -1;
+
+      //! fine surface detail (grass, gravel, bark) tiled over the colour in world space, from the material's
+      //! extras "detail": [mask, image 0..3, repeats per unit 0..3, strength]: up to four detail images, the
+      //! mask's rgba (read at the colour's uvs) how much of each shows where; 0 strength for none
+      int32_t _detail_mask_image = -1;
+      std::array<int32_t, 4> _detail_images{-1, -1, -1, -1};
+      Vector4 _detail_scales;
+      float _detail_strength = 0.0f;
       uint32_t _vertex_buffer = 0;
       uint32_t _index_buffer = 0;
    };
