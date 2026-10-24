@@ -13,6 +13,7 @@ from mathutils import Matrix
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 import detail  # noqa: E402
+import grass  # noqa: E402
 
 ARGS = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 OUT = ARGS[0] if ARGS else os.path.join(os.path.dirname(__file__), "surroundings")
@@ -434,6 +435,7 @@ def terrain(st, height_fn, color_fn, name):
     gy, gx = np.gradient(TZ, (st.y1 - st.y0) / GROUND_TEX, (st.x1 - st.x0) / GROUND_TEX)
     slope = np.hypot(gx, gy)
     rgb = color_fn(TX, TY, TZ, slope)
+    GROUND[:] = [height_fn, rgb, slope]
     # where grass, soil, rock and pebbles show up close, at half the colour's resolution
     half = GROUND_TEX // 2
     GROUND_DETAIL[:] = [detail.mask(DETAIL[0], np.clip(rgb, 0, 1), slope).reshape(half, 2, half, 2, 4).mean(axis=(1, 3))]
@@ -451,6 +453,7 @@ def terrain(st, height_fn, color_fn, name):
 
 
 WATER = []
+GROUND = []  # the ground's height function, colour and slope in texture space, where the grass grows
 GROUND_DETAIL = []  # the ground's detail mask, see detail.ground_mask()
 PROPS_DETAIL = []  # the props'
 DETAIL = ["nature", "foliage"]  # the world's detail sets for the ground and the props, see detail.story_world()
@@ -1198,6 +1201,126 @@ WORLDS = {
 }
 
 
+# --- grass ----------------------------------------------------------------------------------------
+
+GRASS_WORLDS = {1, 2, 3, 4}  # 5's green is moss on cave earth, 6..8 are indoors
+GRASS_SHADES = 4  # the atlas' columns, light to dark ground
+GRASS_CLUMPS = 2000  # at most, three quads each
+GRASS_SWAY = 0.06  # how far the blades' tips move at most, tiles
+
+
+def grassy(rgb):
+    """How much a ground colour reads as grass, 0..1: green well above red and blue (not sand, soil or rock)."""
+    r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
+    return smooth(1.1, 1.4, g / np.maximum(r, 1e-3)) * smooth(1.2, 1.7, g / np.maximum(b, 1e-3))
+
+
+def grass_meadow(st, props):
+    """Clumps of grass on the grassy ground around the field: thick in the strip the camera looks at, thinning out
+    into the land, none on the walkway around the field, on steep ground, under the water or under the props. Made
+    after the bakes: they neither occlude nor take a colour from them, the atlas shades them like the ground."""
+    from mathutils import Vector
+    from mathutils.bvhtree import BVHTree
+
+    height_fn, rgb, slope = GROUND
+    rng = np.random.default_rng(st.rng.integers(1 << 30))
+    n = len(rgb)
+
+    # candidates on a jittered grid, at most one clump a cell
+    cell = 0.3
+    X, Y = np.meshgrid(np.arange(st.x0, st.x1, cell), np.arange(st.y0, st.y1, cell))
+    X = (X + rng.uniform(0, cell, X.shape)).ravel()
+    Y = (Y + rng.uniform(0, cell, Y.shape)).ravel()
+    ix = np.clip(((X - st.x0) / (st.x1 - st.x0) * n).astype(int), 0, n - 1)
+    iy = np.clip(((Y - st.y0) / (st.y1 - st.y0) * n).astype(int), 0, n - 1)
+    ground = rgb[iy, ix]
+    d = st.outside(X, Y)
+    density = smooth(0.3, 0.7, d) * (0.04 + 0.96 * smooth(5.0, 1.5, d))
+    density = density * grassy(ground) * smooth(0.7, 0.4, slope[iy, ix])
+    # in patches, a lawn would look like a carpet
+    density = density * (0.45 + 0.55 * smooth(0.35, 0.6, fbm(X, Y, 0.45, 3, 61)))
+    Z = height_fn(X, Y)
+    for water, _ in WATER:
+        density = density * (Z > water.data.vertices[0].co.z + 0.12)
+    keep = rng.random(X.shape) < density
+    if keep.sum() > GRASS_CLUMPS:
+        # over the budget the far ones go first
+        kept = np.flatnonzero(keep)
+        keep[kept[np.argsort(d[kept] + rng.uniform(0, 2.0, len(kept)))[GRASS_CLUMPS:]]] = False
+    X, Y, Z, ground = X[keep], Y[keep], Z[keep], ground[keep]
+
+    # not inside or under rocks, walls, trunks and bushes; tree crowns high above are fine
+    matrix = props.matrix_world
+    tree = BVHTree.FromPolygons([matrix @ v.co for v in props.data.vertices], [p.vertices[:] for p in props.data.polygons])
+    free = []
+    for x, y, z in zip(X, Y, Z):
+        hit, *_ = tree.ray_cast(Vector((x, y, z + 0.7)), Vector((0, 0, -1)), 0.75)
+        near = tree.find_nearest(Vector((x, y, z + 0.15)), 0.3)
+        free.append(hit is None and near[0] is None)
+    free = np.array(free, bool)
+    X, Y, Z, ground = X[free], Y[free], Z[free], ground[free]
+    if len(X) == 0:
+        return None
+
+    # the atlas' shades: the grassy ground's colours from dark to light, each clump takes the nearest
+    lum = ground @ np.array([0.3, 0.59, 0.11])
+    edges = np.quantile(lum, np.linspace(0, 1, GRASS_SHADES + 1)[1:-1])
+    shade = np.digitize(lum, edges)
+    colors = [ground[shade == k].mean(axis=0) if (shade == k).any() else ground.mean(axis=0) for k in range(GRASS_SHADES)]
+
+    verts, faces, uvs, waves, normals = [], [], [], [], []
+    wind = np.array(WIND) / np.linalg.norm(WIND)
+    for x, y, z, k in zip(X, Y, Z, shade):
+        size = rng.uniform(0.7, 1.3)
+        tall = rng.uniform(0.3, 0.45)
+        # the camera looks from the south, down onto the field: a fan of three quads some 50 degrees apart, each
+        # one's front towards it, so it sees fronts only (the backs are lit with the normal flipped, which turns
+        # them dark in the open); a full star would always turn one quad edge on, its back to half the screen
+        facing = math.atan2(-20.0, st.cx - x) + rng.uniform(-0.2, 0.2)
+        lean = rng.normal(0, 0.03, 2) + wind[:2] * 0.03
+        for q in (-1, 0, 1):
+            # along the quad, its front's normal a quarter turn clockwise of that
+            a = facing + q * 0.85 + rng.uniform(-0.1, 0.1) + math.pi / 2
+            dx, dy = math.cos(a) * 0.26 * size, math.sin(a) * 0.26 * size
+            ends = ((x - dx, y - dy), (x + dx, y + dy))
+            # each foot just below the ground under it, so the clump stands on slopes too
+            feet = [ground_height(st, ex, ey, height_fn) - 0.04 for ex, ey in ends]
+            i = len(verts)
+            verts += [(ends[0][0], ends[0][1], feet[0]), (ends[1][0], ends[1][1], feet[1]),
+                      (ends[1][0] + lean[0], ends[1][1] + lean[1], feet[1] + tall),
+                      (ends[0][0] + lean[0], ends[0][1] + lean[1], feet[0] + tall)]
+            faces.append((i, i + 1, i + 2, i + 3))
+            u0, v0, u1, v1 = grass.cell(int(k), GRASS_SHADES, int(rng.integers(grass.ROWS)), rng.random() < 0.5)
+            uvs += [(u0, v0), (u1, v0), (u1, v1), (u0, v1)]
+            # the base holds, the tips give
+            waves += [0.0, 0.0, 1.0, 1.0]
+            # lit nearly like the ground under it: the front's normal bent up
+            normal = np.array([math.sin(a) * 0.5, -math.cos(a) * 0.5, 1.0])
+            normals += [normal / np.linalg.norm(normal)] * 4
+
+    mesh = bpy.data.meshes.new("grass")
+    mesh.from_pydata(verts, [], faces)
+    obj = bpy.data.objects.new("grass", mesh)
+    bpy.context.scene.collection.objects.link(obj)
+    uv = mesh.uv_layers.new(name="UVMap")
+    uv.data.foreach_set("uv", np.array(uvs, np.float32).ravel())
+    for p in mesh.polygons:
+        p.use_smooth = True
+    mesh.normals_split_custom_set_from_vertices(normals)
+    colors_attr = mesh.color_attributes.new("wave", "FLOAT_COLOR", "CORNER")
+    for loop in mesh.loops:
+        colors_attr.data[loop.index].color = (wind[0] * 0.5 + 0.5, wind[1] * 0.5 + 0.5, wind[2] * 0.5 + 0.5,
+                                              waves[loop.vertex_index])
+    mesh.color_attributes.active_color = colors_attr
+    # else the exporter puts a white one first
+    mesh.color_attributes.render_color_index = mesh.color_attributes.active_color_index
+    obj["wave"] = [GRASS_SWAY]
+    # the material's colour and cutout go in after the export, see grass.embed()
+    mat = bpy.data.materials.new("grass_export")
+    mesh.materials.append(mat)
+    return grass.atlas(colors)
+
+
 # --- bake and export ------------------------------------------------------------------------------
 
 def setup_cycles():
@@ -1376,6 +1499,7 @@ def build(world, size_key):
     for obj, color_img, ao_img in ((ground, ground_color, ground_ao), (props, props_color, props_ao)):
         obj.data.materials.clear()
         obj.data.materials.append(export_material(f"{obj.name}_export", color_img, ao_img))
+    blades = grass_meadow(st, props) if world in GRASS_WORLDS else None
     separate_spinners(props)
 
     tris = sum(len(p.vertices) - 2 for o in (ground, props) for p in o.data.polygons)
@@ -1400,6 +1524,8 @@ def build(world, size_key):
         merge_animations(path, "spin")
     for material, mask, kind in (("ground_export", GROUND_DETAIL[0], DETAIL[0]), ("props_export", PROPS_DETAIL[0], DETAIL[1])):
         detail.embed(path, {material: mask}, detail.images(kind), detail.repeats(kind), detail.strength(kind))
+    if blades is not None:
+        grass.embed(path, "grass_export", blades)
     for img in (ground_color, props_color, props_ao, ground_ao, *(img for _, img in WATER)):
         img.pack()
     bpy.context.scene.name = f"world{world}_{title}_{w}x{h}"
