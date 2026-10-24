@@ -8,8 +8,21 @@ Blender is found via the `BLENDER` environment variable or in its default instal
 (`C:\Program Files\Blender Foundation\Blender <version>\blender.exe`). Every folder keeps its intermediate files in
 an `out/` folder of its own, which git ignores.
 
-| Folder | Builds | Into |
-| --- | --- | --- |
-| `intro/` | the story mode's intro: the cast, the lab, the mountains, the timeline | `client/data/game/story/intro/` |
+| Folder | Builds | Into | Takes |
+| --- | --- | --- | --- |
+| `intro/` | the story mode's intro: the cast, the lab, the mountains, the sky, the timeline | `client/data/game/story/intro/` | 20 s |
+| `enemies/` | the story mode's enemies and bosses, rigged with idle, walk and die cycles | `client/data/game/enemies/` | 2 min |
+| `story-worlds/` | per world of the story mode the floor, border and the dioramas around the stages | `client/data/game/story/world<n>/` | 10 min |
 
-`python assets/<folder>/build_all.py` builds one set.
+`python assets/<folder>/build_all.py` builds one set; `enemies` and `story-worlds` take names or numbers to build
+only some.
+
+## How exact a rebuild is
+
+The geometry comes out the same on every run. Baked textures can differ a little:
+
+- ambient occlusion is sampled, so the enemies' occlusion maps vary by a few levels between runs;
+- the dioramas of worlds 1, 6 and 7 have so many props that Blender packs their texture atlas differently each run;
+  texture and uvs change together, the dioramas look the same.
+
+So a rebuild leaves files changed that look as they did; commit only those you meant to change.
