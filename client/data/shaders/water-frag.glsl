@@ -14,6 +14,11 @@ uniform float u_time;
 uniform vec3 u_eye;
 uniform vec3 u_deep;
 
+// the air, as for the glTF scenery: the haze's rgb and strength, the box it's measured from, near and far
+uniform vec4 u_haze;
+uniform highp vec4 u_haze_box;
+uniform vec2 u_haze_range;
+
 // the viewport in window pixels
 uniform vec2 u_origin;
 uniform vec2 u_size;
@@ -76,6 +81,12 @@ void main()
    float churn = noise(p * 3.5 + vec2(u_time * 0.25, -u_time * 0.2)) * 0.6 + noise(p * 9.0 - u_time * 0.5) * 0.4;
    float foam = smoothstep(0.45, 0.8, data.g * (0.55 + 0.7 * churn));
    color = mix(color, vec3(0.92, 0.96, 1.0), foam * 0.85);
+
+   if (u_haze.a > 0.0)
+   {
+      highp vec2 outside = max(max(u_haze_box.xy - world.xy, world.xy - u_haze_box.zw), vec2(0.0));
+      color = mix(color, u_haze.rgb, smoothstep(u_haze_range.x, u_haze_range.y, length(outside)) * u_haze.a);
+   }
 
    o_color = vec4(color, 1.0);
 }

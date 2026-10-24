@@ -29,6 +29,24 @@ public:
       Vector _tint = Vector(1.0f, 1.0f, 1.0f);
    };
 
+   //! the air and light a scene sits in, from its extras: "atmosphere": [haze r, g, b, strength, near, far,
+   //! ambient r, g, b, rim r, g, b]; the land fades into the haze from near to far units outside the box
+   //! (usually the field), the ambient light and the rim light at the silhouettes take their colours
+   struct Atmosphere
+   {
+      Vector _haze = Vector(0.0f, 0.0f, 0.0f);
+
+      //! 0 for none
+      float _strength = 0.0f;
+      float _near = 0.0f;
+      float _far = 1.0f;
+
+      //! x0, y0, x1, y1 in world space
+      Vector4 _box = Vector4(0.0f, 0.0f, 0.0f, 0.0f);
+      Vector _ambient = Vector(1.0f, 1.0f, 1.0f);
+      Vector _rim = Vector(1.0f, 1.0f, 1.0f);
+   };
+
    //! a light's glow, from a node's extras: "glow": [r, g, b, size, mode]
    struct Glow
    {
@@ -64,6 +82,9 @@ public:
    //! the lights placed in the model
    [[nodiscard]] const std::vector<Glow>& getGlows() const;
 
+   //! the scene's atmosphere, neutral if it has none (its box is left to the caller)
+   [[nodiscard]] const Atmosphere& getAtmosphere() const;
+
    //! uploads the gpu resources, needs the gl context
    void initializeGL();
 
@@ -79,6 +100,10 @@ public:
 
    //! 1 draws the colour textures, 0 the primitives' night textures (where they have one), between blends them
    static void setDaylight(float daylight);
+
+   //! the atmosphere draw() and the water draw in, until set otherwise; a default one is neutral
+   static void setAtmosphere(const Atmosphere& atmosphere);
+   [[nodiscard]] static const Atmosphere& getCurrentAtmosphere();
 
    //! the water surfaces, primitives of nodes with "water": [r, g, b] (the deep colour) in their extras;
    //! draw() leaves them out, drawWater() draws them with the shader that's set, texture unit 0 holds
@@ -176,6 +201,7 @@ private:
    std::vector<int32_t> _joints;
    std::vector<Matrix4> _inverse_bind;
    std::vector<Glow> _glows;
+   Atmosphere _atmosphere;
    bool _has_water = false;
    float _water_level = 0.0f;
    Vector _water_color;

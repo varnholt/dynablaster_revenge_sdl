@@ -279,6 +279,7 @@ void StoryIntroDrawable::paintGL()
    look._tint = NIGHT * fade;
 
    GltfModel::setDaylight(1.0f);
+   GltfModel::setAtmosphere({});
    GltfModel::begin();
 
    for (const Actor& actor : _actors)
