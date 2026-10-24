@@ -55,6 +55,8 @@ struct Shader
    int32_t _haze_range = -1;
    int32_t _ambient = -1;
    int32_t _rim = -1;
+   int32_t _alpha_cutoff = -1;
+   int32_t _double_sided = -1;
 };
 
 // texture units: colour, occlusion, night, then the detail mask and the detail images
@@ -505,6 +507,13 @@ void GltfModel::load(const std::string& filename)
                primitive._detail_scales = Vector4((*detail)[5], (*detail)[6], (*detail)[7], (*detail)[8]);
                primitive._detail_strength = primitive._detail_mask_image >= 0 ? (*detail)[9] : 0.0f;
             }
+
+            if (source.material->alpha_mode == cgltf_alpha_mode_mask)
+            {
+               // cgltf reads a missing alphaCutoff as the spec's 0.5
+               primitive._alpha_cutoff = std::max(source.material->alpha_cutoff, 0.001f);
+               primitive._double_sided = source.material->double_sided;
+            }
          }
 
          _primitives.push_back(std::move(primitive));
@@ -800,6 +809,8 @@ void GltfModel::begin()
       shader._haze_range = activeDevice().getParameterIndex("u_haze_range");
       shader._ambient = activeDevice().getParameterIndex("u_ambient");
       shader._rim = activeDevice().getParameterIndex("u_rim");
+      shader._alpha_cutoff = activeDevice().getParameterIndex("u_alpha_cutoff");
+      shader._double_sided = activeDevice().getParameterIndex("u_double_sided");
    }
 
    activeDevice().setShader(shader._program);
@@ -907,6 +918,15 @@ void GltfModel::draw(const Matrix& transform, int32_t animation, float time, con
       }
 
       activeDevice().setParameter(shader._has_night, primitive._night_image >= 0 ? 1.0f : 0.0f);
+      activeDevice().setParameter(shader._alpha_cutoff, primitive._alpha_cutoff);
+      activeDevice().setParameter(shader._double_sided, primitive._double_sided ? 1.0f : 0.0f);
+
+      // both sides of a cutout, it writes depth like any opaque surface and needs no sorting
+      if (primitive._double_sided)
+      {
+         glDisable(GL_CULL_FACE);
+      }
+
       glActiveTexture(GL_TEXTURE2);
       glBindTexture(GL_TEXTURE_2D, texture_of(primitive._night_image));
       glActiveTexture(GL_TEXTURE1);
@@ -924,6 +944,11 @@ void GltfModel::draw(const Matrix& transform, int32_t animation, float time, con
 
       glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, primitive._index_buffer);
       glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(primitive._indices.size()), GL_UNSIGNED_INT, nullptr);
+
+      if (primitive._double_sided)
+      {
+         glEnable(GL_CULL_FACE);
+      }
    }
 
    glBindBuffer(GL_ARRAY_BUFFER, 0);

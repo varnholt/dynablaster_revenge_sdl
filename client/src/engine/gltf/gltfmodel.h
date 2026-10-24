@@ -154,6 +154,14 @@ private:
       std::array<int32_t, 4> _detail_images{-1, -1, -1, -1};
       Vector4 _detail_scales;
       float _detail_strength = 0.0f;
+
+      //! cutouts (grass, leaves) from the material's alphaMode "MASK": fragments whose colour's alpha is below
+      //! this are dropped, 0 for opaque materials
+      float _alpha_cutoff = 0.0f;
+
+      //! a cutout material's doubleSided: both sides drawn, the back lit with the normal flipped; opaque materials
+      //! keep their back faces culled, Blender's exporter marks every material double sided unless told otherwise
+      bool _double_sided = false;
       uint32_t _vertex_buffer = 0;
       uint32_t _index_buffer = 0;
    };

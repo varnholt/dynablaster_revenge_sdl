@@ -17,6 +17,11 @@ uniform vec3 u_tint;
 // fragments above this height are dropped (mirror images)
 uniform highp float u_clip;
 
+// cutouts (alphaMode MASK): fragments whose colour's alpha is below this are dropped, 0 for opaque materials;
+// double sided ones are lit on their back with the normal flipped
+uniform float u_alpha_cutoff;
+uniform float u_double_sided;
+
 // fine surface detail tiled in world space: up to four detail images, the mask's rgba (at the colour's uvs) how
 // much of each shows where, their repeats per unit; images average mid grey, so far away (in the mipmaps) they
 // leave the colour as it is
@@ -75,8 +80,24 @@ void main()
       discard;
    }
 
+   if (u_alpha_cutoff > 0.0)
+   {
+      // the mipmaps average the blades with the gaps between them, their alpha sinks below the cutoff and the
+      // cutout would thin out with the distance; scaled up by the mipmap level it keeps its coverage
+      highp vec2 texels = uv * vec2(textureSize(u_color, 0));
+      highp float level = log2(max(max(length(dFdx(texels)), length(dFdy(texels))), 1.0));
+      if (texture(u_color, uv).a * (1.0 + level * 0.25) < u_alpha_cutoff)
+      {
+         discard;
+      }
+   }
+
    vec3 light = normalize(vec3(-0.35, -0.55, 0.75));
    vec3 n = normalize(nrm);
+   if (u_double_sided > 0.5 && !gl_FrontFacing)
+   {
+      n = -n;
+   }
    float diffuse = max(dot(n, light), 0.0);
    float rim = pow(1.0 - max(n.z, 0.0), 3.0) * 0.15;
 
