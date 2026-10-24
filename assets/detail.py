@@ -1,7 +1,8 @@
 # Fine surface detail for the game's glTF shader: small seamless grey images the shader tiles in world space over
 # a material's colour, and a mask saying where each one shows. The images average mid grey, so they only add
-# detail and leave the colours as they are. Two sets of four: "nature" (grass tufts, soil, cracked rock,
-# pebbles) and "castle" (worn tiles, brick grit, brushed metal, stone).
+# detail and leave the colours as they are. Sets of four: "nature" (grass tufts, soil, cracked rock, pebbles),
+# "castle" (worn tiles, brick grit, brushed metal, stone) and "ship" (wood grain along x, canvas, old paint,
+# metal).
 #
 #   images(kind)        the set's four images, grey numpy arrays
 #   mask(kind, ...)     a material's mask from its colour texture and slopes
@@ -162,6 +163,42 @@ def stone(rng):
     return normalised(image, 0.13)
 
 
+def wood(rng):
+    """Planed wood along u: long fine grain lines that drift a little, a few knots."""
+    size = SIZE
+    v = np.arange(size)[:, None].astype(float)
+    drift = periodic_noise(rng, size, 3) * 4.0
+    grain = np.sin((v + drift) * 2 * np.pi / 9.0)
+    # streaks: noise averaged along u
+    streak = rng.standard_normal((size, size))
+    kernel = np.ones(48) / 48
+    streak = np.real(np.fft.ifft(np.fft.fft(streak, axis=1) * np.fft.fft(kernel, size)[None, :], axis=1))
+    image = grain * 0.45 + streak / streak.std() * 0.5
+    f1, _, _ = cells(rng, size, 5)
+    image -= np.clip(1.0 - f1 / 8.0, 0, 1) * 1.5
+    return normalised(image, 0.13)
+
+
+def canvas(rng):
+    """Sailcloth: a fine weave, faint stains."""
+    size = SIZE
+    y, x = np.mgrid[0:size, 0:size].astype(float)
+    weave = np.sin(x * 2 * np.pi / 4.0) * np.sin(y * 2 * np.pi / 4.0)
+    image = weave * 0.5 + fbm(rng, size, 3) * 0.6 + periodic_noise(rng, size, 60) * 0.2
+    return normalised(image, 0.1)
+
+
+def paint(rng):
+    """Old paint on wood: brush streaks, chips where the wood shows through."""
+    size = SIZE
+    streak = np.cumsum(rng.standard_normal((size, size)) * 0.3, axis=1)
+    streak = (streak - streak.mean(axis=1, keepdims=True)) / (streak.std(axis=1, keepdims=True) + 1e-6)
+    image = streak * 0.3 + periodic_noise(rng, size, 120) * 0.3
+    chips = fbm(rng, size, 6)
+    image -= (chips > 1.3) * 2.0
+    return normalised(image, 0.13)
+
+
 # --- the sets: their images, repeats per unit (tile), and how a texture's colours pick them --------------
 
 def nature_mask(rgb, slope):
@@ -194,9 +231,23 @@ def castle_mask(rgb, slope):
     return _normalise(weights)
 
 
+def ship_mask(rgb, slope):
+    """Canvas where pale and grey (sails), wood where brown, paint where strongly coloured otherwise, metal where
+    dark grey."""
+    r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
+    top, saturation = _value_saturation(rgb)
+    grey = np.clip(1.0 - saturation * 3.0, 0, 1)
+    light = np.clip((top - 0.5) * 4.0, 0, 1)
+    brown = np.clip((r - b) / (top + 1e-6) * 2.5, 0, 1) * (r >= g) * (g >= b * 0.9) * (1.0 - grey)
+    coloured = np.clip(saturation * 3.0 - 0.6, 0, 1) * (1.0 - brown)
+    weights = np.stack([brown, grey * light, coloured, grey * (1.0 - light)], axis=-1)
+    return _normalise(weights)
+
+
 SETS = {
     "nature": ([grass, soil, rock, pebbles], [0.5, 0.6, 0.3, 0.8], nature_mask),
     "castle": ([worn, grit, brushed, stone], [0.5, 0.8, 0.6, 0.4], castle_mask),
+    "ship": ([wood, canvas, paint, brushed], [0.45, 1.2, 0.6, 0.8], ship_mask),
 }
 
 
@@ -220,6 +271,14 @@ def mask(kind, rgb, slope):
     """Per texel of a colour texture (rgb 0..1, rows bottom up like Blender's) and its slope (rise over run) the
     weight of each of the set's images."""
     return SETS[kind][2](rgb, slope)
+
+
+STRENGTHS = {"ship": 0.5}
+
+
+def strength(kind):
+    """How strongly the set's detail shows."""
+    return STRENGTHS.get(kind, STRENGTH)
 
 
 def repeats(kind):

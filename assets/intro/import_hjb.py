@@ -18,13 +18,13 @@ import bpy
 import numpy as np
 from mathutils import Matrix
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "tools", "level-pirate"))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "level-pirate"))
 from hjb_cameras import Reader, quat_mul  # noqa: E402
 
 ARGS = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 DATA = os.path.join(ROOT, "client", "data", "game")
-OUT_BLEND = ARGS[0] if ARGS else os.path.join(ROOT, "tools", "intro", "out", "player.blend")
+OUT_BLEND = ARGS[0] if ARGS else os.path.join(ROOT, "assets", "intro", "out", "player.blend")
 OUT_GLB = ARGS[1] if len(ARGS) > 1 else os.path.splitext(OUT_BLEND)[0] + ".glb"
 
 # the game's MotionMixer order, the first one is the reference the player mesh is taken from

@@ -4,6 +4,7 @@
 #   make_intro.py      the fly-in camera from far out at sea
 #   make_level_hjb.py  level.hjb: the castle's game cameras with that shadow camera and fly-in
 #   make_textures.py   the block skins
+#   ship_detail.py     the ship's detail up close, put into ship.glb
 # Blender is found via the BLENDER environment variable or in its default install folder.
 import glob
 import os
@@ -41,6 +42,7 @@ subprocess.run([sys.executable, os.path.join(HERE, "make_intro.py"), os.path.joi
 subprocess.run([sys.executable, os.path.join(HERE, "make_level_hjb.py"), os.path.join(LEVEL, "level.hjb"),
                 os.path.join(OUT, "cameras.json"), os.path.join(OUT, "intro.json")], check=True)
 subprocess.run([sys.executable, os.path.join(HERE, "make_textures.py"), LEVEL], check=True)
+subprocess.run([sys.executable, os.path.join(HERE, "ship_detail.py"), os.path.join(OUT, "ship.glb")], check=True)
 for name in ("ship.glb", "diffuse_level.tga", "specular_level.tga", "shadow-cookie.tga"):
     shutil.copy(os.path.join(OUT, name), LEVEL)
 # the bombs' environment and the blocks' and bombs' drop shadows are the castle's

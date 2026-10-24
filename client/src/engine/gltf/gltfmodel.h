@@ -100,6 +100,7 @@ public:
 
    //! 1 draws the colour textures, 0 the primitives' night textures (where they have one), between blends them
    static void setDaylight(float daylight);
+   [[nodiscard]] static float getDaylight();
 
    //! the atmosphere draw() and the water draw in, until set otherwise; a default one is neutral
    static void setAtmosphere(const Atmosphere& atmosphere);

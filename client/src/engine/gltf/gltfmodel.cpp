@@ -983,6 +983,11 @@ void GltfModel::setDaylight(float value)
    day_share = value;
 }
 
+float GltfModel::getDaylight()
+{
+   return day_share;
+}
+
 void GltfModel::setAtmosphere(const Atmosphere& value)
 {
    atmosphere = value;
