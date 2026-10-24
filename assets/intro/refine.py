@@ -7,6 +7,8 @@ import sys
 
 import bmesh
 import bpy
+import numpy as np
+import openvdb
 from mathutils.bvhtree import BVHTree
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
@@ -35,26 +37,85 @@ def without_paint(obj, keep_paint):
     bm.free()
 
 
-def fuse_and_retopo(body, voxel, faces):
-    """The parts fused by a voxel remesh, then laid out in about faces quads. The voxel mesh's slivers (edges a
-    millionth of its size) make QuadriFlow turn it down as not manifold, relaxing it a little first spreads them."""
-    select(body)
-    body.data.remesh_voxel_size = voxel
-    bpy.ops.object.voxel_remesh()
-    hi = bpy.data.objects.new(body.name + "_hi", body.data.copy())
-    bpy.context.scene.collection.objects.link(hi)
+def smin(a, b, k):
+    """The smooth minimum of two distances: their union with the crease between them rounded over k."""
+    h = np.clip(0.5 + 0.5 * (b - a) / k, 0.0, 1.0)
+    return b + (a - b) * h - k * h * (1.0 - h)
+
+
+def blend(body, voxel, fillet):
+    """The parts (body's loose pieces) blended into one surface the way a sculptor would join them: each part a
+    distance field, unioned smoothly so one grows out of the other over about fillet instead of being stuck in."""
     bm = bmesh.new()
     bm.from_mesh(body.data)
-    for _ in range(3):
-        bmesh.ops.smooth_vert(bm, verts=bm.verts, factor=0.5, use_axis_x=True, use_axis_y=True, use_axis_z=True)
-    bm.to_mesh(body.data)
+    bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if len(f.verts) > 4])
+    coords = np.array([v.co for v in bm.verts], np.float32)
+    lo = coords.min(axis=0) - fillet * 2 - voxel * 4
+    n = np.ceil((coords.max(axis=0) + fillet * 2 + voxel * 4 - lo) / voxel).astype(int) + 1
+    field = np.full(n, 1e3, np.float32)
+    band = fillet / voxel + 3
+    seen = set()
+    for start in bm.verts:
+        if start in seen:
+            continue
+        piece, stack = {start}, [start]
+        seen.add(start)
+        while stack:
+            for e in stack.pop().link_edges:
+                w = e.verts[1] if e.verts[0] in piece else e.verts[0]
+                if w not in seen:
+                    seen.add(w)
+                    piece.add(w)
+                    stack.append(w)
+        faces = {f for v in piece for f in v.link_faces}
+        index = {v: i for i, v in enumerate(piece)}
+        points = ((np.array([v.co for v in piece], np.float32) - lo) / voxel).astype(np.float32)
+        tris = np.array([[index[v] for v in f.verts] for f in faces if len(f.verts) == 3], np.uint32).reshape(-1, 3)
+        quads = np.array([[index[v] for v in f.verts] for f in faces if len(f.verts) == 4], np.uint32).reshape(-1, 4)
+        grid = openvdb.FloatGrid.createLevelSetFromPolygons(points, triangles=tris, quads=quads, halfWidth=band)
+        part = np.empty(n, np.float32)
+        grid.copyToArray(part)
+        field = smin(field, part * voxel, fillet)
     bm.free()
-    for symmetry in (True, False):
-        if bpy.ops.object.quadriflow_remesh(target_faces=faces, use_mesh_symmetry=symmetry, seed=0) == {"FINISHED"}:
+    grid = openvdb.FloatGrid(background=float(band * voxel))
+    grid.copyFromArray(field)
+    points, quads = grid.convertToQuads(isovalue=0.0)
+    mesh = bpy.data.meshes.new(body.data.name)
+    mesh.from_pydata((np.asarray(points, float) * voxel + lo).tolist(), [], np.asarray(quads, int).tolist())
+    mesh.validate()
+    bm = bmesh.new()
+    bm.from_mesh(mesh)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.to_mesh(mesh)
+    bm.free()
+    old = body.data
+    body.data = mesh
+    bpy.data.meshes.remove(old)
+
+
+def fuse_and_retopo(body, voxel, faces, fillet):
+    """The parts blended (see blend()), then laid out in about faces quads. The fused mesh's slivers (edges a
+    millionth of its size) make QuadriFlow turn some down as not manifold; relaxing it a little spreads them but
+    thins thin parts, so it's only the second try."""
+    blend(body, voxel, fillet)
+    hi = bpy.data.objects.new(body.name + "_hi", body.data.copy())
+    bpy.context.scene.collection.objects.link(hi)
+    select(body)
+    for relax in (False, True):
+        if relax:
+            bm = bmesh.new()
+            bm.from_mesh(body.data)
+            for _ in range(3):
+                bmesh.ops.smooth_vert(bm, verts=bm.verts, factor=0.5, use_axis_x=True, use_axis_y=True,
+                                      use_axis_z=True)
+            bm.to_mesh(body.data)
+            bm.free()
+        if any(bpy.ops.object.quadriflow_remesh(target_faces=faces, use_mesh_symmetry=symmetry, seed=0)
+               == {"FINISHED"} for symmetry in (True, False)):
             break
     else:
         raise RuntimeError("QuadriFlow failed")
-    # back onto the fused surface: the relaxing and QuadriFlow round off small shapes like curls and rims
+    # back onto the fused surface: QuadriFlow rounds off small shapes like curls and rims
     wrap = body.modifiers.new("wrap", "SHRINKWRAP")
     wrap.target = hi
     wrap.wrap_method = "NEAREST_SURFACEPOINT"
@@ -231,15 +292,19 @@ def shell_pieces(solid, shell):
     return pieces
 
 
-def refine(rig, parts, faces=1500, texture=512, voxel=None, shell=limbs, keep=(), reach=None):
+def refine(rig, parts, faces=1500, texture=512, voxel=None, shell=limbs, keep=(), reach=None, density=None,
+           fillet=None):
     """Replaces parts (bound to rig) by the refined model, which it returns. shell(bone) names the closed surface
     a bone's parts fuse into; faces are shared out by the shells' areas. Shells named in keep are taken as they
     are, for parts already laid out well that wouldn't survive fusing (thin sheets). reach: how far out painted
-    details stand at most, a sixteenth of the model's size by default."""
+    details stand at most, a sixteenth of the model's size by default. density: {shell: factor} for shells with
+    small shapes (curls, crevices) that need more faces than their area would give them. fillet: how far parts
+    blend into each other, a fortieth of the model's size by default."""
     name = parts.name
     height = max(parts.dimensions)
     reach = reach or height * 0.06
     voxel = voxel or height / 180
+    fillet = fillet or height / 40
     solid = copy(parts, name + "_solid")
     without_paint(solid, keep_paint=False)
     pieces = shell_pieces(solid, shell)
@@ -248,12 +313,14 @@ def refine(rig, parts, faces=1500, texture=512, voxel=None, shell=limbs, keep=()
     sources = shell_pieces(painted, shell)
     bpy.data.objects.remove(painted)
     # the faces go to the shells that are laid out again, by their areas
-    areas = {key: sum(p.area for p in piece.data.polygons) for key, piece in pieces.items() if key not in keep}
+    density = density or {}
+    areas = {key: sum(p.area for p in piece.data.polygons) * density.get(key, 1.0) for key, piece in pieces.items()
+             if key not in keep}
     lows, region = [], []
     for index, (key, piece) in enumerate(pieces.items()):
         low = copy(piece, f"{name}_{key}_low")
         if key not in keep:
-            fuse_and_retopo(low, voxel, max(120, round(faces * areas[key] / sum(areas.values()))))
+            fuse_and_retopo(low, voxel, max(120, round(faces * areas[key] / sum(areas.values()))), fillet)
         region += [(key, r) for r in regions(low, piece, reach)]
         skin(low, piece)
         bpy.data.objects.remove(piece)

@@ -38,6 +38,8 @@ def build():
     # lab coat: flared below, round shoulders, a collar, buttons and a pen in the breast pocket
     b.add(cone(0.25, 0.16, 0.5, 32), "coat", "body", trs((0, 0, 0.13)))
     b.add(sphere(), "coat", "body", trs((0, 0, 0.58), (0, 0, 0), (0.19, 0.16, 0.08)))
+    # a collar round the neck, so the crease where the head sits on the coat is the coat's
+    b.add(sphere(), "coat", "body", trs((0, 0.01, 0.655), (0, 0, 0), (0.14, 0.13, 0.04)))
     for s in (1, -1):
         side = (lambda m: m) if s > 0 else mirror
         b.add(cone(0.06, 0.0, 0.14, 4), "coat_shade", "body", side(trs((0.06, -0.12, 0.62), (200, 0, 30),

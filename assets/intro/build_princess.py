@@ -92,7 +92,7 @@ def animate(rig):
 
 
 rig, mesh = build()
-mesh = refine.refine(rig, mesh, faces=3000)
+mesh = refine.refine(rig, mesh, faces=3600, density={"hair": 2.5})
 animate(rig)
 out = toy.out_dir()
 toy.export(rig, mesh, os.path.join(out, "princess.glb"))

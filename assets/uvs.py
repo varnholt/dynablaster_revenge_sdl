@@ -101,6 +101,9 @@ def unwrap(low, region, hidden=None):
     """Seams along the colour borders; a region that isn't a disc is cut into front and back (and further, see
     CUTS) until its pieces are, then every piece unfolded with as little stretch as it allows and all packed into
     one texture. Returns the number of islands."""
+    # what's out of sight gets islands of its own, so it can have less texture without taking a face along
+    if hidden:
+        region = [(r, h) for r, h in zip(region, hidden)]
     label = [(r,) for r in tidy(low, region)]
     for axis in CUTS:
         axis = Vector(axis)
