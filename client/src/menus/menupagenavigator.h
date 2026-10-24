@@ -78,6 +78,11 @@ private:
    void updateCreateGamePlayerCounts();
    void updateCreateGameLevelPreview();
 
+   //! mirrors the level previews of GameMenuInterfaceSelect::updateGameProperties() - shows the
+   //! selected game's level on GAME_SELECT, none while no game is known. The table selection isn't
+   //! wired yet, so the selected game is the one JOIN joins (the first known game).
+   void updateSelectGameLevelPreview();
+
    //! mirrors GameMenuInterfaceLounge::playerInfoMapUpdated() - repopulates the lounge's player
    //! rows (nick/wins/rank/owner-icon) whenever the player set changes (join/leave/bot added).
    void onPlayerInfoMapUpdated(const std::map<int, PlayerInfo>& player_info);
@@ -186,6 +191,7 @@ private:
    std::size_t _game_started_connection = INVALID_CONNECTION;
    std::size_t _player_info_map_updated_connection = INVALID_CONNECTION;
    std::size_t _message_received_connection = INVALID_CONNECTION;
+   std::size_t _games_list_updated_connection = INVALID_CONNECTION;
 
    //! connection tokens for setMonitorCreateGameOptionsEnabled()'s connect/disconnect pair
    Signal<const std::string&>::Connection _max_players_value_changed_connection = INVALID_CONNECTION;
