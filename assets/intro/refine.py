@@ -66,15 +66,20 @@ def regions(low, parts, reach):
     """Per face of low the palette uv of the part the colour bake will see there (looking in along the normal from
     reach outside), or of the nearest part where that misses: the colour region the face belongs to."""
     tree = BVHTree.FromObject(parts, bpy.context.evaluated_depsgraph_get())
-    uv = parts.data.uv_layers.active.data
+    # a "part" face attribute names the regions of models painted in gradients, else the palette swatch does
+    named = parts.data.attributes.get("part")
+    uv = parts.data.uv_layers.active.data if named is None else None
     result = []
     for poly in low.data.polygons:
         _, _, index, _ = tree.ray_cast(poly.center + poly.normal * reach, -poly.normal, reach * 2)
         if index is None:
             _, _, index, _ = tree.find_nearest(poly.center)
         part = parts.data.polygons[index]
-        u, v = uv[part.loop_indices[0]].uv
-        result.append((round(u, 3), round(v, 3)))
+        if named is not None:
+            result.append(named.data[index].value)
+        else:
+            u, v = uv[part.loop_indices[0]].uv
+            result.append((round(u, 3), round(v, 3)))
     return result
 
 
@@ -116,8 +121,8 @@ def skin(low, parts):
     bpy.ops.object.mode_set(mode="OBJECT")
 
 
-def bake(low, sources, name, size, height):
-    """The colours with the painted details from just above the surface, each shell (low's "shell" face attribute
+def bake(low, sources, name, size, reach):
+    """The colours with the painted details from just above the surface, each shell (low's "piece" face attribute
     indexes sources) only from its own parts so the arm hidden in a dress doesn't come out pink; then the ambient
     occlusion of the whole."""
     scene = bpy.context.scene
@@ -141,7 +146,7 @@ def bake(low, sources, name, size, height):
         if kind == "color":
             # a few samples smooth the borders between colours
             scene.cycles.samples = 16
-            shells = [p.value for p in low.data.attributes["shell"].data]
+            shells = [p.value for p in low.data.attributes["piece"].data]
             for index, source in enumerate(sources):
                 piece = copy(low, f"{name}_bake_{index}")
                 bm = bmesh.new()
@@ -155,7 +160,7 @@ def bake(low, sources, name, size, height):
                 # the islands are packed a few pixels apart, a small margin keeps the shells off each other
                 scene.render.bake.use_clear = index == 0
                 bpy.ops.object.bake(type="DIFFUSE", pass_filter={"COLOR"}, margin=2, use_selected_to_active=True,
-                                    cage_extrusion=height * 0.06, max_ray_distance=height * 0.1)
+                                    cage_extrusion=reach, max_ray_distance=reach * 5 / 3)
                 bpy.data.objects.remove(piece)
             scene.render.bake.use_clear = True
         else:
@@ -165,7 +170,7 @@ def bake(low, sources, name, size, height):
                 o.hide_render = True
             select(low)
             scene.cycles.samples = 128
-            scene.world.light_settings.distance = height * 0.2
+            scene.world.light_settings.distance = reach * 10 / 3
             bpy.ops.object.bake(type="AO", margin=6)
             for o in hidden:
                 o.hide_render = False
@@ -226,11 +231,14 @@ def shell_pieces(solid, shell):
     return pieces
 
 
-def refine(rig, parts, faces=1500, texture=512, voxel=None, shell=limbs):
+def refine(rig, parts, faces=1500, texture=512, voxel=None, shell=limbs, keep=(), reach=None):
     """Replaces parts (bound to rig) by the refined model, which it returns. shell(bone) names the closed surface
-    a bone's parts fuse into; faces are shared out by the shells' areas."""
+    a bone's parts fuse into; faces are shared out by the shells' areas. Shells named in keep are taken as they
+    are, for parts already laid out well that wouldn't survive fusing (thin sheets). reach: how far out painted
+    details stand at most, a sixteenth of the model's size by default."""
     name = parts.name
     height = max(parts.dimensions)
+    reach = reach or height * 0.06
     voxel = voxel or height / 180
     solid = copy(parts, name + "_solid")
     without_paint(solid, keep_paint=False)
@@ -239,15 +247,21 @@ def refine(rig, parts, faces=1500, texture=512, voxel=None, shell=limbs):
     painted = copy(parts, name + "_painted")
     sources = shell_pieces(painted, shell)
     bpy.data.objects.remove(painted)
-    areas = {key: sum(p.area for p in piece.data.polygons) for key, piece in pieces.items()}
+    # the faces go to the shells that are laid out again, by their areas
+    areas = {key: sum(p.area for p in piece.data.polygons) for key, piece in pieces.items() if key not in keep}
     lows, region = [], []
     for index, (key, piece) in enumerate(pieces.items()):
         low = copy(piece, f"{name}_{key}_low")
-        fuse_and_retopo(low, voxel, max(120, round(faces * areas[key] / sum(areas.values()))))
-        region += [(key, r) for r in regions(low, piece, height * 0.06)]
+        if key not in keep:
+            fuse_and_retopo(low, voxel, max(120, round(faces * areas[key] / sum(areas.values()))))
+        region += [(key, r) for r in regions(low, piece, reach)]
         skin(low, piece)
         bpy.data.objects.remove(piece)
-        low.data.attributes.new("shell", "INT", "FACE").data.foreach_set("value", [index] * len(low.data.polygons))
+        # the builder's tags are done with (a voxel remesh drops them, a kept shell still has them)
+        for tag in ("paint", "part", "shell"):
+            if tag in low.data.attributes:
+                low.data.attributes.remove(low.data.attributes[tag])
+        low.data.attributes.new("piece", "INT", "FACE").data.foreach_set("value", [index] * len(low.data.polygons))
         lows.append(low)
     hidden = buried(lows)
     bpy.ops.object.select_all(action="DESELECT")
@@ -259,10 +273,10 @@ def refine(rig, parts, faces=1500, texture=512, voxel=None, shell=limbs):
     for poly in low.data.polygons:
         poly.use_smooth = True
     islands = unwrap(low, region, hidden)
-    bake(low, [sources[key] for key in pieces], name, texture, height)
+    bake(low, [sources[key] for key in pieces], name, texture, reach)
     for source in sources.values():
         bpy.data.objects.remove(source)
-    low.data.attributes.remove(low.data.attributes["shell"])
+    low.data.attributes.remove(low.data.attributes["piece"])
 
     bpy.data.objects.remove(parts)
     low.name = low.data.name = name
