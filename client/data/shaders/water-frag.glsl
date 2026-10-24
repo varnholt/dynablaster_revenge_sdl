@@ -14,6 +14,9 @@ uniform float u_time;
 uniform vec3 u_eye;
 uniform vec3 u_deep;
 
+// units a second the water streams past along x, 0 for still water
+uniform float u_flow;
+
 // the air, as for the glTF scenery: the haze's rgb and strength, the box it's measured from, near and far
 uniform vec4 u_haze;
 uniform highp vec4 u_haze_box;
@@ -78,8 +81,12 @@ void main()
    color += vec3(1.0, 0.97, 0.9) * pow(max(dot(n, half_vector), 0.0), 160.0) * 0.9;
 
    // foam, broken up and drifting
-   float churn = noise(p * 3.5 + vec2(u_time * 0.25, -u_time * 0.2)) * 0.6 + noise(p * 9.0 - u_time * 0.5) * 0.4;
-   float foam = smoothstep(0.45, 0.8, data.g * (0.55 + 0.7 * churn));
+   // flowing water carries the churn along, stretched into streaks, and swells the foam in passing waves
+   vec2 drift = vec2(u_flow * u_time, 0.0);
+   vec2 q = (p - drift) * vec2(1.0 / (1.0 + 0.35 * abs(u_flow)), 1.0);
+   float churn = noise(q * 3.5 + vec2(u_time * 0.25, -u_time * 0.2)) * 0.6 + noise(q * 9.0 - u_time * 0.5) * 0.4;
+   float swell = 1.0 + 0.35 * sin(p.x * 1.3 - u_time * u_flow * 1.3) * step(0.01, abs(u_flow));
+   float foam = smoothstep(0.45, 0.8, data.g * swell * (0.55 + 0.7 * churn));
    color = mix(color, vec3(0.92, 0.96, 1.0), foam * 0.85);
 
    if (u_haze.a > 0.0)
