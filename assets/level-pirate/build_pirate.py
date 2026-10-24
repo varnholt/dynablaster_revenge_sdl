@@ -13,6 +13,9 @@ import bpy
 import numpy as np
 from mathutils import Matrix, Vector
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import glb  # noqa: E402
+
 ARGS = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 OUT = ARGS[0] if ARGS else os.path.join(os.path.dirname(os.path.abspath(__file__)), "out")
 PREVIEW = globals().get("PIRATE_PREVIEW", False) or bool(os.environ.get("PIRATE_PREVIEW"))
@@ -1613,7 +1616,8 @@ def sky():
 # --- the caribbean: islands with white beaches, palms and turquoise shallows -----------------------------
 
 # x, y, radius, height of the land, seed; on the horizon behind the ship as the fly-in sees it, clear of the moon
-ISLANDS = [(-25.0, 125.0, 22.0, 9.0, 1), (80.0, 170.0, 14.0, 6.0, 2), (-115.0, 100.0, 30.0, 13.0, 3)]
+ISLANDS = [(-25.0, 125.0, 22.0, 9.0, 1), (80.0, 170.0, 14.0, 6.0, 2), (140.0, 50.0, 30.0, 13.0, 3)]
+LIGHTHOUSE = (-30.0, 112.0)  # on the nearest island's seaward side, facing the ship
 SHELF = 30.0  # how far the shallows reach out from the beach
 DEEP = SEA_Z - 7.0
 ISLAND_TEX = 1024
@@ -1686,7 +1690,7 @@ def palette_image(name, colors):
 
 def palm(verts, faces, uvs, waves, base, lean, height, rng):
     """A coconut palm: a trunk curving away from lean, a crown of drooping fronds; uvs pick the palette's trunk
-    (0.25) or frond (0.75) swatch, waves how the fronds give in the wind."""
+    or frond swatch (see islands()), waves how the fronds give in the wind."""
     wind = Vector((1.0, 0.35, 0.0)).normalized()
     segments, sides = 7, 6
     points = []
@@ -1698,7 +1702,7 @@ def palm(verts, faces, uvs, waves, base, lean, height, rng):
         for s in range(sides):
             a = 2 * math.pi * s / sides
             verts.append(p + Vector((math.cos(a), math.sin(a), 0.0)) * radius)
-            uvs.append((0.25, 0.5))
+            uvs.append((4.5 / 6, 0.5))
             waves.append((wind, 0.08 * (k / segments) ** 2))
     start = len(verts) - (segments + 1) * sides
     for k in range(segments):
@@ -1719,13 +1723,123 @@ def palm(verts, faces, uvs, waves, base, lean, height, rng):
             width = 0.75 * math.sin(math.pi * min(t * 1.1, 1.0)) + 0.05
             for edge in (-1, 1):
                 verts.append(centre + side * width * edge + Vector((0.0, 0.0, 0.08 * t)))
-                uvs.append((0.75, 0.5))
+                uvs.append((5.5 / 6, 0.5))
                 waves.append((wind, t))
             row.append(len(verts) - 2)
         for k in range(5):
             a, b = row[k], row[k + 1]
             faces.append((a, a + 1, b + 1, b))
             faces.append((b, b + 1, a + 1, a))
+
+
+def lighthouse(verts, faces, uvs, base):
+    """A lighthouse: a tapering tower in red and white bands, a dark gallery, the lantern room; uvs pick the
+    palette's swatches (see islands()). Returns where its lamp burns."""
+    height, bands, sides = 11.0, 6, 16
+
+    def ring(z, radius, swatch):
+        start = len(verts)
+        for k in range(sides):
+            a = 2 * math.pi * k / sides
+            verts.append(base + Vector((math.cos(a) * radius, math.sin(a) * radius, z)))
+            uvs.append(((swatch + 0.5) / 6, 0.5))
+        return start
+
+    def band(z0, z1, r0, r1, swatch):
+        a, b = ring(z0, r0, swatch), ring(z1, r1, swatch)
+        for k in range(sides):
+            faces.append((a + k, a + (k + 1) % sides, b + (k + 1) % sides, b + k))
+
+    for i in range(bands):
+        z0, z1 = height * i / bands, height * (i + 1) / bands
+        band(z0, z1, 1.6 - 0.6 * z0 / height, 1.6 - 0.6 * z1 / height, i % 2)
+    # gallery, lantern, cap
+    band(height, height + 0.25, 1.5, 1.5, 2)
+    band(height + 0.25, height + 1.6, 0.8, 0.8, 3)
+    band(height + 1.6, height + 2.4, 0.95, 0.05, 2)
+    return base + Vector((0.0, 0.0, height + 0.9))
+
+
+# seagulls circling high over the ship, above the game's camera so they never cover the field
+GULL_CENTRE = Vector((2.0, 4.0, 0.0))
+GULLS = [(16.0, 24.0, 0.0), (21.0, 27.0, 2.1), (26.0, 25.0, 4.0), (19.0, 29.0, 5.2), (28.0, 26.5, 1.2)]  # radius, height, angle
+GULL_SIZE = 2.2  # larger than life, a gull of a few pixels would be lost against the sky
+GULL_SECONDS = 26.0  # one round of the circle
+GULL_FPS = 10
+GULL_WAVE = 0.3  # how far a wingtip moves
+
+
+def gull(verts, faces, uvs, waves, at, heading):
+    """A gull gliding along heading (z-up): a slim body, wings bent at the wrist with dark tips; the wings' "wave"
+    colour lifts the tips."""
+    forward = Vector((math.cos(heading), math.sin(heading), 0.0)) * GULL_SIZE
+    side = Vector((-forward.y, forward.x, 0.0))
+    up = Vector((0.0, 0.0, GULL_SIZE))
+    start = len(verts)
+    body = [(0.45, 0.0, 0.0), (0.0, 0.09, 0.05), (0.0, -0.09, 0.05), (0.0, 0.0, -0.07), (-0.5, 0.0, 0.02)]
+    for f, sd, u in body:
+        verts.append(at + forward * f + side * sd + up * u)
+        uvs.append((0.5 / 3, 0.5))
+        waves.append((Vector((0.0, 0.0, 1.0)), 0.0))
+    for a, b, c in ((0, 1, 2), (0, 2, 3), (0, 3, 1), (4, 2, 1), (4, 3, 2), (4, 1, 3)):
+        faces.append((start + a, start + b, start + c))
+    for s in (1, -1):
+        root = len(verts)
+        # root front and back, wrist front and back, tip
+        # the gull's "M": the arm rising to the wrist, the hand drooping to the tip
+        for f, sd, u, swatch, give in ((0.15, 0.06, 0.04, 1, 0.0), (-0.15, 0.06, 0.04, 1, 0.0),
+                                       (0.05, 0.42, 0.26, 1, 0.45), (-0.2, 0.42, 0.26, 1, 0.45),
+                                       (-0.3, 0.8, 0.0, 2, 1.0)):
+            verts.append(at + forward * f + side * sd * s + up * u)
+            uvs.append(((swatch + 0.5) / 3, 0.5))
+            waves.append((Vector((0.0, 0.0, 1.0)), give))
+        quads = [(0, 1, 3, 2), (2, 3, 4, 4)]
+        for q in quads:
+            face = tuple(root + i for i in (q if s > 0 else q[::-1]))
+            faces.append(tuple(dict.fromkeys(face)))
+            faces.append(tuple(dict.fromkeys(face[::-1])))
+
+
+def gulls():
+    """The gulls as one object under a pivot turning once round the circle in GULL_SECONDS ("gulls")."""
+    verts, faces, uvs, waves = [], [], [], []
+    for radius, height, angle in GULLS:
+        at = Vector((math.cos(angle) * radius, math.sin(angle) * radius, height))
+        gull(verts, faces, uvs, waves, at, angle + math.pi / 2)
+    mesh = bpy.data.meshes.new("gulls")
+    mesh.from_pydata([tuple(v) for v in verts], [], faces)
+    mesh.validate()
+    obj = bpy.data.objects.new("gulls", mesh)
+    bpy.context.scene.collection.objects.link(obj)
+    uv = mesh.uv_layers.new(name="UVMap")
+    for loop in mesh.loops:
+        uv.data[loop.index].uv = uvs[loop.vertex_index]
+    colors = mesh.color_attributes.new("wave", "FLOAT_COLOR", "POINT")
+    for i, (direction, amount) in enumerate(waves):
+        colors.data[i].color = (direction.x * 0.5 + 0.5, direction.y * 0.5 + 0.5, direction.z * 0.5 + 0.5, amount)
+    mesh.color_attributes.active_color = colors
+    mesh.color_attributes.render_color_index = mesh.color_attributes.active_color_index
+    for poly in mesh.polygons:
+        poly.use_smooth = False
+    # seen from below against the sky: a white body, grey wings, black tips
+    day = palette_image("gulls_day", [(0.97, 0.97, 0.95), (0.55, 0.58, 0.64), (0.08, 0.08, 0.1)])
+    night = palette_image("gulls_night", [(0.12, 0.13, 0.18), (0.08, 0.09, 0.13), (0.02, 0.02, 0.03)])
+    obj.data.materials.append(export_material("gulls_export", day, white_image(), night))
+    obj["wave"] = [GULL_WAVE]
+    pivot = bpy.data.objects.new("gull_pivot", None)
+    pivot.location = GULL_CENTRE
+    bpy.context.scene.collection.objects.link(pivot)
+    obj.parent = pivot
+    bpy.context.preferences.edit.keyframe_new_interpolation_type = "LINEAR"
+    pivot.animation_data_create()
+    pivot.animation_data.action = bpy.data.actions.new("gulls")
+    frames = int(GULL_SECONDS * GULL_FPS)
+    for k in range(5):
+        pivot.rotation_euler = (0.0, 0.0, -2 * math.pi * k / 4)
+        pivot.keyframe_insert("rotation_euler", index=2, frame=frames * k // 4)
+    bpy.context.scene.render.fps = GULL_FPS
+    bpy.context.scene.frame_start, bpy.context.scene.frame_end = 0, frames
+    return [obj, pivot], [day, night]
 
 
 def islands():
@@ -1778,6 +1892,12 @@ def islands():
             base = Vector((x, y, float(seabed(np.array(x), np.array(y))) - 0.2))
             lean = Vector((math.cos(a), math.sin(a), 0.0)) * rng.uniform(0.4, 1.0)
             palm(verts, faces, uvs, waves, base, lean, rng.uniform(5.5, 8.0), rng)
+    # the lighthouse goes in with the palms, standing still (no give in the wind)
+    ground = float(seabed(np.array(LIGHTHOUSE[0]), np.array(LIGHTHOUSE[1])))
+    start = len(verts)
+    lamp = lighthouse(verts, faces, uvs, Vector((LIGHTHOUSE[0], LIGHTHOUSE[1], ground - 0.3)))
+    waves += [(Vector((1.0, 0.0, 0.0)), 0.0)] * (len(verts) - start)
+    glow(lamp, (1.0, 0.85, 0.5), 2.2, GLOW_PULSE)
     mesh = bpy.data.meshes.new("palms")
     mesh.from_pydata([tuple(v) for v in verts], [], faces)
     mesh.validate()
@@ -1794,8 +1914,11 @@ def islands():
     # flat: the fronds' two sides share their vertices, smooth normals would cancel out
     for poly in mesh.polygons:
         poly.use_smooth = False
-    day = palette_image("palms_day", [(0.42, 0.30, 0.18), (0.20, 0.50, 0.14)])
-    night = palette_image("palms_night", [(0.05, 0.05, 0.07), (0.03, 0.06, 0.06)])
+    # lighthouse white, red, iron, lantern glass; palm trunk, fronds
+    day = palette_image("palms_day", [(0.95, 0.94, 0.90), (0.78, 0.14, 0.12), (0.12, 0.12, 0.14), (0.95, 0.85, 0.55),
+                                      (0.42, 0.30, 0.18), (0.20, 0.50, 0.14)])
+    night = palette_image("palms_night", [(0.10, 0.11, 0.16), (0.08, 0.03, 0.05), (0.02, 0.02, 0.03), (1.0, 0.85, 0.5),
+                                          (0.05, 0.05, 0.07), (0.03, 0.06, 0.06)])
     obj.data.materials.append(export_material("palms_export", day, white_image(), night))
     obj["wave"] = [PALM_WAVE]
     objects.append(obj)
@@ -2072,6 +2195,9 @@ def build():
     setup_cycles()
 
     shore, shore_images = islands()
+    flock, flock_images = gulls()
+    shore += [o for o in flock if o.type == "MESH"]
+    shore_images += flock_images
     water.hide_render = True
     sky_obj.hide_render = True
     for obj in shore:
@@ -2152,8 +2278,21 @@ def build():
         colors["export_vertex_color"] = "ACTIVE"
     elif "export_colors" in options:
         colors["export_colors"] = True
+    # the gulls' circling as the scene's one animation, "gulls"
+    modes = [m.identifier for m in options["export_animation_mode"].enum_items] if "export_animation_mode" in options else []
+    if "SCENE" in modes:
+        colors["export_animation_mode"] = "SCENE"
     bpy.ops.export_scene.gltf(filepath=path, export_format="GLB", use_selection=True, export_yup=True,
-                              export_image_format="JPEG", export_jpeg_quality=90, export_extras=True, **colors)
+                              export_image_format="JPEG", export_jpeg_quality=90, export_extras=True,
+                              export_animations=True, **colors)
+    gltf, binary = glb.read(path)
+    channels, samplers = [], []
+    for animation in gltf.get("animations", []):
+        channels += [dict(c, sampler=c["sampler"] + len(samplers)) for c in animation["channels"]]
+        samplers += animation["samplers"]
+    if channels:
+        gltf["animations"] = [{"name": "gulls", "channels": channels, "samplers": samplers}]
+        glb.write(path, gltf, binary)
     for img in (props_color, props_ao, deck_color, deck_ao, outside_lit, outside_ao, cloth_lit, cloth_ao, *sky_img,
                 deck_day, props_day, outside_day, cloth_day, white_image(), *shore_images,
                 *(img for _, img in WATER)):
