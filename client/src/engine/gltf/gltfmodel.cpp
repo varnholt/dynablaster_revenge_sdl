@@ -1,6 +1,7 @@
 #include "gltfmodel.h"
 
 #include "framework/gldevice.h"
+#include "math/vector2.h"
 #include "tools/datapaths.h"
 
 #include "log.h"
@@ -49,6 +50,11 @@ struct Shader
    std::array<int32_t, 4> _detail{-1, -1, -1, -1};
    int32_t _detail_scales = -1;
    int32_t _detail_strength = -1;
+   int32_t _haze = -1;
+   int32_t _haze_box = -1;
+   int32_t _haze_range = -1;
+   int32_t _ambient = -1;
+   int32_t _rim = -1;
 };
 
 // texture units: colour, occlusion, night, then the detail mask and the detail images
@@ -62,6 +68,8 @@ float clip_height = 1e9f;
 
 // 1 by day, 0 by night
 float day_share = 1.0f;
+
+GltfModel::Atmosphere atmosphere;
 
 // column-major, a * b applies b first
 Matrix4 multiply(const Matrix4& a, const Matrix4& b)
@@ -546,6 +554,21 @@ void GltfModel::load(const std::string& filename)
       _animations.push_back(std::move(animation));
    }
 
+   // the scene's air and light
+   if (data->scene)
+   {
+      if (const auto air = readExtras<12>(data->scene->extras.data, "atmosphere"))
+      {
+         const auto& values = *air;
+         _atmosphere._haze = Vector(values[0], values[1], values[2]);
+         _atmosphere._strength = values[3];
+         _atmosphere._near = values[4];
+         _atmosphere._far = values[5];
+         _atmosphere._ambient = Vector(values[6], values[7], values[8]);
+         _atmosphere._rim = Vector(values[9], values[10], values[11]);
+      }
+   }
+
    // lights, placed in the bind pose
    std::vector<Matrix4> globals;
    pose(-1, 0.0f, globals);
@@ -618,6 +641,11 @@ const Vector& GltfModel::getMaximum() const
 const std::vector<GltfModel::Glow>& GltfModel::getGlows() const
 {
    return _glows;
+}
+
+const GltfModel::Atmosphere& GltfModel::getAtmosphere() const
+{
+   return _atmosphere;
 }
 
 void GltfModel::initializeGL()
@@ -761,6 +789,11 @@ void GltfModel::begin()
       }
       shader._detail_scales = activeDevice().getParameterIndex("u_detail_scales");
       shader._detail_strength = activeDevice().getParameterIndex("u_detail_strength");
+      shader._haze = activeDevice().getParameterIndex("u_haze");
+      shader._haze_box = activeDevice().getParameterIndex("u_haze_box");
+      shader._haze_range = activeDevice().getParameterIndex("u_haze_range");
+      shader._ambient = activeDevice().getParameterIndex("u_ambient");
+      shader._rim = activeDevice().getParameterIndex("u_rim");
    }
 
    activeDevice().setShader(shader._program);
@@ -774,6 +807,13 @@ void GltfModel::begin()
       activeDevice().bindSampler(shader._detail[i], DETAIL_UNIT + static_cast<int32_t>(i));
    }
    activeDevice().setParameter(shader._day, day_share);
+   activeDevice().setParameter(
+      shader._haze, Vector4(atmosphere._haze.x, atmosphere._haze.y, atmosphere._haze.z, atmosphere._strength)
+   );
+   activeDevice().setParameter(shader._haze_box, atmosphere._box);
+   activeDevice().setParameter(shader._haze_range, Vector2(atmosphere._near, std::max(atmosphere._far, atmosphere._near + 0.001f)));
+   activeDevice().setParameter(shader._ambient, atmosphere._ambient);
+   activeDevice().setParameter(shader._rim, atmosphere._rim);
 
    for (GLuint attribute = 0; attribute < 6; attribute++)
    {
@@ -941,6 +981,16 @@ const Vector& GltfModel::getWaterColor() const
 void GltfModel::setDaylight(float value)
 {
    day_share = value;
+}
+
+void GltfModel::setAtmosphere(const Atmosphere& value)
+{
+   atmosphere = value;
+}
+
+const GltfModel::Atmosphere& GltfModel::getCurrentAtmosphere()
+{
+   return atmosphere;
 }
 
 void GltfModel::setClipHeight(float height)

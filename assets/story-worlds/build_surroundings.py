@@ -303,6 +303,23 @@ def glow(loc, color, size, mode=GLOW_STEADY):
     return obj
 
 
+# --- wind ---------------------------------------------------------------------------------------------
+
+WIND = (1.0, 0.35, 0.0)  # which way the gusts push the foliage
+SWAY = 0.07  # how far the top of a crown moves at most, tiles (the game's "wave", see GltfModel)
+
+
+def sway(obj, base, top, amount=1.0):
+    """The foliage's give in the wind as its "wave" colour: nothing below base, the full amount at top."""
+    colors = obj.data.color_attributes.new("wave", "FLOAT_COLOR", "POINT")
+    d = np.array(WIND) / np.linalg.norm(WIND)
+    for v in obj.data.vertices:
+        z = (obj.matrix_world @ v.co).z
+        t = min(max((z - base) / max(top - base, 1e-6), 0.0), 1.0)
+        colors.data[v.index].color = (d[0] * 0.5 + 0.5, d[1] * 0.5 + 0.5, d[2] * 0.5 + 0.5, amount * t * t)
+    obj.data.color_attributes.active_color = colors
+
+
 # --- prop kinds -----------------------------------------------------------------------------------
 
 def tree_round(st, x, y, z, s, leaves, trunk):
@@ -316,7 +333,7 @@ def tree_round(st, x, y, z, s, leaves, trunk):
         sphere((x + math.cos(a) * r, y + math.sin(a) * r, z + (0.85 + rng.uniform(0, 0.25)) * s),
                (0.36 + rng.uniform(0, 0.1)) * s, leaves, jitter=0.06, rng=rng)
     sphere((x, y, z + 1.15 * s), 0.34 * s, leaves, jitter=0.06, rng=rng)
-    fuse(start, 0.035 * s, 360, smooth_steps=2)
+    sway(fuse(start, 0.035 * s, 360, smooth_steps=2), z + 0.5 * s, z + 1.5 * s)
 
 
 def tree_pine(st, x, y, z, s, leaves, trunk):
@@ -324,7 +341,7 @@ def tree_pine(st, x, y, z, s, leaves, trunk):
     start = len(PROPS)
     for i, (r, h, o) in enumerate(((0.5, 0.75, 0.3), (0.4, 0.65, 0.68), (0.28, 0.55, 1.02))):
         cone((x, y, z + o * s), r * s, h * s, leaves, vertices=10)
-    fuse(start, 0.03 * s, 300)
+    sway(fuse(start, 0.03 * s, 300), z + 0.3 * s, z + 1.6 * s)
 
 
 def rock(st, x, y, z, s, mat, flat=0.65):
@@ -340,7 +357,7 @@ def bush(st, x, y, z, s, mat):
         a = rng.uniform(0, 6.3)
         sphere((x + math.cos(a) * 0.18 * s, y + math.sin(a) * 0.18 * s, z + 0.15 * s), (0.25 + rng.uniform(0, 0.08)) * s,
                mat, scale=(1, 1, 0.8), jitter=0.05, rng=rng)
-    fuse(start, 0.03 * s, 200, smooth_steps=2)
+    sway(fuse(start, 0.03 * s, 200, smooth_steps=2), z, z + 0.45 * s, 0.5)
 
 
 def wall_run(p0, p1, z, height, thickness, mat, cap_mat=None, merlons=False):
@@ -1278,6 +1295,15 @@ def build(world, size_key):
     for water, _ in WATER:
         water.hide_render = True
     props = join_props("props")
+    # the foliage sways, everything else has no "wave" colour and stands still
+    if props.data.color_attributes.get("wave"):
+        props["wave"] = [SWAY]
+        # the game reads the first vertex colour
+        for other in [c.name for c in props.data.color_attributes if c.name != "wave"]:
+            props.data.color_attributes.remove(props.data.color_attributes[other])
+        props.data.color_attributes.active_color = props.data.color_attributes["wave"]
+        # else the exporter puts a white one first
+        props.data.color_attributes.render_color_index = props.data.color_attributes.active_color_index
     props_color = bpy.data.images.new("props_color", PROP_TEX, PROP_TEX)
     props_ao = bpy.data.images.new("props_ao", AO_TEX, AO_TEX)
     ground_ao = bpy.data.images.new("ground_ao", AO_TEX, AO_TEX)
@@ -1337,6 +1363,12 @@ def build(world, size_key):
     if SPINNERS:
         modes = [m.identifier for m in bpy.ops.export_scene.gltf.get_rna_type().properties["export_animation_mode"].enum_items]
         animation["export_animation_mode"] = "SCENE" if "SCENE" in modes else modes[0]
+    # the foliage's swaying goes out as the first vertex colour
+    options = bpy.ops.export_scene.gltf.get_rna_type().properties
+    if "export_vertex_color" in options:
+        animation["export_vertex_color"] = "ACTIVE"
+    elif "export_colors" in options:
+        animation["export_colors"] = True
     bpy.ops.export_scene.gltf(filepath=path, export_format="GLB", use_selection=True, export_yup=True,
                               export_image_format="JPEG", export_jpeg_quality=88, export_extras=True, **animation)
     if SPINNERS:

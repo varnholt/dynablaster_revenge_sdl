@@ -27,6 +27,9 @@ WaterSurface::WaterSurface()
    _deep_param = activeDevice().getParameterIndex("u_deep");
    _origin_param = activeDevice().getParameterIndex("u_origin");
    _size_param = activeDevice().getParameterIndex("u_size");
+   _haze_param = activeDevice().getParameterIndex("u_haze");
+   _haze_box_param = activeDevice().getParameterIndex("u_haze_box");
+   _haze_range_param = activeDevice().getParameterIndex("u_haze_range");
 
    glGenTextures(1, &_refraction);
 }
@@ -102,6 +105,12 @@ void WaterSurface::render(GltfModel& model, const Vector& eye)
    activeDevice().setParameter(_deep_param, model.getWaterColor());
    activeDevice().setParameter(_origin_param, Vector2(static_cast<float>(viewport.x), static_cast<float>(viewport.y)));
    activeDevice().setParameter(_size_param, Vector2(static_cast<float>(viewport.width), static_cast<float>(viewport.height)));
+
+   // the same air as the scenery around it
+   const GltfModel::Atmosphere& air = GltfModel::getCurrentAtmosphere();
+   activeDevice().setParameter(_haze_param, Vector4(air._haze.x, air._haze.y, air._haze.z, air._strength));
+   activeDevice().setParameter(_haze_box_param, air._box);
+   activeDevice().setParameter(_haze_range_param, Vector2(air._near, std::max(air._far, air._near + 0.001f)));
 
    glActiveTexture(GL_TEXTURE1);
    glBindTexture(GL_TEXTURE_2D, _reflection->texture());

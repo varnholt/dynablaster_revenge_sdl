@@ -41,6 +41,9 @@ private:
    int32_t _deep_param = -1;
    int32_t _origin_param = -1;
    int32_t _size_param = -1;
+   int32_t _haze_param = -1;
+   int32_t _haze_box_param = -1;
+   int32_t _haze_range_param = -1;
 
    std::unique_ptr<FrameBuffer> _reflection;
    uint32_t _refraction = 0;
