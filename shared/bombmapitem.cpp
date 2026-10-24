@@ -32,6 +32,8 @@ void BombMapItem::explodeActive()
 {
    if (!_kicked)
    {
+      // the timer repeats and the bomb lives on until the next tick, it must only go off once
+      _timer.stop();
       explodedSignal(*this, false);
    }
 }
