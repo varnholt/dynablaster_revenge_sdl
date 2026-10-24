@@ -1,5 +1,5 @@
 # The intro's last shot: the camera tilts up from the lab to the mountains behind it at night, a castle on the
-# highest peak where the dragon flies off to. Flat shaded faces in night blues, the castle's windows glow.
+# highest peak where the dragon flies off to. Night blue rock, smooth slopes and sharp cliffs, the castle's windows glow.
 #   blender --background --factory-startup --python build_backdrop.py -- <out dir>
 # writes backdrop.glb in the scenery's coordinates (field coordinates, z up), north of the lab.
 #
@@ -14,6 +14,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import bmesh  # noqa: E402
 import bpy  # noqa: E402
+import numpy as np  # noqa: E402
 from mathutils import Vector, noise  # noqa: E402
 
 import toy  # noqa: E402
@@ -43,8 +44,6 @@ SUMMITS = [  # x, y, height, width
     (24.0, 80.0, 10.0, 13.0),
 ]
 X0, X1, Y0, Y1 = -120.0, 135.0, 64.0, 140.0
-COARSE, FINE = 2.5, 0.5
-FINE_REACH = 20.0  # how far round the peak the grid is fine
 
 random.seed(3)
 
@@ -95,45 +94,87 @@ def height(x, y):
     return max(h + rough * min(h / 6.0, 1.0), -0.5 + rough * 0.2)
 
 
-def axis(low, high, centre):
-    """Grid lines from low to high, fine round centre."""
-    lines = [low]
-    while lines[-1] < high:
-        fine = abs(lines[-1] - centre) < FINE_REACH
-        lines.append(min(lines[-1] + (FINE if fine else COARSE), high))
-    return lines
+STEP = 0.6  # the terrain's grid before decimating
+TRIANGLES = 24000  # what the decimation leaves, most of them where the shape changes: the crag and the ridges
+TEXTURE = (2048, 1024)  # the terrain's colour, projected from above
 
 
-def mountains(builder):
+def terrain():
+    """The mountains as one mesh: a fine grid decimated to fewer, evenly shaped triangles that gather where the
+    shape needs them, shaded smoothly but for the edges where the rock breaks; uvs straight from above."""
+    xs = [X0 + i * STEP for i in range(int((X1 - X0) / STEP) + 1)]
+    ys = [Y0 + j * STEP for j in range(int((Y1 - Y0) / STEP) + 1)]
     bm = bmesh.new()
-    xs, ys = axis(X0, X1, PEAK.x), axis(Y0, Y1, PEAK.y)
     grid = [[bm.verts.new((x, y, height(x, y))) for y in ys] for x in xs]
     for i in range(len(xs) - 1):
         for j in range(len(ys) - 1):
-            a, b, c, d = grid[i][j], grid[i + 1][j], grid[i + 1][j + 1], grid[i][j + 1]
-            bm.faces.new((a, b, c))
-            bm.faces.new((a, c, d))
-    bm.normal_update()
-    # flat faces coloured by which way they face the moon (high up behind the viewer, to the left)
-    moon = Vector((-0.35, -0.6, 0.7)).normalized()
-    shades = ["rock_dark", "rock", "rock_light", "rock_rim"]
-    for key in shades:
-        part = bmesh.new()
-        mapping = {}
-        for f in bm.faces:
-            light = f.normal.dot(moon)
-            shade = shades[min(max(int((light + 0.15) * 3.2), 0), 3)]
-            if shade != key:
-                continue
-            verts = []
-            for v in f.verts:
-                if v not in mapping:
-                    mapping[v] = part.verts.new(v.co)
-                verts.append(mapping[v])
-            part.faces.new(verts)
-        builder.add(part, key)
+            bm.faces.new((grid[i][j], grid[i + 1][j], grid[i + 1][j + 1], grid[i][j + 1]))
+    mesh = bpy.data.meshes.new("terrain")
+    bm.to_mesh(mesh)
     bm.free()
-    return len(xs) * len(ys)
+    obj = bpy.data.objects.new("terrain", mesh)
+    bpy.context.scene.collection.objects.link(obj)
+    decimate = obj.modifiers.new("decimate", "DECIMATE")
+    decimate.ratio = TRIANGLES / (2 * len(mesh.polygons))
+    bpy.context.view_layer.objects.active = obj
+    obj.select_set(True)
+    bpy.ops.object.modifier_apply(modifier=decimate.name)
+    uv = mesh.uv_layers.new(name="UVMap")
+    for loop in mesh.loops:
+        co = mesh.vertices[loop.vertex_index].co
+        uv.data[loop.index].uv = ((co.x - X0) / (X1 - X0), (co.y - Y0) / (Y1 - Y0))
+    # smooth over the slopes, hard where the rock breaks: cliff rims, ridges
+    for poly in mesh.polygons:
+        poly.use_smooth = True
+    mesh.set_sharp_from_angle(angle=math.radians(40))
+    mesh.materials.append(terrain_material())
+    return obj, len(xs) * len(ys)
+
+
+def terrain_material():
+    """Night rock seen by the moon: the slopes facing it pale, the others deep blue, bands of strata in the cliffs,
+    crevices darker, a little mottling; computed per texel from the heights."""
+    w, h = TEXTURE
+    x = X0 + (np.arange(w) + 0.5) / w * (X1 - X0)
+    y = Y0 + (np.arange(h) + 0.5) / h * (Y1 - Y0)
+    x, y = np.meshgrid(x, y)
+    z = np.vectorize(height)(x, y)
+    gx = np.gradient(z, (X1 - X0) / w, axis=1)
+    gy = np.gradient(z, (Y1 - Y0) / h, axis=0)
+    normal = np.stack([-gx, -gy, np.ones_like(z)], axis=-1)
+    normal /= np.linalg.norm(normal, axis=-1, keepdims=True)
+    moon = np.array([-0.35, -0.6, 0.7]) / np.linalg.norm([-0.35, -0.6, 0.7])
+    light = np.clip(normal @ moon * 1.15 + 0.12, 0.0, 1.0)
+    ramp = np.array([COLORS[k] for k in ("rock_dark", "rock", "rock_light", "rock_rim")])
+    t = light * (len(ramp) - 1)
+    k = np.clip(t.astype(int), 0, len(ramp) - 2)
+    color = ramp[k] + (ramp[k + 1] - ramp[k]) * (t - k)[..., None]
+    # strata across the steep faces
+    steep = np.clip((1.0 - normal[..., 2] - 0.45) / 0.25, 0.0, 1.0)
+    wobble = np.vectorize(lambda a, b: noise.noise(Vector((a * 0.3, b * 0.3, 5.0))))(x, y)
+    strata = 0.5 + 0.5 * np.sin((z + wobble * 0.8) * 2 * math.pi / 1.1)
+    color *= (1.0 - 0.28 * steep * strata ** 3)[..., None]
+    # crevices: lower than the heights around them
+    blur = z.copy()
+    for _ in range(6):
+        blur = (np.roll(blur, 1, 0) + np.roll(blur, -1, 0) + np.roll(blur, 1, 1) + np.roll(blur, -1, 1) + blur * 4) / 8
+    color *= np.clip(1.0 + (z - blur) * 0.5, 0.65, 1.15)[..., None]
+    mottle = np.vectorize(lambda a, b: noise.noise(Vector((a * 1.7, b * 1.7, 9.0))))(x, y)
+    color *= (1.0 + 0.08 * mottle)[..., None]
+    # a byte image keeps the srgb colours as they are, like the palette's
+    rgba = np.concatenate([np.clip(color, 0, 1), np.ones((h, w, 1))], axis=-1).astype(np.float32)
+    image = bpy.data.images.new("terrain_color", w, h)
+    image.pixels.foreach_set(rgba.ravel())
+    image.file_format = "PNG"
+    image.pack()
+    material = bpy.data.materials.new("terrain")
+    material.use_nodes = True
+    nodes, links = material.node_tree.nodes, material.node_tree.links
+    bsdf = next(n for n in nodes if n.type == "BSDF_PRINCIPLED")
+    texture = nodes.new("ShaderNodeTexImage")
+    texture.image = image
+    links.new(texture.outputs["Color"], bsdf.inputs["Base Color"])
+    return material
 
 
 def box(size):
@@ -211,7 +252,7 @@ def build(out):
     toy.reset()
     palette = toy.Palette("backdrop_palette", COLORS)
     b = toy.Builder("backdrop", palette)
-    vertices = mountains(b)
+    _, vertices = terrain()
     windows = []
     castle(b, windows)
     mesh = b.build_static()
