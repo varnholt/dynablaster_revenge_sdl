@@ -325,6 +325,10 @@ void SoundManager::playTrack(std::size_t index)
    SDL_SetAudioStreamFormat(_music_stream.get(), &spec, nullptr);
    SDL_PutAudioStreamData(_music_stream.get(), info.buffer, static_cast<int>(info.samples * sizeof(mp3d_sample_t)));
 
+   // the whole track is queued, flushing hands the resampler's held-back tail to the device as well -
+   // without it a few bytes stay queued forever and updateMusic() never notices the track ended
+   SDL_FlushAudioStream(_music_stream.get());
+
    free(info.buffer);
 
    std::string artist;
