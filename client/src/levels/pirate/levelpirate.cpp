@@ -152,6 +152,9 @@ void LevelPirate::drawLevel(float /*frame*/, const Matrix& view)
    look._tint = Vector(1.0f, 1.0f - 0.12f * _dusk, 1.0f - 0.3f * _dusk);
    const float time = GlobalTime::Instance().getTime();
 
+   // the gulls circling overhead, the ship's one animation
+   const int32_t gulls = _ship->findAnimation("gulls");
+
    // the ship's textures by day and by night blended, other glTF models are always drawn by day
    GltfModel::setDaylight(_day);
    GltfModel::setAtmosphere({});
@@ -169,14 +172,14 @@ void LevelPirate::drawLevel(float /*frame*/, const Matrix& view)
          [&](const Matrix& mirror)
          {
             GltfModel::begin();
-            _ship->draw(mirror, -1, time, look);
+            _ship->draw(mirror, gulls, time, look);
             GltfModel::end();
          }
       );
    }
 
    GltfModel::begin();
-   _ship->draw(Matrix(), -1, time, look);
+   _ship->draw(Matrix(), gulls, time, look);
    GltfModel::end();
 
    if (_water)
