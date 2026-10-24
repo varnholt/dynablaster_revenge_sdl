@@ -112,6 +112,9 @@ public:
    [[nodiscard]] bool hasWater() const;
    [[nodiscard]] float getWaterLevel() const;
    [[nodiscard]] const Vector& getWaterColor() const;
+
+   //! units a second the water streams past along x (a ship under way), 0 for still water: "water": [r, g, b, flow]
+   [[nodiscard]] float getWaterFlow() const;
    void drawWater(const Matrix& transform);
 
 private:
@@ -206,6 +209,7 @@ private:
    bool _has_water = false;
    float _water_level = 0.0f;
    Vector _water_color;
+   float _water_flow = 0.0f;
    Vector _minimum;
    Vector _maximum;
 };

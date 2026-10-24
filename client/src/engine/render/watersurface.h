@@ -42,6 +42,7 @@ private:
    int32_t _origin_param = -1;
    int32_t _size_param = -1;
    int32_t _haze_param = -1;
+   int32_t _flow_param = -1;
    int32_t _haze_box_param = -1;
    int32_t _haze_range_param = -1;
 

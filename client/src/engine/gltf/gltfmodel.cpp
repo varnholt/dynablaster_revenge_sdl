@@ -372,6 +372,12 @@ void GltfModel::load(const std::string& filename)
          {
             primitive._water = true;
             _water_color = Vector((*water)[0], (*water)[1], (*water)[2]);
+
+            // a fourth number is how fast the water streams past along x
+            if (const auto flowing = readExtras<4>(node.extras.data, "water"))
+            {
+               _water_flow = (*flowing)[3];
+            }
          }
 
          const auto wave = readExtras<1>(node.extras.data, "wave");
@@ -976,6 +982,11 @@ float GltfModel::getWaterLevel() const
 const Vector& GltfModel::getWaterColor() const
 {
    return _water_color;
+}
+
+float GltfModel::getWaterFlow() const
+{
+   return _water_flow;
 }
 
 void GltfModel::setDaylight(float value)
