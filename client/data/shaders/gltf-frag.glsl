@@ -85,7 +85,14 @@ void main()
    {
       albedo = mix(texture(u_night, uv).rgb, albedo, u_daylight);
    }
-   if (u_detail_strength > 0.0)
+
+   // detail only where it can be resolved: on faces seen edge on or far away (a few times the repeats per pixel
+   // of the ground under the game's camera) it only shimmers as the camera moves
+   highp float footprint = max(length(dFdx(world)), length(dFdy(world))) * max(max(u_detail_scales.x, u_detail_scales.y),
+                                                                             max(u_detail_scales.z, u_detail_scales.w));
+   float resolved = 1.0 - smoothstep(0.03, 0.08, footprint);
+
+   if (u_detail_strength > 0.0 && resolved > 0.0)
    {
       vec3 weights = pow(abs(n), vec3(4.0));
       weights /= weights.x + weights.y + weights.z;
@@ -95,7 +102,7 @@ void main()
                     triplanar(u_detail2, u_detail_scales.z, weights) * mask.b +
                     triplanar(u_detail3, u_detail_scales.w, weights) * mask.a;
       detail += vec3(0.5) * max(1.0 - dot(mask, vec4(1.0)), 0.0);
-      albedo *= mix(vec3(1.0), detail * 2.0, u_detail_strength);
+      albedo *= mix(vec3(1.0), detail * 2.0, u_detail_strength * resolved);
    }
    albedo *= u_tint;
    float occlusion = texture(u_occlusion, uv).r;
