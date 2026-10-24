@@ -12,7 +12,7 @@ layout(location = 5) in vec4 a_wave;
 
 uniform mat4 u_modelViewProjection;
 uniform mat4 u_model;
-uniform mat4 u_joints[16];
+uniform mat4 u_joints[40];
 uniform float u_skinned;
 
 // seconds

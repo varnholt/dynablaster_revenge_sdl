@@ -47,6 +47,11 @@ public:
    //! called once OK stored changed video settings, to apply them to the window
    void setVideoSettingsHandler(std::function<void()> handler);
 
+   //! plays the story mode's intro when SINGLE is pressed; it calls the function given once it is over to
+   //! start the story mode, without one it starts right away
+   using StoryIntroHandler = std::function<void(std::function<void()> start)>;
+   void setStoryIntroHandler(StoryIntroHandler handler);
+
    //! a key field on the controls page takes the pressed key, returns true if it did
    bool onKeyPressed(int key);
 
@@ -205,4 +210,5 @@ private:
    JoinHandler _join_handler;
    std::function<void()> _video_settings_handler;
    std::function<bool()> _bots_wait_condition;
+   StoryIntroHandler _story_intro_handler;
 };

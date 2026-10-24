@@ -22,7 +22,7 @@ namespace
 {
 using Matrix4 = std::array<float, 16>;
 
-constexpr int32_t MAX_JOINTS = 16;
+constexpr int32_t MAX_JOINTS = 40;
 
 constexpr Matrix4 IDENTITY{1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
 
