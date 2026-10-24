@@ -292,6 +292,9 @@ def glow(loc, color, size, mode=GLOW_STEADY):
 
 # --- the deck -------------------------------------------------------------------------------------
 
+SUNK = 0.04  # how far beams standing on the deck reach into it, below their bevel
+
+
 def deck(m):
     """Floor of the field and the deck around it as one flat mesh, mapped from above."""
     frame = 0.42
@@ -326,10 +329,11 @@ def deck(m):
     v = (co[:, 1] - DECK_Y0) / (RAIL_Y - DECK_Y0)
     uv.data.foreach_set("uv", np.stack([u, v], 1).ravel())
 
-    # the field's frame: a low red beam with mitred corners and brass corner plates
+    # the field's frame: a low red beam with mitred corners and brass corner plates; set into the deck a little,
+    # its lower bevel would lie flush with the planks and flicker against them
     top = 0.07
     for (x0, x1, y0, y1) in ((fx0, fx1, 0, fy1), (fx0, fx1, fy0, -H), (fx0, 0, -H, 0), (W, fx1, -H, 0)):
-        slab(x0, x1, y0, y1, DECK_Z, top, m["frame"], bevel=0.03)
+        slab(x0, x1, y0, y1, DECK_Z - SUNK, top, m["frame"], bevel=0.03)
     for cx, cy in ((fx0, fy1), (fx1, fy1), (fx0, fy0), (fx1, fy0)):
         sx = 1 if cx > 0 else -1
         sy = 1 if cy > -H / 2 else -1
@@ -793,7 +797,7 @@ def grate(m, x0, x1, y0, y1):
     c = 0.28
     z = 0.38
     for (a, b, cc, d) in ((x0, x1, y0, y0 + c), (x0, x1, y1 - c, y1), (x0, x0 + c, y0, y1), (x1 - c, x1, y0, y1)):
-        slab(a, b, cc, d, DECK_Z, z, m["redwood"], bevel=0.02)
+        slab(a, b, cc, d, DECK_Z - SUNK, z, m["redwood"], bevel=0.02)
     for (a, b, cc, d) in ((x0 - 0.03, x1 + 0.03, y0 - 0.03, y0 + 0.08), (x0 - 0.03, x1 + 0.03, y1 - 0.08, y1 + 0.03),
                           (x0 - 0.03, x0 + 0.08, y0, y1), (x1 - 0.08, x1 + 0.03, y0, y1)):
         slab(a, b, cc, d, z, z + 0.05, m["gold"])
