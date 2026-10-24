@@ -208,6 +208,10 @@ MenuPageNavigator::MenuPageNavigator()
    _message_received_connection = client.messageReceivedSignal.connect([this](int sender_id, const std::string& message, bool finished)
                                                                        { onMessageReceived(sender_id, message, finished); });
 
+   // matches GameMenuWorkflow::gamesListUpdated() refreshing GAME_SELECT's game properties
+   _games_list_updated_connection = client.gamesListUpdatedSignal.connect([this](const std::vector<GameInformation>&)
+                                                                          { updateSelectGameLevelPreview(); });
+
    // matches MenuWorkflow::initialize() calling deserializeLoginData() once at startup - the
    // main menu is already the current page by construction time (no pageChanged() fires for it
    // the very first time), so this can't wait for onPageChanged()'s own kMainMenu branch below.
@@ -231,6 +235,7 @@ MenuPageNavigator::~MenuPageNavigator()
       client.gameStartedSignal.disconnect(_game_started_connection);
       client.playerInfoMapUpdatedSignal.disconnect(_player_info_map_updated_connection);
       client.messageReceivedSignal.disconnect(_message_received_connection);
+      client.gamesListUpdatedSignal.disconnect(_games_list_updated_connection);
    }
 }
 
@@ -598,6 +603,10 @@ void MenuPageNavigator::onPageChanged(const std::string& page)
       // not just on first app startup.
       deserializeLoginData();
       deserializeVersion();
+   }
+   else if (page == kGameSelect)
+   {
+      updateSelectGameLevelPreview();
    }
    else if (page == kGameCreate)
    {
@@ -1123,6 +1132,27 @@ void MenuPageNavigator::updateCreateGameLevelPreview()
    preview_mansion.setVisible(level_combo.getFocussedElement() == 1);
    preview_space.setVisible(level_combo.getFocussedElement() == 2);
    preview_pirate.setVisible(level_combo.getFocussedElement() == 3);
+}
+
+void MenuPageNavigator::updateSelectGameLevelPreview()
+{
+   MenuPage& page = Menu::getInstance().getPageByName(kGameSelect)->get();
+
+   const std::vector<GameInformation>& games = BombermanClient::getInstance().getGames();
+   const std::string level = games.empty() ? std::string{} : games.front().getLevelName();
+
+   const auto show_if = [&](const std::string& layer_name, Level::LevelType level_type)
+   {
+      if (const auto preview = page.getPageItem<MenuPagePixmapItem>(layer_name))
+      {
+         preview->get().setVisible(level == Level::getLevelDirectoryName(level_type));
+      }
+   };
+
+   show_if("pixmap_level_preview_castle", Level::LevelCastle);
+   show_if("pixmap_level_preview_mansion", Level::LevelMansion);
+   show_if("pixmap_level_preview_space", Level::LevelSpace);
+   show_if("pixmap_level_preview_pirateship", Level::LevelPirate);
 }
 
 void MenuPageNavigator::setMonitorCreateGameOptionsEnabled(bool enabled)
