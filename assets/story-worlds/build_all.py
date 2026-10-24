@@ -2,6 +2,7 @@
 #   build_kits.py          per world the floor tile, the border block and the plain land around a field
 #   build_surroundings.py  per world and field size the diorama around the stage, colour and ambient occlusion baked
 #   atmosphere.py          the worlds' haze and light, written into the dioramas
+#   kit_detail.py          the floor's and border's detail up close
 # Worlds build only those. Blender is found via the BLENDER environment variable or in its default install folder.
 # The dioramas take a few minutes, a GPU makes the bakes quicker.
 import glob
@@ -13,6 +14,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import atmosphere  # noqa: E402
+import kit_detail  # noqa: E402
 OUT = os.path.join(HERE, "out")
 STORY = os.path.join(HERE, "..", "..", "client", "data", "game", "story")
 
@@ -59,4 +61,5 @@ for world, sizes in SIZES.items():
     for size in sizes:
         shutil.copy(os.path.join(OUT, "surroundings", f"world{world}", f"surroundings_{size}.glb"), target)
     atmosphere.apply(world)
+    kit_detail.apply(world)
 print("worlds in", os.path.normpath(STORY))
