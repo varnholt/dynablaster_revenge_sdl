@@ -1,0 +1,569 @@
+# The dragon of the intro: a chubby green dragon with bat wings, the black bomberman rides on its head and it
+# carries the princess off in its claws. One action, "fly", a flap of the wings that loops.
+#   blender --background --factory-startup --python build_dragon.py -- <out dir>
+# writes dragon.glb and dragon.blend. About 1.9 high without the wings, the player being 1.
+#
+# The body is one smooth shape, metaballs remeshed, the details are added on; their colours are worked out per
+# vertex (darker back, a striped belly, gradients along wings and horns) and baked with ambient occlusion into
+# textures, the way the game's glTF shader takes them. Faces -y, z up.
+import math
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import bmesh  # noqa: E402
+import bpy  # noqa: E402
+import numpy as np  # noqa: E402
+from mathutils import Matrix, Quaternion, Vector, noise  # noqa: E402
+from mathutils.bvhtree import BVHTree  # noqa: E402
+
+import toy  # noqa: E402
+from toy import cone, sphere, trs, tube, turn  # noqa: E402
+
+TEXTURE = 1024
+
+GREEN = Vector((0.24, 0.60, 0.13))
+BACK = Vector((0.11, 0.38, 0.09))
+BELLY = Vector((0.90, 0.86, 0.44))
+SNOUT = Vector((0.50, 0.74, 0.26))
+HORN = Vector((0.98, 0.90, 0.62))
+HORN_TIP = Vector((1.0, 0.97, 0.86))
+CLAW = Vector((0.96, 0.94, 0.86))
+MEMBRANE_IN = Vector((0.46, 0.68, 0.10))
+MEMBRANE_OUT = Vector((0.88, 0.86, 0.30))
+WHITE = Vector((0.98, 0.98, 0.96))
+PUPIL = Vector((0.04, 0.04, 0.06))
+MOUTH = Vector((0.18, 0.10, 0.08))
+
+SHOULDER = Vector((0.3, 0.24, 1.08))  # the left wing's root, the right one mirrored
+WRIST = Vector((0.85, 0.66))  # in the wing's plane: x out along the span, z up
+WING_ROOT = Vector((0.0, 0.16))
+WING_FOOT = Vector((0.0, -0.2))
+TIPS = [Vector((1.78, 0.44)), Vector((1.48, -0.42)), Vector((0.98, -0.7)), Vector((0.36, -0.52))]
+SPAN = 1.78
+HEAD = Vector((0.0, -0.12, 1.64))
+SURFACE = []  # the body's BVHTree, to put the details on it
+
+
+# --- the body: metaballs ------------------------------------------------------------------------------
+
+def body_shape():
+    mb = bpy.data.metaballs.new("dragon_body")
+    mb.resolution = mb.render_resolution = 0.02
+    mb.threshold = 0.6
+    obj = bpy.data.objects.new("dragon_body", mb)
+    bpy.context.scene.collection.objects.link(obj)
+
+    def ellipsoid(co, radius, size=(1, 1, 1), rotation=Quaternion()):
+        e = mb.elements.new(type="ELLIPSOID")
+        e.co, e.radius, e.rotation = co, radius, rotation
+        e.size_x, e.size_y, e.size_z = size
+
+    def capsule(a, b, radius):
+        a, b = Vector(a), Vector(b)
+        e = mb.elements.new(type="CAPSULE")
+        e.co = (a + b) / 2
+        e.radius = radius
+        e.size_x = (b - a).length / 2
+        e.rotation = Vector((1, 0, 0)).rotation_difference((b - a).normalized())
+
+    def ball(co, radius):
+        e = mb.elements.new(type="BALL")
+        e.co, e.radius = co, radius
+
+    ellipsoid((0, 0.05, 0.72), 0.62, (0.95, 0.86, 1.12))
+    ellipsoid((0, -0.12, 0.66), 0.48, (0.98, 0.8, 1.1))
+    ball((0, -0.04, 1.1), 0.44)
+    capsule((0, -0.06, 1.15), (0, -0.1, 1.4), 0.3)
+    ellipsoid(tuple(HEAD), 0.6, (1.08, 1.0, 0.92))
+    ellipsoid((0, -0.46, 1.5), 0.36, (1.22, 1.0, 0.78))
+    for s in (1, -1):
+        ball((s * 0.27, -0.3, 1.5), 0.23)
+        # legs: thigh, shin, foot
+        ball((s * 0.3, 0.06, 0.42), 0.3)
+        capsule((s * 0.33, 0.0, 0.32), (s * 0.34, -0.08, 0.12), 0.17)
+        ellipsoid((s * 0.34, -0.16, 0.07), 0.18, (1.0, 1.5, 0.6))
+        # arms reaching down and forwards
+        capsule((s * 0.3, -0.14, 1.0), (s * 0.33, -0.33, 0.78), 0.12)
+        capsule((s * 0.33, -0.33, 0.78), (s * 0.22, -0.47, 0.56), 0.1)
+        ball((s * 0.22, -0.48, 0.52), 0.11)
+    capsule((0, 0.38, 0.46), (0, 0.75, 0.3), 0.23)
+    capsule((0, 0.75, 0.3), (0, 1.02, 0.3), 0.16)
+
+    bpy.context.view_layer.update()
+    evaluated = obj.evaluated_get(bpy.context.evaluated_depsgraph_get())
+    mesh = bpy.data.meshes.new_from_object(evaluated)
+    bpy.data.objects.remove(obj)
+    body = bpy.data.objects.new("body", mesh)
+    bpy.context.scene.collection.objects.link(body)
+
+    # even quads, smoothed, then fewer of them
+    select(body)
+    body.data.remesh_voxel_size = 0.022
+    bpy.ops.object.voxel_remesh()
+    for kind, settings in (("SMOOTH", {"iterations": 4, "factor": 0.5}), ("DECIMATE", {"ratio": 0.35})):
+        modifier = body.modifiers.new(kind.lower(), kind)
+        for key, value in settings.items():
+            setattr(modifier, key, value)
+        bpy.ops.object.modifier_apply(modifier=modifier.name)
+    shade_smooth(body)
+    SURFACE.append(BVHTree.FromObject(body, bpy.context.evaluated_depsgraph_get()))
+    return body
+
+
+def on_surface(point, centre, sink=0.0):
+    """Where the ray from centre through point leaves the body, moved sink back towards the centre."""
+    point, centre = Vector(point), Vector(centre)
+    direction = (point - centre).normalized()
+    hit = SURFACE[0].ray_cast(centre, direction, 5.0)[0]
+    return (hit if hit is not None else point) - direction * sink
+
+
+def snapped(matrix, centre, sink=0.0):
+    """matrix moved so its origin sits on the body (see on_surface())."""
+    origin = matrix.translation
+    return Matrix.Translation(on_surface(origin, centre, sink) - origin) @ matrix
+
+
+def linear(color):
+    return Vector(c ** 2.2 for c in color)
+
+
+def select(obj):
+    bpy.ops.object.select_all(action="DESELECT")
+    obj.select_set(True)
+    bpy.context.view_layer.objects.active = obj
+
+
+def shade_smooth(obj):
+    for polygon in obj.data.polygons:
+        polygon.use_smooth = True
+
+
+def body_colour(co, normal):
+    """Green, darker along the back, a pale belly with plates, a lighter snout, a little mottling."""
+    back = smoothstep(-0.15, 0.7, normal.y + max(normal.z, 0.0) * 0.35)
+    color = GREEN.lerp(BACK, back * 0.8)
+    belly = smoothstep(0.25, 0.65, -normal.y) * smoothstep(0.28, 0.42, co.z) * (1.0 - smoothstep(1.12, 1.28, co.z))
+    belly *= 1.0 - smoothstep(0.26, 0.4, abs(co.x))
+    plates = 1.0 - 0.14 * smoothstep(0.82, 0.97, math.cos(co.z * 2 * math.pi / 0.13))
+    color = color.lerp(BELLY * plates, belly)
+    snout = smoothstep(-0.52, -0.62, co.y) * (1.0 - smoothstep(1.56, 1.66, co.z))
+    color = color.lerp(SNOUT, snout * 0.7)
+    mottle = 1.0 + 0.06 * noise.noise(co * 9.0)
+    return color * mottle
+
+
+def smoothstep(a, b, x):
+    t = min(max((x - a) / (b - a), 0.0), 1.0)
+    return t * t * (3 - 2 * t)
+
+
+# --- parts --------------------------------------------------------------------------------------------
+
+PARTS = []  # (object, region) joined at the end
+
+
+def part(name, bm, colour, region, matrix=Matrix()):
+    """A detail from a bmesh, coloured per vertex by colour(local co) or one colour, in region (see weights())."""
+    local = {v: v.co.copy() for v in bm.verts}
+    bm.transform(matrix)
+    if matrix.determinant() < 0:
+        bmesh.ops.reverse_faces(bm, faces=bm.faces)
+    mesh = bpy.data.meshes.new(name)
+    colours = [colour(local[v]) if callable(colour) else colour for v in bm.verts]
+    bm.to_mesh(mesh)
+    bm.free()
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.scene.collection.objects.link(obj)
+    attribute = mesh.color_attributes.new("paint", "FLOAT_COLOR", "POINT")
+    for i, c in enumerate(colours):
+        attribute.data[i].color = (*linear(c), 1.0)
+    shade_smooth(obj)
+    PARTS.append((obj, region))
+    return obj
+
+
+def side(s, matrix):
+    return toy.mirror(matrix) if s < 0 else matrix
+
+
+def face():
+    head = trs(HEAD)
+    centre = HEAD
+    for s in (1, -1):
+        # big eyes slanting down to the middle, an angry lid over each, a heavy brow above
+        eye = snapped(head @ trs((s * 0.17, -0.4, 0.07), (0, -s * 12, s * 14)), centre, 0.035)
+        part("eye", sphere(1.0, 32, 16), WHITE, "head", eye @ trs(scale=(0.15, 0.08, 0.165)))
+        part("pupil", sphere(1.0, 24, 12), PUPIL, "head",
+             eye @ trs((-s * 0.03, -0.066, -0.03), scale=(0.06, 0.03, 0.08)))
+        part("shine", sphere(1.0, 12, 6), WHITE, "head", eye @ trs((-s * 0.012, -0.092, 0.0), scale=0.02))
+        # the lid only over the inner top corner: a glare, not a squint
+        part("lid", sphere(1.0, 32, 16), lambda co: GREEN.lerp(BACK, 0.35), "head",
+             eye @ trs((-s * 0.015, -0.012, 0.118), (0, -s * 30, 0), (0.14, 0.088, 0.062)))
+        brow = [on_surface(HEAD + Vector(p), centre, -0.02) for p in
+                ((s * 0.05, -0.5, 0.2), (s * 0.17, -0.47, 0.23), (s * 0.3, -0.38, 0.18))]
+        part("brow", tube(brow, [0.035, 0.048, 0.032], 12), BACK, "head")
+        # nostrils
+        snout = Vector((0, -0.46, 1.5))
+        part("nostril", sphere(1.0, 12, 6), MOUTH, "head",
+             snapped(trs((s * 0.09, -0.8, 1.56), (20, 0, s * 20), (0.032, 0.022, 0.02)), snout, 0.008))
+        # horns sweeping back and out, lighter towards their tips with rings
+        points = [(0, 0, 0), (0.06, 0.1, 0.14), (0.16, 0.26, 0.24), (0.3, 0.42, 0.26)]
+
+        def horn(co):
+            t = min(co.length / 0.55, 1.0)
+            ring = 0.92 + 0.08 * smoothstep(0.3, 0.6, math.cos(t * 2 * math.pi * 3.5))
+            return HORN.lerp(HORN_TIP, t) * ring
+
+        part("horn", tube(points, [0.09, 0.075, 0.048, 0.012], 16), horn, "head",
+             snapped(side(s, trs(HEAD + Vector((0.22, 0.06, 0.3)))), centre, 0.04))
+        # fin ears
+        part("ear", cone(0.1, 0.0, 0.24, 16), lambda co: GREEN.lerp(MEMBRANE_OUT, co.z / 0.24), "head",
+             snapped(side(s, trs(HEAD + Vector((0.5, 0.04, -0.02)), (0, 75, 15), (1, 0.45, 1))), centre, 0.04))
+    # the grumpy mouth, corners down
+    snout = Vector((0, -0.46, 1.5))
+    mouth = [on_surface(Vector(p), snout, -0.004) for p in
+             ((-0.2, -0.7, 1.36), (-0.09, -0.8, 1.4), (0.09, -0.8, 1.4), (0.2, -0.7, 1.36))]
+    part("mouth", tube(mouth, [0.014, 0.018, 0.018, 0.014], 8), MOUTH, "head")
+
+
+def spines():
+    """Soft spines from the back of the head down to the tail, dark with lighter tips."""
+    path = [(0.34, 1.32), (0.46, 1.08), (0.54, 0.84), (0.58, 0.62), (0.7, 0.44), (0.92, 0.38)]
+    for i, (y, z) in enumerate(path):
+        size = 0.15 - i * 0.012
+        region = "body"
+        place = snapped(trs((0, y, z), (-70 + i * 6, 0, 0), (0.55, 1, 1)), (0, y - 0.6, z), 0.03)
+        part("spine", cone(size * 0.55, 0.0, size, 16), lambda co, h=size: BACK.lerp(MEMBRANE_OUT, (co.z / h) ** 2),
+             region, place)
+
+
+def claws():
+    for s in (1, -1):
+        for k in (-1, 0, 1):
+            part("claw", cone(0.035, 0.0, 0.12, 10), CLAW, "arm",
+                 side(s, trs((0.22 + k * 0.045, -0.54, 0.5), (150 + k * 8, 0, k * 14))))
+            part("toe", cone(0.04, 0.0, 0.1, 10), CLAW, "leg",
+                 side(s, trs((0.34 + k * 0.07, -0.37, 0.05), (95, 0, k * 12))))
+
+
+def tail_end():
+    points = [(0, 0.98, 0.3), (0, 1.16, 0.38), (0, 1.28, 0.56), (0, 1.32, 0.72)]
+    part("tail", tube(points, [0.11, 0.08, 0.055, 0.03], 16), lambda co: GREEN.lerp(BACK, 0.5), "tail2")
+    spade = toy.slab([(0, -0.02), (0.15, 0.1), (0.05, 0.13), (0, 0.3), (-0.05, 0.13), (-0.15, 0.1)], 0.05)
+    part("spade", spade, lambda co: BACK.lerp(MEMBRANE_OUT, max(co.z, 0.0) / 0.3 * 0.6), "tail2",
+         trs((0, 1.32, 0.7), (-25, 0, 90)))
+
+
+# --- wings --------------------------------------------------------------------------------------------
+
+def rib(a, b, t):
+    return a.lerp(b, t)
+
+
+def wing_ribs():
+    """The lines the membrane is stretched between, each from the wrist outwards: the fingers, then along the
+    arm back to the shoulder and down the body."""
+    ribs = [[WRIST, tip] for tip in TIPS]
+    inner = [WRIST, (WRIST + WING_ROOT) / 2, WING_ROOT, WING_FOOT]
+    return ribs + [inner]
+
+
+def along(polyline, t):
+    lengths = [(b - a).length for a, b in zip(polyline, polyline[1:])]
+    total = sum(lengths)
+    d = t * total
+    for (a, b), length in zip(zip(polyline, polyline[1:]), lengths):
+        if d <= length or length == lengths[-1]:
+            return a.lerp(b, min(d / length, 1.0))
+        d -= length
+    return polyline[-1]
+
+
+def membrane():
+    """Panels between consecutive ribs, the trailing edge scalloped in towards the wrist, billowing back."""
+    bm = bmesh.new()
+    ribs = wing_ribs()
+    nt, nu = 16, 12
+    for a, b in zip(ribs, ribs[1:]):
+        grid = []
+        for i in range(nt + 1):
+            t = i / nt
+            row = []
+            for j in range(nu + 1):
+                u = j / nu
+                p = along(a, t).lerp(along(b, t), u)
+                towards = (WRIST - p)
+                if towards.length > 1e-6:
+                    p = p + towards.normalized() * 0.17 * math.sin(math.pi * u) * t ** 3
+                billow = 0.07 * math.sin(math.pi * u) * math.sin(math.pi * min(t * 1.1, 1.0))
+                row.append(bm.verts.new((p.x, billow, p.y)))
+            grid.append(row)
+        for i in range(nt):
+            for j in range(nu):
+                bm.faces.new((grid[i][j], grid[i][j + 1], grid[i + 1][j + 1], grid[i + 1][j]))
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-4)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    # a little thickness so it holds up from behind
+    result = bmesh.ops.solidify(bm, geom=bm.faces, thickness=0.022)
+    del result
+    return bm
+
+
+def membrane_colour(co):
+    """Light out at the edge, green near the wrist and along the fingers."""
+    distance = (Vector((co.x, co.z)) - WRIST).length / 1.1
+    finger = min(point_line(Vector((co.x, co.z)), WRIST, tip) for tip in TIPS)
+    color = MEMBRANE_IN.lerp(MEMBRANE_OUT, smoothstep(0.1, 0.95, distance))
+    return color.lerp(MEMBRANE_IN * 0.9, 1.0 - smoothstep(0.02, 0.09, finger))
+
+
+def point_line(p, a, b):
+    ab = b - a
+    t = min(max((p - a).dot(ab) / ab.length_squared, 0.0), 1.0)
+    return (a + ab * t - p).length
+
+
+def wing_matrix(s):
+    # swept back a little
+    return side(s, trs(SHOULDER, (0, 0, 14)))
+
+
+def wings():
+    for s, name in ((1, "L"), (-1, "R")):
+        place = wing_matrix(s)
+        part("membrane", membrane(), membrane_colour, f"wing.{name}", place)
+        arm = [Vector((0.0, 0.0, 0.16)), Vector((0.45, 0.0, 0.46)), Vector((WRIST.x, 0.0, WRIST.y))]
+        part("wing_arm", tube(arm, [0.075, 0.065, 0.055], 14), GREEN, f"wing.{name}", place)
+        part("knuckle", sphere(1.0, 16, 8), GREEN, f"wing.{name}", place @ trs((WRIST.x, 0, WRIST.y), scale=0.065))
+        for tip in TIPS:
+            middle = (WRIST + tip) / 2 + Vector((0.0, 0.04))
+            finger = [Vector((WRIST.x, 0, WRIST.y)), Vector((middle.x, 0.02, middle.y)), Vector((tip.x, 0, tip.y))]
+            part("finger", tube(finger, [0.045, 0.032, 0.012], 10), GREEN.lerp(BACK, 0.3), f"wing.{name}", place)
+        part("thumb", cone(0.045, 0.0, 0.16, 10), CLAW, f"wing.{name}",
+             place @ trs((WRIST.x, 0, WRIST.y + 0.03), (0, 25, 0)))
+
+
+# --- rig, weights, bake ---------------------------------------------------------------------------------
+
+BONES = {
+    "root": ((0, 0, 0), (0, 0, 0.3), None),
+    "body": ((0, 0.05, 0.4), (0, -0.05, 1.2), "root"),
+    "head": ((0, -0.08, 1.25), (0, -0.15, 1.92), "body"),
+    "tail1": ((0, 0.4, 0.45), (0, 0.85, 0.3), "root"),
+    "tail2": ((0, 0.85, 0.3), (0, 1.3, 0.7), "tail1"),
+}
+for _s, _n in ((1, "L"), (-1, "R")):
+    _root = (_s * SHOULDER.x, SHOULDER.y, SHOULDER.z)
+    _wrist = (_s * (SHOULDER.x + WRIST.x * 0.97), SHOULDER.y + WRIST.x * 0.24, SHOULDER.z + WRIST.y)
+    BONES[f"wing_in.{_n}"] = (_root, _wrist, "body")
+    BONES[f"wing_out.{_n}"] = (_wrist, (_s * (SHOULDER.x + SPAN), SHOULDER.y + 0.44, SHOULDER.z + 0.44),
+                               f"wing_in.{_n}")
+    BONES[f"arm.{_n}"] = ((_s * 0.3, -0.14, 1.0), (_s * 0.22, -0.48, 0.52), "body")
+    BONES[f"leg.{_n}"] = ((_s * 0.3, 0.06, 0.42), (_s * 0.34, -0.14, 0.07), "root")
+
+BODY_BONES = ["root", "body", "head", "tail1", "tail2", "arm.L", "arm.R", "leg.L", "leg.R"]
+
+
+def weights(co, region, x):
+    """{bone: weight} for a vertex: the body blends between its nearest bones, the rest is rigid."""
+    if region.startswith("wing."):
+        name = region[5:]
+        outer = smoothstep(WRIST.x - 0.3, WRIST.x + 0.15, x)
+        return {f"wing_in.{name}": 1.0 - outer, f"wing_out.{name}": outer}
+    if region in ("arm", "leg"):
+        return {f"{region}.{'L' if co.x > 0 else 'R'}": 1.0}
+    if region != "body":
+        return {region: 1.0}
+    near = []
+    for name in BODY_BONES:
+        a, b, _ = BONES[name]
+        d = segment_distance(co, Vector(a), Vector(b))
+        near.append((1.0 / (d * d + 1e-4) ** 2, name))
+    near.sort(reverse=True)
+    near = near[:3]
+    total = sum(w for w, _ in near)
+    return {name: w / total for w, name in near}
+
+
+def segment_distance(p, a, b):
+    ab = b - a
+    t = min(max((p - a).dot(ab) / ab.length_squared, 0.0), 1.0)
+    return (a + ab * t - p).length
+
+
+def join(body):
+    """Everything into one mesh with its paint, its region per vertex kept for the weights."""
+    regions = ["body", "head", "arm", "leg", "tail2", "wing.L", "wing.R"]
+    paint = body.data.color_attributes.new("paint", "FLOAT_COLOR", "POINT")
+    for v in body.data.vertices:
+        paint.data[v.index].color = (*linear(body_colour(v.co, v.normal)), 1.0)
+    objects = [(body, "body")] + PARTS
+    for obj, region in objects:
+        layer = obj.data.attributes.new("region", "INT", "POINT")
+        layer.data.foreach_set("value", [regions.index(region)] * len(obj.data.vertices))
+        # the wings' weights go by the distance out along the span, in the wing's own plane
+        span = obj.data.attributes.new("span", "FLOAT", "POINT")
+        if region.startswith("wing."):
+            inverse = wing_matrix(1 if region.endswith("L") else -1).inverted()
+            span.data.foreach_set("value", [(inverse @ v.co).x for v in obj.data.vertices])
+    bpy.ops.object.select_all(action="DESELECT")
+    for obj, _ in objects:
+        obj.select_set(True)
+    bpy.context.view_layer.objects.active = body
+    bpy.ops.object.join()
+    body.name = body.data.name = "dragon"
+    return body, regions
+
+
+def bake(obj):
+    """The paint and the ambient occlusion into textures, the material the game reads them from."""
+    scene = bpy.context.scene
+    scene.render.engine = "CYCLES"
+    scene.cycles.device = "CPU"
+    scene.render.bake.use_clear = True
+    scene.world = bpy.data.worlds.new("bake")
+    select(obj)
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="SELECT")
+    bpy.ops.uv.smart_project(angle_limit=1.1, island_margin=0.006)
+    bpy.ops.object.mode_set(mode="OBJECT")
+
+    work = bpy.data.materials.new("dragon_bake")
+    work.use_nodes = True
+    nodes, links = work.node_tree.nodes, work.node_tree.links
+    bsdf = next(n for n in nodes if n.type == "BSDF_PRINCIPLED")
+    attribute = nodes.new("ShaderNodeAttribute")
+    attribute.attribute_name = "paint"
+    links.new(attribute.outputs["Color"], bsdf.inputs["Base Color"])
+    target = nodes.new("ShaderNodeTexImage")
+    nodes.active = target
+    obj.data.materials.clear()
+    obj.data.materials.append(work)
+
+    images = {}
+    for kind in ("color", "ao"):
+        image = bpy.data.images.new(f"dragon_{kind}", TEXTURE, TEXTURE)
+        if kind == "ao":
+            image.colorspace_settings.name = "Non-Color"
+        target.image = image
+        if kind == "color":
+            scene.cycles.samples = 1
+            bpy.ops.object.bake(type="DIFFUSE", pass_filter={"COLOR"}, margin=8)
+        else:
+            scene.cycles.samples = 64
+            scene.world.light_settings.distance = 0.4
+            bpy.ops.object.bake(type="AO", margin=8)
+        image.pack()
+        images[kind] = image
+
+    final = bpy.data.materials.new("dragon")
+    final.use_nodes = True
+    nodes, links = final.node_tree.nodes, final.node_tree.links
+    bsdf = next(n for n in nodes if n.type == "BSDF_PRINCIPLED")
+    bsdf.inputs["Roughness"].default_value = 0.45
+    color = nodes.new("ShaderNodeTexImage")
+    color.image = images["color"]
+    links.new(color.outputs["Color"], bsdf.inputs["Base Color"])
+    ao = nodes.new("ShaderNodeTexImage")
+    ao.image = images["ao"]
+    split = nodes.new("ShaderNodeSeparateColor")
+    links.new(ao.outputs["Color"], split.inputs["Color"])
+    group = bpy.data.node_groups.get("glTF Material Output") or bpy.data.node_groups.new(
+        "glTF Material Output", "ShaderNodeTree")
+    if "Occlusion" not in [s.name for s in group.interface.items_tree]:
+        group.interface.new_socket("Occlusion", in_out="INPUT", socket_type="NodeSocketFloat")
+    out = nodes.new("ShaderNodeGroup")
+    out.node_tree = group
+    links.new(split.outputs[0], out.inputs["Occlusion"])
+    obj.data.materials.clear()
+    obj.data.materials.append(final)
+    obj.data.color_attributes.remove(obj.data.color_attributes["paint"])
+
+
+def rig(obj, regions):
+    arm = bpy.data.armatures.new("dragon_rig")
+    rig_obj = bpy.data.objects.new("dragon_rig", arm)
+    bpy.context.scene.collection.objects.link(rig_obj)
+    select(rig_obj)
+    bpy.ops.object.mode_set(mode="EDIT")
+    for name, (head, tail, _) in BONES.items():
+        bone = arm.edit_bones.new(name)
+        bone.head, bone.tail = head, tail
+    for name, (_, _, parent) in BONES.items():
+        if parent:
+            arm.edit_bones[name].parent = arm.edit_bones[parent]
+    bpy.ops.object.mode_set(mode="OBJECT")
+
+    groups = {name: obj.vertex_groups.new(name=name) for name in BONES}
+    region = [0] * len(obj.data.vertices)
+    span = [0.0] * len(obj.data.vertices)
+    obj.data.attributes["region"].data.foreach_get("value", region)
+    obj.data.attributes["span"].data.foreach_get("value", span)
+    for v in obj.data.vertices:
+        for name, w in weights(v.co, regions[region[v.index]], span[v.index]).items():
+            if w > 1e-3:
+                groups[name].add([v.index], w, "REPLACE")
+    obj.data.attributes.remove(obj.data.attributes["region"])
+    obj.data.attributes.remove(obj.data.attributes["span"])
+    obj.parent = rig_obj
+    modifier = obj.modifiers.new("rig", "ARMATURE")
+    modifier.object = rig_obj
+    return rig_obj
+
+
+def animate(rig_obj):
+    """One flap in 16 frames: the wings beat down with the outer part trailing, the body bobs up as they do."""
+    frames = 16
+    up, down = 46, -34
+    keys = {}
+    for name, s in (("L", 1), ("R", -1)):
+        lift = (0, -s, 0)  # turns the span up
+        sweep = (0, 0, s)  # turns the span back
+        keys[f"wing_in.{name}"] = [
+            (1, turn((lift, up), (sweep, 10)), None),
+            (7, turn((lift, down), (sweep, -12)), None),
+            (11, turn((lift, down + 8), (sweep, -6)), None),
+            (17, turn((lift, up), (sweep, 10)), None),
+        ]
+        keys[f"wing_out.{name}"] = [
+            (1, turn((lift, -12)), None),
+            (5, turn((lift, 20)), None),
+            (9, turn((lift, -28)), None),
+            (13, turn((lift, -30)), None),
+            (17, turn((lift, -12)), None),
+        ]
+        keys[f"leg.{name}"] = [(1, turn(((1, 0, 0), -10 + s * 4)), None), (9, turn(((1, 0, 0), 12 - s * 4)), None),
+                               (17, turn(((1, 0, 0), -10 + s * 4)), None)]
+        keys[f"arm.{name}"] = [(1, turn(((1, 0, 0), 4)), None), (9, turn(((1, 0, 0), -4)), None),
+                               (17, turn(((1, 0, 0), 4)), None)]
+    keys["root"] = [(1, None, (0, 0, -0.06)), (9, None, (0, 0, 0.1)), (17, None, (0, 0, -0.06))]
+    keys["head"] = [(1, turn(((1, 0, 0), 5)), None), (9, turn(((1, 0, 0), -5)), None), (17, turn(((1, 0, 0), 5)), None)]
+    keys["tail1"] = [(1, turn(((0, 0, 1), 10)), None), (9, turn(((0, 0, 1), -10)), None),
+                     (17, turn(((0, 0, 1), 10)), None)]
+    keys["tail2"] = [(1, turn(((1, 0, 0), -15)), None), (9, turn(((1, 0, 0), 15)), None),
+                     (17, turn(((1, 0, 0), -15)), None)]
+    toy.action(rig_obj, "fly", frames, keys)
+
+
+def build():
+    toy.reset()
+    body = body_shape()
+    face()
+    spines()
+    claws()
+    tail_end()
+    wings()
+    dragon, regions = join(body)
+    bake(dragon)
+    rig_obj = rig(dragon, regions)
+    animate(rig_obj)
+    return rig_obj, dragon
+
+
+rig_obj, mesh = build()
+out = toy.out_dir()
+toy.export(rig_obj, mesh, os.path.join(out, "dragon.glb"))
+bpy.ops.wm.save_as_mainfile(filepath=os.path.join(out, "dragon.blend"))
+print("RESULT dragon", tuple(round(d, 2) for d in mesh.dimensions), "verts", len(mesh.data.vertices))

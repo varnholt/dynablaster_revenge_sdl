@@ -30,6 +30,7 @@
 #include "game/musicplayerdrawable.h"
 #include "game/roundsdrawable.h"
 #include "game/story/storyhuddrawable.h"
+#include "game/story/storyintrodrawable.h"
 #include "devscript.h"
 #include "game/soundmanager.h"
 #include "game/videooptions.h"
@@ -290,6 +291,10 @@ int main(int /*argc*/, char** /*argv*/)
    StoryHudDrawable story_hud_drawable(device);
    story_hud_drawable.initializeGL();
 
+   // the story mode's intro, played when SINGLE is pressed
+   StoryIntroDrawable story_intro_drawable(device);
+   story_intro_drawable.initializeGL();
+
    // win/trophy screen, drives its own visibility off GameStateMachine's state changes
    GameWinDrawable game_win_drawable(device);
    game_win_drawable.initializeGL();
@@ -392,6 +397,7 @@ int main(int /*argc*/, char** /*argv*/)
          menu_drawable.setVisible(false);
          logo_drawable.setVisible(false);
          menu_cursor.setVisible(false);
+         story_intro_drawable.setVisible(false);
          game_drawable.setVisible(true);
          game_messaging_drawable.setVisible(true);
          game_stats_drawable.setVisible(true);
@@ -411,6 +417,7 @@ int main(int /*argc*/, char** /*argv*/)
    );
    auto show_menu_again = [&]()
    {
+      story_intro_drawable.setVisible(false);
       game_drawable.setVisible(false);
       game_messaging_drawable.setVisible(false);
       game_stats_drawable.setVisible(false);
@@ -429,6 +436,18 @@ int main(int /*argc*/, char** /*argv*/)
    bomberman_client.gameStoppedSignal.connect([&]() { Timer::singleShot(SHOW_WINNER_TIME_SUM, show_menu_again); });
    bomberman_client.showMainMenuSignal.connect([&]() { menu_drawable.pageChangeRequest("data/menus/mainmenu.psd"); });
 
+   // SINGLE plays the intro first, the story mode starts once it's over; it stays up until the game shows
+   navigator.setStoryIntroHandler(
+      [&](std::function<void()> start)
+      {
+         menu_drawable.setVisible(false);
+         logo_drawable.setVisible(false);
+         menu_cursor.setVisible(false);
+         game_help_drawable.setVisible(false);
+         story_intro_drawable.play(std::move(start));
+      }
+   );
+
 #ifndef __SWITCH__
    // the Switch reads its controllers through libnx, see SwitchPlatform
    ControllerInput controller_input;
@@ -437,8 +456,19 @@ int main(int /*argc*/, char** /*argv*/)
 
    MenuControllerHandler menu_controller_handler(menu_drawable, menu_cursor, controller_input);
    menu_controller_handler.initialize();
-   controller_input.buttonPressedSignal.connect([&](ControllerInput::Id, ControllerInput::Button button)
-                                                { menu_controller_handler.buttonPressed(button); });
+   controller_input.buttonPressedSignal.connect(
+      [&](ControllerInput::Id, ControllerInput::Button button)
+      {
+         // any button skips the intro
+         if (story_intro_drawable.isPlaying())
+         {
+            story_intro_drawable.skip();
+            return;
+         }
+
+         menu_controller_handler.buttonPressed(button);
+      }
+   );
    menu_drawable.pageChangedSignal.connect([&](const std::string&) { menu_controller_handler.focusDefaultItem(); });
 
    // the controller picture and stick calibration of the controls options
@@ -492,8 +522,9 @@ int main(int /*argc*/, char** /*argv*/)
    // the frame is drawn offscreen at the video options' resolution, then shown 16:9 with their brightness
    VideoOutput video_output(device);
 
-   const std::array<std::reference_wrapper<Drawable>, 8> animated_drawables{
+   const std::array<std::reference_wrapper<Drawable>, 9> animated_drawables{
       logo_drawable,
+      story_intro_drawable,
       game_drawable,
       game_stats_drawable,
       countdown_drawable,
@@ -504,10 +535,11 @@ int main(int /*argc*/, char** /*argv*/)
    };
 
    // in drawing order
-   const std::array<std::reference_wrapper<Drawable>, 13> painted_drawables{
+   const std::array<std::reference_wrapper<Drawable>, 14> painted_drawables{
       menu_drawable,
       menu_cursor,
       logo_drawable,
+      story_intro_drawable,
       game_drawable,
       game_messaging_drawable,
       game_stats_drawable,
@@ -633,6 +665,13 @@ int main(int /*argc*/, char** /*argv*/)
             }
             case SDL_EVENT_MOUSE_BUTTON_DOWN:
             {
+               // a click skips the intro
+               if (story_intro_drawable.isPlaying())
+               {
+                  story_intro_drawable.skip();
+                  break;
+               }
+
                int x = static_cast<int>(event.button.x);
                int y = static_cast<int>(event.button.y);
                video_output.toPageSpace(x, y);
@@ -649,6 +688,16 @@ int main(int /*argc*/, char** /*argv*/)
                break;
             case SDL_EVENT_KEY_DOWN:
             {
+               // so does any key
+               if (story_intro_drawable.isPlaying())
+               {
+                  if (!event.key.repeat)
+                  {
+                     story_intro_drawable.skip();
+                  }
+                  break;
+               }
+
                if (game_drawable.isVisible())
                {
                   const SDL_Keycode key = mapGameKey(event.key.key);

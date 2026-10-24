@@ -266,10 +266,22 @@ void MenuPageNavigator::onActionRequest(const std::string& page, const std::stri
       // }
       else if (action == kMainMenuActionSingle)
       {
-         // a single player game against the original's 64 stages, also on an in-process server
-         BombermanClient::getInstance().setGameMode(Constants::GameModeStory);
-         BombermanClient::getInstance().host();
-         BombermanClient::getInstance().loginRequest("127.0.0.1", GameSettings::getInstance().getLoginSettings().getNick());
+         // a single player game against the original's 64 stages, also on an in-process server, after the intro
+         const auto start = []()
+         {
+            BombermanClient::getInstance().setGameMode(Constants::GameModeStory);
+            BombermanClient::getInstance().host();
+            BombermanClient::getInstance().loginRequest("127.0.0.1", GameSettings::getInstance().getLoginSettings().getNick());
+         };
+
+         if (_story_intro_handler)
+         {
+            _story_intro_handler(start);
+         }
+         else
+         {
+            start();
+         }
       }
       else if (action == kMainMenuActionMulti)
       {
@@ -635,6 +647,11 @@ void MenuPageNavigator::setJoinHandler(JoinHandler handler)
 void MenuPageNavigator::setBotsWaitCondition(std::function<bool()> condition)
 {
    _bots_wait_condition = std::move(condition);
+}
+
+void MenuPageNavigator::setStoryIntroHandler(StoryIntroHandler handler)
+{
+   _story_intro_handler = std::move(handler);
 }
 
 void MenuPageNavigator::setVideoSettingsHandler(std::function<void()> handler)
