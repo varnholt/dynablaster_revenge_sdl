@@ -1,17 +1,21 @@
 #pragma once
 
 #include "framework/drawable.h"
+#include "image/psd.h"
 
 #include <cstdint>
+#include <memory>
 #include <string>
 
 class BitmapFont;
+class PSDLayer;
 
 //! stage, lives, score and the banners between the story mode's stages
 class StoryHudDrawable : public Drawable
 {
 public:
    explicit StoryHudDrawable(RenderDevice& device);
+   ~StoryHudDrawable() override;
 
    void initializeGL() override;
    void paintGL() override;
@@ -26,7 +30,16 @@ public:
 private:
    void showBanner(const std::string& title, const std::string& subtitle);
 
+   //! stage, lives, score and enemies in a row right of the time panel
+   void drawStats(BitmapFont& font);
+
+   //! the big "PAUSED" in the countdown's look, with the hint how to continue
+   void drawPaused(BitmapFont& font);
+
    BitmapFont* _font = nullptr;
+   PSD _paused_psd;
+   std::unique_ptr<PSDLayer> _paused_layer;
+   float _paused_time = 0.0f;
    int32_t _stage = 0;
    int32_t _lives = 0;
    int32_t _score = 0;

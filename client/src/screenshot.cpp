@@ -19,6 +19,13 @@ bool saveScreenshot(const std::string& path, int width, int height)
    glPixelStorei(GL_PACK_ALIGNMENT, 1);
    glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
 
+   // the backbuffer's alpha is blending residue the window ignores; kept in the PNG, image viewers
+   // show the background through it as dark patches on the floor
+   for (size_t alpha = 3; alpha < pixels.size(); alpha += 4)
+   {
+      pixels[alpha] = 0xff;
+   }
+
    // glReadPixels' origin is bottom-left, PNG expects top-left rows first.
    std::vector<uint8_t> flipped(pixels.size());
    const size_t row_bytes = static_cast<size_t>(width) * 4;
