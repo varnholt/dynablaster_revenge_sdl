@@ -154,6 +154,7 @@ void LevelPirate::drawLevel(float /*frame*/, const Matrix& view)
 
    // the ship's textures by day and by night blended, other glTF models are always drawn by day
    GltfModel::setDaylight(_day);
+   GltfModel::setAtmosphere({});
 
    // the ship and the sky in the sea
    if (_ship->hasWater())

@@ -28,6 +28,14 @@ uniform sampler2D u_detail3;
 uniform vec4 u_detail_scales;
 uniform float u_detail_strength;
 
+// the air: the land fades into the haze's rgb (its a how much at most) from near to far outside the box
+// (x0, y0, x1, y1, the field), the ambient light's and the rim light's colours
+uniform vec4 u_haze;
+uniform highp vec4 u_haze_box;
+uniform vec2 u_haze_range;
+uniform vec3 u_ambient;
+uniform vec3 u_rim;
+
 in vec2 uv;
 in vec3 nrm;
 in highp float height;
@@ -92,7 +100,13 @@ void main()
    albedo *= u_tint;
    float occlusion = texture(u_occlusion, uv).r;
 
-   vec3 color = albedo * occlusion * (0.45 + 0.75 * diffuse) + rim;
+   vec3 color = albedo * occlusion * (0.45 * u_ambient + 0.75 * diffuse) + rim * u_rim;
+
+   if (u_haze.a > 0.0)
+   {
+      highp vec2 outside = max(max(u_haze_box.xy - world.xy, world.xy - u_haze_box.zw), vec2(0.0));
+      color = mix(color, u_haze.rgb, smoothstep(u_haze_range.x, u_haze_range.y, length(outside)) * u_haze.a);
+   }
    color = mix(color, vec3(1.0), u_flash);
 
    o_color = vec4(color, u_alpha);

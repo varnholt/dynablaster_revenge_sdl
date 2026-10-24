@@ -168,6 +168,11 @@ void StoryField::render()
    GltfModel& scenery = getScenery(kit);
    const bool water = scenery.isValid() && scenery.hasWater();
 
+   // the world's air, measured from the field; it stays for the enemies drawn after
+   GltfModel::Atmosphere air = scenery.isValid() ? scenery.getAtmosphere() : GltfModel::Atmosphere{};
+   air._box = Vector4(0.0f, -static_cast<float>(_height), static_cast<float>(_width), 0.0f);
+   GltfModel::setAtmosphere(air);
+
    // what moves in the scenery (gears and the like) loops in its "spin" animation
    const int32_t spin = scenery.isValid() ? scenery.findAnimation("spin") : -1;
    const float time = GlobalTime::Instance().getTime();

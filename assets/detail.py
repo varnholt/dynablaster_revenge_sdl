@@ -10,11 +10,12 @@
 #                       "detail": [mask, image 0..3, repeats per unit 0..3, strength] (see GltfModel::Primitive)
 #
 # Plain numpy, used from Blender's python by the build scripts.
-import json
 import struct
 import zlib
 
 import numpy as np
+
+import glb
 
 SIZE = 512
 STRENGTH = 0.6
@@ -250,11 +251,7 @@ def to_bytes(image):
 def embed(path, masks, layers, repeats, strength=STRENGTH):
     """Adds the detail images and masks ({material name: mask}, rows bottom up, rgba weights) to the glb at path
     and points each material at its mask and the images."""
-    with open(path, "rb") as f:
-        data = f.read()
-    length = struct.unpack_from("<I", data, 12)[0]
-    gltf = json.loads(data[20:20 + length])
-    binary = bytearray(data[20 + length + 8:]) if len(data) > 20 + length else bytearray()
+    gltf, binary = glb.read(path)
 
     def add_image(content):
         while len(binary) % 4:
@@ -271,14 +268,4 @@ def embed(path, masks, layers, repeats, strength=STRENGTH):
         index = add_image(png(to_bytes(mask[::-1])))
         material = next(m for m in gltf["materials"] if m.get("name") == name)
         material.setdefault("extras", {})["detail"] = [index] + shared + list(repeats) + [strength]
-    while len(binary) % 4:
-        binary.append(0)
-    gltf["buffers"][0]["byteLength"] = len(binary)
-
-    text = json.dumps(gltf, separators=(",", ":")).encode()
-    text += b" " * (-len(text) % 4)
-    out = struct.pack("<III", 0x46546C67, 2, 12 + 8 + len(text) + 8 + len(binary))
-    out += struct.pack("<II", len(text), 0x4E4F534A) + text
-    out += struct.pack("<II", len(binary), 0x004E4942) + bytes(binary)
-    with open(path, "wb") as f:
-        f.write(out)
+    glb.write(path, gltf, binary)
