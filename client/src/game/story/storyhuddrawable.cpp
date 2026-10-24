@@ -5,6 +5,7 @@
 #include "menus/bitmapfont.h"
 #include "menus/defaultshader.h"
 #include "menus/fontpool.h"
+#include "menus/psdlayer.h"
 
 // shared
 #include "storystage.h"
@@ -20,6 +21,16 @@ constexpr float SCREEN_WIDTH = 1920.0f;
 constexpr float SCREEN_HEIGHT = 1080.0f;
 constexpr float BANNER_TIME = 3.0f;
 constexpr float FADE_TIME = 0.4f;
+constexpr float PAUSED_FADE_TIME = 0.15f;
+
+// the stats sit in gameui.psd's shadow band, right of its time panel (which ends at x 362)
+// each stat is centred in its cell; the values match the time's digits (y 41 to 73), the labels sit above
+constexpr float STATS_LEFT = 400.0f;
+constexpr float STATS_CELL_WIDTH = 240.0f;
+constexpr float STATS_LABEL_Y = 34.0f;  // a little below where the text ends
+constexpr float STATS_VALUE_Y = 77.0f;
+constexpr float STATS_LABEL_SIZE = 0.14f;
+constexpr float STATS_VALUE_SIZE = 0.32f;
 
 constexpr std::array<std::string_view, 8> WORLD_NAMES = {
    "The Wall",
@@ -37,9 +48,16 @@ StoryHudDrawable::StoryHudDrawable(RenderDevice& device) : Drawable(device)
 {
 }
 
+StoryHudDrawable::~StoryHudDrawable() = default;
+
 void StoryHudDrawable::initializeGL()
 {
    _font = &FontPool::Instance().get("outlined").value().get();
+
+   if (_paused_psd.load("data/menus/paused.psd") && _paused_psd.getLayerCount() > 0)
+   {
+      _paused_layer = std::make_unique<PSDLayer>(_paused_psd.getLayers().front());
+   }
 }
 
 void StoryHudDrawable::setState(int32_t stage, int32_t lives, int32_t score, int32_t state, int32_t enemies_left)
@@ -80,7 +98,52 @@ void StoryHudDrawable::setState(int32_t stage, int32_t lives, int32_t score, int
 
 void StoryHudDrawable::setPaused(bool paused)
 {
+   if (paused && !_paused)
+   {
+      _paused_time = 0.0f;
+   }
+
    _paused = paused;
+}
+
+void StoryHudDrawable::drawStats(BitmapFont& font)
+{
+   const auto& stages = getStoryStages();
+   const std::string_view name = stages[static_cast<size_t>(std::clamp(_stage, 0, static_cast<int32_t>(stages.size()) - 1))]._name;
+
+   const std::array<std::pair<std::string_view, std::string>, 4> stats = {{
+      {"STAGE", std::string(name)},
+      {"LIVES", std::to_string(_lives)},
+      {"SCORE", std::to_string(_score)},
+      {"ENEMIES", std::to_string(_enemies_left)},
+   }};
+
+   float x = STATS_LEFT;
+   for (const auto& [label, value] : stats)
+   {
+      font.setColor(1.0f, 0.75f, 0.3f, 1.0f);
+      font.buildVertices(STATS_LABEL_SIZE, label, x, STATS_LABEL_Y, STATS_CELL_WIDTH);
+      font.draw();
+      font.setColor(1.0f, 1.0f, 1.0f, 1.0f);
+      font.buildVertices(STATS_VALUE_SIZE, value, x, STATS_VALUE_Y, STATS_CELL_WIDTH);
+      font.draw();
+      x += STATS_CELL_WIDTH;
+   }
+}
+
+void StoryHudDrawable::drawPaused(BitmapFont& font)
+{
+   const float alpha = std::min(_paused_time / PAUSED_FADE_TIME, 1.0f);
+
+   if (_paused_layer)
+   {
+      _paused_layer->render(0.0f, 0.0f, alpha);
+   }
+
+   // below the graphic, which sits where the countdown's "GO" does
+   font.setColor(1.0f, 0.85f, 0.4f, alpha);
+   font.buildVertices(0.2f, "PRESS P OR START TO CONTINUE", 0.0f, SCREEN_HEIGHT * 0.6f, SCREEN_WIDTH);
+   font.draw();
 }
 
 void StoryHudDrawable::showBanner(const std::string& title, const std::string& subtitle)
@@ -95,6 +158,11 @@ void StoryHudDrawable::animate(float global_time)
    // global time comes in 16ms steps
    const float dt = _last_time > 0.0f ? (global_time - _last_time) * 0.016f : 0.0f;
    _last_time = global_time;
+
+   if (_paused)
+   {
+      _paused_time += dt;
+   }
 
    if (_banner_time >= 0.0f && !_paused)
    {
@@ -122,22 +190,10 @@ void StoryHudDrawable::paintGL()
    glDepthMask(GL_FALSE);
    activeDevice().setShader(getDefaultMenuShader());
 
-   const auto& stages = getStoryStages();
-   const std::string_view name = stages[static_cast<size_t>(std::clamp(_stage, 0, static_cast<int32_t>(stages.size()) - 1))]._name;
-
    BitmapFont& font = *_font;
-   font.setColor(1.0f, 1.0f, 1.0f, 1.0f);
-   font.buildVertices(0.16f, std::format("STAGE {}", name), 40.0f, 40.0f);
-   font.draw();
-   font.buildVertices(0.16f, std::format("LIVES {}", _lives), 40.0f, 95.0f);
-   font.draw();
-   font.buildVertices(0.16f, std::format("SCORE {}", _score), 40.0f, 150.0f);
-   font.draw();
-   font.setColor(1.0f, 0.75f, 0.3f, 1.0f);
-   font.buildVertices(0.12f, std::format("ENEMIES {}", _enemies_left), 40.0f, 205.0f);
-   font.draw();
+   drawStats(font);
 
-   if (_banner_time >= 0.0f)
+   if (_banner_time >= 0.0f && !_paused)
    {
       const float fade_in = std::min(_banner_time / FADE_TIME, 1.0f);
       const float fade_out = std::clamp((BANNER_TIME - _banner_time) / FADE_TIME, 0.0f, 1.0f);
@@ -153,12 +209,7 @@ void StoryHudDrawable::paintGL()
 
    if (_paused)
    {
-      font.setColor(1.0f, 1.0f, 1.0f, 1.0f);
-      font.buildVertices(0.45f, "PAUSED", 0.0f, SCREEN_HEIGHT * 0.42f, SCREEN_WIDTH);
-      font.draw();
-      font.setColor(1.0f, 0.85f, 0.4f, 1.0f);
-      font.buildVertices(0.2f, "PRESS P OR START TO CONTINUE", 0.0f, SCREEN_HEIGHT * 0.56f, SCREEN_WIDTH);
-      font.draw();
+      drawPaused(font);
    }
 
    font.setColor(1.0f, 1.0f, 1.0f, 1.0f);
