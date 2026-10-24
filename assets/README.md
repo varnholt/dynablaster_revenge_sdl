@@ -31,10 +31,10 @@ baked. The princess and the doctor go through it.
 
 ## Detail up close
 
-`detail.py` makes small seamless images (grass tufts, soil, cracked rock, pebbles) that the game's glTF shader
-tiles in world space over a material's colour, and per material a mask of where each shows; `embed()` puts them
-into a finished `.glb` (the material's extras name them). The story worlds' ground and props get their masks from
-their own colours: green grass, brown soil, steep or dark grey rock, pale grey pebbles, nothing on water.
+`detail.py` makes small seamless images that the game's glTF shader tiles in world space over a material's colour,
+and per material a mask of where each shows; `embed()` puts them into a finished `.glb` (the material's extras name
+them). Two sets: nature (grass tufts, soil, cracked rock, pebbles) for worlds 1–5 and castle (worn tiles, brick
+grit, brushed metal, stone) for 6–8. The worlds' ground and props get their masks from their own colours.
 
 ## How exact a rebuild is
 

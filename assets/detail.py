@@ -1,9 +1,11 @@
-# Fine surface detail for the game's glTF shader: small seamless images (grass blades, soil, cracked rock,
-# pebbles) the shader tiles in world space over a material's colour, and a mask saying where each one shows.
-# The images average mid grey, so they only add detail and leave the colours as they are.
+# Fine surface detail for the game's glTF shader: small seamless grey images the shader tiles in world space over
+# a material's colour, and a mask saying where each one shows. The images average mid grey, so they only add
+# detail and leave the colours as they are. Two sets of four: "nature" (grass tufts, soil, cracked rock,
+# pebbles) and "castle" (worn tiles, brick grit, brushed metal, stone).
 #
-#   images()            the four detail images, numpy rgb arrays (LAYERS order)
-#   ground_mask(...)    a ground's mask from its colour texture and slopes
+#   images(kind)        the set's four images, grey numpy arrays
+#   mask(kind, ...)     a material's mask from its colour texture and slopes
+#   repeats(kind)       how often each image repeats per unit
 #   embed(glb, ...)     puts the masks and images into a .glb and points materials at them through their extras:
 #                       "detail": [mask, image 0..3, repeats per unit 0..3, strength] (see GltfModel::Primitive)
 #
@@ -15,8 +17,6 @@ import zlib
 import numpy as np
 
 SIZE = 512
-LAYERS = ["grass", "soil", "rock", "pebbles"]
-REPEATS = [0.5, 0.6, 0.3, 0.8]  # per unit (tile): a grass image covers a tile, a rock image three
 STRENGTH = 0.6
 
 
@@ -114,22 +114,60 @@ def pebbles(rng):
     return normalised(image, 0.2)
 
 
-def images(seed=11):
-    rng = np.random.default_rng(seed)
-    grey = [grass(rng), soil(rng), rock(rng), pebbles(rng)]
-    return [np.repeat(g[..., None], 3, axis=2) for g in grey]
+def worn(rng):
+    """Worn tiles: fine speckle, a few scratches, chipped spots."""
+    size = SIZE
+    image = periodic_noise(rng, size, 200) * 0.5 + fbm(rng, size, 8) * 0.3
+    for _ in range(140):
+        x, y = rng.uniform(0, size, 2)
+        angle = rng.uniform(0, np.pi)
+        length = rng.uniform(15, 70)
+        for t in np.linspace(0, 1, int(length)):
+            image[int(y + np.sin(angle) * length * t) % size, int(x + np.cos(angle) * length * t) % size] -= 1.2
+    f1, _, _ = cells(rng, size, 40)
+    image -= np.clip(1.0 - f1 / 5.0, 0, 1) * 2.0
+    return normalised(image, 0.14)
 
 
-# --- masks ------------------------------------------------------------------------------------------
+def grit(rng):
+    """Fired clay: coarse grain, pits, a little soot."""
+    size = SIZE
+    image = periodic_noise(rng, size, 160) * 0.7 + periodic_noise(rng, size, 40) * 0.4 + fbm(rng, size, 5) * 0.3
+    f1, _, _ = cells(rng, size, 160)
+    image -= np.clip(1.0 - f1 / 3.0, 0, 1) * 1.5
+    return normalised(image, 0.16)
 
-def ground_mask(rgb, slope):
-    """Per texel of a ground's colour texture (rgb 0..1, rows bottom up like Blender's) and its slope (rise over
-    run) the weight of each LAYERS image: grass where green, soil where brown, rock where steep or grey and dark,
-    pebbles where pale and grey."""
+
+def brushed(rng):
+    """Brushed metal: long fine streaks one way, a few scuffs across."""
+    size = SIZE
+    streaks = rng.standard_normal(size)
+    image = np.repeat(streaks[None, :], size, axis=0) * 0.6
+    image += periodic_noise(rng, size, 30) * 0.5
+    for _ in range(60):
+        x, y = rng.uniform(0, size, 2)
+        angle = rng.uniform(0, np.pi)
+        for t in np.linspace(0, 1, 40):
+            image[int(y + np.sin(angle) * 40 * t) % size, int(x + np.cos(angle) * 40 * t) % size] += 1.0
+    return normalised(image, 0.12)
+
+
+def stone(rng):
+    """Dressed stone: grain, faint veins, a few pores."""
+    size = SIZE
+    image = fbm(rng, size, 12) * 0.6 + periodic_noise(rng, size, 180) * 0.4
+    vein = np.abs(fbm(rng, size, 3))
+    image -= np.clip(1.0 - vein / 0.08, 0, 1) * 0.8
+    return normalised(image, 0.13)
+
+
+# --- the sets: their images, repeats per unit (tile), and how a texture's colours pick them --------------
+
+def nature_mask(rgb, slope):
+    """Grass where green, soil where brown, rock where steep or grey and dark, pebbles where pale and grey,
+    nothing on water."""
     r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
-    top = np.max(rgb, axis=-1)
-    bottom = np.min(rgb, axis=-1)
-    saturation = (top - bottom) / (top + 1e-6)
+    top, saturation = _value_saturation(rgb)
     green = np.clip((g - np.maximum(r, b)) / (top + 1e-6) * 4.0, 0, 1) * np.clip(saturation * 3.0, 0, 1)
     brown = np.clip((r - b) / (top + 1e-6) * 2.5, 0, 1) * np.clip(1.0 - green, 0, 1) * (r >= g * 0.9)
     grey = np.clip(1.0 - saturation * 3.0, 0, 1)
@@ -138,11 +176,54 @@ def ground_mask(rgb, slope):
     weights = np.stack([green, brown, grey * (1.0 - light) + steep, grey * light], axis=-1)
     weights[..., 0] *= 1.0 - steep
     weights[..., 1] *= 1.0 - steep
-    # water and anything bluish keeps its colour plain
     blue = np.clip((b - np.maximum(r, g)) / (top + 1e-6) * 4.0, 0, 1)
-    weights *= (1.0 - blue)[..., None]
+    return _normalise(weights * (1.0 - blue)[..., None])
+
+
+def castle_mask(rgb, slope):
+    """Worn tiles where coloured (purples, blues, greens), grit where red or brown (brick, clay), brushed metal
+    where grey and dark, stone where grey and light."""
+    r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
+    top, saturation = _value_saturation(rgb)
+    coloured = np.clip(saturation * 3.0 - 0.3, 0, 1)
+    warm = np.clip((r - np.maximum(g, b)) / (top + 1e-6) * 3.0, 0, 1)
+    grey = 1.0 - coloured
+    light = np.clip((top - 0.45) * 4.0, 0, 1)
+    weights = np.stack([coloured * (1.0 - warm), coloured * warm, grey * (1.0 - light), grey * light], axis=-1)
+    return _normalise(weights)
+
+
+SETS = {
+    "nature": ([grass, soil, rock, pebbles], [0.5, 0.6, 0.3, 0.8], nature_mask),
+    "castle": ([worn, grit, brushed, stone], [0.5, 0.8, 0.6, 0.4], castle_mask),
+}
+
+
+def _value_saturation(rgb):
+    top = np.max(rgb, axis=-1)
+    return top, (top - np.min(rgb, axis=-1)) / (top + 1e-6)
+
+
+def _normalise(weights):
     total = weights.sum(axis=-1, keepdims=True)
     return np.where(total > 1.0, weights / np.maximum(total, 1e-6), weights)
+
+
+def images(kind="nature", seed=11):
+    """The set's four images, grey numpy arrays."""
+    rng = np.random.default_rng(seed)
+    return [make(rng) for make in SETS[kind][0]]
+
+
+def mask(kind, rgb, slope):
+    """Per texel of a colour texture (rgb 0..1, rows bottom up like Blender's) and its slope (rise over run) the
+    weight of each of the set's images."""
+    return SETS[kind][2](rgb, slope)
+
+
+def repeats(kind):
+    """How often each of the set's images repeats per unit."""
+    return SETS[kind][1]
 
 
 # --- glb --------------------------------------------------------------------------------------------
@@ -166,10 +247,9 @@ def to_bytes(image):
     return (np.clip(image, 0, 1) * 255 + 0.5).astype(np.uint8)
 
 
-def embed(path, masks, layers=None, repeats=REPEATS, strength=STRENGTH):
+def embed(path, masks, layers, repeats, strength=STRENGTH):
     """Adds the detail images and masks ({material name: mask}, rows bottom up, rgba weights) to the glb at path
     and points each material at its mask and the images."""
-    layers = layers if layers is not None else images()
     with open(path, "rb") as f:
         data = f.read()
     length = struct.unpack_from("<I", data, 12)[0]
@@ -185,7 +265,7 @@ def embed(path, masks, layers=None, repeats=REPEATS, strength=STRENGTH):
         return len(gltf["images"]) - 1
 
     # the images are grey, one channel each keeps the file small (the game reads them as rgba either way)
-    shared = [add_image(png(to_bytes(layer[..., 0] if layer.ndim == 3 else layer))) for layer in layers]
+    shared = [add_image(png(to_bytes(layer))) for layer in layers]
     for name, mask in masks.items():
         # gltf images run top down
         index = add_image(png(to_bytes(mask[::-1])))
