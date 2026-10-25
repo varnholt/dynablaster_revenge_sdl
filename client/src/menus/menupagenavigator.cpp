@@ -1039,14 +1039,14 @@ void MenuPageNavigator::updateLoginData()
 
 void MenuPageNavigator::deserializeCreateGameData()
 {
-   // matches GameMenuInterfaceCreate::deserializeCreateGameData() - reads from
-   // getCreateGameSettingsSingle() unconditionally, unlike initializeCreateGameOptions() below
-   // (which does branch on isSinglePlayer()) - this is the original's own behavior, not a typo
-   // introduced by the port, so left as-is rather than "fixed" to branch.
    MenuPage& page = Menu::getInstance().getPageByName(kGameCreate)->get();
    MenuPageTextEditItem& game_name_item = page.getPageItem<MenuPageTextEditItem>("lineedit_name")->get();
 
-   game_name_item.setText(GameSettings::getInstance().getCreateGameSettingsSingle().getGameName());
+   const GameSettings::CreateGameSettings& create_game_settings = BombermanClient::getInstance().isSinglePlayer()
+                                                                     ? GameSettings::getInstance().getCreateGameSettingsSingle()
+                                                                     : GameSettings::getInstance().getCreateGameSettingsMulti();
+
+   game_name_item.setText(create_game_settings.getGameName());
 }
 
 void MenuPageNavigator::initializeCreateGameOptions()
