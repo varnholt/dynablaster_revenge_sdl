@@ -48,4 +48,7 @@ struct StoryStage
    }
 };
 
+//! the 64 stages come in 8 worlds of 8 stages each
+constexpr int32_t STORY_STAGES_PER_WORLD = 8;
+
 [[nodiscard]] const std::vector<StoryStage>& getStoryStages();

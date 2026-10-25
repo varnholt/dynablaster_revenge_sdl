@@ -54,6 +54,7 @@
 #include "startgameresponsepacket.h"
 #include "stopgamerequestpacket.h"
 #include "stopgameresponsepacket.h"
+#include "storyskippacket.h"
 #include "storystatepacket.h"
 #include "stringutils.h"
 #include "timepacket.h"
@@ -1736,6 +1737,12 @@ void BombermanClient::processKeyPressed(int key)
       togglePause();
    }
 
+   // jump to the next world in the story mode
+   else if (key == SDLK_F9 && isStory())
+   {
+      skipToNextWorld();
+   }
+
    // care about movement
    else
    {
@@ -2120,6 +2127,15 @@ void BombermanClient::togglePause()
    if (isStory() && GameStateMachine::getInstance().getState() == Constants::GameActive)
    {
       PausePacket request(!_paused);
+      send(request);
+   }
+}
+
+void BombermanClient::skipToNextWorld()
+{
+   if (isStory() && GameStateMachine::getInstance().getState() == Constants::GameActive && !_paused)
+   {
+      StorySkipPacket request;
       send(request);
    }
 }

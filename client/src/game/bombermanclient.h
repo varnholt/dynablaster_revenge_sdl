@@ -304,6 +304,9 @@ public:
    //! asks the server to pause or resume the running story mode game
    void togglePause();
 
+   //! asks the server to jump to the first stage of the next world of the running story mode game
+   void skipToNextWorld();
+
    //! the server confirmed the story mode game is paused
    bool isPaused() const;
 

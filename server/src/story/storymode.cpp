@@ -491,7 +491,7 @@ void StoryMode::updateStageCleared()
 
       if (_boss_clear_delay <= 0.0f)
       {
-         stageCleared();
+         stageCleared(_stage_index + 1);
       }
 
       return;
@@ -508,11 +508,11 @@ void StoryMode::updateStageCleared()
 
    if (exit_open && isPlayerOn(_exit->x(), _exit->y()))
    {
-      stageCleared();
+      stageCleared(_stage_index + 1);
    }
 }
 
-void StoryMode::stageCleared()
+void StoryMode::stageCleared(int32_t next_stage)
 {
    _cleared = true;
 
@@ -529,14 +529,14 @@ void StoryMode::stageCleared()
 
    sendState(StoryStatePacket::StateStageCleared);
 
-   if (_stage_index + 1 >= static_cast<int32_t>(getStoryStages().size()))
+   if (next_stage >= static_cast<int32_t>(getStoryStages().size()))
    {
       _completed = true;
       sendState(StoryStatePacket::StateCompleted);
    }
    else
    {
-      _stage_index++;
+      _stage_index = next_stage;
    }
 
    _game.finishGame();
@@ -626,6 +626,17 @@ void StoryMode::timeUp()
          spawnEnemy(EnemyType::Coin, static_cast<float>(tile->x()) + 0.5f, static_cast<float>(tile->y()) + 0.5f, -1);
       }
    }
+}
+
+void StoryMode::skipToNextWorld()
+{
+   if (_cleared)
+   {
+      return;
+   }
+
+   const int32_t next_world = (_stage_index / STORY_STAGES_PER_WORLD + 1) * STORY_STAGES_PER_WORLD;
+   stageCleared(next_world % static_cast<int32_t>(getStoryStages().size()));
 }
 
 bool StoryMode::isFinished() const

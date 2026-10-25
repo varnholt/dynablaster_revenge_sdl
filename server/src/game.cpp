@@ -46,6 +46,7 @@
 #include "stonemapitem.h"
 #include "stopgamerequestpacket.h"
 #include "stopgameresponsepacket.h"
+#include "storyskippacket.h"
 #include "stringutils.h"
 #include "timepacket.h"
 
@@ -2409,6 +2410,16 @@ void Game::processPacket(Connection& connection, const Packet& packet)
          if (_story && getState() == Constants::GameActive)
          {
             setPaused(static_cast<const PausePacket&>(packet).isPaused());
+         }
+
+         break;
+      }
+
+      case Packet::STORYSKIP:
+      {
+         if (_story && getState() == Constants::GameActive && !_paused)
+         {
+            _story->skipToNextWorld();
          }
 
          break;
