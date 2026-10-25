@@ -299,6 +299,7 @@ void GameDrawable::loadLevel(const std::string& level_path)
    _level_path = "data/" + level_path;
 
    auto level = LevelFactory::getLevelInstance(_level_path);
+   level->setArenaHidden(BombermanClient::getInstance().isStory());
    level->load();
 
    _level = std::move(level);

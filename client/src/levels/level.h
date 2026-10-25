@@ -41,6 +41,10 @@ public:
    bool isAborted() const;
    void load();
 
+   //! the level's own geometry comes without its materials and textures, for the story mode: it builds the stage
+   //! from the world's kit and only takes the level's cameras; set before load()
+   void setArenaHidden(bool hidden);
+
    virtual void initialize();
    virtual void draw();
 
@@ -105,6 +109,7 @@ protected:
 
    LevelType _level_type;
    bool _aborted = false;
+   bool _arena_hidden = false;
 
    // declared in reverse destruction order: level, scene, players, destruction templates, their sources
    std::vector<std::unique_ptr<SceneGraph>> _destruction_sources;  // the template meshes keep their skeletons
