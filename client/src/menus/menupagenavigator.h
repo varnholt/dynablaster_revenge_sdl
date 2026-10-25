@@ -2,6 +2,7 @@
 
 #include "gamesignal.h"
 #include "hosthistory.h"
+#include "timer.h"
 
 #include <cstddef>
 #include <functional>
@@ -78,10 +79,10 @@ private:
    void updateCreateGamePlayerCounts();
    void updateCreateGameLevelPreview();
 
-   //! mirrors the level previews of GameMenuInterfaceSelect::updateGameProperties() - shows the
-   //! selected game's level on GAME_SELECT, none while no game is known. The table selection isn't
-   //! wired yet, so the selected game is the one JOIN joins (the first known game).
-   void updateSelectGameLevelPreview();
+   //! mirrors the level previews and extra icons of GameMenuInterfaceSelect::updateGameProperties() -
+   //! shows the selected game's level and enabled extras on GAME_SELECT, none while no game is known.
+   //! The table selection isn't wired yet, so the selected game is the one JOIN joins (the first known game).
+   void updateSelectGameProperties();
 
    //! mirrors GameMenuInterfaceLounge::playerInfoMapUpdated() - repopulates the lounge's player
    //! rows (nick/wins/rank/owner-icon) whenever the player set changes (join/leave/bot added).
@@ -192,6 +193,9 @@ private:
    std::size_t _player_info_map_updated_connection = INVALID_CONNECTION;
    std::size_t _message_received_connection = INVALID_CONNECTION;
    std::size_t _games_list_updated_connection = INVALID_CONNECTION;
+
+   //! asks the server for the games list once a second while GAME_SELECT is shown
+   Timer _game_list_update_timer;
 
    //! connection tokens for setMonitorCreateGameOptionsEnabled()'s connect/disconnect pair
    Signal<const std::string&>::Connection _max_players_value_changed_connection = INVALID_CONNECTION;
