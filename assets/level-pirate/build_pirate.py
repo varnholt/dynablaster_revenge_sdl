@@ -1466,14 +1466,24 @@ def deck_props(m):
 # --- sea and sky ----------------------------------------------------------------------------------
 
 SEA = (-300.0, 300.0, -300.0, 300.0)
+SHORE_REACH = 3.0  # units, the water shader's scale of the distance to the shore
 SKY_RADIUS = 380.0
 MOON_SKY = (math.radians(58.0), math.radians(9.0))  # azimuth and elevation of the moon in the sky dome
 WATER = []
 
 
+def lossless(img):
+    """img as a PNG: the water's data texture goes out without JPEG's blocks (see glb.replace_image)."""
+    w, h = img.size
+    pixels = np.empty(w * h * 4, np.float32)
+    img.pixels.foreach_get(pixels)
+    return glb.png(np.ascontiguousarray(np.round(pixels.reshape(h, w, 4)[::-1] * 255).astype(np.uint8)))
+
+
 def sea():
     """The water around the ship for the game's water shader ("water": [deep r, g, b] in its extras); its texture
-    is data: red the depth, green the foam along the hull."""
+    is data: red the depth, green the foam along the hull and the beaches, blue the distance to them (0.02..1 =
+    0..SHORE_REACH units) for the foam to lap against them."""
     x0, x1, y0, y1 = SEA
     step = 25.0
     xs = np.arange(x0, x1 + 1e-6, step)
@@ -1504,7 +1514,15 @@ def sea():
     foam = np.clip(1.0 - away / 1.3, 0, 1) ** 2 * 0.8
     # and the surf on the beaches
     foam = np.maximum(foam, np.clip(1.0 - depth / 0.05, 0, 1) * (depth > 0.0) * 0.7)
-    data = np.stack([depth, foam, np.zeros_like(depth), np.ones_like(depth)], axis=2)
+    # the distance to what the water laps against: the hull, and the waterline on the beaches (seabed() comes
+    # up through the surface 3 units out from the coast)
+    shore = away
+    for island in ISLANDS:
+        cx, cy = island[0], island[1]
+        coast = _coast(island, np.arctan2(TY - cy, TX - cx))
+        shore = np.minimum(shore, np.maximum(np.hypot(TX - cx, TY - cy) - coast - 3.0, 0))
+    shore = np.clip(shore / SHORE_REACH, 0, 1)
+    data = np.stack([depth, foam, 0.02 + 0.98 * shore, np.ones_like(depth)], axis=2)
     img = bpy.data.images.new("water_data", size, size)
     img.pixels.foreach_set(data.astype(np.float32).ravel())
     mat = bpy.data.materials.new("water")
@@ -2315,6 +2333,8 @@ def build():
     if channels:
         gltf["animations"] = [{"name": "gulls", "channels": channels, "samplers": samplers}]
         glb.write(path, gltf, binary)
+    for _, img in WATER:
+        glb.replace_image(path, img.name, lossless(img))
     for img in (props_color, props_ao, deck_color, deck_ao, outside_lit, outside_ao, cloth_lit, cloth_ao, *sky_img,
                 deck_day, props_day, outside_day, cloth_day, white_image(), *shore_images,
                 *(img for _, img in WATER)):

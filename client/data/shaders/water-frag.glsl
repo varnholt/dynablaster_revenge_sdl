@@ -5,7 +5,8 @@ precision highp float;
 // (reflection), mixed by the viewing angle; deep water takes on its own colour, foam where it's
 // shallow and along walls, a glint of the sun on the waves
 
-// red: depth (0..1 = 0..0.8 tiles), green: foam
+// red: depth (0..1 = 0..0.8 tiles), green: foam, blue: the distance to the shore (0.02..1 = 0..SHORE_REACH
+// tiles, 0 where the texture doesn't have it: the foam then stays as it was, without lapping and foam lines)
 uniform sampler2D u_data;
 uniform sampler2D u_reflection;
 uniform sampler2D u_refraction;
@@ -32,6 +33,10 @@ in vec2 uv;
 out vec4 o_color;
 
 const vec3 LIGHT = normalize(vec3(-0.35, -0.55, 0.75));
+const float SHORE_REACH = 3.0;
+
+// turns each octave of noise against the last so the cells of the value noise don't line up into a grid
+const mat2 TURN = mat2(0.8, -0.6, 0.6, 0.8);
 
 float hash(vec2 p)
 {
@@ -42,7 +47,8 @@ float noise(vec2 p)
 {
    vec2 i = floor(p);
    vec2 f = fract(p);
-   vec2 u = f * f * (3.0 - 2.0 * f);
+   // quintic fade: with the cubic one the cells' borders crease, sharpened into foam they show as squares
+   vec2 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
    return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
 }
 
@@ -84,9 +90,34 @@ void main()
    // flowing water carries the churn along, stretched into streaks, and swells the foam in passing waves
    vec2 drift = vec2(u_flow * u_time, 0.0);
    vec2 q = (p - drift) * vec2(1.0 / (1.0 + 0.35 * abs(u_flow)), 1.0);
-   float churn = noise(q * 3.5 + vec2(u_time * 0.25, -u_time * 0.2)) * 0.6 + noise(q * 9.0 - u_time * 0.5) * 0.4;
+   float churn = noise(q * 3.5 + vec2(u_time * 0.25, -u_time * 0.2)) * 0.5 + noise(TURN * q * 7.0 - u_time * 0.4) * 0.3 +
+                 noise(TURN * TURN * q * 13.0 + u_time * 0.5) * 0.2;
    float swell = 1.0 + 0.35 * sin(p.x * 1.3 - u_time * u_flow * 1.3) * step(0.01, abs(u_flow));
-   float foam = smoothstep(0.45, 0.8, data.g * swell * (0.55 + 0.7 * churn));
+
+   // knowing how far the shore is, the foam comes alive: it laps against the shore, swelling out and drawing
+   // back in a slow beat that wanders along the shore so it never pulses in unison, its outer edge frays and
+   // shifts, and thin broken lines of foam leave it and drift outwards, fading as they go
+   float alive = step(0.01, data.b);
+   float shore = max(data.b - 0.02, 0.0) / 0.98 * SHORE_REACH;
+   float beat = noise(p * 0.3) * 6.2832 + noise(p * 0.11 + 5.0) * 6.2832;
+   float lap = sin(u_time * 0.6 + beat);
+   swell *= 1.0 + alive * 0.4 * lap;
+   // a soft edge, frayed by slow noise, rather than the hard rim of the foam mask
+   float fray = (noise(q * 1.3 + vec2(u_time * 0.06, -u_time * 0.05)) - 0.5) * 0.3 * alive;
+   float foam = smoothstep(0.45 - 0.1 * alive, 0.8 + 0.05 * alive, data.g * swell * (0.55 + 0.7 * churn) + fray);
+
+   // a line is let go each time the band draws back, so the lines keep the beat of the lapping; a soft
+   // gaussian profile, bent a little and broken into long pieces so they read as foam, not as stripes
+   float travel = shore - u_time * 0.6 / 6.2832 - beat / 6.2832 + (noise(q * 0.9) - 0.5) * 0.35;
+   float across = (fract(travel) - 0.5) / 0.07;
+   float line = exp(-across * across);
+   line *= smoothstep(0.3, 0.75, noise(TURN * q * vec2(1.1, 1.4) + vec2(-u_time * 0.05, u_time * 0.04)));
+   line *= smoothstep(0.2, 0.7, shore) * smoothstep(2.2, 0.8, shore) * (1.0 - foam) * alive;
+   foam = max(foam, line * 0.35);
+
+   // the inside of the band isn't one sheet of white, it thins out here and there and fills in again
+   float thin = noise(TURN * q * 3.0 + vec2(u_time * 0.15, u_time * 0.1)) * 0.6 + noise(TURN * TURN * q * 6.5 - u_time * 0.2) * 0.4;
+   foam *= 1.0 - alive * 0.2 * smoothstep(0.4, 0.8, thin);
    color = mix(color, vec3(0.92, 0.96, 1.0), foam * 0.85);
 
    if (u_haze.a > 0.0)

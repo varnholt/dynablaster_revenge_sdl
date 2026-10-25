@@ -13,6 +13,7 @@ from mathutils import Matrix
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 import detail  # noqa: E402
+import glb  # noqa: E402
 import grass  # noqa: E402
 
 ARGS = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
@@ -459,9 +460,43 @@ PROPS_DETAIL = []  # the props'
 DETAIL = ["nature", "foliage"]  # the world's detail sets for the ground and the props, see detail.story_world()
 
 
+SHORE_REACH = 3.0  # tiles, the water shader's scale of the distance to the shore
+
+
+def shore_distance(solid, px, reach=SHORE_REACH):
+    """Distance in tiles from the nearest solid pixel (px tiles apart), up to reach: grown a pixel at a time
+    over the 8 neighbours, close enough to the true distance for foam to lap and drift by."""
+    dist = np.where(solid, 0.0, reach)
+    for _ in range(int(reach / px) + 1):
+        padded = np.pad(dist, 1, constant_values=reach)
+        h, w = dist.shape
+        grown = dist
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                if dy or dx:
+                    step = px * (1.4142 if dy and dx else 1.0)
+                    grown = np.minimum(grown, padded[1 + dy:1 + dy + h, 1 + dx:1 + dx + w] + step)
+        dist = grown
+    # the 8 neighbour steps leave faint creases along the diagonals, smoothed out so foam lines follow it evenly
+    for _ in range(3):
+        padded = np.pad(dist, 1, mode="edge")
+        dist = sum(padded[1 + dy:1 + dy + dist.shape[0], 1 + dx:1 + dx + dist.shape[1]]
+                   for dy in (-1, 0, 1) for dx in (-1, 0, 1)) / 9.0
+    return np.minimum(dist, reach)
+
+
+def lossless(img):
+    """img as a PNG: the water's data texture goes out without JPEG's blocks (see glb.replace_image)."""
+    w, h = img.size
+    pixels = np.empty(w * h * 4, np.float32)
+    img.pixels.foreach_get(pixels)
+    return glb.png(np.ascontiguousarray(np.round(pixels.reshape(h, w, 4)[::-1] * 255).astype(np.uint8)))
+
+
 def water_surface(st, height_fn, level, deep_color, field_depth=None):
     """The water as its own mesh for the game's water shader ("water": [deep r, g, b] in its extras); its texture
-    is data: red the depth (0..0.8 tiles), green the foam along the shores and the island's wall."""
+    is data: red the depth (0..0.8 tiles), green the foam along the shores and the island's wall, blue the
+    distance to them (0.02..1 = 0..SHORE_REACH tiles) for the foam to lap against them."""
     step = 0.5
     xs = np.arange(st.x0, st.x1 + 1e-6, step)
     ys = np.arange(st.y0, st.y1 + 1e-6, step)
@@ -491,7 +526,10 @@ def water_surface(st, height_fn, level, deep_color, field_depth=None):
     d = st.outside(TX, TY)
     # along the shores and in a ring around the island's wall (1.2 tiles out from the apron)
     foam = np.maximum(smooth(0.12, 0.0, depth), smooth(0.8, 1.05, d) * smooth(1.9, 1.45, d))
-    data = np.stack([depth, foam, np.zeros_like(depth), np.ones_like(depth)], axis=2)
+    # what the water laps against: the dry shore and the island's wall (where the ring of foam peaks)
+    solid = (height_fn(TX, TY) >= level) | ((d > 1.0) & (d < 1.45))
+    shore = shore_distance(solid, (st.x1 - st.x0) / size)
+    data = np.stack([depth, foam, 0.02 + 0.98 * shore / SHORE_REACH, np.ones_like(depth)], axis=2)
     img = bpy.data.images.new("water_data", size, size)
     img.pixels.foreach_set(data.astype(np.float32).ravel())
     mat = bpy.data.materials.new("water")
@@ -1526,6 +1564,8 @@ def build(world, size_key):
         detail.embed(path, {material: mask}, detail.images(kind), detail.repeats(kind), detail.strength(kind))
     if blades is not None:
         grass.embed(path, "grass_export", blades)
+    for _, img in WATER:
+        glb.replace_image(path, img.name, lossless(img))
     for img in (ground_color, props_color, props_ao, ground_ao, *(img for _, img in WATER)):
         img.pack()
     bpy.context.scene.name = f"world{world}_{title}_{w}x{h}"
