@@ -16,13 +16,13 @@ constexpr float OPEN_TIME = 75.0f;
 constexpr int32_t SEGMENTS = 48;
 
 // tile units, the portal is centered on its tile
-constexpr float HOLE_RADIUS = 0.34f;
-constexpr float LID_RADIUS = 0.36f;
+constexpr float HOLE_RADIUS = 0.3f;
+constexpr float LID_RADIUS = 0.32f;
 constexpr float LID_HEIGHT = 0.03f;
 constexpr float FUNNEL_DEPTH = 0.9f;
 constexpr float FUNNEL_BOTTOM_RADIUS = 0.05f;
 constexpr float GLOW_RADIUS = 1.25f;
-constexpr float PUNCH_HEIGHT = 0.05f;
+constexpr float GLOW_HEIGHT = 0.05f;
 
 // position, uv, normal
 constexpr int32_t FLOATS_PER_VERTEX = 8;
@@ -86,6 +86,7 @@ ExitPortal::ExitPortal()
    _time_param = activeDevice().getParameterIndex("time");
    _openness_param = activeDevice().getParameterIndex("openness");
    _aperture_param = activeDevice().getParameterIndex("aperture");
+   _opening_param = activeDevice().getParameterIndex("opening");
 
    glGenBuffers(1, &_vertex_buffer);
    buildGeometry();
@@ -113,12 +114,12 @@ void ExitPortal::buildGeometry()
       {
          appendLathe(
             vertices,
-            {{0.33f, 0.0f, 0.0f},
-             {0.35f, 0.05f, 0.25f},
-             {0.39f, 0.08f, 0.45f},
-             {0.43f, 0.08f, 0.55f},
-             {0.47f, 0.05f, 0.75f},
-             {0.49f, 0.0f, 1.0f}}
+            {{0.29f, 0.0f, 0.0f},
+             {0.31f, 0.045f, 0.25f},
+             {0.345f, 0.07f, 0.45f},
+             {0.375f, 0.07f, 0.55f},
+             {0.405f, 0.045f, 0.75f},
+             {0.42f, 0.0f, 1.0f}}
          );
       }
    );
@@ -149,13 +150,10 @@ void ExitPortal::buildGeometry()
       {
          for (const auto& [x, y] : {std::pair{-1.0f, -1.0f}, {1.0f, -1.0f}, {1.0f, 1.0f}, {-1.0f, -1.0f}, {1.0f, 1.0f}, {-1.0f, 1.0f}})
          {
-            vertices.insert(vertices.end(), {x * GLOW_RADIUS, y * GLOW_RADIUS, PUNCH_HEIGHT, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f});
+            vertices.insert(vertices.end(), {x * GLOW_RADIUS, y * GLOW_RADIUS, GLOW_HEIGHT, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f});
          }
       }
    );
-
-   // Part::DepthPunch, a unit disc scaled to the iris' opening
-   add_part([&] { appendDisc(vertices, 1.0f, PUNCH_HEIGHT); });
 
    glBindBuffer(GL_ARRAY_BUFFER, _vertex_buffer);
    glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(vertices.size() * sizeof(float)), vertices.data(), GL_STATIC_DRAW);
@@ -250,24 +248,15 @@ void ExitPortal::render(float dt)
    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * FLOATS_PER_VERTEX, reinterpret_cast<const GLvoid*>(sizeof(float) * 3));
    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(float) * FLOATS_PER_VERTEX, reinterpret_cast<const GLvoid*>(sizeof(float) * 5));
 
+   activeDevice().push(center);
+
    if (aperture > 0.0f)
    {
-      // cut the floor open: clear its depth inside the opening, the lid covers the seam
-      const float punch_radius = std::min(aperture * 1.1f, LID_RADIUS);
-      activeDevice().push(Matrix::scale(punch_radius, punch_radius, 1.0f) * center);
-      // depth only, the blend keeps the color buffer as it is
-      glEnable(GL_BLEND);
-      glBlendFunc(GL_ZERO, GL_ONE);
-      glDepthFunc(GL_ALWAYS);
-      draw(Part::DepthPunch);
-      glDepthFunc(GL_LEQUAL);
-      glDisable(GL_BLEND);
-
-      activeDevice().push(center);
+      // seen through the floor's opening only, at the floor's depth; the lid covers the seam
+      activeDevice().setParameter(_opening_param, std::min(aperture * 1.1f, LID_RADIUS));
       draw(Part::Funnel);
    }
 
-   activeDevice().push(center);
    draw(Part::Rim);
 
    if (aperture < LID_RADIUS)
