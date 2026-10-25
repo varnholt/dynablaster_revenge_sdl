@@ -319,8 +319,9 @@ public:
    //! send a message to others
    void sendMessage(const std::string& message, bool finishedTyping, int receiverId = -1);
 
-   //! host a game
-   void host();
+   //! host a game on the in-process server
+   //! returns true if the server is listening (already or now), false if its port couldn't be bound
+   bool host();
 
    //! initialize bots
    void initializeBots();

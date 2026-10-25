@@ -286,7 +286,15 @@ void MenuPageNavigator::onActionRequest(const std::string& page, const std::stri
          const auto start = []()
          {
             BombermanClient::getInstance().setGameMode(Constants::GameModeStory);
-            BombermanClient::getInstance().host();
+
+            // never log into a server some other process runs on the port; back to the menu,
+            // which shows host()'s "unable to bind" error
+            if (!BombermanClient::getInstance().host())
+            {
+               BombermanClient::getInstance().showMenuSignal();
+               return;
+            }
+
             BombermanClient::getInstance().loginRequest("127.0.0.1", GameSettings::getInstance().getLoginSettings().getNick());
          };
 
