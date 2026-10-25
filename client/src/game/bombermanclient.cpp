@@ -1482,7 +1482,7 @@ void BombermanClient::poll()
 
       if (status == NET_SUCCESS)
       {
-         _socket.reset(NET_CreateClient(_address.get(), 6300, 0));
+         _socket.reset(NET_CreateClient(_address.get(), SERVER_PORT, 0));
          _address.reset();
 
          if (!_socket)
@@ -2233,7 +2233,7 @@ void BombermanClient::gameListRequest()
 //----------------------------------------------------------------------------
 /*!
  */
-void BombermanClient::host()
+bool BombermanClient::host()
 {
    if (!_server)
    {
@@ -2272,6 +2272,8 @@ void BombermanClient::host()
          _server.reset();
       }
    }
+
+   return _server != nullptr;
 }
 
 //-----------------------------------------------------------------------------

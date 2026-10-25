@@ -22,6 +22,14 @@ int main(int /*argc*/, char** /*argv*/)
    }
 
    Server server;
+
+   // the port is taken, e.g. by another server; nobody could ever connect to this one
+   if (!server.isListening())
+   {
+      NET_Quit();
+      return 1;
+   }
+
    server.startPolling();
 
    while (true)
