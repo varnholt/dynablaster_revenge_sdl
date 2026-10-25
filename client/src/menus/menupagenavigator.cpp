@@ -114,6 +114,7 @@ const std::string kMainMenuActionPouet = "button_pouet_active";
 const std::string kMainMenuActionFacebook = "button_facebook_active";
 const std::string kMainMenuActionHome = "button_home_active";
 const std::string kGameSelectActionJoin = "button_join_active";
+const std::string kGameSelectTable = "table_games_main";
 const std::string kGameCreateActionOk = "button_ok_active";
 
 bool isOptionsPage(const std::string& page)
@@ -209,8 +210,13 @@ MenuPageNavigator::MenuPageNavigator()
                                                                        { onMessageReceived(sender_id, message, finished); });
 
    // matches GameMenuWorkflow::gamesListUpdated() refreshing GAME_SELECT's game properties
-   _games_list_updated_connection = client.gamesListUpdatedSignal.connect([this](const std::vector<GameInformation>&)
-                                                                          { updateSelectGameProperties(); });
+   _games_list_updated_connection = client.gamesListUpdatedSignal.connect(
+      [this](const std::vector<GameInformation>&)
+      {
+         updateSelectGameTable();
+         updateSelectGameProperties();
+      }
+   );
 
    // matches GameMenuWorkflow's mGameListUpdateTimer, started and stopped by onPageChanged()
    _game_list_update_timer.setInterval(1000);
@@ -229,6 +235,7 @@ MenuPageNavigator::~MenuPageNavigator()
    setMonitorCreateGameOptionsEnabled(false);
    setMonitorVideoSettingsEnabled(false);
    setMonitorAudioSettingsEnabled(false);
+   setMonitorSelectGameTableEnabled(false);
 
    if (BombermanClient::hasInstance())
    {
@@ -324,19 +331,20 @@ void MenuPageNavigator::onActionRequest(const std::string& page, const std::stri
       }
       else if (action == kGameSelectActionJoin)
       {
-         // the real GAME_SELECT_ACTION_JOIN reads the operator-selected row out of the game
-         // table (GameMenuInterfaceSelect::getSelectedGame()) - that table selection isn't wired
-         // in this port yet, so this joins the first known game instead. Real enough to prove the
-         // join->lounge chain; picking a specific game is a later refinement.
-         const std::vector<GameInformation>& games = BombermanClient::getInstance().getGames();
-         if (!games.empty())
+         // matches GAME_SELECT_ACTION_JOIN joining GameMenuInterfaceSelect::getSelectedGame()
+         if (selectedGame())
          {
-            requestJoin(games.front().getId(), kGameSelect);
+            requestJoin(_selected_game_id, kGameSelect);
          }
          else
          {
-            Log::info("MenuPageNavigator: JOIN clicked with no games known yet");
+            Log::info("MenuPageNavigator: JOIN clicked with no game selected");
          }
+      }
+      else if (action == kGameSelectTable)
+      {
+         // the page emits this before the table handles the click, so the clicked row arrives
+         // through the table's elementActivatedSignal instead (see setMonitorSelectGameTableEnabled())
       }
       else
       {
@@ -599,6 +607,7 @@ void MenuPageNavigator::onPageChanged(const std::string& page)
    setMonitorVideoSettingsEnabled(false);
    setMonitorAudioSettingsEnabled(false);
    _game_list_update_timer.stop();
+   setMonitorSelectGameTableEnabled(false);
 
    if (page == kMainMenu)
    {
@@ -614,6 +623,9 @@ void MenuPageNavigator::onPageChanged(const std::string& page)
       // matches GameMenuWorkflow::pageChanged(): request the games list right away, then once a second
       BombermanClient::getInstance().gameListRequest();
       _game_list_update_timer.start();
+      setMonitorSelectGameTableEnabled(true);
+      _select_game_rows.clear();
+      updateSelectGameTable();
       updateSelectGameProperties();
    }
    else if (page == kGameCreate)
@@ -1142,13 +1154,164 @@ void MenuPageNavigator::updateCreateGameLevelPreview()
    preview_pirate.setVisible(level_combo.getFocussedElement() == 3);
 }
 
+const GameInformation* MenuPageNavigator::selectedGame() const
+{
+   const std::vector<GameInformation>& games = BombermanClient::getInstance().getGames();
+   const auto it = std::ranges::find(games, _selected_game_id, &GameInformation::getId);
+   return it != games.end() ? &*it : nullptr;
+}
+
+void MenuPageNavigator::updateSelectGameTable()
+{
+   const auto select_page = Menu::getInstance().getPageByName(kGameSelect);
+   const auto current_page = Menu::getInstance().getCurrentPage();
+
+   if (!select_page || !current_page || &select_page->get() != &current_page->get())
+   {
+      return;
+   }
+
+   const auto table = select_page->get().getPageItem<MenuPageListItem>(kGameSelectTable);
+   if (!table)
+   {
+      return;
+   }
+
+   MenuPageListItem& table_item = *table;
+   const std::vector<GameInformation>& games = BombermanClient::getInstance().getGames();
+
+   // a vanished selection falls back to the first game, like the original's first row
+   if (!selectedGame())
+   {
+      _selected_game_id = games.empty() ? -1 : games.front().getId();
+   }
+
+   std::vector<std::pair<int32_t, std::string>> rows;
+   rows.reserve(games.size());
+   for (const GameInformation& info : games)
+   {
+      rows.emplace_back(info.getId(), info.getGameName());
+   }
+
+   // the list arrives once a second, only rebuild when a game came, went or got renamed
+   if (rows != _select_game_rows)
+   {
+      const int focussed_element = table_item.getFocussedElement();
+
+      table_item.clear();
+      for (const auto& [id, name] : rows)
+      {
+         table_item.appendItem(name);
+      }
+
+      if (focussed_element >= 0 && focussed_element < table_item.getElementCount())
+      {
+         table_item.setElementFocussed(focussed_element, true);
+      }
+
+      _select_game_rows = std::move(rows);
+   }
+
+   const auto selected_row = std::ranges::find(_select_game_rows, _selected_game_id, &std::pair<int32_t, std::string>::first);
+   const int active_element =
+      selected_row != _select_game_rows.end() ? static_cast<int>(std::distance(_select_game_rows.begin(), selected_row)) : -1;
+
+   for (int i = 0; i < table_item.getElementCount(); ++i)
+   {
+      table_item.setElementActive(i, i == active_element);
+   }
+
+   table_item.setActiveElement(active_element);
+}
+
+void MenuPageNavigator::onSelectGameRowActivated(int row)
+{
+   if (row < 0 || static_cast<size_t>(row) >= _select_game_rows.size())
+   {
+      return;
+   }
+
+   _selected_game_id = _select_game_rows[static_cast<size_t>(row)].first;
+   updateSelectGameProperties();
+}
+
+void MenuPageNavigator::setMonitorSelectGameTableEnabled(bool enabled)
+{
+   if (!enabled && _games_table_activated_connection == INVALID_CONNECTION)
+   {
+      return;
+   }
+
+   const auto page = Menu::getInstance().getPageByName(kGameSelect);
+   if (!page)
+   {
+      return;
+   }
+
+   const auto table = page->get().getPageItem<MenuPageListItem>(kGameSelectTable);
+   if (!table)
+   {
+      return;
+   }
+
+   if (enabled)
+   {
+      _games_table_activated_connection = table->get().elementActivatedSignal.connect([this](int row) { onSelectGameRowActivated(row); });
+   }
+   else
+   {
+      table->get().elementActivatedSignal.disconnect(_games_table_activated_connection);
+      _games_table_activated_connection = INVALID_CONNECTION;
+   }
+}
+
 void MenuPageNavigator::updateSelectGameProperties()
 {
    MenuPage& page = Menu::getInstance().getPageByName(kGameSelect)->get();
 
    const std::vector<GameInformation>& games = BombermanClient::getInstance().getGames();
-   const std::string level = games.empty() ? std::string{} : games.front().getLevelName();
-   const int32_t extras = games.empty() ? 0 : games.front().getExtras();
+   const GameInformation* info = selectedGame();
+
+   const std::string level = info ? info->getLevelName() : std::string{};
+   const int32_t extras = info ? info->getExtras() : 0;
+
+   const auto set_label = [&](const std::string& layer_name, const std::string& text, bool centered, int alpha)
+   {
+      if (const auto label = page.getPageItem<MenuPageLabelItem>(layer_name))
+      {
+         MenuPageLabelItem& label_item = *label;
+         label_item.setText(text);
+         label_item.setAlpha(alpha);
+
+         if (const auto layer = label_item.getLayer(); centered && layer)
+         {
+            label_item.setCenterWidth(static_cast<float>(layer->get().getWidth()));
+         }
+      }
+   };
+
+   // server totals, matches GameMenuInterfaceSelect::updateServerProperties()
+   int32_t server_player_count = 0;
+   for (const GameInformation& game : games)
+   {
+      server_player_count += game.getPlayerCount();
+   }
+
+   set_label("label_server_games", std::to_string(games.size()), false, 255);
+   set_label("label_server_players", std::to_string(server_player_count), false, 255);
+
+   // the selected game, dimmed while there is none
+   const int alpha = info ? 255 : 40;
+
+   set_label(
+      "label_selected_level_players",
+      std::format("{}/{}", info ? info->getPlayerCount() : 0, info ? info->getPlayerMaximumCount() : 0),
+      false,
+      alpha
+   );
+   set_label("label_selected_level_time", std::to_string(info ? info->getDuration() : 0), false, alpha);
+   set_label("label_current_round", std::to_string(info ? info->getCurrentRound() + 1 : 0), true, alpha);
+   set_label("label_final_round", std::to_string(info ? info->getRoundCount() : 0), true, alpha);
 
    const auto show_if = [&](const std::string& layer_name, Level::LevelType level_type)
    {

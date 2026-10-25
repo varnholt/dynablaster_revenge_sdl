@@ -146,6 +146,9 @@ public:
 
    Signal<int> elementFocussedSignal;
 
+   //! emitted with the row index after a click made that row the active one
+   Signal<int> elementActivatedSignal;
+
 protected:
    //! draw the text
    void drawText();
