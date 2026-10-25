@@ -128,7 +128,7 @@ private:
    void deserializeVersion();
 
    //! mirrors GameMenuInterfaceCreate::deserializeCreateGameData() - repopulates the "game name"
-   //! text field from GameSettings whenever the GAME_CREATE page becomes current.
+   //! text field from the current mode's create game settings whenever the GAME_CREATE page becomes current.
    void deserializeCreateGameData();
 
    //! mirrors GameMenuInterfaceCreate::initializeCreateGameOptions()
