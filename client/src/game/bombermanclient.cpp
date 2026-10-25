@@ -54,6 +54,7 @@
 #include "startgameresponsepacket.h"
 #include "stopgamerequestpacket.h"
 #include "stopgameresponsepacket.h"
+#include "storyskippacket.h"
 #include "storystatepacket.h"
 #include "stringutils.h"
 #include "timepacket.h"
@@ -1482,7 +1483,7 @@ void BombermanClient::poll()
 
       if (status == NET_SUCCESS)
       {
-         _socket.reset(NET_CreateClient(_address.get(), 6300, 0));
+         _socket.reset(NET_CreateClient(_address.get(), SERVER_PORT, 0));
          _address.reset();
 
          if (!_socket)
@@ -1734,6 +1735,12 @@ void BombermanClient::processKeyPressed(int key)
    else if (key == SDLK_P && isStory())
    {
       togglePause();
+   }
+
+   // jump to the next world in the story mode
+   else if (key == SDLK_F9 && isStory())
+   {
+      skipToNextWorld();
    }
 
    // care about movement
@@ -2124,6 +2131,15 @@ void BombermanClient::togglePause()
    }
 }
 
+void BombermanClient::skipToNextWorld()
+{
+   if (isStory() && GameStateMachine::getInstance().getState() == Constants::GameActive && !_paused)
+   {
+      StorySkipPacket request;
+      send(request);
+   }
+}
+
 //-----------------------------------------------------------------------------
 /*!
    \return true if the server paused the game
@@ -2233,7 +2249,7 @@ void BombermanClient::gameListRequest()
 //----------------------------------------------------------------------------
 /*!
  */
-void BombermanClient::host()
+bool BombermanClient::host()
 {
    if (!_server)
    {
@@ -2272,6 +2288,8 @@ void BombermanClient::host()
          _server.reset();
       }
    }
+
+   return _server != nullptr;
 }
 
 //-----------------------------------------------------------------------------

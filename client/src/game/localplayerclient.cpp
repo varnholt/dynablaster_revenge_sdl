@@ -20,7 +20,6 @@
 
 namespace
 {
-constexpr uint16_t server_port = 6300;
 constexpr int32_t poll_interval_ms = 16;
 }  // namespace
 
@@ -49,7 +48,7 @@ void LocalPlayerClient::poll()
       const NET_Status status = NET_GetAddressStatus(_address.get());
       if (status == NET_SUCCESS)
       {
-         _socket.reset(NET_CreateClient(_address.get(), server_port, 0));
+         _socket.reset(NET_CreateClient(_address.get(), SERVER_PORT, 0));
          _address.reset();
       }
       else if (status == NET_FAILURE)

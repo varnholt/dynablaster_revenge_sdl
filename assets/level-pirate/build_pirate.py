@@ -1768,8 +1768,7 @@ GULL_CENTRE = Vector((2.0, 4.0, 0.0))
 GULLS = [(16.0, 24.0, 0.0), (21.0, 27.0, 2.1), (26.0, 25.0, 4.0), (19.0, 29.0, 5.2), (28.0, 26.5, 1.2)]  # radius, height, angle
 GULL_SIZE = 2.2  # larger than life, a gull of a few pixels would be lost against the sky
 GULL_SECONDS = 26.0  # one round of the circle
-GULL_FPS = 10
-GULL_WAVE = 0.3  # how far a wingtip moves
+GULL_FPS = 25  # the wingbeats need finer steps than the gliding
 # and now and then one passing low by the ship, so the game's view gets a glimpse of them about every nine seconds:
 # each flies straight, banks through one turn as it brushes an edge of the view and flies off, out of sight for
 # the rest of the loop (the jump back at the loop's end is far away); never over the field itself
@@ -1780,59 +1779,235 @@ GULL_PASSES = [(4.5, (3.0, 4.5, 1.7), 0.0, 120.0, 1.0),  # dipping into the stri
                (21.5, (-1.0, -7.0, 6.5), 90.0, 180.0, 0.7)]  # and at the left edge, high over the deck
 GULL_PASS_SIZE = 1.0  # near the game's camera, a big gull would draw the eye from the game
 GULL_PASS_SPEED = 4.0  # a calm glide
+# the swatches of the gulls' palette: seen from below against the sky mostly white, a grey back and upper wings,
+# black wingtips with a white spot near the end, a yellow beak and a dark eye
+GULL_WHITE, GULL_GREY, GULL_BLACK, GULL_BEAK, GULL_EYE, GULL_UNDER = range(6)
+GULL_DAY = [(0.97, 0.97, 0.95), (0.62, 0.64, 0.68), (0.07, 0.07, 0.08), (0.95, 0.78, 0.2), (0.04, 0.03, 0.03),
+            (0.86, 0.87, 0.89)]
+GULL_NIGHT = [(0.12, 0.13, 0.18), (0.08, 0.09, 0.13), (0.02, 0.02, 0.03), (0.12, 0.1, 0.05), (0.01, 0.01, 0.01),
+              (0.1, 0.11, 0.15)]
+# the wings hinge at the shoulder (the arm, up to the wrist) and at the wrist (the hand with its fingered black
+# primaries), in the gull's frame at size 1: x forward, y left, z up
+GULL_SHOULDER = Vector((0.05, 0.07, 0.045))
+GULL_WRIST = 0.34  # along the arm
+GULL_BEAT = 3.0  # wingbeats per second, about a herring gull's
+# flapping: the arm swings about its glide angle, the hand lags behind it and sweeps back on the upstroke;
+# gliding: the arm raised a little, the hand drooping, the gull's "M" (degrees)
+GULL_ARM = (6.0, 34.0)  # glide angle, swing
+GULL_HAND = (-14.0, 22.0, 24.0)  # glide angle, swing, sweep back on the upstroke
 
 
-def gull(verts, faces, uvs, waves, at, heading, size=GULL_SIZE):
-    """A gull gliding along heading (z-up): a slim body, wings bent at the wrist with dark tips; the wings' "wave"
-    colour lifts the tips."""
-    forward = Vector((math.cos(heading), math.sin(heading), 0.0)) * size
-    side = Vector((-forward.y, forward.x, 0.0))
-    up = Vector((0.0, 0.0, size))
+def gull_loft(verts, faces, swatches, rings, close_front=True, close_back=True):
+    """Rings of points (lists of equal length) joined by quads, each given the swatch picked by swatches(ring,
+    side); the ends asked for are closed with a fan to their middle."""
     start = len(verts)
-    body = [(0.45, 0.0, 0.0), (0.0, 0.09, 0.05), (0.0, -0.09, 0.05), (0.0, 0.0, -0.07), (-0.5, 0.0, 0.02)]
-    for f, sd, u in body:
-        verts.append(at + forward * f + side * sd + up * u)
-        uvs.append((0.5 / 3, 0.5))
-        waves.append((Vector((0.0, 0.0, 1.0)), 0.0))
-    for a, b, c in ((0, 1, 2), (0, 2, 3), (0, 3, 1), (4, 2, 1), (4, 3, 2), (4, 1, 3)):
-        faces.append((start + a, start + b, start + c))
+    sides = len(rings[0])
+    for ring in rings:
+        verts.extend(ring)
+    for r in range(len(rings) - 1):
+        for k in range(sides):
+            a, b = start + r * sides + k, start + r * sides + (k + 1) % sides
+            faces.append(((a, b, b + sides, a + sides), swatches(r, k)))
+    for ring_index, closed in ((0, close_back), (len(rings) - 1, close_front)):
+        if not closed:
+            continue
+        ring = rings[ring_index]
+        centre = len(verts)
+        verts.append(sum(ring, Vector()) / sides)
+        first = start + ring_index * sides
+        for k in range(sides):
+            a, b = first + k, first + (k + 1) % sides
+            face = (a, b, centre) if ring_index else (b, a, centre)
+            faces.append((face, swatches(min(ring_index, len(rings) - 2), k)))
+
+
+def gull_slab(verts, faces, outline, thickness, swatch):
+    """A thin flat shape (outline counter-clockwise seen from above) with a top, a bottom and an edge of its own,
+    so the smooth normals of its two sides don't cancel out."""
+    n = len(outline)
+    top, bottom = len(verts), len(verts) + n
+    verts.extend(p + Vector((0.0, 0.0, thickness)) for p in outline)
+    verts.extend(p - Vector((0.0, 0.0, thickness)) for p in outline)
+    faces.append((tuple(range(top, top + n)), swatch))
+    faces.append((tuple(range(bottom + n - 1, bottom - 1, -1)), swatch))
+    for k in range(n):
+        a, b = k, (k + 1) % n
+        faces.append(((bottom + a, bottom + b, top + b, top + a), swatch))
+
+
+def counter_clockwise(outline):
+    """outline turned counter-clockwise seen from above."""
+    area = sum(a.x * b.y - b.x * a.y for a, b in zip(outline, outline[1:] + outline[:1]))
+    return outline if area > 0 else outline[::-1]
+
+
+def gull_body():
+    """The body from the tail to the beak's tip, a fanned tail and the eyes: (verts, faces with their swatch)."""
+    verts, faces = [], []
+    # along the body: x, half width, half height, height of the middle; a dip at the neck, a round head, the beak
+    stations = [(-0.36, 0.025, 0.02, 0.025), (-0.26, 0.06, 0.05, 0.015), (-0.12, 0.095, 0.08, 0.0),
+                (0.03, 0.1, 0.085, 0.005), (0.15, 0.08, 0.07, 0.025), (0.22, 0.065, 0.065, 0.05),
+                (0.29, 0.06, 0.06, 0.06), (0.34, 0.04, 0.042, 0.055), (0.355, 0.024, 0.026, 0.05),
+                (0.42, 0.013, 0.018, 0.045), (0.47, 0.004, 0.008, 0.035)]
+    sides = 8
+    rings = [[Vector((x, w * math.cos(2 * math.pi * k / sides), z + h * math.sin(2 * math.pi * k / sides)))
+              for k in range(sides)] for x, w, h, z in stations]
+
+    def swatch(ring, side):
+        if ring >= 8:
+            return GULL_BEAK
+        # the grey mantle on the back between the wings
+        if 1 <= ring <= 3 and side in (1, 2):
+            return GULL_GREY
+        return GULL_WHITE
+    gull_loft(verts, faces, swatch, rings)
+    # the tail fanned out behind, a little above the body's middle
+    tail = [Vector((-0.24, -0.05, 0.03)), Vector((-0.24, 0.05, 0.03))]
+    tail += [Vector((-0.47 + 0.03 * abs(t), 0.09 * t, 0.025)) for t in (1.0, 0.5, 0.0, -0.5, -1.0)]
+    gull_slab(verts, faces, counter_clockwise(tail), 0.008, GULL_WHITE)
+    # the eyes: a small dark bump each side of the head
     for s in (1, -1):
-        root = len(verts)
-        # root front and back, wrist front and back, tip
-        # the gull's "M": the arm rising to the wrist, the hand drooping to the tip
-        for f, sd, u, swatch, give in ((0.15, 0.06, 0.04, 1, 0.0), (-0.15, 0.06, 0.04, 1, 0.0),
-                                       (0.05, 0.42, 0.26, 1, 0.45), (-0.2, 0.42, 0.26, 1, 0.45),
-                                       (-0.3, 0.8, 0.0, 2, 1.0)):
-            verts.append(at + forward * f + side * sd * s + up * u)
-            uvs.append(((swatch + 0.5) / 3, 0.5))
-            waves.append((Vector((0.0, 0.0, 1.0)), give))
-        quads = [(0, 1, 3, 2), (2, 3, 4, 4)]
-        for q in quads:
-            face = tuple(root + i for i in (q if s > 0 else q[::-1]))
-            faces.append(tuple(dict.fromkeys(face)))
-            faces.append(tuple(dict.fromkeys(face[::-1])))
+        centre = Vector((0.305, 0.054 * s, 0.075))
+        ring = [centre + Vector((0.012 * math.cos(a), 0.0, 0.01 * math.sin(a)))
+                for a in (0.0, math.pi / 2, math.pi, 1.5 * math.pi)]
+        if s > 0:
+            ring.reverse()
+        first = len(verts)
+        verts.extend(ring)
+        verts.append(centre + Vector((0.0, 0.006 * s, 0.0)))
+        for k in range(4):
+            faces.append(((first + k, first + (k + 1) % 4, first + 4), GULL_EYE))
+    return verts, faces
 
 
-def gull_object(name, verts, faces, uvs, waves, material):
-    """Gull meshes built by gull() as an object waving its wings."""
+def gull_wing(part):
+    """The left wing's arm (from the shoulder) or hand (from the wrist), each in its hinge's frame: a thin airfoil
+    lofted along the span, grey above, pale below; the hand ends in black fingered primaries."""
+    verts, faces = [], []
+    # across the span: y, leading and trailing edge's x, height, thickness; the root overlaps what it hinges on
+    # so no gap opens as the wing turns
+    if part == "arm":
+        stations = [(-0.03, 0.12, -0.17, 0.0, 0.035), (0.17, 0.11, -0.18, 0.01, 0.03),
+                    (GULL_WRIST + 0.01, 0.1, -0.12, 0.0, 0.022)]
+    else:
+        stations = [(-0.01, 0.1, -0.12, 0.0, 0.022), (0.12, 0.07, -0.13, -0.005, 0.016),
+                    (0.2, 0.035, -0.11, -0.01, 0.012)]
+    rings = []
+    for y, front, back, z, t in stations:
+        # leading edge, bottom, trailing edge, top: the thickest a third back from the leading edge
+        mid = front + (back - front) * 0.35
+        rings.append([Vector((front, y, z)), Vector((mid, y, z - t * 0.4)), Vector((back, y, z)),
+                      Vector((mid, y, z + t))])
+
+    def swatch(ring, side):
+        black = part == "hand" and ring == 1
+        if side in (2, 3):  # the upper side
+            return GULL_BLACK if black else GULL_GREY
+        return GULL_BLACK if black else GULL_UNDER
+    gull_loft(verts, faces, swatch, rings, close_front=part == "hand", close_back=part == "arm")
+    if part == "hand":
+        # the primaries fanned from the hand's end, the outermost the longest and furthest forward, with a white
+        # spot near its tip
+        base_y = stations[-1][0] - 0.02
+        for k, (front, angle, length) in enumerate(((0.025, 3.0, 0.25), (-0.005, 8.0, 0.24), (-0.035, 14.0, 0.22),
+                                                     (-0.065, 21.0, 0.19), (-0.09, 29.0, 0.16))):
+            a = math.radians(angle)
+            along = Vector((-math.sin(a), math.cos(a), 0.0))
+            across = Vector((math.cos(a), math.sin(a), 0.0))
+            root = Vector((front, base_y, -0.01))
+            width = 0.026
+            outline = [root - across * width * 0.6, root + along * length * 0.55 - across * width,
+                       root + along * length, root + along * length * 0.55 + across * width, root + across * width * 0.6]
+            gull_slab(verts, faces, counter_clockwise(outline), 0.004, GULL_BLACK)
+            if k == 0:
+                spot = [root + along * length * 0.72 + across * width * c for c in (-0.7, 0.7)]
+                spot += [root + along * length * 0.85 + across * width * c for c in (0.55, -0.55)]
+                gull_slab(verts, faces, counter_clockwise(spot), 0.0045, GULL_WHITE)
+    return verts, faces
+
+
+def gull_mesh(name, verts, faces, material, mirror=False):
+    """A gull part's mesh, smooth shaded, each face's uvs on its swatch of the palette; mirrored (y) for the right
+    wing."""
+    if mirror:
+        verts = [Vector((v.x, -v.y, v.z)) for v in verts]
+        faces = [(tuple(reversed(f)), s) for f, s in faces]
     mesh = bpy.data.meshes.new(name)
-    mesh.from_pydata([tuple(v) for v in verts], [], faces)
-    mesh.validate()
-    obj = bpy.data.objects.new(name, mesh)
-    bpy.context.scene.collection.objects.link(obj)
+    mesh.from_pydata([tuple(v) for v in verts], [], [f for f, _ in faces])
     uv = mesh.uv_layers.new(name="UVMap")
-    for loop in mesh.loops:
-        uv.data[loop.index].uv = uvs[loop.vertex_index]
-    colors = mesh.color_attributes.new("wave", "FLOAT_COLOR", "POINT")
-    for i, (direction, amount) in enumerate(waves):
-        colors.data[i].color = (direction.x * 0.5 + 0.5, direction.y * 0.5 + 0.5, direction.z * 0.5 + 0.5, amount)
-    mesh.color_attributes.active_color = colors
-    mesh.color_attributes.render_color_index = mesh.color_attributes.active_color_index
-    for poly in mesh.polygons:
-        poly.use_smooth = False
-    obj.data.materials.append(material)
-    obj["wave"] = [GULL_WAVE]
-    return obj
+    for poly, (_, swatch) in zip(mesh.polygons, faces):
+        poly.use_smooth = True
+        for loop in poly.loop_indices:
+            uv.data[loop].uv = ((swatch + 0.5) / len(GULL_DAY), 0.5)
+    mesh.validate()
+    mesh.materials.append(material)
+    return mesh
+
+
+def gull_parts(material):
+    """The meshes all gulls share: the body, the left and right arm and hand."""
+    meshes = {"body": gull_mesh("gull_body", *gull_body(), material)}
+    for part in ("arm", "hand"):
+        verts, faces = gull_wing(part)
+        meshes[part, 1] = gull_mesh(f"gull_{part}_left", verts, faces, material)
+        meshes[part, -1] = gull_mesh(f"gull_{part}_right", verts, faces, material, mirror=True)
+    return meshes
+
+
+def gull(name, meshes, size):
+    """A gull as nodes the animation can move: the body, under it each wing's arm hinged at the shoulder and
+    under that its hand hinged at the wrist. Returns the body and the wings, [(side, arm, hand)]."""
+    body = bpy.data.objects.new(name, meshes["body"])
+    body.scale = (size, size, size)
+    bpy.context.scene.collection.objects.link(body)
+    wings = []
+    for s in (1, -1):
+        arm = bpy.data.objects.new(f"{name}_arm{'LR'[s < 0]}", meshes["arm", s])
+        arm.parent = body
+        arm.location = (GULL_SHOULDER.x, GULL_SHOULDER.y * s, GULL_SHOULDER.z)
+        hand = bpy.data.objects.new(f"{name}_hand{'LR'[s < 0]}", meshes["hand", s])
+        hand.parent = arm
+        hand.location = (0.0, GULL_WRIST * s, 0.0)
+        for obj in (arm, hand):
+            bpy.context.scene.collection.objects.link(obj)
+        wings.append((s, arm, hand))
+    return body, wings
+
+
+def gull_flaps(bouts):
+    """How much a gull flaps (0 gliding, 1 flapping) and its wingbeat's phase (0 with the wings up) at each frame,
+    for bouts of flapping [(start in seconds, wingbeats)]; between them it glides. A bout starts and ends with
+    the wings level and eases in and out, and the loop's ends are gliding, so they meet."""
+    frames = int(GULL_SECONDS * GULL_FPS) + 1
+    amount, phase = np.zeros(frames), np.zeros(frames)
+    times = np.arange(frames) / GULL_FPS
+    for start, beats in bouts:
+        span = beats / GULL_BEAT
+        inside = (times >= start) & (times <= start + span)
+        local = (times[inside] - start) / span
+        amount[inside] = np.minimum(1.0, np.minimum(local, 1.0 - local) * beats * 1.5)
+        # from level (a quarter beat in, going down) through the beats back to level
+        phase[inside] = 2 * math.pi * (local * beats + 0.25)
+    return amount, phase
+
+
+def gull_wingbeat(wings, bouts):
+    """Keys each wing's arm and hand frame by frame (see gull_flaps): spread on the downstroke, on the upstroke
+    the hand lags behind the arm and sweeps back."""
+    amount, phase = gull_flaps(bouts)
+    for s, arm, hand in wings:
+        for obj in (arm, hand):
+            obj.animation_data_create()
+            obj.animation_data.action = bpy.data.actions.new(f"{obj.name}_beat")
+        for frame, (w, p) in enumerate(zip(amount, phase)):
+            flap_arm = GULL_ARM[1] * math.cos(p)
+            flap_hand = GULL_HAND[1] * math.cos(p - 1.1)
+            sweep = GULL_HAND[2] * max(0.0, -math.sin(p))
+            arm.rotation_euler = (math.radians(GULL_ARM[0] + w * flap_arm) * s, 0.0, 0.0)
+            hand.rotation_euler = (math.radians(GULL_HAND[0] * (1 - w) + w * flap_hand) * s, 0.0,
+                                   math.radians(w * sweep) * s)
+            arm.keyframe_insert("rotation_euler", frame=frame)
+            hand.keyframe_insert("rotation_euler", frame=frame)
 
 
 def gull_pass(obj, middle, centre, heading, turn, ease):
@@ -1856,38 +2031,52 @@ def gull_pass(obj, middle, centre, heading, turn, ease):
 
 
 def gulls():
-    """The circling gulls as one object under a pivot turning once round the circle in GULL_SECONDS, the passing
-    ones as an object each flying its own path; all keyed into the scene's one animation ("gulls")."""
-    # seen from below against the sky: a white body, grey wings, black tips
-    day = palette_image("gulls_day", [(0.97, 0.97, 0.95), (0.55, 0.58, 0.64), (0.08, 0.08, 0.1)])
-    night = palette_image("gulls_night", [(0.12, 0.13, 0.18), (0.08, 0.09, 0.13), (0.02, 0.02, 0.03)])
+    """The circling gulls under a pivot turning once round the circle in GULL_SECONDS, the passing ones each
+    flying its own path; every gull flaps now and then and glides between, its wings keyed as nodes of their own;
+    all in the scene's one animation ("gulls")."""
+    day = palette_image("gulls_day", GULL_DAY)
+    night = palette_image("gulls_night", GULL_NIGHT)
     material = export_material("gulls_export", day, white_image(), night)
-    verts, faces, uvs, waves = [], [], [], []
-    for radius, height, angle in GULLS:
-        at = Vector((math.cos(angle) * radius, math.sin(angle) * radius, height))
-        # facing along the circle as the pivot turns it, clockwise seen from above
-        gull(verts, faces, uvs, waves, at, angle - math.pi / 2)
-    obj = gull_object("gulls", verts, faces, uvs, waves, material)
+    meshes = gull_parts(material)
+    # their own random numbers, so the rest of the ship doesn't change with the gulls
+    beats = np.random.default_rng(31)
     pivot = bpy.data.objects.new("gull_pivot", None)
     pivot.location = GULL_CENTRE
     bpy.context.scene.collection.objects.link(pivot)
-    obj.parent = pivot
     bpy.context.preferences.edit.keyframe_new_interpolation_type = "LINEAR"
+    objects = [pivot]
+    for index, (radius, height, angle) in enumerate(GULLS):
+        body, wings = gull(f"gull{index}", meshes, GULL_SIZE)
+        body.parent = pivot
+        body.location = (math.cos(angle) * radius, math.sin(angle) * radius, height)
+        # facing along the circle as the pivot turns it, clockwise seen from above
+        body.rotation_euler = (0.0, 0.0, angle - math.pi / 2)
+        # a few wingbeats, then a glide of a few seconds, ending gliding before the loop wraps
+        bouts, t = [], beats.uniform(0.3, 3.0)
+        while True:
+            count = int(beats.integers(3, 7))
+            if t + count / GULL_BEAT > GULL_SECONDS - 0.3:
+                break
+            bouts.append((t, count))
+            t += count / GULL_BEAT + beats.uniform(2.0, 5.0)
+        gull_wingbeat(wings, bouts)
+        objects += [body] + [obj for _, arm, hand in wings for obj in (arm, hand)]
     pivot.animation_data_create()
     pivot.animation_data.action = bpy.data.actions.new("gulls")
     frames = int(GULL_SECONDS * GULL_FPS)
     for k in range(5):
         pivot.rotation_euler = (0.0, 0.0, -2 * math.pi * k / 4)
         pivot.keyframe_insert("rotation_euler", index=2, frame=frames * k // 4)
-    passing = []
     for index, flight in enumerate(GULL_PASSES):
-        verts, faces, uvs, waves = [], [], [], []
-        gull(verts, faces, uvs, waves, Vector((0.0, 0.0, 0.0)), 0.0, GULL_PASS_SIZE)
-        passing.append(gull_object(f"gull_pass{index}", verts, faces, uvs, waves, material))
-        gull_pass(passing[-1], *flight)
+        body, wings = gull(f"gull_pass{index}", meshes, GULL_PASS_SIZE)
+        gull_pass(body, *flight)
+        # flapping as it comes into view, gliding through the turn as gulls do, flapping off again
+        middle = flight[0]
+        gull_wingbeat(wings, [(middle - 2.6, 4), (middle + 0.9, 5)])
+        objects += [body] + [obj for _, arm, hand in wings for obj in (arm, hand)]
     bpy.context.scene.render.fps = GULL_FPS
     bpy.context.scene.frame_start, bpy.context.scene.frame_end = 0, frames
-    return [obj, pivot, *passing], [day, night]
+    return objects, [day, night]
 
 
 def islands():

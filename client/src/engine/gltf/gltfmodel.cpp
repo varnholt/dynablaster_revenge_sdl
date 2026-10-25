@@ -10,6 +10,7 @@
 #include "stb_image.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <cstddef>
 #include <cstdlib>
@@ -18,6 +19,7 @@
 #include <fstream>
 #include <iterator>
 #include <optional>
+#include <thread>
 
 namespace
 {
@@ -202,6 +204,37 @@ std::vector<float> readFloats(const cgltf_accessor* accessor)
    return values;
 }
 
+// runs work(0) .. work(count - 1) spread over the machine's cores, the web build has no threads
+template <typename Work>
+void forEachParallel(size_t count, const Work& work)
+{
+#ifdef __EMSCRIPTEN__
+   for (size_t i = 0; i < count; i++)
+   {
+      work(i);
+   }
+#else
+   std::atomic<size_t> next{0};
+   const auto worker = [&]()
+   {
+      for (size_t i = next++; i < count; i = next++)
+      {
+         work(i);
+      }
+   };
+
+   const size_t helpers = std::min<size_t>(count, std::max(1u, std::thread::hardware_concurrency())) - std::min<size_t>(count, 1);
+   std::vector<std::jthread> threads;
+   threads.reserve(helpers);
+   for (size_t i = 0; i < helpers; i++)
+   {
+      threads.emplace_back(worker);
+   }
+
+   worker();
+#endif
+}
+
 void uploadTexture(uint32_t& texture, int32_t width, int32_t height, const std::vector<uint8_t>& pixels)
 {
    glGenTextures(1, &texture);
@@ -262,7 +295,11 @@ void GltfModel::load(const std::string& filename)
       return;
    }
 
-   const std::vector<char> bytes{std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
+   // one read, the stream's per-character iteration took longer than parsing the file
+   file.seekg(0, std::ios::end);
+   std::vector<char> bytes(static_cast<size_t>(std::max<std::streamoff>(file.tellg(), 0)));
+   file.seekg(0, std::ios::beg);
+   file.read(bytes.data(), static_cast<std::streamsize>(bytes.size()));
 
    cgltf_options options{};
    cgltf_data* data = nullptr;
@@ -297,28 +334,32 @@ void GltfModel::load(const std::string& filename)
       }
    }
 
-   // images, decoded once
+   // images, decoded once, side by side
    _images.resize(data->images_count);
-   for (size_t i = 0; i < data->images_count; i++)
-   {
-      const cgltf_image& source = data->images[i];
-
-      if (!source.buffer_view)
+   forEachParallel(
+      data->images_count,
+      [&](size_t i)
       {
-         continue;
-      }
+         const cgltf_image& source = data->images[i];
 
-      const auto* encoded = static_cast<const stbi_uc*>(cgltf_buffer_view_data(source.buffer_view));
-      int32_t channels = 0;
-      stbi_uc* pixels =
-         stbi_load_from_memory(encoded, static_cast<int>(source.buffer_view->size), &_images[i]._width, &_images[i]._height, &channels, 4);
+         if (!source.buffer_view)
+         {
+            return;
+         }
 
-      if (pixels)
-      {
-         _images[i]._pixels.assign(pixels, pixels + static_cast<size_t>(_images[i]._width * _images[i]._height * 4));
-         stbi_image_free(pixels);
+         const auto* encoded = static_cast<const stbi_uc*>(cgltf_buffer_view_data(source.buffer_view));
+         int32_t channels = 0;
+         stbi_uc* pixels = stbi_load_from_memory(
+            encoded, static_cast<int>(source.buffer_view->size), &_images[i]._width, &_images[i]._height, &channels, 4
+         );
+
+         if (pixels)
+         {
+            _images[i]._pixels.assign(pixels, pixels + static_cast<size_t>(_images[i]._width * _images[i]._height * 4));
+            stbi_image_free(pixels);
+         }
       }
-   }
+   );
 
    const auto image_of = [data](const cgltf_texture_view& view) -> int32_t
    { return view.texture && view.texture->image ? static_cast<int32_t>(cgltf_image_index(data, view.texture->image)) : -1; };

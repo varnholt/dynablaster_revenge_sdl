@@ -20,11 +20,19 @@ FetchContent_MakeAvailable(SDL3)
 
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 
+find_package(Git REQUIRED)
+# Listening sockets claim their port exclusively on Windows, so a second server can't bind a port
+# that is already being served (SO_REUSEADDR would let it, splitting incoming connections).
 FetchContent_Declare(
     SDL3_net
     GIT_REPOSITORY https://github.com/libsdl-org/SDL_net.git
     GIT_TAG release-3.2.0
     GIT_SHALLOW TRUE
+    PATCH_COMMAND ${CMAKE_COMMAND}
+        -DSOURCE_DIR=<SOURCE_DIR>
+        -DGIT_EXECUTABLE=${GIT_EXECUTABLE}
+        -DPATCH_FILE=${CMAKE_CURRENT_SOURCE_DIR}/../patches/sdl3-net-exclusive-listen-port.patch
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/../cmake/apply_patch.cmake
 )
 FetchContent_MakeAvailable(SDL3_net)
 
@@ -136,6 +144,8 @@ set(DYNABLASTER_SHARED_SOURCES
     ../shared/packet.h
     ../shared/pausepacket.cpp
     ../shared/pausepacket.h
+    ../shared/storyskippacket.cpp
+    ../shared/storyskippacket.h
     ../shared/packetstreambuffer.cpp
     ../shared/packetstreambuffer.h
     ../shared/player.cpp

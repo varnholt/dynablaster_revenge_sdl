@@ -304,6 +304,9 @@ public:
    //! asks the server to pause or resume the running story mode game
    void togglePause();
 
+   //! asks the server to jump to the first stage of the next world of the running story mode game
+   void skipToNextWorld();
+
    //! the server confirmed the story mode game is paused
    bool isPaused() const;
 
@@ -316,8 +319,9 @@ public:
    //! send a message to others
    void sendMessage(const std::string& message, bool finishedTyping, int receiverId = -1);
 
-   //! host a game
-   void host();
+   //! host a game on the in-process server
+   //! returns true if the server is listening (already or now), false if its port couldn't be bound
+   bool host();
 
    //! initialize bots
    void initializeBots();

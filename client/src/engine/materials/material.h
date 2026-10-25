@@ -86,6 +86,8 @@ public:
 
    // takes ownership of the image, it is deleted once the texture is uploaded
    void addTexture(Texture& texture, std::unique_ptr<Image> image, int32_t flags = 1 | 2 | 4);
+
+   //! materials still waiting to upload the same file share one decoded image
    void addTexture(Texture& texture, const std::string& filename, int32_t flags = 1 | 2 | 4);
 
    virtual void update(float frame, const Matrix& camera);
@@ -106,7 +108,7 @@ public:
 protected:
    struct PendingTexture
    {
-      std::unique_ptr<Image> image;
+      std::shared_ptr<const Image> image;
       int32_t flags = 0;
       std::reference_wrapper<Texture> texture;
    };

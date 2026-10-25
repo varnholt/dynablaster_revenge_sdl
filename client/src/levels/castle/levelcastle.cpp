@@ -116,7 +116,8 @@ void LevelCastle::loadData()
       _scene = std::make_unique<SceneGraph>();
       _players = std::make_unique<SceneGraph>();
 
-      _level->load("level.hjb", *this);
+      // without materials no texture of the arena is read
+      _level->load("level.hjb", _arena_hidden ? std::nullopt : std::optional<std::reference_wrapper<const MaterialFactory>>(*this));
 
       const auto center = _level->findNode<Camera>("Camera001");
       const auto upper = _level->findNode<Camera>("Upper");

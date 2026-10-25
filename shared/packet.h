@@ -59,7 +59,8 @@ public:
       ENEMYKILLED,
       ENEMYHIT,
       STORYSTATE,
-      PAUSE
+      PAUSE,
+      STORYSKIP
    };
 
    // read constructor
