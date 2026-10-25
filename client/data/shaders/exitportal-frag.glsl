@@ -13,9 +13,15 @@ uniform float openness;
 // radius of the iris' opening
 uniform float aperture;
 
+// radius of the hole in the floor the funnel is seen through
+uniform float opening;
+
+uniform mat4 u_modelViewProjection;
+
 in vec3 position;
 in vec3 normal;
 in vec2 uv;
+flat in vec3 eye;
 
 out vec4 o_color;
 
@@ -70,7 +76,18 @@ void main()
    }
    else if (part == 1)
    {
-      // funnel: spiral arms twisting into the depth (Black Hole Sun, Jaenam, shadertoy wcjyDK)
+      // funnel: below the floor, so it only shows through the hole and takes the floor's depth
+      // there, whatever stands on the floor in front of the hole covers it
+      vec3 ray = position - eye;
+      vec3 hole = eye - ray * (eye.z / ray.z);
+      if (length(hole.xy) > opening)
+      {
+         discard;
+      }
+      vec4 clip = u_modelViewProjection * vec4(hole, 1.0);
+      gl_FragDepth = 0.5 + 0.5 * clip.z / clip.w;
+
+      // spiral arms twisting into the depth (Black Hole Sun, Jaenam, shadertoy wcjyDK)
       float depth = uv.y;
       float twist = angle * 3.0 + depth * 9.0 - time * 2.5;
       float arms = 0.5 + 0.5 * sin(twist + 1.5 * noise(vec2(angle * 3.0, depth * 4.0 - time)));
@@ -94,27 +111,21 @@ void main()
       }
 
       float seam = 1.0 - smoothstep(0.0, 0.06, min(blade, 1.0 - blade));
-      float ring = 1.0 - smoothstep(0.0, 0.015, abs(r - 0.3));
+      float ring = 1.0 - smoothstep(0.0, 0.015, abs(r - 0.27));
       float grain = 0.85 + 0.15 * noise(position.xy * 30.0);
-      vec3 stone = vec3(0.2, 0.2, 0.24) * grain * (0.75 + 0.25 * r / 0.36);
+      vec3 stone = vec3(0.2, 0.2, 0.24) * grain * (0.75 + 0.25 * r / 0.32);
 
       float pulse = 0.6 + 0.4 * sin(time * 2.0);
       float glow = (seam + ring) * (0.2 * pulse + 1.5 * flare());
 
       o_color = vec4(stone + SEAM * glow, 1.0);
    }
-   else if (part == 3)
+   else
    {
       // glow spilling onto the floor around the open portal
       float falloff = exp(-r * 4.0) * smoothstep(1.25, 0.6, r);
       float pulse = 0.85 + 0.15 * sin(time * 3.0);
       float a = falloff * pulse * openness * 1.6;
       o_color = vec4(VIOLET * a, 1.0);
-   }
-   else
-   {
-      // the floor's depth is cleared inside the opening so the funnel below shows through
-      gl_FragDepth = 1.0;
-      o_color = vec4(0.0);
    }
 }

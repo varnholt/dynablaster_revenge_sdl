@@ -38,8 +38,7 @@ private:
       Rim,
       Funnel,
       Lid,
-      Glow,
-      DepthPunch
+      Glow
    };
 
    struct Range
@@ -66,5 +65,6 @@ private:
    int32_t _time_param = -1;
    int32_t _openness_param = -1;
    int32_t _aperture_param = -1;
+   int32_t _opening_param = -1;
    uint32_t _vertex_buffer = 0;
 };
