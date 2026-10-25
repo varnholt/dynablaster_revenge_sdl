@@ -48,6 +48,11 @@ void Level::load()
    DataPaths::remove(level_path.c_str());
 }
 
+void Level::setArenaHidden(bool hidden)
+{
+   _arena_hidden = hidden;
+}
+
 void Level::loadData()
 {
 }

@@ -7,6 +7,7 @@
 #include <format>
 #include <span>
 #include <string>
+#include <unordered_map>
 #include "gldevice.h"
 #include "image/image.h"
 #include "image/imagepool.h"
@@ -18,11 +19,15 @@
 #include "render/vertexbuffer.h"
 #include "renderdevice.h"
 #include "textureslot.h"
+#include "tools/datapaths.h"
 #include "tools/stream.h"
 
 namespace
 {
 int32_t dummy_counter = 1;
+
+// decoded images until the last material waiting for one has uploaded it
+std::unordered_map<std::string, std::weak_ptr<const Image>> pending_images;
 
 void writeText(Stream& stream, const std::string& text)
 {
@@ -88,7 +93,21 @@ int32_t Material::size() const
 
 void Material::addTexture(Texture& texture, const std::string& filename, int32_t flags)
 {
-   addTexture(texture, std::make_unique<Image>(filename), flags);
+   // keyed by the resolved file, two level folders may hold different images of the same name
+   const auto path = DataPaths::resolve(filename + ".tga");
+   std::shared_ptr<const Image> image = path ? pending_images[path->string()].lock() : nullptr;
+
+   if (!image)
+   {
+      image = std::make_shared<const Image>(filename);
+
+      if (path)
+      {
+         pending_images[path->string()] = image;
+      }
+   }
+
+   _texture_queue.push_back({std::move(image), flags, texture});
 }
 
 void Material::addTexture(Texture& texture, std::unique_ptr<Image> image, int32_t flags)
