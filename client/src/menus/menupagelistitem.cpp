@@ -631,6 +631,8 @@ void MenuPageListItem::mousePressed(int /*x*/, int y)
       }
 
       setActiveElement(active_element);
+
+      elementActivatedSignal(active_element);
    }
 }
 

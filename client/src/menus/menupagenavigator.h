@@ -5,14 +5,17 @@
 #include "timer.h"
 
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <limits>
 #include <map>
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
+class GameInformation;
 class MenuPageTextEditItem;
 class PlayerInfo;
 
@@ -79,10 +82,24 @@ private:
    void updateCreateGamePlayerCounts();
    void updateCreateGameLevelPreview();
 
-   //! mirrors the level previews and extra icons of GameMenuInterfaceSelect::updateGameProperties() -
-   //! shows the selected game's level and enabled extras on GAME_SELECT, none while no game is known.
-   //! The table selection isn't wired yet, so the selected game is the one JOIN joins (the first known game).
+   //! mirrors GameMenuInterfaceSelect::updateServerProperties()/updateGameProperties() - fills the
+   //! server totals and the selected game's players, time, rounds, level preview and extra icons on
+   //! GAME_SELECT, dimmed/hidden while no game is selected.
    void updateSelectGameProperties();
+
+   //! mirrors GameMenuInterfaceSelect::gamesListUpdated() - one row per game (its name) in the
+   //! games table while GAME_SELECT is shown. Keeps the selected game across updates and falls back
+   //! to the first game when the selected one is gone (or none was selected yet).
+   void updateSelectGameTable();
+
+   //! a click on a games table row selects that row's game for the properties box and JOIN
+   void onSelectGameRowActivated(int row);
+
+   //! connects the games table's row clicks while GAME_SELECT is shown, disconnects otherwise
+   void setMonitorSelectGameTableEnabled(bool enabled);
+
+   //! the selected game's entry in the client's games list, nullptr while none is selected
+   const GameInformation* selectedGame() const;
 
    //! mirrors GameMenuInterfaceLounge::playerInfoMapUpdated() - repopulates the lounge's player
    //! rows (nick/wins/rank/owner-icon) whenever the player set changes (join/leave/bot added).
@@ -196,6 +213,15 @@ private:
 
    //! asks the server for the games list once a second while GAME_SELECT is shown
    Timer _game_list_update_timer;
+
+   //! id of the game selected in GAME_SELECT's games table, -1 while none
+   int32_t _selected_game_id = -1;
+
+   //! (game id, name) per games table row, as last written to the table
+   std::vector<std::pair<int32_t, std::string>> _select_game_rows;
+
+   //! connection token for setMonitorSelectGameTableEnabled()
+   Signal<int>::Connection _games_table_activated_connection = INVALID_CONNECTION;
 
    //! connection tokens for setMonitorCreateGameOptionsEnabled()'s connect/disconnect pair
    Signal<const std::string&>::Connection _max_players_value_changed_connection = INVALID_CONNECTION;
