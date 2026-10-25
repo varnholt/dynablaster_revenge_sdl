@@ -1622,7 +1622,6 @@ def sky():
 
 # x, y, radius, height of the land, seed; on the horizon behind the ship as the fly-in sees it, clear of the moon
 ISLANDS = [(-25.0, 125.0, 22.0, 9.0, 1), (80.0, 170.0, 14.0, 6.0, 2), (140.0, 50.0, 30.0, 13.0, 3)]
-LIGHTHOUSE = (-30.0, 112.0)  # on the nearest island's seaward side, facing the ship
 SHELF = 30.0  # how far the shallows reach out from the beach
 DEEP = SEA_Z - 7.0
 ISLAND_TEX = 1024
@@ -1716,7 +1715,7 @@ def palm(verts, faces, uvs, waves, base, lean, height, rng):
         for s in range(sides):
             a = 2 * math.pi * s / sides
             verts.append(p + Vector((math.cos(a), math.sin(a), 0.0)) * radius)
-            uvs.append((4.5 / 6, 0.5))
+            uvs.append((0.5 / 2, 0.5))
             waves.append((wind, 0.08 * (k / segments) ** 2))
     start = len(verts) - (segments + 1) * sides
     for k in range(segments):
@@ -1737,41 +1736,13 @@ def palm(verts, faces, uvs, waves, base, lean, height, rng):
             width = 0.75 * math.sin(math.pi * min(t * 1.1, 1.0)) + 0.05
             for edge in (-1, 1):
                 verts.append(centre + side * width * edge + Vector((0.0, 0.0, 0.08 * t)))
-                uvs.append((5.5 / 6, 0.5))
+                uvs.append((1.5 / 2, 0.5))
                 waves.append((wind, t))
             row.append(len(verts) - 2)
         for k in range(5):
             a, b = row[k], row[k + 1]
             faces.append((a, a + 1, b + 1, b))
             faces.append((b, b + 1, a + 1, a))
-
-
-def lighthouse(verts, faces, uvs, base):
-    """A lighthouse: a tapering tower in red and white bands, a dark gallery, the lantern room; uvs pick the
-    palette's swatches (see islands()). Returns where its lamp burns."""
-    height, bands, sides = 11.0, 6, 16
-
-    def ring(z, radius, swatch):
-        start = len(verts)
-        for k in range(sides):
-            a = 2 * math.pi * k / sides
-            verts.append(base + Vector((math.cos(a) * radius, math.sin(a) * radius, z)))
-            uvs.append(((swatch + 0.5) / 6, 0.5))
-        return start
-
-    def band(z0, z1, r0, r1, swatch):
-        a, b = ring(z0, r0, swatch), ring(z1, r1, swatch)
-        for k in range(sides):
-            faces.append((a + k, a + (k + 1) % sides, b + (k + 1) % sides, b + k))
-
-    for i in range(bands):
-        z0, z1 = height * i / bands, height * (i + 1) / bands
-        band(z0, z1, 1.6 - 0.6 * z0 / height, 1.6 - 0.6 * z1 / height, i % 2)
-    # gallery, lantern, cap
-    band(height, height + 0.25, 1.5, 1.5, 2)
-    band(height + 0.25, height + 1.6, 0.8, 0.8, 3)
-    band(height + 1.6, height + 2.4, 0.95, 0.05, 2)
-    return base + Vector((0.0, 0.0, height + 0.9))
 
 
 # seagulls circling high over the ship, above the game's camera so they never cover the field
@@ -1781,14 +1752,24 @@ GULL_SIZE = 2.2  # larger than life, a gull of a few pixels would be lost agains
 GULL_SECONDS = 26.0  # one round of the circle
 GULL_FPS = 10
 GULL_WAVE = 0.3  # how far a wingtip moves
+# and now and then one passing low by the ship, so the game's view gets a glimpse of them about every nine seconds:
+# each flies straight, banks through one turn as it brushes an edge of the view and flies off, out of sight for
+# the rest of the loop (the jump back at the loop's end is far away); never over the field itself
+# time of the turn's middle, where the gull is then (x, y, z), its heading then and how far it turns (degrees,
+# counter-clockwise), how long the turn takes (seconds)
+GULL_PASSES = [(4.5, (3.0, 4.5, 1.7), 0.0, 120.0, 1.0),  # dipping into the strip of sea above the far bulwark
+               (13.0, (12.5, -7.0, 6.5), 90.0, -180.0, 0.7),  # wheeling round at the right edge, over the stern
+               (21.5, (-1.0, -7.0, 6.5), 90.0, 180.0, 0.7)]  # and at the left edge, high over the deck
+GULL_PASS_SIZE = 1.0  # near the game's camera, a big gull would draw the eye from the game
+GULL_PASS_SPEED = 4.0  # a calm glide
 
 
-def gull(verts, faces, uvs, waves, at, heading):
+def gull(verts, faces, uvs, waves, at, heading, size=GULL_SIZE):
     """A gull gliding along heading (z-up): a slim body, wings bent at the wrist with dark tips; the wings' "wave"
     colour lifts the tips."""
-    forward = Vector((math.cos(heading), math.sin(heading), 0.0)) * GULL_SIZE
+    forward = Vector((math.cos(heading), math.sin(heading), 0.0)) * size
     side = Vector((-forward.y, forward.x, 0.0))
-    up = Vector((0.0, 0.0, GULL_SIZE))
+    up = Vector((0.0, 0.0, size))
     start = len(verts)
     body = [(0.45, 0.0, 0.0), (0.0, 0.09, 0.05), (0.0, -0.09, 0.05), (0.0, 0.0, -0.07), (-0.5, 0.0, 0.02)]
     for f, sd, u in body:
@@ -1814,16 +1795,12 @@ def gull(verts, faces, uvs, waves, at, heading):
             faces.append(tuple(dict.fromkeys(face[::-1])))
 
 
-def gulls():
-    """The gulls as one object under a pivot turning once round the circle in GULL_SECONDS ("gulls")."""
-    verts, faces, uvs, waves = [], [], [], []
-    for radius, height, angle in GULLS:
-        at = Vector((math.cos(angle) * radius, math.sin(angle) * radius, height))
-        gull(verts, faces, uvs, waves, at, angle + math.pi / 2)
-    mesh = bpy.data.meshes.new("gulls")
+def gull_object(name, verts, faces, uvs, waves, material):
+    """Gull meshes built by gull() as an object waving its wings."""
+    mesh = bpy.data.meshes.new(name)
     mesh.from_pydata([tuple(v) for v in verts], [], faces)
     mesh.validate()
-    obj = bpy.data.objects.new("gulls", mesh)
+    obj = bpy.data.objects.new(name, mesh)
     bpy.context.scene.collection.objects.link(obj)
     uv = mesh.uv_layers.new(name="UVMap")
     for loop in mesh.loops:
@@ -1835,11 +1812,44 @@ def gulls():
     mesh.color_attributes.render_color_index = mesh.color_attributes.active_color_index
     for poly in mesh.polygons:
         poly.use_smooth = False
+    obj.data.materials.append(material)
+    obj["wave"] = [GULL_WAVE]
+    return obj
+
+
+def gull_pass(obj, middle, centre, heading, turn, ease):
+    """Keys a passing gull (see GULL_PASSES) frame by frame: the heading eases through the turn, the path is that
+    heading integrated outwards from centre, and the gull banks into the turn as a glider would."""
+    step = 0.01
+    times = np.arange(0.0, GULL_SECONDS + step / 2, step)
+    headings = math.radians(heading) + math.radians(turn) / 2 * np.tanh((times - middle) / ease)
+    path = np.cumsum(np.stack([np.cos(headings), np.sin(headings)], 1), 0) * GULL_PASS_SPEED * step
+    path += np.array(centre[:2]) - path[round(middle / step)]
+    banks = -np.arctan(GULL_PASS_SPEED * np.gradient(headings, step) / 9.81)
+    obj.animation_data_create()
+    obj.animation_data.action = bpy.data.actions.new(f"{obj.name}_pass")
+    per_frame = round(1.0 / (GULL_FPS * step))
+    for frame in range(int(GULL_SECONDS * GULL_FPS) + 1):
+        k = frame * per_frame
+        obj.location = (path[k, 0], path[k, 1], centre[2])
+        obj.rotation_euler = (banks[k], 0.0, headings[k])
+        obj.keyframe_insert("location", frame=frame)
+        obj.keyframe_insert("rotation_euler", frame=frame)
+
+
+def gulls():
+    """The circling gulls as one object under a pivot turning once round the circle in GULL_SECONDS, the passing
+    ones as an object each flying its own path; all keyed into the scene's one animation ("gulls")."""
     # seen from below against the sky: a white body, grey wings, black tips
     day = palette_image("gulls_day", [(0.97, 0.97, 0.95), (0.55, 0.58, 0.64), (0.08, 0.08, 0.1)])
     night = palette_image("gulls_night", [(0.12, 0.13, 0.18), (0.08, 0.09, 0.13), (0.02, 0.02, 0.03)])
-    obj.data.materials.append(export_material("gulls_export", day, white_image(), night))
-    obj["wave"] = [GULL_WAVE]
+    material = export_material("gulls_export", day, white_image(), night)
+    verts, faces, uvs, waves = [], [], [], []
+    for radius, height, angle in GULLS:
+        at = Vector((math.cos(angle) * radius, math.sin(angle) * radius, height))
+        # facing along the circle as the pivot turns it, clockwise seen from above
+        gull(verts, faces, uvs, waves, at, angle - math.pi / 2)
+    obj = gull_object("gulls", verts, faces, uvs, waves, material)
     pivot = bpy.data.objects.new("gull_pivot", None)
     pivot.location = GULL_CENTRE
     bpy.context.scene.collection.objects.link(pivot)
@@ -1851,9 +1861,15 @@ def gulls():
     for k in range(5):
         pivot.rotation_euler = (0.0, 0.0, -2 * math.pi * k / 4)
         pivot.keyframe_insert("rotation_euler", index=2, frame=frames * k // 4)
+    passing = []
+    for index, flight in enumerate(GULL_PASSES):
+        verts, faces, uvs, waves = [], [], [], []
+        gull(verts, faces, uvs, waves, Vector((0.0, 0.0, 0.0)), 0.0, GULL_PASS_SIZE)
+        passing.append(gull_object(f"gull_pass{index}", verts, faces, uvs, waves, material))
+        gull_pass(passing[-1], *flight)
     bpy.context.scene.render.fps = GULL_FPS
     bpy.context.scene.frame_start, bpy.context.scene.frame_end = 0, frames
-    return [obj, pivot], [day, night]
+    return [obj, pivot, *passing], [day, night]
 
 
 def islands():
@@ -1906,12 +1922,6 @@ def islands():
             base = Vector((x, y, float(seabed(np.array(x), np.array(y))) - 0.2))
             lean = Vector((math.cos(a), math.sin(a), 0.0)) * rng.uniform(0.4, 1.0)
             palm(verts, faces, uvs, waves, base, lean, rng.uniform(5.5, 8.0), rng)
-    # the lighthouse goes in with the palms, standing still (no give in the wind)
-    ground = float(seabed(np.array(LIGHTHOUSE[0]), np.array(LIGHTHOUSE[1])))
-    start = len(verts)
-    lamp = lighthouse(verts, faces, uvs, Vector((LIGHTHOUSE[0], LIGHTHOUSE[1], ground - 0.3)))
-    waves += [(Vector((1.0, 0.0, 0.0)), 0.0)] * (len(verts) - start)
-    glow(lamp, (1.0, 0.85, 0.5), 2.2, GLOW_PULSE)
     mesh = bpy.data.meshes.new("palms")
     mesh.from_pydata([tuple(v) for v in verts], [], faces)
     mesh.validate()
@@ -1928,11 +1938,9 @@ def islands():
     # flat: the fronds' two sides share their vertices, smooth normals would cancel out
     for poly in mesh.polygons:
         poly.use_smooth = False
-    # lighthouse white, red, iron, lantern glass; palm trunk, fronds
-    day = palette_image("palms_day", [(0.95, 0.94, 0.90), (0.78, 0.14, 0.12), (0.12, 0.12, 0.14), (0.95, 0.85, 0.55),
-                                      (0.42, 0.30, 0.18), (0.20, 0.50, 0.14)])
-    night = palette_image("palms_night", [(0.10, 0.11, 0.16), (0.08, 0.03, 0.05), (0.02, 0.02, 0.03), (1.0, 0.85, 0.5),
-                                          (0.05, 0.05, 0.07), (0.03, 0.06, 0.06)])
+    # palm trunk, fronds
+    day = palette_image("palms_day", [(0.42, 0.30, 0.18), (0.20, 0.50, 0.14)])
+    night = palette_image("palms_night", [(0.05, 0.05, 0.07), (0.03, 0.06, 0.06)])
     obj.data.materials.append(export_material("palms_export", day, white_image(), night))
     obj["wave"] = [PALM_WAVE]
     objects.append(obj)
