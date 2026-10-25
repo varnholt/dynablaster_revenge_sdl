@@ -12,8 +12,12 @@
 #include <SDL3/SDL_audio.h>
 
 #include <array>
+#include <atomic>
+#include <cstdlib>
 #include <filesystem>
+#include <future>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -113,6 +117,43 @@ protected:
 
    using Stream = std::unique_ptr<SDL_AudioStream, StreamDeleter>;
 
+   struct FreeDeleter
+   {
+      void operator()(void* buffer) const
+      {
+         std::free(buffer);
+      }
+   };
+
+   // one track's PCM data as minimp3 decoded it, empty if the decode failed or was cancelled
+   struct DecodedTrack
+   {
+      std::size_t _index = 0;
+      std::unique_ptr<int16_t, FreeDeleter> _buffer;
+      std::size_t _sample_count = 0;
+      SDL_AudioSpec _spec{};
+   };
+
+   // decodes the playlist's track index on a worker thread (synchronously on a browser build
+   // without threads); the worker gives up early once cancel is set
+   void requestDecode(std::size_t index);
+
+   // runs on the worker, touches nothing but its arguments
+   static std::unique_ptr<DecodedTrack> decodeTrack(
+      std::size_t index,
+      const std::filesystem::path& path,
+      std::shared_ptr<std::atomic_bool> cancel
+   );
+
+   // collects a finished decode, starts the requested track once its PCM data is there and
+   // prefetches the following track when the playing one nears its end
+   void updateDecode();
+
+   // queues a decoded track on the music stream and announces it; main thread only
+   void startTrack(DecodedTrack& decoded);
+
+   void cancelPendingTrack();
+
    struct Sample
    {
       std::unique_ptr<Uint8, decltype(&SDL_free)> buffer{nullptr, &SDL_free};
@@ -129,7 +170,9 @@ protected:
    // trade-off any simple fixed-channel sfx mixer makes.
    void play(SampleId id);
 
-   // decodes the whole track up front via minimp3 and queues it in one go.
+   // asks for the track to be played; it starts (and trackChangedSignal fires) once it has been
+   // decoded off the main thread, the current track keeps playing until then. A later request
+   // supersedes an earlier one that hasn't started yet.
    void playTrack(std::size_t index);
 
    float getMusicGain() const;
@@ -163,4 +206,16 @@ protected:
    // set once a fade-out has silenced the music; updateMusic() then starts no further track
    // until the playlist is restarted (restartPlayListAfterFadeOut, next/previous track)
    bool _music_halted = false;
+
+   // the track playTrack() asked for that hasn't started yet
+   std::optional<std::size_t> _pending_track;
+
+   // at most one decode runs at a time; _decoded holds a finished one (requested or prefetched)
+   std::future<std::unique_ptr<DecodedTrack>> _decode_future;
+   std::size_t _decode_index = 0;
+   std::shared_ptr<std::atomic_bool> _decode_cancel;
+   std::unique_ptr<DecodedTrack> _decoded;
+
+   // input format of the playing track, sizes the prefetch threshold
+   SDL_AudioSpec _music_spec{};
 };
