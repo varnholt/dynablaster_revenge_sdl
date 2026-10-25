@@ -114,6 +114,7 @@ SDL_Keycode mapGameKey(SDL_Keycode key)
       case SDLK_SPACE:
       case SDLK_LEFTBRACKET:
       case SDLK_RIGHTBRACKET:
+      case SDLK_F9:
       case SDLK_F10:
       case SDLK_P:
       case SDLK_RETURN:

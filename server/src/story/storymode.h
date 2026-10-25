@@ -60,6 +60,9 @@ public:
    //! the stage time ran out: the remaining enemies are replaced by coins
    void timeUp();
 
+   //! cheat: the stage counts as cleared and the first stage of the next world follows, after the last world the first one
+   void skipToNextWorld();
+
    //! game over or all stages done
    [[nodiscard]] bool isFinished() const;
 
@@ -100,7 +103,7 @@ private:
    void updateFlames(float dt);
    void updateTouches();
    void updateStageCleared();
-   void stageCleared();
+   void stageCleared(int32_t next_stage);
    void enemyDied(Enemy& enemy);
    void sendState(StoryStatePacket::State state);
    void killPlayer(Player& player);
