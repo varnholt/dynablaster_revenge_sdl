@@ -292,7 +292,8 @@ def fuse(start, voxel, faces, smooth_steps=0):
     return obj
 
 
-GLOW_STEADY, GLOW_FLAME, GLOW_BLINK, GLOW_PULSE = 0, 1, 2, 3
+# GLOW_FIRE: an animated flame standing on the glow's position, its halo flickering with it (glow-vert.glsl)
+GLOW_STEADY, GLOW_FLAME, GLOW_BLINK, GLOW_PULSE, GLOW_FIRE = 0, 1, 2, 3, 4
 
 
 def glow(loc, color, size, mode=GLOW_STEADY):
@@ -1190,46 +1191,150 @@ def pipe_run(p0, p1, z, radius, mat):
         uv_sphere((px, py, z), radius * 1.15, mat, segments=12, rings=8)
 
 
+def paving(TX, TY, light, dark, joint, size=1.0, seed=60):
+    """Rows of cut stone slabs, every other row shifted by half a slab, each slab its own shade."""
+    row = np.floor(TY / size)
+    x = TX / size + (row % 2) * 0.5
+    col = np.floor(x)
+    fx, fy = x - col, TY / size - row
+    shade = _hash(col, row, seed)
+    rgb = mix(dark, light, np.clip(0.6 * shade + 0.4 * fbm(TX, TY, 1.2, 3, seed + 1), 0, 1))
+    edge = np.minimum(np.minimum(fx, 1 - fx), np.minimum(fy, 1 - fy)) * size
+    rgb = rgb * (0.84 + 0.16 * smooth(0.0, 0.08, edge))[..., None]
+    return mix(rgb, joint, smooth(0.03, 0.012, edge))
+
+
+def tread_floor(TX, TY, base, size=0.25):
+    """Steel deck plate on the ground: raised lozenges in pairs at right angles, plate seams every two tiles."""
+    X, Y = TX / size, TY / size
+    fx, fy = X - np.floor(X) - 0.5, Y - np.floor(Y) - 0.5
+    turn = (np.floor(X) + np.floor(Y)) % 2
+    u = np.where(turn > 0, fx + fy, fx - fy) * 0.7071
+    v = np.where(turn > 0, fx - fy, fx + fy) * 0.7071
+    lozenge = smooth(1.15, 0.85, (u / 0.32) ** 2 + (v / 0.08) ** 2)
+    base = np.asarray(base, float)
+    rgb = mix(base * 0.78, base * 1.05, fbm(TX, TY, 0.8, 4, 70))
+    rgb = rgb * (1.0 + 0.22 * lozenge)[..., None]
+    sx, sy = TX / 2.0 - np.floor(TX / 2.0), TY / 2.0 - np.floor(TY / 2.0)
+    seam = np.minimum(np.minimum(sx, 1 - sx), np.minimum(sy, 1 - sy)) * 2.0
+    rgb = mix(rgb, base * 0.4, smooth(0.04, 0.015, seam))
+    # oil and rust stains
+    rgb = mix(rgb, (0.32, 0.22, 0.14), smooth(0.66, 0.8, fbm(TX, TY, 0.3, 4, 71)) * 0.5)
+    return rgb
+
+
+def torch(x, y, angle, z, iron, wood):
+    """A torch in an iron bracket on the wall, burning."""
+    dx, dy = math.cos(angle), math.sin(angle)
+    box((x + dx * 0.05, y + dy * 0.05, z - 0.15), (0.14, 0.14, 0.3), iron, rotation=angle)
+    cylinder((x + dx * 0.25, y + dy * 0.25, z - 0.05), 0.05, 0.5, wood, vertices=6)
+    cylinder((x + dx * 0.25, y + dy * 0.25, z + 0.38), 0.09, 0.14, iron, vertices=8)
+    glow((x + dx * 0.25, y + dy * 0.25, z + 0.5), (1.0, 0.62, 0.28), 0.9, GLOW_FIRE)
+
+
+def banner(x, y, angle, z, cloth, trim):
+    """A long red banner with a gold hem and a gold diamond, hanging flat against the wall."""
+    dx, dy = math.cos(angle), math.sin(angle)
+    box((x + dx * 0.04, y + dy * 0.04, z + 0.4), (0.95, 0.05, 2.1), cloth, rotation=angle + math.pi / 2)
+    box((x + dx * 0.05, y + dy * 0.05, z + 0.32), (0.95, 0.06, 0.1), trim, rotation=angle + math.pi / 2)
+    box((x + dx * 0.04, y + dy * 0.04, z + 2.5), (1.15, 0.08, 0.08), trim, rotation=angle + math.pi / 2)
+    crest = box((x + dx * 0.07, y + dy * 0.07, z + 1.25), (0.32, 0.04, 0.32), trim)
+    crest.rotation_euler = (0.0, 0.0, angle + math.pi / 2)
+    crest.rotation_euler.rotate_axis("Y", math.pi / 4)
+
+
+def column(x, y, z, height, stone, cap):
+    box((x, y, z), (0.95, 0.95, 0.25), cap, bevel=0.03)
+    cylinder((x, y, z + 0.25), 0.36, height - 0.55, stone, vertices=16)
+    box((x, y, z + height - 0.3), (0.95, 0.95, 0.3), cap, bevel=0.03)
+
+
+def brazier(x, y, z, iron, embers):
+    """A fire bowl on three legs."""
+    for k in range(3):
+        a = 2 * math.pi * k / 3
+        box((x + math.cos(a) * 0.22, y + math.sin(a) * 0.22, z), (0.07, 0.07, 0.75), iron)
+    cone((x, y, z + 0.6), 0.18, 0.35, iron, vertices=12, radius2=0.42)
+    cylinder((x, y, z + 0.9), 0.36, 0.05, embers, vertices=12)
+    glow((x, y, z + 0.97), (1.0, 0.58, 0.24), 1.3, GLOW_FIRE)
+
+
+def barrel(x, y, z, wood, iron, s=1.0):
+    cylinder((x, y, z), 0.3 * s, 0.8 * s, wood, vertices=12)
+    for h in (0.15, 0.62):
+        cylinder((x, y, z + h * s), 0.315 * s, 0.06 * s, iron, vertices=12)
+
+
 def world_castle_1(st):
-    """6: the mechanical castle's first floor: purple diamond floor, brick walls with red lamps, metal studs."""
+    """6: the mechanical castle's first floor, still the old keep: sandstone paving with a red carpet up to the
+    gate, ashlar walls with columns, red banners and torches, braziers by the field."""
     def height(x, y):
         return np.full_like(x, FLOOR_Z, dtype=float)
 
     def color(TX, TY, TZ, slope):
-        rgb = diamond_floor(st, TX, TY, (0.62, 0.42, 0.62), (0.46, 0.28, 0.48), (0.3, 0.16, 0.3))
+        rgb = paving(TX, TY, (0.8, 0.7, 0.52), (0.6, 0.48, 0.34), (0.3, 0.24, 0.18))
+        # the carpet from the field's top edge to the gate, gold edged
+        across = np.abs(TX - st.cx)
+        on = (TY > 1.0) & (across < 1.3)
+        carpet = mix((0.5, 0.06, 0.06), (0.66, 0.12, 0.1), fbm(TX, TY, 2.0, 3, 61))
+        carpet = mix(carpet, (0.86, 0.66, 0.22), smooth(1.06, 1.1, across) * smooth(1.26, 1.22, across))
+        rgb = np.where(on[..., None], carpet, rgb)
         return apron_mix(st, TX, TY, rgb, rgb)
 
     ground, img = terrain(st, height, color, "ground")
-    brick = material("castle_brick", (0.55, 0.28, 0.18), 0.12, 3.0, kind="bricks", mortar=(0.25, 0.12, 0.08))
-    metal = material("metal", (0.66, 0.68, 0.76), 0.08, 5.0)
-    lamp = material("lamp_red", (0.96, 0.4, 0.3), 0.1)
-    olive = material("olive_brick", (0.56, 0.54, 0.34), 0.1, 4.0, kind="bricks", mortar=(0.3, 0.28, 0.16))
-    dark = material("dark_metal", (0.25, 0.26, 0.3), 0.08, 5.0)
-    x0, x1, y0, y1 = room(st, brick)
+    ashlar = material("ashlar", (0.66, 0.6, 0.5), 0.1, 1.2, kind="bricks", mortar=(0.32, 0.28, 0.23))
+    stone = material("column_stone", (0.74, 0.68, 0.58), 0.08, 3.0)
+    cap = material("column_cap", (0.6, 0.55, 0.46), 0.08, 3.0)
+    iron = material("iron", (0.2, 0.2, 0.22), 0.1, 5.0)
+    wood = material("castle_wood", (0.42, 0.26, 0.14), 0.18, 4.0)
+    door = material("gate_wood", (0.34, 0.2, 0.1), 0.2, 2.0)
+    cloth = material("banner_red", (0.68, 0.1, 0.1), 0.12, 4.0)
+    gold = material("gold_trim", (0.92, 0.72, 0.28), 0.08, 5.0)
+    embers = material("embers", (0.95, 0.42, 0.12), 0.3, 8.0, color2=(1.0, 0.8, 0.3))
+    x0, x1, y0, y1 = room(st, ashlar)
     z = FLOOR_Z
-    for (x, y, a) in along_walls(x0, x1, y0, y1, 2.5):
-        wall_lamp(x, y, a, z + 1.6, dark, lamp)
-    # pillars of metal studs along the walls
-    for (x, y, a) in along_walls(x0 + 1.2, x1 - 1.2, y0, y1 - 1.2, 3.5):
-        pyramid_block(x, y, z, 0.8, metal)
-    # olive brick stacks and a gate in the north wall
-    for (x, y, a) in along_walls(x0 + 2.4, x1 - 2.4, y0, y1 - 2.4, 7.0):
+    # columns along the walls with a torch on each, banners between them
+    spacing = 3.2
+    for (x, y, a) in along_walls(x0, x1, y0, y1, spacing, skip_x=st.cx):
         dx, dy = math.cos(a), math.sin(a)
-        for (ox, oy, oz) in ((0, 0, 0), (-1, 1, 0), (-0.5, 0.5, 0.9)):
-            box((x + dx * 0.6 + ox * dy, y + dy * 0.6 + oy * dx, z + oz), (0.9, 0.9, 0.9), olive, bevel=0.03)
-    box((st.cx, y1 - 0.05, z), (2.2, 0.2, 2.6), dark, bevel=0.04)
-    for i in range(4):
-        box((st.cx - 0.75 + i * 0.5, y1 - 0.2, z), (0.12, 0.12, 2.5), metal)
+        column(x + dx * 0.45, y + dy * 0.45, z, 4.4, stone, cap)
+        torch(x + dx * 0.92, y + dy * 0.92, a, z + 2.2, iron, wood)
+    for (x, y, a) in along_walls(x0 + spacing * 0.5, x1 - spacing * 0.5, y0, y1 - spacing * 0.5, spacing,
+                                 skip_x=st.cx):
+        if abs(a + math.pi / 2) < 0.1:
+            banner(x, y, a, z + 1.0, cloth, gold)
+    for (x, y, a) in along_walls(x0, x1, y0, y1 - spacing * 0.5, spacing):
+        if abs(a + math.pi / 2) > 0.1:
+            banner(x, y, a, z + 1.0, cloth, gold)
+    # the gate at the carpet's end: an oak door with iron bands in a stone frame
+    box((st.cx, y1 - 0.1, z), (3.2, 0.5, 3.6), cap, bevel=0.05)
+    box((st.cx, y1 - 0.3, z), (2.4, 0.2, 3.0), door, bevel=0.03)
+    for h in (0.6, 1.5, 2.4):
+        box((st.cx, y1 - 0.42, z + h), (2.45, 0.06, 0.14), iron)
+    for side in (-1, 1):
+        torch(st.cx + side * 2.0, y1 - 0.4, -math.pi / 2, z + 2.0, iron, wood)
+    # braziers beside the field, barrels and crates by the walls
+    for bx in (-APRON - 1.6, st.w + APRON + 1.6):
+        for by in (APRON + 1.2, -st.h * 0.5, -st.h - APRON - 1.2):
+            brazier(bx, by, z, iron, embers)
+    taken = [(st.cx, y1, 2.5)]
+    near_wall = lambda x, y: float((x < x0 + 2.2) | (x > x1 - 2.2) | (y > y1 - 2.0))  # noqa: E731
+    for (x, y) in st.scatter(14, near_wall, 1.0, taken, margin=2.5):
+        if st.rng.random() < 0.6:
+            barrel(x, y, z, wood, iron, st.rng.uniform(0.85, 1.1))
+        else:
+            box((x, y, z), (0.8, 0.8, 0.7), wood, rotation=st.rng.uniform(-0.3, 0.3), bevel=0.03)
     return ground, img
 
 
 def world_castle_2(st):
-    """7: the second floor, the castle's machinery: gears, pipes and pistons along the walls."""
+    """7: the second floor, the castle's machinery: a steel deck, dark iron walls with glowing furnace mouths, gears,
+    pipes and pistons along them, hazard stripes, crates and drums."""
     def height(x, y):
         return np.full_like(x, FLOOR_Z, dtype=float)
 
     def color(TX, TY, TZ, slope):
-        rgb = diamond_floor(st, TX, TY, (0.56, 0.4, 0.58), (0.36, 0.26, 0.42), (0.22, 0.14, 0.26))
+        rgb = tread_floor(TX, TY, (0.5, 0.52, 0.54))
         # hazard stripes in front of the walls
         d = st.outside(TX, TY)
         stripe = ((np.floor((TX + TY) * 1.5)) % 2)
@@ -1238,14 +1343,16 @@ def world_castle_2(st):
         return apron_mix(st, TX, TY, rgb, rgb)
 
     ground, img = terrain(st, height, color, "ground")
-    steel = material("steel_wall", (0.5, 0.52, 0.58), 0.08, 2.0, kind="bricks", mortar=(0.28, 0.3, 0.34))
+    iron = material("iron_wall", (0.36, 0.32, 0.29), 0.1, 1.0, kind="bricks", mortar=(0.16, 0.15, 0.14))
     brass = material("brass", (0.8, 0.62, 0.26), 0.1, 5.0)
     copper = material("copper", (0.72, 0.38, 0.2), 0.1, 5.0)
     dark = material("dark_metal", (0.22, 0.23, 0.27), 0.08, 5.0)
     lamp = material("lamp_red", (0.96, 0.4, 0.3), 0.1)
     green = material("lamp_green", (0.5, 0.9, 0.66), 0.1)
     rubber = material("belt_rubber", (0.12, 0.11, 0.1), 0.1)
-    x0, x1, y0, y1 = room(st, steel, offset_x=4.6, offset_north=4.0)
+    fire = material("furnace_fire", (1.0, 0.5, 0.12), 0.25, 6.0, color2=(1.0, 0.85, 0.35))
+    yellow = material("hazard_yellow", (0.92, 0.7, 0.14), 0.08, 4.0)
+    x0, x1, y0, y1 = room(st, iron, offset_x=4.6, offset_north=4.0)
     z = FLOOR_Z
     i = 0
     for (x, y, a) in along_walls(x0, x1, y0, y1, 3.0):
@@ -1259,17 +1366,33 @@ def world_castle_2(st):
             cylinder((x + dx * 0.5, y + dy * 0.5, z + 0.5), 0.22, 1.6, brass, vertices=14)
             box((x + dx * 0.5, y + dy * 0.5, z + 2.1), (0.8, 0.8, 0.25), dark, rotation=a)
         else:
-            box((x + dx * 0.35, y + dy * 0.35, z), (1.4, 0.6, 1.8), dark, rotation=a + math.pi / 2, bevel=0.04)
-            for k in range(3):
-                uv_sphere((x + dx * 0.66 + dy * (k - 1) * 0.35, y + dy * 0.66 - dx * (k - 1) * 0.35, z + 1.4), 0.08,
-                          lamp if k == 1 else green, segments=10, rings=6)
-                glow((x + dx * 0.7 + dy * (k - 1) * 0.35, y + dy * 0.7 - dx * (k - 1) * 0.35, z + 1.4),
-                     (1.0, 0.48, 0.36) if k == 1 else (0.55, 1.0, 0.72), 0.3, GLOW_BLINK)
+            # a furnace in the wall, the fire's glow flickering on the deck
+            box((x + dx * 0.3, y + dy * 0.3, z), (1.6, 0.6, 1.6), dark, rotation=a + math.pi / 2, bevel=0.05)
+            box((x + dx * 0.58, y + dy * 0.58, z + 0.3), (1.0, 0.04, 0.7), fire, rotation=a + math.pi / 2)
+            for k in range(4):
+                box((x + dx * 0.62 + dy * (k - 1.5) * 0.25, y + dy * 0.62 - dx * (k - 1.5) * 0.25, z + 0.25),
+                    (0.06, 0.06, 0.8), dark, rotation=a)
+            glow((x + dx * 0.9, y + dy * 0.9, z + 0.65), (1.0, 0.55, 0.2), 1.2, GLOW_FLAME)
+            for k in (-1, 1):
+                uv_sphere((x + dx * 0.62 + dy * k * 0.6, y + dy * 0.62 - dx * k * 0.6, z + 1.3), 0.07,
+                          lamp if k > 0 else green, segments=10, rings=6)
+                glow((x + dx * 0.66 + dy * k * 0.6, y + dy * 0.66 - dx * k * 0.6, z + 1.3),
+                     (1.0, 0.48, 0.36) if k > 0 else (0.55, 1.0, 0.72), 0.3, GLOW_BLINK)
     # pipes running along the walls
     for h, r, m in ((0.7, 0.14, copper), (3.4, 0.2, brass)):
         pipe_run((x0 + 0.35, y1 + 0.2), (x1 - 0.35, y1 + 0.2), z + h, r, m)
         pipe_run((x0 + 0.25, y0), (x0 + 0.25, y1 - 0.1), z + h, r, m)
         pipe_run((x1 - 0.25, y0), (x1 - 0.25, y1 - 0.1), z + h, r, m)
+    # yellow crates and drums between the field and the hazard band
+    taken = []
+    between = lambda x, y: float(st.outside(x, y) > 0.9) * float(st.outside(x, y) < 2.6)  # noqa: E731
+    for (x, y) in st.scatter(16, between, 1.1, taken, margin=0.9):
+        if st.rng.random() < 0.5:
+            box((x, y, z), (0.8, 0.8, 0.8), yellow, rotation=st.rng.uniform(-0.2, 0.2), bevel=0.03)
+            if st.rng.random() < 0.4:
+                box((x, y, z + 0.8), (0.6, 0.6, 0.55), dark, rotation=st.rng.uniform(-0.4, 0.4), bevel=0.03)
+        else:
+            cylinder((x, y, z), 0.3, 0.85, dark if st.rng.random() < 0.5 else copper, vertices=12)
     return ground, img
 
 

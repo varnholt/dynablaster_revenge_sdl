@@ -57,9 +57,12 @@ public:
       //! radius of the halo
       float _size = 0.5f;
 
-      //! 0 steady, 1 flickering flame, 2 blinking, 3 pulsing
+      //! 0 steady, 1 flickering flame, 2 blinking, 3 pulsing, 4 a fire: an animated flame standing on the
+      //! position, its halo flickering with it
       int32_t _mode = 0;
    };
+
+   static constexpr int32_t GlowFire = 4;
 
    explicit GltfModel(const std::string& filename);
    ~GltfModel();

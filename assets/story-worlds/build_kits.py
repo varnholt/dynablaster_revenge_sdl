@@ -287,14 +287,81 @@ def trodden_earth():
 
 
 def metal_panels(base):
+    """The final floor's border like the original's: grey metal, a small blue lit window in each panel, a dark
+    vent grille below it."""
     rgb = colorize(noise(TEX, 6), np.array(base) * 0.85, np.array(base) * 1.05)
     t = np.linspace(0, 1, TEX)
     for line in (0.0, 0.5):
         band = np.abs(t - line) < 0.02
         rgb[band, :] = np.array(base) * 0.5
         rgb[:, band] = np.array(base) * 0.5
-    vent = (np.abs(t - 0.25) < 0.12)[:, None] & ((np.sin(t * 60) > 0.6) & (np.abs(t - 0.75) < 0.15))[None, :]
-    rgb[vent] = (0.75, 0.82, 0.25)
+    # rows run bottom up (Blender's pixel order): the windows in the upper half, the vents below
+    for cx in (0.25, 0.75):
+        frame = (np.abs(t - 0.7) < 0.1)[:, None] & (np.abs(t - cx) < 0.1)[None, :]
+        window = (np.abs(t - 0.7) < 0.065)[:, None] & (np.abs(t - cx) < 0.065)[None, :]
+        rgb[frame] = (0.16, 0.18, 0.22)
+        rgb[window] = colorize(np.clip(1.2 - np.abs(t - 0.7)[:, None] * 12 + 0 * t[None, :], 0, 1),
+                               (0.15, 0.45, 0.9), (0.6, 0.9, 1.0))[window]
+        vent = (np.abs(t - 0.28) < 0.08)[:, None] & (np.abs(t - cx) < 0.16)[None, :] & (np.sin(t * 160) > 0.2)[:, None]
+        rgb[vent] = (0.25, 0.26, 0.3)
+    return rgb
+
+
+def flagstones(light, dark, joint, slabs=2):
+    """Cut stone slabs, slabs x slabs per tile, every other one a shade off, worn at the corners."""
+    t = np.linspace(0, slabs, TEX, endpoint=False)
+    X, Y = np.meshgrid(t, t)
+    fx, fy = X - np.floor(X), Y - np.floor(Y)
+    checker = (np.floor(X) + np.floor(Y)) % 2
+    rgb = colorize(np.clip(0.45 * checker + 0.55 * noise(TEX, 5, octaves=5), 0, 1), dark, light)
+    edge = np.minimum(np.minimum(fx, 1 - fx), np.minimum(fy, 1 - fy))
+    # a soft bevel into the joint, the joint itself dark
+    rgb *= (0.82 + 0.18 * np.clip(edge / 0.08, 0, 1))[..., None]
+    rgb[edge < 0.025] = joint
+    # chips and stains
+    stain = noise(TEX, 9) > 0.7
+    rgb[stain] *= 0.9
+    return rgb
+
+
+def tread_plate(base, count=4):
+    """Steel deck plate: raised lozenges in pairs at right angles, bolted at the plate's corners."""
+    t = np.linspace(0, count, TEX, endpoint=False)
+    X, Y = np.meshgrid(t, t)
+    fx, fy = X - np.floor(X) - 0.5, Y - np.floor(Y) - 0.5
+    turn = (np.floor(X) + np.floor(Y)) % 2
+    u = np.where(turn > 0, fx + fy, fx - fy) * 0.7071
+    v = np.where(turn > 0, fx - fy, fx + fy) * 0.7071
+    lozenge = (u / 0.32) ** 2 + (v / 0.07) ** 2 < 1.0
+    rgb = colorize(0.6 * noise(TEX, 6) + 0.4 * noise(TEX, 24, octaves=2), np.array(base) * 0.8, np.array(base) * 1.05)
+    rgb[lozenge] = rgb[lozenge] * 1.25
+    # a dark seam under each lozenge's lower side
+    shadow = ((u / 0.32) ** 2 + ((v + 0.03) / 0.07) ** 2 < 1.0) & ~lozenge
+    rgb[shadow] *= 0.65
+    rgb = rgb * tile_edges(TEX, width=0.03, depth=0.5)[..., None]
+    s = np.linspace(0, 1, TEX)
+    for cx in (0.07, 0.93):
+        for cy in (0.07, 0.93):
+            bolt = np.hypot(s[None, :] - cx, s[:, None] - cy) < 0.025
+            rgb[bolt] = np.array(base) * 1.3
+    return np.clip(rgb, 0, 1)
+
+
+def hazard_crate(base):
+    """A riveted steel crate face: tread plate inside a black and yellow striped frame."""
+    rgb = tread_plate(base, count=3)
+    s = np.linspace(0, 1, TEX)
+    X, Y = np.meshgrid(s, s)
+    edge = np.minimum(np.minimum(X, 1 - X), np.minimum(Y, 1 - Y))
+    frame = (edge > 0.03) & (edge < 0.16)
+    stripe = np.floor((X + Y) * 7) % 2
+    rgb[frame] = colorize(stripe[frame], (0.1, 0.09, 0.08), (0.93, 0.7, 0.12))
+    rgb[edge <= 0.03] = np.array(base) * 0.55
+    for c in (0.095,):
+        for cx in (c, 1 - c):
+            for cy in (c, 1 - c):
+                rivet = np.hypot(X - cx, Y - cy) < 0.03
+                rgb[rivet] = np.array(base) * 1.3
     return rgb
 
 
@@ -321,13 +388,15 @@ WORLDS = {
             border=("rock", lambda: rock_texture((0.3, 0.17, 0.08), (0.52, 0.32, 0.16))),
             land=lava),
     6: dict(name="castle_1",
-            floor=lambda: diamonds((0.66, 0.44, 0.66), (0.48, 0.28, 0.5), (0.3, 0.16, 0.3)),
-            border=("bricks", lambda: brick_texture((0.25, 0.12, 0.08), (0.45, 0.22, 0.14), (0.62, 0.32, 0.2))),
-            land=lambda: colorize(noise(TEX, 8), (0.1, 0.1, 0.14), (0.2, 0.2, 0.26))),
+            # the keep's ground floor: sandstone flags, ashlar walls with a coping
+            floor=lambda: flagstones((0.8, 0.7, 0.52), (0.62, 0.5, 0.36), (0.3, 0.24, 0.18)),
+            border=("ashlar", lambda: brick_texture((0.32, 0.29, 0.26), (0.5, 0.47, 0.42), (0.7, 0.66, 0.58), rows=2)),
+            land=lambda: colorize(noise(TEX, 8), (0.3, 0.24, 0.18), (0.44, 0.36, 0.27))),
     7: dict(name="castle_2",
-            floor=lambda: diamonds((0.58, 0.42, 0.6), (0.38, 0.26, 0.44), (0.22, 0.14, 0.26)),
-            border=("bricks", lambda: brick_texture((0.28, 0.3, 0.34), (0.42, 0.44, 0.5), (0.58, 0.6, 0.66), rows=3)),
-            land=lambda: colorize(noise(TEX, 8), (0.12, 0.08, 0.14), (0.22, 0.16, 0.26))),
+            # the castle's machine floor: steel deck plate, riveted crates striped black and yellow
+            floor=lambda: tread_plate((0.46, 0.48, 0.5)),
+            border=("crate", lambda: hazard_crate((0.4, 0.42, 0.45))),
+            land=lambda: colorize(noise(TEX, 8), (0.14, 0.13, 0.12), (0.24, 0.22, 0.2))),
     8: dict(name="castle_final",
             floor=lambda: diamonds((0.14, 0.56, 0.62), (0.06, 0.38, 0.46), (0.03, 0.2, 0.26)),
             border=("bricks", lambda: metal_panels((0.62, 0.64, 0.7))),
@@ -353,6 +422,25 @@ def build_world(index, spec):
     kind, texture = spec["border"]
     if kind == "bricks":
         border = box("border", (1.0, 1.0, 0.95), 0.06)
+        border.location.z = 0.475
+        bpy.ops.object.transform_apply(location=True)
+        project_uv(border, "cube")
+    elif kind == "ashlar":
+        # a wall block with a coping slab overhanging front and back
+        border = box("border", (1.0, 0.9, 0.8), 0.05)
+        border.location.z = 0.4
+        cap = box("cap", (1.0, 1.04, 0.17), 0.04)
+        cap.location.z = 0.875
+        bpy.ops.object.select_all(action="SELECT")
+        bpy.context.view_layer.objects.active = border
+        bpy.ops.object.transform_apply(location=True)
+        bpy.ops.object.join()
+        border = bpy.context.object
+        border.name = "border"
+        project_uv(border, "cube")
+    elif kind == "crate":
+        # hard edged, the stripes run right up to them
+        border = box("border", (0.98, 0.98, 0.95), 0.015, 1)
         border.location.z = 0.475
         bpy.ops.object.transform_apply(location=True)
         project_uv(border, "cube")

@@ -7,7 +7,7 @@
 #include "math/matrix.h"
 
 //! halos of light sources: camera facing, additive, hidden by what stands in front of them;
-//! they flicker, blink or pulse by their mode (see GltfModel::Glow)
+//! they flicker, blink or pulse by their mode (see GltfModel::Glow); a fire also gets its animated flame
 class GlowSprites
 {
 public:
