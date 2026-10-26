@@ -1,7 +1,8 @@
 # The intro's set: Dr's lab from the first world's scenery, its glass dome rebuilt so the dragon can break out
 #   blender --background --factory-startup --python build_lab.py -- <out dir>
 # writes
-#   lab.glb          world1/surroundings_13x11.glb with the dome cut out of its props
+#   lab.glb          world1/surroundings_13x11.glb with the dome cut out of its props and a doorway right of it
+#   door.glb         that doorway's door, hinged on its origin
 #   dome.glb         the dome broken into voronoi cells, whole in its rest pose; "burst" blows the cells round the
 #                    top out along their normals, then they tumble down
 # all in the scenery's own coordinates (field coordinates, z up).
@@ -35,6 +36,28 @@ COLORS = {
     "frame": (0.80, 0.82, 0.86),
 }
 
+# the door the doctor runs out of: in the facade right of the dome, where the scenery has a grey panel, wide and
+# high enough for him to pass with his arms swinging; a short hall behind it
+FRONT_Y = 5.90
+DOOR_X = 10.88
+DOOR_WIDTH = 1.04
+DOOR_BOTTOM = 0.27
+DOOR_TOP = 1.92
+DOOR_DEPTH = 1.5
+FRAME_Y = FRONT_Y - 0.05  # the frame's front
+DOOR_LEAF = 0.04
+# the leaf's hinge, right of the opening, in front of the frame: the leaf opens outwards
+DOOR_HINGE = Vector((DOOR_X + DOOR_WIDTH / 2 + 0.04, FRAME_Y - DOOR_LEAF / 2 - 0.005, DOOR_BOTTOM + 0.01))
+
+DOOR_COLORS = {
+    "hall": (0.78, 0.70, 0.52),
+    "ceiling": (0.90, 0.84, 0.66),
+    "floor": (0.42, 0.42, 0.44),
+    "frame": (0.60, 0.62, 0.66),
+    "door": (0.10, 0.30, 0.85),
+    "handle": (0.80, 0.82, 0.86),
+}
+
 random.seed(5)
 
 
@@ -58,10 +81,93 @@ def cut_dome(props):
     print("RESULT removed", len(doomed), "dome faces")
 
 
+def cut_door(props):
+    """A doorway into the facade right of the dome, where its grey panel was: the panel's faces and the facade's
+    within the opening go."""
+    bm = bmesh.new()
+    bm.from_mesh(props.data)
+    bm.transform(props.matrix_world)
+    left, right = DOOR_X - DOOR_WIDTH / 2, DOOR_X + DOOR_WIDTH / 2
+
+    def facade(f):
+        return f.normal.y < -0.99 and all(abs(v.co.y - FRONT_Y) < 1e-3 for v in f.verts)
+
+    def panel(f):
+        return all(left - 0.1 < v.co.x < right + 0.1 and FRONT_Y - 0.1 < v.co.y < FRONT_Y + 0.1
+                   and DOOR_BOTTOM < v.co.z < DOOR_TOP + 0.1 for v in f.verts)
+
+    doomed = [f for f in bm.faces if panel(f) and not facade(f)]
+    bmesh.ops.delete(bm, geom=doomed, context="FACES")
+    # the facade cut along the opening's sides and its top, the pieces inside it removed
+    for co, no in (((left, 0, 0), (1, 0, 0)), ((right, 0, 0), (1, 0, 0)), ((0, 0, DOOR_TOP), (0, 0, 1))):
+        faces = [f for f in bm.faces if facade(f)]
+        geom = list({v for f in faces for v in f.verts}) + list({e for f in faces for e in f.edges}) + faces
+        bmesh.ops.bisect_plane(bm, geom=geom, dist=1e-5, plane_co=co, plane_no=no)
+    opening = [f for f in bm.faces if facade(f) and left < f.calc_center_median().x < right
+               and f.calc_center_median().z < DOOR_TOP]
+    bmesh.ops.delete(bm, geom=opening, context="FACES")
+    bm.transform(props.matrix_world.inverted())
+    bm.to_mesh(props.data)
+    bm.free()
+    print("RESULT door: removed", len(doomed), "panel faces,", len(opening), "facade faces")
+
+
+def block(builder, color, lo, hi):
+    """A box from corner lo to corner hi."""
+    bm = bmesh.new()
+    bmesh.ops.create_cube(bm, size=1.0)
+    builder.add(bm, color, matrix=toy.trs(tuple((a + c) / 2 for a, c in zip(lo, hi)), (0, 0, 0),
+                                          tuple(c - a for a, c in zip(lo, hi))))
+
+
+def doorway():
+    """Behind the opening a short hall in warm light, a frame round the opening."""
+    palette = toy.Palette("doorway_palette", DOOR_COLORS)
+    b = toy.Builder("doorway", palette)
+    x0, x1 = DOOR_X - DOOR_WIDTH / 2, DOOR_X + DOOR_WIDTH / 2
+    y0, y1 = FRONT_Y, FRONT_Y + DOOR_DEPTH
+    z0, z1 = DOOR_BOTTOM, DOOR_TOP
+    # the hall's walls, facing in
+    for part, corners in (
+            ("hall", ((x0, y1, z0), (x1, y1, z0), (x1, y1, z1), (x0, y1, z1))),
+            ("hall", ((x0, y0, z0), (x0, y1, z0), (x0, y1, z1), (x0, y0, z1))),
+            ("hall", ((x1, y1, z0), (x1, y0, z0), (x1, y0, z1), (x1, y1, z1))),
+            ("ceiling", ((x0, y1, z1), (x1, y1, z1), (x1, y0, z1), (x0, y0, z1))),
+            ("floor", ((x0, y0, z0), (x1, y0, z0), (x1, y1, z0), (x0, y1, z0)))):
+        bm = bmesh.new()
+        bm.faces.new([bm.verts.new(c) for c in corners])
+        b.add(bm, part)
+    trim = 0.06
+    block(b, "frame", (x0 - trim, FRAME_Y, z0), (x0, y0 + 0.02, z1 + trim))
+    block(b, "frame", (x1, FRAME_Y, z0), (x1 + trim, y0 + 0.02, z1 + trim))
+    block(b, "frame", (x0 - trim, FRAME_Y, z1), (x1 + trim, y0 + 0.02, z1 + trim))
+    return b.build_static()
+
+
+def door(out):
+    """door.glb, the door's leaf on its own so the intro can swing it open: hinged on the origin (DOOR_HINGE in
+    the scenery), closed it runs along -x over the opening and its frame, a handle on either side."""
+    toy.reset()
+    palette = toy.Palette("door_palette", DOOR_COLORS)
+    b = toy.Builder("door", palette)
+    width = DOOR_WIDTH + 0.1
+    half = DOOR_LEAF / 2
+    block(b, "door", (-width, -half, 0.0), (0.0, half, DOOR_TOP - DOOR_BOTTOM + 0.03))
+    for side in (-1, 1):
+        y = side * (half + 0.015)
+        block(b, "handle", (-width + 0.08, y - 0.015, 0.8), (-width + 0.2, y + 0.015, 0.86))
+    b.build_static()
+    bpy.ops.object.select_all(action="SELECT")
+    bpy.ops.export_scene.gltf(filepath=os.path.join(out, "door.glb"), export_format="GLB", use_selection=True)
+    print("RESULT exported door.glb")
+
+
 def lab(out):
     toy.reset()
     bpy.ops.import_scene.gltf(filepath=SCENERY)
     cut_dome(bpy.data.objects["props"])
+    cut_door(bpy.data.objects["props"])
+    doorway()
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.export_scene.gltf(filepath=os.path.join(out, "lab.glb"), export_format="GLB", use_selection=True,
                               export_extras=True)
@@ -280,4 +386,5 @@ def burst(rig, pieces):
 
 out = toy.out_dir()
 lab(out)
+door(out)
 dome(out)

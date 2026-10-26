@@ -4,7 +4,7 @@
 #   build_dragon.py    the dragon
 #   build_princess.py  the princess
 #   build_doctor.py    the doctor
-#   build_lab.py       the lab from the first world's scenery, its dome in voronoi cells that burst
+#   build_lab.py       the lab from the first world's scenery with a door, its dome in voronoi cells that burst
 #   build_backdrop.py  the mountains with the castle
 #   build_sky.py       the night sky's map (python, no blender)
 #   build_intro.py     stages them all: intro.txt, the timeline StoryIntroDrawable plays
@@ -18,7 +18,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "out")
 INTRO = os.path.join(HERE, "..", "..", "client", "data", "game", "story", "intro")
-FILES = ["lab.glb", "backdrop.glb", "dome.glb", "dragon.glb", "princess.glb", "doctor.glb",
+FILES = ["lab.glb", "door.glb", "backdrop.glb", "dome.glb", "dragon.glb", "princess.glb", "doctor.glb",
          "player.glb", "player_dark.glb", "sky.tga",
          "intro.txt"]
 
