@@ -65,7 +65,7 @@ def bricks(size, rows=4, columns=2, mortar=0.06):
 
 
 def image(name, rgb):
-    img = bpy.data.images.new(name, TEX, TEX, alpha=True)
+    img = bpy.data.images.new(name, rgb.shape[1], rgb.shape[0], alpha=True)
     rgba = np.concatenate([np.clip(rgb, 0, 1), np.ones(rgb.shape[:2] + (1,))], axis=2)
     img.pixels.foreach_set(rgba.astype(np.float32).ravel())
     img.pack()
@@ -97,19 +97,110 @@ def box(name, size, bevel, segments=3):
     return obj
 
 
-def lumps(name, count, radius, height, seed):
-    """A rock or bush: a few overlapping balls voxel-remeshed into one smooth surface."""
+# the built borders' atlas (see atlas()): where each part finds its colour, left, bottom, width, height
+ATLAS = {"body": (0.0, 0.0, 0.5, 0.5), "stone": (0.5, 0.0, 0.5, 0.5), "wood": (0.0, 0.5, 0.25, 0.5),
+         "accent": (0.25, 0.5, 0.25, 0.5), "top": (0.5, 0.5, 0.5, 0.5)}
+
+
+def atlas_uv(obj, part, window=1.0, offset=(0.0, 0.0), smooth=True, top=None):
+    """Projects each face along its normal's main axis into the part's piece of an atlas texture (see
+    atlas()), the faces looking up into top's piece if given; window < 1 samples a smaller piece of it, at
+    offset, so parts alike differ."""
+    if not obj.data.uv_layers:
+        obj.data.uv_layers.new()
+    uv = obj.data.uv_layers.active.data
+    for poly in obj.data.polygons:
+        n = poly.normal
+        u0, v0, w, h = ATLAS[top if top and n.z > 0.7 else part]
+        axes = (1, 2) if abs(n.x) >= max(abs(n.y), abs(n.z)) else (0, 2) if abs(n.y) >= abs(n.z) else (0, 1)
+        for li in poly.loop_indices:
+            co = obj.data.vertices[obj.data.loops[li].vertex_index].co
+            t = [np.clip((co[a] + (0.1 if a == 2 else 0.6)) / 1.2, 0, 1) for a in axes]
+            uv[li].uv = (u0 + w * (0.04 + 0.92 * (offset[0] + t[0] * window)),
+                         v0 + h * (0.04 + 0.92 * (offset[1] + t[1] * window)))
+        poly.use_smooth = smooth
+
+
+def earthwork(name, seed):
+    """A packed earth wall block with a mossy top, fieldstones set into both faces, a pointed stake at the tile's
+    seam front and back and a few cream capped mushrooms like the world's, so the row reads as a built wall,
+    a block per tile."""
     rng = np.random.default_rng(seed)
     parts = []
-    for i in range(count):
-        a = 2 * math.pi * i / count + rng.random()
-        r = radius * (0.5 + 0.3 * rng.random())
-        bpy.ops.mesh.primitive_uv_sphere_add(radius=radius * (0.55 + 0.25 * rng.random()), segments=16, ring_count=10,
-                                             location=(math.cos(a) * r * 0.6, math.sin(a) * r * 0.6,
-                                                       height * (0.3 + 0.4 * rng.random())))
-        parts.append(bpy.context.object)
-    bpy.ops.mesh.primitive_uv_sphere_add(radius=radius * 0.75, segments=16, ring_count=10, location=(0, 0, height * 0.55))
-    parts.append(bpy.context.object)
+    height, depth, batter = 0.78, 0.84, 0.08
+
+    core = box("core", (1.0, depth, height), 0.05, 2)
+    core.location.z = height / 2
+    bpy.ops.object.transform_apply(location=True)
+    # the faces lean in a little towards the top
+    for v in core.data.vertices:
+        v.co.y *= 1.0 - batter * v.co.z / height
+    atlas_uv(core, "body")
+    parts.append(core)
+
+    # moss on top, its long sides wavy so it doesn't read as a slab
+    bpy.ops.mesh.primitive_grid_add(x_subdivisions=11, y_subdivisions=2, size=1.0)
+    moss = bpy.context.object
+    for v in moss.data.vertices:
+        v.co.y *= depth * (1.0 - batter) - 0.1
+        v.co.y += math.copysign(0.035, v.co.y) * math.sin(v.co.x * 2 * math.pi * 2 + (v.co.y > 0) * 1.7)
+        v.co.z = height + 0.05
+    solidify = moss.modifiers.new("Solidify", "SOLIDIFY")
+    solidify.thickness = 0.07
+    bpy.ops.object.modifier_apply(modifier=solidify.name)
+    atlas_uv(moss, "top")
+    parts.append(moss)
+
+    def face_y(z, side):
+        return side * depth / 2 * (1.0 - batter * z / height)
+
+    # two courses: big stones below, smaller ones above, the joints staggered; mirrored at the back
+    courses = [(0.2, 0.3, [(-0.245, 0.43), (0.235, 0.45)]),
+               (0.52, 0.24, [(-0.34, 0.27), (-0.02, 0.32), (0.32, 0.3)])]
+    for side in (-1, 1):
+        for z, tall, stones in courses:
+            for x, wide in stones:
+                x = x * -side
+                stone = box("stone", (wide, 0.2, tall), 0.07, 1)
+                for v in stone.data.vertices:
+                    v.co += type(v.co)(rng.uniform(-0.03, 0.03, 3))
+                stone.location = (x + rng.uniform(-0.01, 0.01), face_y(z, side) - side * 0.05, z + rng.uniform(-0.01, 0.01))
+                stone.rotation_euler = (rng.uniform(-0.06, 0.06), rng.uniform(-0.08, 0.08), rng.uniform(-0.06, 0.06))
+                bpy.ops.object.transform_apply(location=True, rotation=True)
+                atlas_uv(stone, "stone", 0.5, rng.uniform(0, 0.5, 2), smooth=False)
+                parts.append(stone)
+
+    # a stake at the seam to the left neighbour, front and back
+    for side in (-1, 1):
+        y = face_y(0.5, side) + side * 0.01
+        bpy.ops.mesh.primitive_cylinder_add(vertices=8, radius=0.075, depth=0.92, location=(-0.5, y, 0.46))
+        post = bpy.context.object
+        bpy.ops.mesh.primitive_cone_add(vertices=8, radius1=0.075, depth=0.16, location=(-0.5, y, 1.0))
+        tip = bpy.context.object
+        for obj in (post, tip):
+            atlas_uv(obj, "wood")
+            parts.append(obj)
+
+    # a little group of mushrooms in the moss
+    for x, y, size in ((0.2, 0.06, 1.0), (0.33, -0.06, 0.65)):
+        top = height + 0.05
+        bpy.ops.mesh.primitive_cylinder_add(vertices=6, radius=0.03 * size, depth=0.12 * size,
+                                            location=(x, y, top + 0.06 * size))
+        stem = bpy.context.object
+        bpy.ops.mesh.primitive_uv_sphere_add(segments=10, ring_count=4, radius=0.11 * size,
+                                             location=(x, y, top + 0.11 * size))
+        cap = bpy.context.object
+        # a flat dome
+        for v in cap.data.vertices:
+            v.co.z = max(v.co.z, -0.01) * 0.5
+        for obj in (stem, cap):
+            atlas_uv(obj, "accent")
+            parts.append(obj)
+
+    return join(name, parts)
+
+
+def join(name, parts):
     bpy.ops.object.select_all(action="DESELECT")
     for p in parts:
         p.select_set(True)
@@ -117,25 +208,82 @@ def lumps(name, count, radius, height, seed):
     bpy.ops.object.join()
     obj = bpy.context.object
     obj.name = name
-    remesh = obj.modifiers.new("Remesh", "REMESH")
-    remesh.mode = "VOXEL"
-    remesh.voxel_size = 0.045
-    smooth = obj.modifiers.new("Smooth", "SMOOTH")
-    smooth.iterations = 6
-    bpy.ops.object.modifier_apply(modifier=remesh.name)
-    bpy.ops.object.modifier_apply(modifier=smooth.name)
-    decimate = obj.modifiers.new("Decimate", "DECIMATE")
-    decimate.ratio = min(1.0, 600 / max(1, len(obj.data.polygons)))
-    bpy.ops.object.modifier_apply(modifier=decimate.name)
-    # sit on the ground, no wider than a tile
-    co = np.array([v.co for v in obj.data.vertices])
-    lo, hi = co.min(axis=0), co.max(axis=0)
-    scale = min(1.0, 1.02 / max(hi[0] - lo[0], hi[1] - lo[1]))
-    for v in obj.data.vertices:
-        v.co.x = (v.co.x - (lo[0] + hi[0]) / 2) * scale
-        v.co.y = (v.co.y - (lo[1] + hi[1]) / 2) * scale
-        v.co.z = (v.co.z - lo[2]) * scale
     return obj
+
+
+def chip(obj, rng, amount):
+    """Moves the vertices off a block's seams a little, so its edges look hewn or grown; the seam faces stay
+    where they are, so neighbours still meet."""
+    for v in obj.data.vertices:
+        if abs(v.co.x) < 0.495:
+            v.co += type(v.co)(rng.uniform(-amount, amount, 3))
+
+
+def hedge(name, seed):
+    """A clipped box hedge, flat topped with straight sides, leafy tufts breaking up its outline, on a plank
+    edging front and back, a block per tile."""
+    rng = np.random.default_rng(seed)
+    parts = []
+    height, depth = 0.88, 0.8
+    body = box("hedge", (1.0, depth, height - 0.06), 0.09, 2)
+    body.location.z = 0.06 + (height - 0.06) / 2
+    bpy.ops.object.transform_apply(location=True)
+    # a little narrower at the top, as hedges are clipped
+    for v in body.data.vertices:
+        v.co.y *= 1.0 - 0.07 * (v.co.z - 0.06) / height
+    chip(body, rng, 0.02)
+    atlas_uv(body, "body")
+    parts.append(body)
+
+    # leafy tufts along its top edges and on its top, so its outline isn't a box's
+    tufts = [(x, side * 0.36, 0.8, 0.09) for side in (-1, 1) for x in (-0.36, -0.12, 0.13, 0.37)]
+    tufts += [(0.25, 0.0, 0.88, 0.08), (-0.15, 0.1, 0.88, 0.07)]
+    for x, y, z, r in tufts:
+        bpy.ops.mesh.primitive_uv_sphere_add(segments=7, ring_count=4, radius=r,
+                                             location=(x + rng.uniform(-0.04, 0.04), y, z + rng.uniform(-0.03, 0.03)))
+        tuft = bpy.context.object
+        tuft.scale = (1.3, 0.8 if abs(y) > 0.3 else 1.2, 0.8)
+        tuft.rotation_euler.z = rng.uniform(0, math.pi)
+        bpy.ops.object.transform_apply(scale=True, rotation=True)
+        atlas_uv(tuft, "stone", 0.5, rng.uniform(0, 0.5, 2))
+        parts.append(tuft)
+
+    # plank edging at its foot, pegged at the seam
+    for side in (-1, 1):
+        plank = box("plank", (1.0, 0.05, 0.16), 0.012, 1)
+        plank.location = (0.0, side * (depth / 2 + 0.035), 0.08)
+        bpy.ops.object.transform_apply(location=True)
+        atlas_uv(plank, "wood", smooth=False)
+        parts.append(plank)
+        bpy.ops.mesh.primitive_cylinder_add(vertices=6, radius=0.04, depth=0.24,
+                                            location=(-0.5, side * (depth / 2 + 0.07), 0.12))
+        peg = bpy.context.object
+        atlas_uv(peg, "wood")
+        parts.append(peg)
+    return join(name, parts)
+
+
+def rock_slabs(name, seed):
+    """Slabs of the ridge's layered rock laid dry into a block: three courses, each of two slabs with the joint
+    in a different place, each course set back a little, the edges chipped."""
+    rng = np.random.default_rng(seed)
+    parts = []
+    z = 0.0
+    for i, (tall, deep, shift, joint) in enumerate(((0.32, 0.92, 0.0, 0.12), (0.28, 0.84, 0.03, -0.2),
+                                                   (0.26, 0.76, -0.02, 0.26))):
+        for left, right in ((-0.5, joint), (joint, 0.5)):
+            slab = box("slab", (right - left - 0.02, deep + rng.uniform(-0.03, 0.03), tall), 0.045, 1)
+            slab.location = ((left + right) / 2, shift, z + tall / 2)
+            bpy.ops.object.transform_apply(location=True)
+            # a gap at the joint, none at the tile's seam
+            for v in slab.data.vertices:
+                if abs(v.co.x) > 0.485:
+                    v.co.x = math.copysign(0.5, v.co.x)
+            chip(slab, rng, 0.025)
+            atlas_uv(slab, "body" if i % 2 == 0 else "stone", 0.6, rng.uniform(0, 0.4, 2), smooth=False, top="top")
+            parts.append(slab)
+        z += tall - 0.01
+    return join(name, parts)
 
 
 def plane(name, size, z):
@@ -365,6 +513,67 @@ def hazard_crate(base):
     return rgb
 
 
+def atlas(body, stone, wood, accent, top):
+    """A built border's texture: the parts' colours (TEX by TEX each, wood and accent only use their left half)
+    where ATLAS has them."""
+    wood = wood.copy()
+    wood[:, TEX // 2:] = accent[:, TEX // 2:]
+    return np.concatenate([np.concatenate([body, stone], axis=1), np.concatenate([wood, top], axis=1)], axis=0)
+
+
+def strata(low, high, layers=7):
+    """Rock or earth laid down in wavy layers, the layers horizontal on a block's sides."""
+    rows = np.linspace(0, 1, TEX)[:, None].repeat(TEX, 1)
+    bands = np.sin(rows * 2 * math.pi * layers + noise(TEX, 3) * 5) * 0.5 + 0.5
+    return colorize(np.clip(0.55 * noise(TEX, 5, octaves=5) + 0.3 * bands, 0, 1), low, high)
+
+
+def wood_grain(low, high):
+    grain = np.sin(np.linspace(0, 1, TEX)[None, :] * 2 * math.pi * 9 + noise(TEX, 2) * 4) * 0.5 + 0.5
+    return colorize(np.clip(0.6 * grain + 0.4 * noise(TEX, 6), 0, 1), low, high)
+
+
+def leaves(low, high):
+    """Small leaves packed close: fine cells, each its own shade, dark gaps between them."""
+    rgb = colorize(np.clip(0.5 * noise(TEX, 24, octaves=2) + 0.5 * noise(TEX, 5), 0, 1), low, high)
+    gaps = noise(TEX, 32, octaves=2) < 0.3
+    rgb[gaps] *= 0.75
+    return rgb
+
+
+def earthwork_texture():
+    """Packed earth in layers, fieldstone, weathered stake wood, the mushrooms' cream, moss."""
+    earth = strata((0.25, 0.14, 0.07), (0.48, 0.3, 0.15))
+    grit = noise(TEX, 16, octaves=2) > 0.68
+    earth[grit] *= 1.25
+    stone = colorize(np.clip(noise(TEX, 4, octaves=5) * 1.2 - 0.1, 0, 1), (0.34, 0.3, 0.26), (0.6, 0.55, 0.47))
+    lichen = noise(TEX, 6) > 0.7
+    stone[lichen] = stone[lichen] * 0.6 + np.array((0.55, 0.56, 0.3)) * 0.4
+    wood = wood_grain((0.22, 0.16, 0.1), (0.42, 0.33, 0.23))
+    cream = colorize(noise(TEX, 4), (0.86, 0.78, 0.58), (0.98, 0.93, 0.8))
+    moss = colorize(noise(TEX, 6, octaves=5), (0.17, 0.29, 0.09), (0.33, 0.47, 0.16))
+    bare = noise(TEX, 5) > 0.68
+    moss[bare] = moss[bare] * 0.4 + np.array((0.36, 0.24, 0.12)) * 0.6
+    return atlas(earth, stone, wood, cream, moss)
+
+
+def hedge_texture():
+    """Dark green leaves for the hedge, lighter ones for its tufts, oak planks."""
+    inner = leaves((0.03, 0.14, 0.04), (0.1, 0.3, 0.07))
+    tufts = leaves((0.05, 0.19, 0.05), (0.15, 0.38, 0.1))
+    plank = wood_grain((0.3, 0.2, 0.11), (0.52, 0.38, 0.22))
+    return atlas(inner, tufts, plank, plank, inner)
+
+
+def rock_slab_texture():
+    """The ridge's orange rock in layers, a darker and a lighter course."""
+    light = strata((0.44, 0.27, 0.15), (0.72, 0.5, 0.3), layers=9)
+    dark = strata((0.34, 0.2, 0.11), (0.58, 0.38, 0.22), layers=9)
+    # the slabs' tops: weathered, no layers
+    top = rock_texture((0.46, 0.3, 0.17), (0.7, 0.5, 0.31))
+    return atlas(light, dark, dark, dark, top)
+
+
 WORLDS = {
     1: dict(name="the_wall",
             floor=lambda: floor_texture((0.18, 0.5, 0.12), (0.32, 0.7, 0.2)),
@@ -372,7 +581,8 @@ WORLDS = {
             land=lambda: colorize(noise(TEX, 8), (0.12, 0.38, 0.1), (0.22, 0.5, 0.16))),
     2: dict(name="rocky_mountains",
             floor=lambda: cobbles((0.5, 0.5, 0.62), (0.7, 0.7, 0.8), (0.3, 0.3, 0.38)) * tile_edges(TEX, depth=0.2)[..., None],
-            border=("rock", lambda: rock_texture((0.32, 0.16, 0.07), (0.62, 0.34, 0.15))),
+            # slabs of the ridge's layered rock
+            border=("slabs", rock_slab_texture),
             land=lambda: rock_texture((0.38, 0.28, 0.18), (0.55, 0.42, 0.28))),
     3: dict(name="river",
             # a shallow riverbed, the water shader floods it
@@ -381,11 +591,13 @@ WORLDS = {
             land=water),
     4: dict(name="forest",
             floor=lambda: floor_texture((0.12, 0.35, 0.1), (0.25, 0.5, 0.15)),
-            border=("bush", lambda: colorize(noise(TEX, 6), (0.04, 0.22, 0.05), (0.2, 0.55, 0.12))),
+            # a clipped hedge on a plank edging
+            border=("hedge", hedge_texture),
             land=lambda: colorize(noise(TEX, 10), (0.05, 0.2, 0.05), (0.14, 0.34, 0.1))),
     5: dict(name="lava_cave",
             floor=lambda: trodden_earth() * tile_edges(TEX, depth=0.1)[..., None],
-            border=("rock", lambda: rock_texture((0.3, 0.17, 0.08), (0.52, 0.32, 0.16))),
+            # a built wall of packed earth and fieldstones between stakes, turf on top
+            border=("earthwork", earthwork_texture),
             land=lava),
     6: dict(name="castle_1",
             # the keep's ground floor: sandstone flags, ashlar walls with a coping
@@ -444,9 +656,12 @@ def build_world(index, spec):
         border.location.z = 0.475
         bpy.ops.object.transform_apply(location=True)
         project_uv(border, "cube")
+    elif kind == "earthwork":
+        border = earthwork("border", seed=index)
+    elif kind == "hedge":
+        border = hedge("border", seed=index)
     else:
-        border = lumps("border", 5, 0.5, 0.95 if kind == "rock" else 1.05, seed=index)
-        project_uv(border, "smart")
+        border = rock_slabs("border", seed=index)
     border.data.materials.append(material(f"w{index}_border", image(f"w{index}_border", texture())))
     export(border, os.path.join(folder, "border.glb"))
 
