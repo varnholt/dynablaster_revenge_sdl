@@ -196,6 +196,23 @@ void Server::processJoinGameRequest(Connection& connection, const JoinGameReques
    {
       Game& game = *game_iterator->second;
 
+      // a story is played alone, nobody else gets in
+      if (game.getStory() && connection.getPlayer().getId() != game.getCreatorId())
+      {
+         const Player& player = connection.getPlayer();
+         sendPacket(
+            connection, std::make_unique<JoinGameResponsePacket>(false, game.getId(), player.getId(), player.getNick(), player.getColor())
+         );
+         return;
+      }
+
+      // a connection plays one game at a time; still being in another one would leave that game
+      // behind, holding on to this connection
+      if (const auto previous_game = findGame(connection); previous_game && previous_game->get().getId() != game.getId())
+      {
+         processPlayerLeavesGame(connection);
+      }
+
       if (game.joinGame(connection, request.getPreferredColor()))
       {
          game.broadcastMessage(std::format("{} joined the game", connection.getPlayer().getNick()));
@@ -264,8 +281,16 @@ void Server::processListGamesRequest(Connection& connection)
 {
    std::vector<GameInformation> games;
 
+   const auto own_game = findGame(connection);
+
    for (const auto& game : _games | std::views::values)
    {
+      // story games are single player, only the one playing it needs to know it
+      if (game->getStory() && !(own_game && own_game->get().getId() == game->getId()))
+      {
+         continue;
+      }
+
       games.push_back(game->getGameInformation());
    }
 

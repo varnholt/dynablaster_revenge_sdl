@@ -389,6 +389,7 @@ private:
    void processMapItemRemoved(const MapItemRemovedPacket& remove);
    void processStartGameResponse(const StartGameResponsePacket& response);
    void processStopGameResponse(const StopGameResponsePacket& response);
+   void leaveFinishedStory(int game_id);
    void processGameEvent(const GameEventPacket& response);
    void processMessage(const MessagePacket& message_packet);
    void processTime(const TimePacket& time_packet);

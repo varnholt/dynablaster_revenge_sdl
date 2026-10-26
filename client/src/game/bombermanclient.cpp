@@ -58,6 +58,7 @@
 #include "storystatepacket.h"
 #include "stringutils.h"
 #include "timepacket.h"
+#include "timer.h"
 #include "tools/stream.h"
 
 #include <array>
@@ -1100,7 +1101,31 @@ void BombermanClient::processStopGameResponse(const StopGameResponsePacket& resp
       SoundManager& sm = SoundManager::getInstance();
       sm.playSoundStart();
       sm.restartPlayListAfterFadeOut(SHOW_WINNER_TIME_SUM);
+
+      // a battle goes back to its lounge, a story has none: leave the game once the menu shows,
+      // otherwise it stays on the server and the next story becomes "story #1"
+      if (isStory())
+      {
+         const int game_id = response.getId();
+         Timer::singleShot(SHOW_WINNER_TIME_SUM, [this, game_id]() { leaveFinishedStory(game_id); });
+      }
    }
+}
+
+//-----------------------------------------------------------------------------
+/*!
+   \param game_id the story game that just ended
+*/
+void BombermanClient::leaveFinishedStory(int game_id)
+{
+   // escape already left it
+   if (getGameId() != game_id)
+   {
+      return;
+   }
+
+   leaveGameRequest();
+   resetGameData();
 }
 
 //-----------------------------------------------------------------------------
