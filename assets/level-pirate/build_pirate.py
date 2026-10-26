@@ -276,6 +276,66 @@ def torus(loc, major, minor, mat, normal=(0, 0, 1)):
     return _finish(obj, mat)
 
 
+def _bevel(obj, width, segments=2):
+    """Bevels the edges of a closed mesh, its faces stay flat shaded."""
+    bpy.ops.object.select_all(action="DESELECT")
+    obj.select_set(True)
+    bpy.context.view_layer.objects.active = obj
+    mod = obj.modifiers.new("Bevel", "BEVEL")
+    mod.width = width
+    mod.segments = segments
+    bpy.ops.object.modifier_apply(modifier=mod.name)
+    for p in obj.data.polygons:
+        p.use_smooth = False
+    return obj
+
+
+def extrusion(outline, origin, u, v, depth, mat, bevel=0.0):
+    """A prism of one piece: outline [(a, b)...] (a simple polygon, it may be concave) lies in the plane
+    origin + a * u + b * v and is pushed depth along u x v. Parts that would otherwise be put together from
+    overlapping boxes (stepped cheeks, an arched frame) are made like this: overlapping boxes have faces in one
+    plane, which fight for the pixels."""
+    u, v = Vector(u), Vector(v)
+    w = u.cross(v).normalized()
+    base = [Vector(origin) + a * u + b * v for a, b in outline]
+    verts = base + [p + w * depth for p in base]
+    n = len(base)
+    faces = [tuple(range(n)), tuple(range(2 * n - 1, n - 1, -1))] + \
+            [(i, (i + 1) % n, (i + 1) % n + n, i + n) for i in range(n)]
+    obj = _mesh("extrusion", verts, faces, mat, smooth_shade=False)
+    return _bevel(obj, bevel) if bevel else obj
+
+
+def frame_ring(x0, x1, y0, y1, width, z0, z1, mat, bevel=0.0):
+    """A rectangular frame around x0..x1, y0..y1 (its outside), width wide, as one closed mesh: four boxes
+    meeting at the corners would overlap there with faces in one plane."""
+    outer = [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
+    inner = [(x0 + width, y0 + width), (x1 - width, y0 + width), (x1 - width, y1 - width), (x0 + width, y1 - width)]
+    verts = [(x, y, z) for z in (z0, z1) for x, y in outer + inner]
+    o0, i0, o1, i1 = 0, 4, 8, 12
+    faces = []
+    for k in range(4):
+        n = (k + 1) % 4
+        faces += [(o1 + k, o1 + n, i1 + n, i1 + k),  # top
+                  (o0 + n, o0 + k, i0 + k, i0 + n),  # bottom
+                  (o0 + k, o0 + n, o1 + n, o1 + k),  # outside
+                  (i0 + n, i0 + k, i1 + k, i1 + n)]  # inside
+    obj = _mesh("frame", verts, faces, mat, smooth_shade=False)
+    return _bevel(obj, bevel) if bevel else obj
+
+
+def loft(mat, sections):
+    """A closed beam through sections, each the same number of corners (in the same order round it)."""
+    n = len(sections[0])
+    verts = [v for corners in sections for v in corners]
+    faces = [tuple(range(n))[::-1], tuple(range((len(sections) - 1) * n, len(sections) * n))]
+    for k in range(len(sections) - 1):
+        for j in range(n):
+            a, b = k * n + j, k * n + (j + 1) % n
+            faces.append((a, b, b + n, a + n))
+    return _mesh("loft", verts, faces, mat, smooth_shade=False)
+
+
 GLOW_STEADY, GLOW_FLAME, GLOW_BLINK, GLOW_PULSE = 0, 1, 2, 3
 GLOWS = []
 
@@ -293,6 +353,12 @@ def glow(loc, color, size, mode=GLOW_STEADY):
 # --- the deck -------------------------------------------------------------------------------------
 
 SUNK = 0.04  # how far beams standing on the deck reach into it, below their bevel
+# The least distance between two faces facing the same way that cover each other: trim, plates, straps and
+# battens stand at least this far proud of what they lie on, or reach into it. The game's depth buffer (24 bits,
+# near plane 1) resolves about 0.0006 at the start of the fly-in, some 100 units out, and 0.00002 in the game's
+# view; faces in one plane fight at any distance, a differently split quad interpolates its depth differently.
+PROUD = 0.015
+INSET = 0.04  # how far the bulwarks' outsides stay inside the hull's planking, which reaches the rail
 
 
 def deck(m):
@@ -337,10 +403,10 @@ def deck(m):
     for cx, cy in ((fx0, fy1), (fx1, fy1), (fx0, fy0), (fx1, fy0)):
         sx = 1 if cx > 0 else -1
         sy = 1 if cy > -H / 2 else -1
-        verts = [(cx, cy, top + 0.006), (cx - sx * 0.55, cy, top + 0.006), (cx, cy - sy * 0.55, top + 0.006)]
-        # facing up
-        _mesh("plate", verts, [(0, 1, 2) if sx * sy > 0 else (0, 2, 1)], m["brass"], smooth_shade=False)
-        sphere((cx - sx * 0.12, cy - sy * 0.12, top + 0.01), 0.04, m["iron"], subdiv=1)
+        # a thin plate standing proud of the beam's top
+        extrusion([(cx, cy), (cx - sx * 0.55, cy), (cx, cy - sy * 0.55)], (0, 0, top - PROUD), (1, 0, 0), (0, 1, 0),
+                  2 * PROUD, m["brass"])
+        sphere((cx - sx * 0.12, cy - sy * 0.12, top + PROUD), 0.04, m["iron"], subdiv=1)
     return obj
 
 
@@ -355,34 +421,36 @@ def bulwark(m, gunports):
         spans.append((start, gx - gw / 2))
         start = gx + gw / 2
     spans.append((start, x1))
+    # its outside stays a little inside the hull's planking, which runs up to the rail there
+    outside = RAIL_Y + thick - INSET
     for a, b in spans:
-        slab(a, b, RAIL_Y, RAIL_Y + thick, DECK_Z, height, m["hull"])
+        slab(a, b, RAIL_Y, outside, DECK_Z, height, m["hull"])
     for gx, gw in cuts:
-        slab(gx - gw / 2, gx + gw / 2, RAIL_Y, RAIL_Y + thick, DECK_Z, 0.22, m["hull"])
-        slab(gx - gw / 2, gx + gw / 2, RAIL_Y, RAIL_Y + thick, 0.95, height, m["hull"])
-        slab(gx - gw / 2, gx + gw / 2, RAIL_Y + thick - 0.02, RAIL_Y + thick + 0.25, -0.6, 0.0, m["darkwood"])
+        slab(gx - gw / 2, gx + gw / 2, RAIL_Y, outside, DECK_Z, 0.22, m["hull"])
+        slab(gx - gw / 2, gx + gw / 2, RAIL_Y, outside, 0.95, height, m["hull"])
+        slab(gx - gw / 2 - 0.04, gx + gw / 2 + 0.04, RAIL_Y + thick - 0.02, RAIL_Y + thick + 0.25, -0.6, 0.0,
+             m["darkwood"])
     # cap rail
     slab(x0, x1, RAIL_Y - 0.08, RAIL_Y + thick + 0.08, height, height + 0.12, m["gold"], bevel=0.03)
-    # posts
+    # posts and the waterway along the deck, both reaching into the wall (their backs would share its face)
     x = x0 + 0.6
     while x < x1 - 0.3:
         if all(abs(x - gx) > gw / 2 + 0.2 for gx, gw in cuts):
-            slab(x - 0.11, x + 0.11, RAIL_Y - 0.14, RAIL_Y, DECK_Z, height, m["wood"])
+            slab(x - 0.11, x + 0.11, RAIL_Y - 0.14, RAIL_Y + 0.1, DECK_Z - SUNK, height + 0.05, m["wood"])
             sphere((x, RAIL_Y + thick * 0.5, height + 0.13), 0.05, m["brass"], subdiv=1)
         x += 1.15
-    # waterway along the deck
-    slab(x0, x1, RAIL_Y - 0.3, RAIL_Y, DECK_Z, 0.0, m["darkwood"])
+    slab(x0 - 0.05, x1 + 0.05, RAIL_Y - 0.3, RAIL_Y + 0.05, DECK_Z - 0.03, 0.0, m["darkwood"])
 
 
 def side_bulwarks(m):
     """The ship's side behind the viewer, like the one behind the field without gunports, and the bow's."""
     height = 1.25
     x0, y0 = DECK_X0, DECK_Y0
-    slab(x0, POOP_X, y0 - WALL, y0, DECK_Z, height, m["hull"])
+    slab(x0, POOP_X, y0 - WALL + INSET, y0, DECK_Z, height, m["hull"])
     slab(x0, POOP_X, y0 - WALL - 0.08, y0 + 0.08, height, height + 0.12, m["gold"], bevel=0.03)
     x = x0 + 0.6
     while x < POOP_X - 0.3:
-        slab(x - 0.11, x + 0.11, y0, y0 + 0.14, DECK_Z, height, m["wood"])
+        slab(x - 0.11, x + 0.11, y0 - 0.1, y0 + 0.14, DECK_Z - SUNK, height + 0.05, m["wood"])
         x += 1.15
     exterior(bow, m)
 
@@ -430,11 +498,28 @@ def rail_sections():
 
 def rail_run(m, points, height=0.85, spacing=0.45):
     """An open rail along the points (on the castles): turned balusters and a rail on top."""
+    # points closer than a baluster's width would put two balusters into each other
+    kept = [points[0]]
+    for p in points[1:-1]:
+        if (p - kept[-1]).length > spacing / 2:
+            kept.append(p)
+    if (points[-1] - kept[-1]).length <= spacing / 2 and len(kept) > 1:
+        kept.pop()
+    points = kept + [points[-1]]
     for a, b in zip(points, points[1:]):
         count = max(1, int((b - a).length / spacing))
         for i in range(count):
             baluster(m, tuple(a.lerp(b, i / count)), height)
-        bar(a + Vector((0, 0, height)), b + Vector((0, 0, height)), 0.13, 0.09, m["redwood"])
+    # the rail on top as one beam through the points: straight pieces would overlap at the bends
+    w, h = 0.065, 0.045
+    sections = []
+    for k, p in enumerate(points):
+        a, b = points[max(k - 1, 0)], points[min(k + 1, len(points) - 1)]
+        across = (b - a).normalized().cross(Vector((0, 0, 1))).normalized()
+        c = p + Vector((0, 0, height))
+        sections.append([c - across * w - Vector((0, 0, h)), c + across * w - Vector((0, 0, h)),
+                         c + across * w + Vector((0, 0, h)), c - across * w + Vector((0, 0, h))])
+    loft(m["redwood"], sections)
     baluster(m, tuple(points[-1]), height)
 
 
@@ -473,7 +558,9 @@ def bow(m):
         for k in range(steps):
             x = FORECASTLE_X + 0.3 + (steps - k) * 0.42
             z = DECK_Z + (k + 1) * (FORE_Z - DECK_Z) / steps
-            slab(x - 0.42, x, y - 0.65, y + 0.65, z - 0.12, z, m["redwood"])
+            # the top step is level with the moulding under the deck's edge: it starts in front of it
+            x0 = x - 0.42 if k < steps - 1 else FORECASTLE_X + 0.42
+            slab(x0, x, y - 0.65, y + 0.65, z - 0.12, z, m["redwood"])
         for side in (-1, 1):
             bar(Vector((FORECASTLE_X + 0.3 + steps * 0.42, y + side * 0.7, DECK_Z + 0.9)),
                 Vector((FORECASTLE_X + 0.3, y + side * 0.7, FORE_Z + 0.9)), 0.08, 0.08, m["redwood"])
@@ -495,46 +582,52 @@ def bow(m):
           ((0, 0.28), (0.15, 0.26), (0.5, 0.18), (0.9, 0.15), (1, 0.06)), m["brass"], 14)
     rod(Vector((bx, YC, FORE_Z + 0.95)), Vector((bx + 0.6, YC + 0.3, FORE_Z + 0.4)), 0.025, m["darkrope"], 4)
     rail_run(m, [Vector((FORECASTLE_X + 0.15, YC - b, FORE_Z)), Vector((FORECASTLE_X + 0.15, YC + b, FORE_Z))])
-    # bulwarks along both sides: planked up to the sheer, the forecastle's railed on top
+    # bulwarks along both sides: planked up to the sheer, the forecastle's railed on top. Each a loft through the
+    # sections: straight beams from section to section overlapped each other at every bend. Their outsides stay a
+    # little inside the hull's planking, which runs up to the rail.
+    waist = [i for i, x in enumerate(xs) if x >= FORECASTLE_X + 0.01]
+    castle = [i for i, x in enumerate(xs) if x <= FORECASTLE_X + 0.03]
     for side in (1, -1):
+        def section(i, y_in, y_out, z0, z1):
+            top = sheer(xs[i]) - 0.12
+            x = xs[i] + bow_rake(xs[i], top)
+            return [(x, YC + side * y_in, z0), (x, YC + side * y_out, z0), (x, YC + side * y_out, z1),
+                    (x, YC + side * y_in, z1)]
+
+        for rows, floor, cap in ((waist, DECK_Z, "gold"), (castle, FORE_Z, "redwood")):
+            loft(m["hull"], [section(i, inner[i], inner[i] + WALL - INSET, floor, sheer(xs[i]) - 0.12) for i in rows])
+            loft(m[cap], [section(i, inner[i] - 0.08, inner[i] + WALL + 0.08, sheer(xs[i]) - 0.12, sheer(xs[i]))
+                          for i in rows])
         rails = []
-        for i in range(len(xs) - 1):
-            xa, xc = xs[i], xs[i + 1]
-            top_a, top_c = sheer(xa) - 0.12, sheer(xc) - 0.12
-            floor = FORE_Z if xc < FORECASTLE_X else DECK_Z
-            a = Vector((xa + bow_rake(xa, top_a), YC + side * (inner[i] + WALL / 2), 0.0))
-            c = Vector((xc + bow_rake(xc, top_c), YC + side * (inner[i + 1] + WALL / 2), 0.0))
-            mid = (top_a + top_c) / 2
-            bar(Vector((a.x, a.y, (floor + mid) / 2)), Vector((c.x, c.y, (floor + mid) / 2)), WALL, mid - floor,
-                m["hull"])
-            castle = xc < FORECASTLE_X
-            bar(Vector((a.x, a.y, top_a + 0.06)), Vector((c.x, c.y, top_c + 0.06)), WALL + 0.16, 0.12,
-                m["redwood" if castle else "gold"])
-            if castle:
-                rails.append(Vector((a.x, a.y, top_a + 0.12)))
-        if rails:
-            rail_run(m, rails)
+        for i in castle:
+            top = sheer(xs[i]) - 0.12
+            rails.append(Vector((xs[i] + bow_rake(xs[i], top), YC + side * (inner[i] + WALL / 2), top + 0.12)))
+        rail_run(m, rails)
 
 
 def aftcastle(m):
     """The aftcastle's upper tier over the stern deck's after part: a cabin with lit windows, railed all round."""
     y0, y1 = DECK_Y0, RAIL_Y
-    slab(AFT_X, STERN_X, y0, y1, POOP_Z, AFT_Z - 0.1, m["wall"])
-    slab(AFT_X - 0.1, STERN_X, y0, y1, AFT_Z - 0.1, AFT_Z, m["deck"])
+    # ending a little short of the transom, which would share their after faces
+    aft = STERN_X - 0.05
+    slab(AFT_X, aft, y0, y1, POOP_Z, AFT_Z - 0.1, m["wall"])
+    slab(AFT_X - 0.1, aft, y0, y1, AFT_Z - 0.1, AFT_Z, m["deck"])
     slab(AFT_X - 0.22, AFT_X, y0, y1, AFT_Z - 0.32, AFT_Z - 0.1, m["redwood"], bevel=0.03)
     for y in (y0 + 1.6, YC - 4.0, YC + 4.0, y1 - 1.6):
         z0, z1 = POOP_Z + 0.55, POOP_Z + 1.5
         slab(AFT_X - 0.1, AFT_X, y - 0.68, y + 0.68, z0 - 0.1, z1 + 0.1, m["gold"], bevel=0.02)
         slab(AFT_X - 0.13, AFT_X - 0.08, y - 0.55, y + 0.55, z0, z1, m["lamp"])
+        # the window's cross: the bars one in front of the other where they cross
         bar(Vector((AFT_X - 0.16, y, z0)), Vector((AFT_X - 0.16, y, z1)), 0.05, 0.05, m["darkwood"])
-        bar(Vector((AFT_X - 0.16, y - 0.55, (z0 + z1) / 2)), Vector((AFT_X - 0.16, y + 0.55, (z0 + z1) / 2)), 0.05,
-            0.05, m["darkwood"])
+        bar(Vector((AFT_X - 0.16 - 2 * PROUD, y - 0.55, (z0 + z1) / 2)),
+            Vector((AFT_X - 0.16 - 2 * PROUD, y + 0.55, (z0 + z1) / 2)), 0.05, 0.05, m["darkwood"])
         slab(AFT_X - 0.25, AFT_X, y - 0.75, y + 0.75, z0 - 0.2, z0 - 0.1, m["redwood"])
         glow((AFT_X - 0.4, y, (z0 + z1) / 2), (1.0, 0.7, 0.35), 0.9, GLOW_PULSE)
     # the door, framed, with its ring
     slab(AFT_X - 0.08, AFT_X, YC - 0.6, YC + 0.6, POOP_Z, POOP_Z + 1.8, m["redwood"])
+    # the posts end under the lintel
     for yy in (YC - 0.68, YC + 0.68):
-        slab(AFT_X - 0.16, AFT_X, yy - 0.08, yy + 0.08, POOP_Z, POOP_Z + 1.9, m["darkwood"])
+        slab(AFT_X - 0.16, AFT_X, yy - 0.08, yy + 0.08, POOP_Z, POOP_Z + 1.82, m["darkwood"])
     slab(AFT_X - 0.16, AFT_X, YC - 0.76, YC + 0.76, POOP_Z + 1.82, POOP_Z + 1.98, m["darkwood"])
     for zz in (POOP_Z + 0.4, POOP_Z + 1.4):
         slab(AFT_X - 0.12, AFT_X - 0.06, YC - 0.5, YC + 0.2, zz, zz + 0.08, m["iron"])
@@ -573,42 +666,55 @@ def lattice_window(m, y, z, width, height):
             if len(points) >= 2:
                 (ya, za), (yb, zb) = points[0], points[-1]
                 if math.hypot(yb - ya, zb - za) > 0.05:
-                    bar((xl, ya, za), (xl, yb, zb), 0.05, 0.05, m["green"])
+                    # the two directions one in front of the other: crossing in one plane they fight
+                    xd = xl if direction > 0 else xl - 2 * PROUD
+                    bar((xd, ya, za), (xd, yb, zb), 0.05, 0.05, m["green"])
             c += step
+    # the frame round the lattice: the uprights full height, the rails between them (overlapping at the corners
+    # their faces lay in one plane), a little deeper than the lattice
     for yy in (y0, y1):
-        bar((xl - 0.02, yy, z0), (xl - 0.02, yy, z1), 0.09, 0.09, m["green"])
+        bar((xl - 0.02, yy, z0 - 0.045), (xl - 0.02, yy, z1 + 0.045), 0.1, 0.09, m["green"])
     for zz in (z0, z1):
-        bar((xl - 0.02, y0, zz), (xl - 0.02, y1, zz), 0.09, 0.09, m["green"])
+        bar((xl - 0.02, y0 + 0.045, zz), (xl - 0.02, y1 - 0.045, zz), 0.1, 0.09, m["green"])
 
 
-def door(m, y, width=1.3, height=2.0):
+DOOR_WIDTH = 1.3
+DOOR_FRAME = 0.14  # how far the stern door's frame reaches out beside its planks
+
+
+def door(m, y, width=DOOR_WIDTH, height=2.0):
+    """An arched plank door in the stern wall, in an arched frame, with iron straps and a ring. Each part a solid
+    of its own reaching into what it stands on, no two faces in one plane: the planks were a sheet level with the
+    skirting's face, the frame a chain of beams overlapping at every joint."""
     x = POOP_X - 0.02
     z0 = DECK_Z
-    # planks with a round top
+    face = x - 0.06  # the planks' face
     segments = 12
     r = width / 2
-    verts = [(x - 0.06, y - r, z0), (x - 0.06, y + r, z0)]
-    for i in range(segments + 1):
-        a = math.pi * i / segments
-        verts.append((x - 0.06, y + r * math.cos(a), z0 + height - r + r * math.sin(a)))
-    faces = [tuple(range(len(verts)))[::-1]]
-    _mesh("door", verts, faces, m["redwood"], smooth_shade=False)
-    # frame arch
-    for i in range(segments):
-        a0, a1 = math.pi * i / segments, math.pi * (i + 1) / segments
-        bar((x - 0.09, y + (r + 0.08) * math.cos(a0), z0 + height - r + (r + 0.08) * math.sin(a0)),
-            (x - 0.09, y + (r + 0.08) * math.cos(a1), z0 + height - r + (r + 0.08) * math.sin(a1)), 0.16, 0.12,
-            m["darkwood"])
-    for yy in (y - r - 0.08, y + r + 0.08):
-        bar((x - 0.09, yy, z0), (x - 0.09, yy, z0 + height - r), 0.16, 0.12, m["darkwood"])
-    # vertical plank seams, hinges and a ring
+    zc = z0 + height - r  # the arch's centre
+
+    def arch(radius, reverse=False):
+        points = [(y + radius * math.cos(math.pi * i / segments), zc + radius * math.sin(math.pi * i / segments))
+                  for i in range(segments + 1)]
+        return points[::-1] if reverse else points
+
+    floor = DECK_Z - SUNK
+    # planks with a round top, from their face into the wall
+    extrusion([(y + r, floor)] + arch(r) + [(y - r, floor)], (face, 0, 0), (0, 1, 0), (0, 0, 1),
+              POOP_X + 0.02 - face, m["redwood"])
+    # the frame round it in one piece, standing out in front of the planks and their straps
+    inner, outer = r + 0.02, r + DOOR_FRAME
+    extrusion([(y + outer, floor)] + arch(outer) + [(y - outer, floor), (y - inner, floor)] + arch(inner, True)
+              + [(y + inner, floor)], (x - 0.17, 0, 0), (0, 1, 0), (0, 0, 1), POOP_X + 0.02 - (x - 0.17),
+              m["darkwood"])
+    # vertical plank seams standing out of the planks, the straps over them, a ring on the strap side
     for k in (-2, -1, 0, 1, 2):
         yy = y + k * width / 5.5
-        top = z0 + height - r + math.sqrt(max(r * r - (yy - y) ** 2, 0)) - 0.03
-        bar((x - 0.065, yy, z0 + 0.02), (x - 0.065, yy, top), 0.012, 0.03, m["darkwood"])
+        top = zc + math.sqrt(max(r * r - (yy - y) ** 2, 0)) - 0.03
+        bar((face - PROUD / 2, yy, z0 + 0.02), (face - PROUD / 2, yy, top), 2 * PROUD, 0.03, m["darkwood"])
     for zz in (z0 + 0.4, z0 + 1.3):
-        bar((x - 0.08, y + r - 0.05, zz), (x - 0.08, y - 0.1, zz), 0.03, 0.09, m["iron"])
-    torus((x - 0.12, y - r * 0.55, z0 + 0.95), 0.09, 0.02, m["iron"], normal=(1, 0, 0))
+        bar((face - 0.015, y + r - 0.05, zz), (face - 0.015, y - 0.1, zz), 0.05, 0.09, m["iron"])
+    torus((face - 0.06, y - r * 0.55, z0 + 0.95), 0.09, 0.02, m["iron"], normal=(1, 0, 0))
 
 
 def lantern(m, y, z):
@@ -631,15 +737,20 @@ def stairs(m, center, radius, a0, a1, steps, width=1.15):
         da = abs(a1 - a0) / steps
         z1 = DECK_Z + rise * (i + 1)
         r0, r1 = radius - width / 2, radius + width / 2
-        corners = []
-        for rr in (r0, r1):
-            for aa in (a - da / 2 - 0.01, a + da / 2 + 0.01):
-                corners.append((cx + rr * math.cos(aa), cy + rr * math.sin(aa)))
-        (p0, p1, p2, p3) = corners
-        quad = [p0, p1, p3, p2]
-        verts = [(x, y, DECK_Z) for x, y in quad] + [(x, y, z1) for x, y in quad]
-        faces = [(3, 2, 1, 0), (4, 5, 6, 7), (0, 1, 5, 4), (1, 2, 6, 5), (2, 3, 7, 6), (3, 0, 4, 7)]
-        _mesh("step", verts, faces, m["redwood"], smooth_shade=False)
+        # each step meets the next on their common edge (overlapping, their outer faces fought at every joint),
+        # and stops at the stern wall, or at the stern deck's edge for the step level with its top
+        b0, b1 = a0 + (a1 - a0) * i / steps, a0 + (a1 - a0) * (i + 1) / steps
+        quad = [(cx + rr * math.cos(aa), cy + rr * math.sin(aa)) for rr, aa in ((r0, b0), (r0, b1), (r1, b1), (r1, b0))]
+        x_max = POOP_X - 0.05 if z1 > POOP_Z - 0.1 else POOP_X + 0.03
+        footprint = []
+        for p, q in zip(quad, quad[1:] + quad[:1]):
+            if p[0] <= x_max:
+                footprint.append(p)
+            if (p[0] <= x_max) != (q[0] <= x_max):
+                t = (x_max - p[0]) / (q[0] - p[0])
+                footprint.append((x_max, p[1] + t * (q[1] - p[1])))
+        if len(footprint) >= 3:
+            extrusion(footprint, (0, 0, DECK_Z - SUNK), (1, 0, 0), (0, 1, 0), z1 - DECK_Z + SUNK, m["redwood"])
         # tread nosing
         ro = r1 + 0.02
         inner = (cx + (r0 - 0.02) * math.cos(a - da / 2), cy + (r0 - 0.02) * math.sin(a - da / 2), z1 + 0.02)
@@ -682,12 +793,16 @@ def stern(m):
     slab(POOP_X - 0.05, x1, y0, y1, top - 0.1, top, m["deck"])
     # moulding under the deck's edge and a skirting at the foot
     slab(POOP_X - 0.18, POOP_X, y0, y1, top - 0.32, top - 0.1, m["redwood"], bevel=0.03)
-    slab(POOP_X - 0.08, POOP_X, y0, y1, DECK_Z, 0.12, m["darkwood"])
+    # (between the bulwarks, and not behind the door: it reaches into the door's frame)
+    door_y = -5.7
+    skirt = DOOR_WIDTH / 2 + DOOR_FRAME - 0.04
+    for a, b in ((DECK_Y0, door_y - skirt), (door_y + skirt, RAIL_Y)):
+        slab(POOP_X - 0.08, POOP_X, a, b, DECK_Z - SUNK / 2, 0.12, m["darkwood"])
     # pillars along the wall
     for y in (-16.0, -10.0, -7.95, -3.45, -1.4, 1.0):
         slab(POOP_X - 0.16, POOP_X, y - 0.16, y + 0.16, 0.12, top - 0.32, m["redwood"], bevel=0.02)
 
-    door(m, -5.7)
+    door(m, door_y, DOOR_WIDTH)
     lattice_window(m, -2.4, 0.8, 1.6, 1.25)
     lattice_window(m, -9.0, 0.8, 1.6, 1.25)
     lantern(m, -4.25, 1.45)
@@ -750,18 +865,19 @@ def cannon(m, x, y, angle):
     d = Vector((math.cos(angle), math.sin(angle), 0))
     s = Vector((-d.y, d.x, 0))
     base = Vector((x, y, DECK_Z))
-    # carriage: two stepped cheeks, axles, wheels
+    # carriage: two stepped cheeks (each one piece: boxes for the steps had their sides in one plane), axles, wheels
+    back = -0.75
+    cheek = [(back, 0.0), (back + 1.5, 0.0), (back + 1.5, 0.55), (back + 1.05, 0.55), (back + 1.05, 0.75),
+             (back + 0.6, 0.75), (back + 0.6, 0.92), (back, 0.92)]
     for side in (-1, 1):
-        for step, (length, height) in enumerate(((1.5, 0.55), (1.05, 0.75), (0.6, 0.92))):
-            back = -0.75
-            p0 = base + d * back + s * side * 0.36
-            p1 = base + d * (back + length) + s * side * 0.36
-            c = (p0 + p1) / 2
-            box((c.x, c.y, DECK_Z + 0.12 + height / 2), (length, 0.12, height), m["wood"], rotation=angle, bevel=0.02)
+        # the outline along d and up, pushed along d x z = -s
+        origin = base + s * (side * 0.36 + 0.06) + Vector((0, 0, 0.12))
+        extrusion(cheek, origin, d, (0, 0, 1), 0.12, m["wood"], bevel=0.02)
     box(tuple(base + Vector((0, 0, 0.24))), (1.45, 0.62, 0.12), m["wood"], rotation=angle)
     for along in (-0.5, 0.55):
         c = base + d * along
-        rod(c - s * 0.55 + Vector((0, 0, 0.2)), c + s * 0.55 + Vector((0, 0, 0.2)), 0.05, m["iron"], 8)
+        # the axle's ends stand out of the wheels' hubs
+        rod(c - s * 0.62 + Vector((0, 0, 0.2)), c + s * 0.62 + Vector((0, 0, 0.2)), 0.05, m["iron"], 8)
         for side in (-1, 1):
             w = c + s * side * 0.5 + Vector((0, 0, 0.2))
             lathe(w - s * side * 0.06, w + s * side * 0.06, ((0, 0.24), (0.5, 0.27), (1, 0.24)), m["wood"], 16)
@@ -781,26 +897,26 @@ def cannon(m, x, y, angle):
 def barrel(m, base, direction=(0, 0, 1), length=1.15, radius=0.48):
     p0 = Vector(base)
     p1 = p0 + Vector(direction).normalized() * length
-    profile = [(0, radius * 0.82), (0.25, radius * 0.97), (0.5, radius), (0.75, radius * 0.97), (1, radius * 0.82)]
-    lathe(p0, p1, profile, m["stave"], 20)
+    # the head sunk inside the staves' rim, in the same piece: a lid of its own lay just under the staves' cap
+    sink = 0.035 / length
+    profile = [(0, 0.0), (0, radius * 0.82), (0.25, radius * 0.97), (0.5, radius), (0.75, radius * 0.97),
+               (1, radius * 0.82), (1, radius * 0.74), (1 - sink, radius * 0.74), (1 - sink, 0.0)]
+    lathe(p0, p1, profile, m["stave"], 20, caps=False)
     for t in (0.08, 0.3, 0.7, 0.92):
-        r = radius * (0.85 + 0.15 * math.sin(math.pi * t)) + 0.012
+        r = radius * (0.85 + 0.15 * math.sin(math.pi * t)) + 0.02
         q = p0 + (p1 - p0) * t
         lathe(q - (p1 - p0).normalized() * 0.04, q + (p1 - p0).normalized() * 0.04, ((0, r), (1, r)), m["iron"], 20,
               caps=False)
-    lathe(p1 - (p1 - p0).normalized() * 0.03, p1 - (p1 - p0).normalized() * 0.01,
-          ((0, radius * 0.8), (1, radius * 0.8)), m["darkwood"], 20)
 
 
 def grate(m, x0, x1, y0, y1):
     """A cargo hatch: raised coaming with a gold trim around a wooden grating over the dark hold."""
     c = 0.28
     z = 0.38
-    for (a, b, cc, d) in ((x0, x1, y0, y0 + c), (x0, x1, y1 - c, y1), (x0, x0 + c, y0, y1), (x1 - c, x1, y0, y1)):
-        slab(a, b, cc, d, DECK_Z - SUNK, z, m["redwood"], bevel=0.02)
-    for (a, b, cc, d) in ((x0 - 0.03, x1 + 0.03, y0 - 0.03, y0 + 0.08), (x0 - 0.03, x1 + 0.03, y1 - 0.08, y1 + 0.03),
-                          (x0 - 0.03, x0 + 0.08, y0, y1), (x1 - 0.08, x1 + 0.03, y0, y1)):
-        slab(a, b, cc, d, z, z + 0.05, m["gold"])
+    # coaming and trim each one frame: four beams overlapped at the corners with their tops and sides in one
+    # plane; the trim reaches into the coaming
+    frame_ring(x0, x1, y0, y1, c, DECK_Z - SUNK, z, m["redwood"], bevel=0.02)
+    frame_ring(x0 - 0.03, x1 + 0.03, y0 - 0.03, y1 + 0.03, 0.11, z - PROUD, z + 0.05, m["gold"])
     slab(x0 + c, x1 - c, y0 + c, y1 - c, -0.5, -0.45, m["hole"])
     gx0, gx1, gy0, gy1 = x0 + c, x1 - c, y0 + c, y1 - c
     pitch = 0.42
@@ -815,8 +931,9 @@ def grate(m, x0, x1, y0, y1):
 
 
 def mast(m, x, y):
-    lathe((x, y, DECK_Z), (x, y, 0.6), ((0, 0.78), (0.3, 0.74), (0.6, 0.62), (1, 0.55)), m["darkwood"], 24)
-    lathe((x, y, DECK_Z), (x, y, 34), ((0, 0.48), (0.5, 0.44), (1, 0.32)), m["wood"], 20)
+    # both reach into the deck; the lower mast ends above the round top, the topmast (masts()) goes on from there
+    lathe((x, y, DECK_Z - SUNK), (x, y, 0.6), ((0, 0.78), (0.3, 0.74), (0.6, 0.62), (1, 0.55)), m["darkwood"], 24)
+    lathe((x, y, DECK_Z - 2 * SUNK), (x, y, MAIN_TOP_Z + 1.7), ((0, 0.48), (0.5, 0.44), (1, 0.38)), m["wood"], 20)
     for z in (1.3, 1.45, 3.4, 3.55, 7.5):
         lathe((x, y, z), (x, y, z + 0.08), ((0, 0.49), (1, 0.49)), m["iron"], 20)
     # pins around the base for the lines
@@ -1210,9 +1327,11 @@ def anchor(m, cathead_end, side):
     crown = ring - Vector((0.15, 0, 3.2))
     bar(ring - Vector((0, 0, 0.25)), crown, 0.16, 0.16, m["iron"])
     bar(ring - Vector((0.9, 0, 0.45)), ring + Vector((0.9, 0, -0.45)), 0.14, 0.14, m["darkwood"])
+    # the arms start apart from each other in a crown block thicker than they are: from one point they overlapped
+    slab(crown.x - 0.2, crown.x + 0.2, crown.y - 0.11, crown.y + 0.11, crown.z - 0.14, crown.z + 0.14, m["iron"])
     for sign in (1, -1):
         tip = crown + Vector((sign * 1.0, 0, 0.9))
-        bar(crown, tip, 0.14, 0.14, m["iron"])
+        bar(crown + Vector((sign * 0.12, 0, 0.0)), tip, 0.14, 0.14, m["iron"])
         bar(tip - Vector((sign * 0.15, 0, 0.35)), tip + Vector((sign * 0.12, 0, 0.15)), 0.3, 0.06, m["iron"])
 
 
@@ -1224,7 +1343,7 @@ def masts(m):
     main_arms, main_clews = square_sail(m, MAIN, 21.6, 8.6, 10.4, 11.6, 3.2, crossed=True, radius=0.38)
     crows_nest(m, MAIN, MAIN_TOP_Z, 1.7)
     topmast_base = Vector((MAIN.x, MAIN.y, MAIN_TOP_Z + 1.4))
-    lathe(topmast_base, Vector((MAIN.x, MAIN.y, 34.0)), ((0, 0.26), (1, 0.18)), m["wood"], 12)
+    lathe(topmast_base, Vector((MAIN.x, MAIN.y, 34.0)), ((0, 0.3), (1, 0.2)), m["wood"], 12)
     top_arms, top_clews = square_sail(m, Vector((MAIN.x, MAIN.y, 0)), 32.0, 26.0, 3.6, 5.0, 1.2, crossed=True,
                                       radius=0.22)
     jolly_roger(m, MAIN + Vector((0, 0, 2.6)))
@@ -1377,8 +1496,10 @@ def hull(m):
     # the transom's outline: the section at the stern, framed by a batten along its edge
     outline = [hull_point(STERN_X, i, side) for side, i in ring[:rows]] + \
               [hull_point(STERN_X, i, -1) for i in range(rows - 2, -1, -1)]
-    for a, b in zip(outline, outline[1:]):
-        bar(a + Vector((0.08, 0, 0)), b + Vector((0.08, 0, 0)), 0.22, 0.2, m["wale"])
+    # every other piece set a little further out: neighbours overlap at their joints
+    for k, (a, b) in enumerate(zip(outline, outline[1:])):
+        out = Vector((0.08 + (k % 2) * 2 * PROUD, 0, 0))
+        bar(a + out, b + out, 0.22, 0.2, m["wale"])
 
     def transom_half(z):
         """Half the transom's width at height z, from its outline."""
@@ -1410,9 +1531,10 @@ def hull(m):
                 continue
             slab(STERN_X, STERN_X + 0.14, y - 0.8, y + 0.8, z0, z1, m["gold"], bevel=0.03)
             slab(STERN_X + 0.1, STERN_X + 0.17, y - 0.62, y + 0.62, z0 + 0.15, z1 - 0.15, m["lamp"])
+            # the window's cross: the bars one in front of the other where they cross
             bar(Vector((STERN_X + 0.2, y, z0 + 0.15)), Vector((STERN_X + 0.2, y, z1 - 0.15)), 0.06, 0.06, m["darkwood"])
-            bar(Vector((STERN_X + 0.2, y - 0.62, (z0 + z1) / 2)), Vector((STERN_X + 0.2, y + 0.62, (z0 + z1) / 2)),
-                0.06, 0.06, m["darkwood"])
+            bar(Vector((STERN_X + 0.2 + 2 * PROUD, y - 0.62, (z0 + z1) / 2)),
+                Vector((STERN_X + 0.2 + 2 * PROUD, y + 0.62, (z0 + z1) / 2)), 0.06, 0.06, m["darkwood"])
             glow((STERN_X + 0.6, y, (z0 + z1) / 2), (1.0, 0.7, 0.35), 1.6, GLOW_PULSE)
     for z in (0.9, 2.75, POOP_Z + 0.4, POOP_Z + 2.1):
         half = transom_half(z) - 0.2
@@ -1444,7 +1566,7 @@ def deck_props(m):
     torus((9.6, 2.5, DECK_Z + 0.12), 0.26, 0.06, m["rope"])
     lathe((11.4, 2.55, DECK_Z), (11.4, 2.55, 0.45), ((0, 0.22), (1, 0.28)), m["stave"], 16)
     lathe((11.4, 2.55, 0.4), (11.4, 2.55, 0.44), ((0, 0.29), (1, 0.29)), m["iron"], 16, caps=False)
-    rod((11.2, 2.55, 0.44), (11.6, 2.55, 0.44), 0.015, m["iron"], 6)
+    rod((11.2, 2.55, 0.48), (11.6, 2.55, 0.48), 0.015, m["iron"], 6)
 
     grate(m, -7.6, -1.5, -8.4, -5.3)
 
