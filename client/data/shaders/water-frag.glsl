@@ -1,5 +1,6 @@
 #version 300 es
 precision highp float;
+precision highp int;
 
 // water: waves bend the ground seen through it (refraction) and the mirror image of the scenery
 // (reflection), mixed by the viewing angle; deep water takes on its own colour, foam where it's
@@ -38,9 +39,17 @@ const float SHORE_REACH = 3.0;
 // turns each octave of noise against the last so the cells of the value noise don't line up into a grid
 const mat2 TURN = mat2(0.8, -0.6, 0.6, 0.8);
 
+// a random 0..1 for each lattice point p (whole numbers), from integer arithmetic (highp int, mediump
+// is too narrow for it). The usual fract(sin(dot(p, k)) * 43758.5) doesn't hold up at world positions:
+// at arguments of 1e4 and more, sin()'s rounding error, blown up by the 43758, turns into a different
+// value whenever the compiler computes a corner a little differently, so two cells no longer agree on
+// the corner they share and the noise jumps there: the foam broke into hard edged squares
 float hash(vec2 p)
 {
-   return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+   uvec2 x = uvec2(ivec2(p) + 65536);
+   uvec2 q = 1103515245u * ((x >> 1u) ^ x.yx);
+   uint n = 1103515245u * (q.x ^ (q.y >> 3u));
+   return float(n >> 8u) * (1.0 / 16777215.0);
 }
 
 float noise(vec2 p)
