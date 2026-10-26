@@ -23,6 +23,21 @@ constexpr float FLASH_TIME = 0.3f;
 constexpr float FALL_TIME = 0.6f;
 constexpr float DEATH_TIME = 1.3f;
 
+// models with feet ("leg" joints, see assets/enemies/sdf_rig.py) cover what their feet sweep per walk cycle;
+// the others (hopping, floating, spinning, slithering) have nothing on the ground to slide and take a cycle
+// per this many tiles, about the pace they had at a typical speed
+constexpr float NOMINAL_STRIDE = 1.5f;
+constexpr float MIN_STRIDE = 0.05f;
+
+// steps per walk cycle the ground covered is measured at
+constexpr int32_t WALK_SAMPLES = 96;
+
+// a bigger jump of the shown position isn't walked
+constexpr float MAX_STEP = 1.0f;
+
+// seconds without moving until a blocked enemy stands instead of walking on the spot
+constexpr float STAND_DELAY = 0.15f;
+
 float wrapAngle(float angle)
 {
    constexpr float two_pi = 2.0f * std::numbers::pi_v<float>;
@@ -46,6 +61,27 @@ EnemyRenderer::~EnemyRenderer() = default;
 bool EnemyRenderer::isBomberman(EnemyType type)
 {
    return type == EnemyType::Henchman || type == EnemyType::ShadowBomber;
+}
+
+float EnemyRenderer::getWalkTime(const Model& model, float cycles)
+{
+   const float whole = std::floor(cycles);
+   float share = cycles - whole;
+
+   // the carrying foot sweeps back faster in the middle of a step than at its ends: the cycle's time where
+   // the ground covered reaches that share of the stride keeps it on the spot
+   if (model._covered.size() > 1)
+   {
+      const float target = share * model._covered.back();
+      const auto upper = std::ranges::upper_bound(model._covered, target);
+      const auto next = std::clamp<size_t>(static_cast<size_t>(std::distance(model._covered.begin(), upper)), 1, model._covered.size() - 1);
+      const float from = model._covered[next - 1];
+      const float to = model._covered[next];
+      const float within = to > from ? std::clamp((target - from) / (to - from), 0.0f, 1.0f) : 0.0f;
+      share = (static_cast<float>(next - 1) + within) / static_cast<float>(model._covered.size() - 1);
+   }
+
+   return (whole + share) * model._model->getAnimationDuration(model._walk);
 }
 
 EnemyRenderer::Model& EnemyRenderer::getModel(EnemyType type)
@@ -75,6 +111,21 @@ EnemyRenderer::Model& EnemyRenderer::getModel(EnemyType type)
       model._scale = (isBoss(type) ? BOSS_HEIGHT : ENEMY_HEIGHT) / height;
       model._scale = std::min(model._scale, MAX_FOOTPRINT / std::max(footprint, 0.01f));
       model._lift = -minimum.z * model._scale;
+
+      if (model._walk >= 0)
+      {
+         model._covered = model._model->measureWalk(model._walk, "leg", WALK_SAMPLES);
+         for (float& covered : model._covered)
+         {
+            covered *= model._scale;
+         }
+
+         if (model._covered.empty() || model._covered.back() < MIN_STRIDE)
+         {
+            model._covered.clear();
+         }
+      }
+      model._stride = model._covered.empty() ? NOMINAL_STRIDE : model._covered.back();
    }
 
    return model;
@@ -94,6 +145,8 @@ void EnemyRenderer::add(int32_t id, EnemyType type, float x, float y, float angl
    instance._y = y;
    instance._angle = angle;
    instance._target_angle = angle;
+   instance._counted_x = x;
+   instance._counted_y = y;
 
    // the walk cycles shouldn't all run in lockstep
    instance._time = static_cast<float>(id % 7) * 0.13f;
@@ -180,6 +233,16 @@ void EnemyRenderer::animate(float dt)
          instance._y += instance._vy * step;
          instance._since_update += dt;
 
+         // the walk cycle follows the ground covered, so the feet don't slide whatever the speed
+         const float covered = std::hypot(instance._x - instance._counted_x, instance._y - instance._counted_y);
+         if (covered < MAX_STEP)
+         {
+            instance._walked += covered;
+         }
+         instance._standing = covered > 0.0f ? 0.0f : instance._standing + dt;
+         instance._counted_x = instance._x;
+         instance._counted_y = instance._y;
+
          const float delta = wrapAngle(instance._target_angle - instance._angle);
          instance._angle += delta * std::min(1.0f, TURN_RATE * dt);
       }
@@ -210,8 +273,16 @@ void EnemyRenderer::render()
       const bool shielded = (instance._flags & EnemyPositionPacket::FlagShielded) != 0;
       const bool invulnerable = (instance._flags & EnemyPositionPacket::FlagInvulnerable) != 0;
 
-      int32_t animation = moving && model._walk >= 0 ? model._walk : model._idle;
+      const bool walking = moving && model._walk >= 0 && instance._standing < STAND_DELAY;
+      int32_t animation = walking ? model._walk : model._idle;
       float time = instance._time;
+
+      if (walking)
+      {
+         // the cycles shouldn't all run in lockstep either
+         const float cycles = instance._walked / model._stride + static_cast<float>(id % 7) * 0.13f;
+         time = getWalkTime(model, cycles);
+      }
 
       GltfModel::Look look;
       look._flash = instance._flash / FLASH_TIME * 0.8f;

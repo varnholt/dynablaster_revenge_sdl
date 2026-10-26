@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <memory>
 #include <unordered_map>
+#include <vector>
 
 #include "enemytype.h"
 #include "math/matrix.h"
@@ -47,6 +48,15 @@ private:
       float _since_update = 0.0f;
       int32_t _flags = 0;
       float _time = 0.0f;
+
+      //! tiles walked, drives the walk cycle; the position it was last counted from
+      float _walked = 0.0f;
+      float _counted_x = 0.0f;
+      float _counted_y = 0.0f;
+
+      //! seconds since the shown position last moved
+      float _standing = 0.0f;
+
       float _flash = 0.0f;
       float _dying = -1.0f;
    };
@@ -59,7 +69,16 @@ private:
       int32_t _die = -1;
       float _scale = 1.0f;
       float _lift = 0.0f;
+
+      //! tiles one walk cycle covers
+      float _stride = 1.0f;
+
+      //! for models with feet: the tiles covered at evenly spread times of the walk cycle, 0 to the stride
+      std::vector<float> _covered;
    };
+
+   //! the walk clip's time for a number of cycles walked
+   [[nodiscard]] static float getWalkTime(const Model& model, float cycles);
 
    Model& getModel(EnemyType type);
 
