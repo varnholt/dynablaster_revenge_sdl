@@ -19,6 +19,7 @@ FPS = 24
 LENGTH = 15 * FPS
 BURST = 3 * FPS + 1  # the frame the dome breaks
 DOME_CENTRE = Vector((6.5, 5.6, 0.3))
+DOOR_HINGE = (11.44, 5.825, 0.28)  # build_lab.py's, the door right of the dome
 
 ARGS = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 RENDER = [int(f) for f in ARGS[2].split(",")] if len(ARGS) > 2 and ARGS[1] == "render" else []
@@ -35,6 +36,7 @@ ACTORS = {
     "lab": {"model": "lab.glb", "scale": 1.0, "actions": []},
     "backdrop": {"model": "backdrop.glb", "scale": 1.0, "actions": []},
     "dome": {"model": "dome.glb", "scale": 1.0, "actions": [(BURST, "burst", "hold")]},
+    "door": {"model": "door.glb", "scale": 1.0, "actions": []},
     "dragon": {"model": "dragon.glb", "scale": 1.6, "actions": [(1, "fly", "loop")], "from": BURST,
                "until": s(13.6)},
     "princess": {"model": "princess.glb", "scale": 1.1, "actions": [(1, "dangle", "loop")],
@@ -47,7 +49,7 @@ ACTORS = {
     "doctor": {"model": "doctor.glb", "scale": 1.3,
                "actions": [(1, "run", "loop"), (s(4.6), "fall", "hold"), (s(6.6), "panic", "loop"),
                            (s(9.4), "stand", "loop")],
-               "from": s(3.6)},
+               "from": s(3.1)},
 }
 
 
@@ -125,10 +127,19 @@ def stage(actors):
     key(player, s(5.0), (3.6, 0.8, 0.27), (0, 0, -90))
     key(player, s(5.3), (3.7, 0.8, 0.27), (0, 0, 180))
 
-    # the doctor runs out of the right hand door and is thrown onto his back by the blast
+    # the doctor runs out of the door right of the dome (build_lab.py), from the back of the hall behind it,
+    # hidden by the door until he flings it open; straight out until he's clear of the facade, then he turns
+    # towards the dome and is thrown onto his back by the blast. The door swings out to the right, clear of his
+    # path and of the red lamp beside it.
+    door = actors["door"]["holder"]
+    key(door, 1, DOOR_HINGE, (0, 0, 0))
+    key(door, s(3.1) + 4, DOOR_HINGE, (0, 0, 0))
+    key(door, s(3.1) + 8, rotation=(0, 0, 88))
+    key(door, s(3.1) + 13, rotation=(0, 0, 100))
     doctor = actors["doctor"]["holder"]
-    key(doctor, s(3.6), (10.8, 5.4, 0.27), (0, 0, 0))
-    key(doctor, s(4.0), (10.6, 4.2, 0.27), (0, 0, 40))
+    key(doctor, s(3.1), (10.88, 6.95, 0.27), (0, 0, 0))
+    key(doctor, s(3.75), (10.88, 5.05, 0.27), (0, 0, 0))
+    key(doctor, s(4.1), rotation=(0, 0, 40))
     key(doctor, s(4.6), (9.8, 2.6, 0.27), (0, 0, 40))
     key(doctor, s(5.4), (10.2, 1.9, 0.27), (0, 0, 20))
     key(doctor, s(6.6), (10.2, 1.9, 0.27), (0, 0, 180))
