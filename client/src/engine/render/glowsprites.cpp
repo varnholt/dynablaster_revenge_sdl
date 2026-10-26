@@ -11,6 +11,9 @@ namespace
 // center, corner, color, size + mode + phase
 constexpr int32_t FLOATS_PER_VERTEX = 11;
 
+// the mode of a fire's flame quad, after GltfModel's modes
+constexpr float FLAME_BODY = 5.0f;
+
 constexpr std::array<std::array<float, 2>, 6> CORNERS{{{-1, -1}, {1, -1}, {1, 1}, {-1, -1}, {1, 1}, {-1, 1}}};
 }  // namespace
 
@@ -39,22 +42,29 @@ void GlowSprites::set(const std::vector<GltfModel::Glow>& glows)
       // lights next to each other don't blink in step
       const float phase = std::fmod(std::abs(glow._position.x * 12.9898f + glow._position.y * 78.233f), 100.0f);
 
-      for (const auto& [u, v] : CORNERS)
+      // a fire is its halo and, drawn by the same shader, the flame's own quad
+      const bool fire = glow._mode == GltfModel::GlowFire;
+      for (int32_t part = 0; part < (fire ? 2 : 1); part++)
       {
-         vertices.insert(
-            vertices.end(),
-            {glow._position.x,
-             glow._position.y,
-             glow._position.z,
-             u,
-             v,
-             glow._color.x,
-             glow._color.y,
-             glow._color.z,
-             glow._size,
-             static_cast<float>(glow._mode),
-             phase}
-         );
+         const float mode = part == 0 ? static_cast<float>(glow._mode) : FLAME_BODY;
+
+         for (const auto& [u, v] : CORNERS)
+         {
+            vertices.insert(
+               vertices.end(),
+               {glow._position.x,
+                glow._position.y,
+                glow._position.z,
+                u,
+                v,
+                glow._color.x,
+                glow._color.y,
+                glow._color.z,
+                glow._size,
+                mode,
+                phase}
+            );
+         }
       }
    }
 
@@ -78,7 +88,8 @@ void GlowSprites::render(const Matrix& transform)
    glEnable(GL_DEPTH_TEST);
    glDepthMask(GL_FALSE);
    glEnable(GL_BLEND);
-   glBlendFunc(GL_ONE, GL_ONE);
+   // premultiplied: the halos add (alpha 0), a fire's flame also covers a little of what's behind it
+   glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
    activeDevice().setCulling(false);
 
    activeDevice().setShader(_shader);
