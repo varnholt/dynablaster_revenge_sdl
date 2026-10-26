@@ -24,6 +24,7 @@ ONLY = [int(a) for a in ARGS[1:]]
 SIZES = {None: (13, 11), "H": (29, 11), "V": (13, 23)}
 GROUND_TEX = 2048
 PROP_TEX = 2048
+PROP_MARGIN = 4  # texels between the props' uv islands
 AO_TEX = 2048
 FLOOR_Z = -0.14
 APRON = 1.4  # border blocks plus a little walkway, kept flat and free
@@ -1665,7 +1666,10 @@ def join_props(name):
     obj.name = name
     bpy.ops.object.mode_set(mode="EDIT")
     bpy.ops.mesh.select_all(action="SELECT")
-    bpy.ops.uv.smart_project(angle_limit=1.15, island_margin=0.012, scale_to_bounds=True)
+    # the margin a fixed few texels: scaled with the islands (the default), thousands of them leave next to no room
+    # for the islands themselves, a crown's face gets less than a texel and shows a neighbour's colour
+    bpy.ops.uv.smart_project(angle_limit=1.15, margin_method="FRACTION", island_margin=PROP_MARGIN / PROP_TEX,
+                             scale_to_bounds=True)
     bpy.ops.object.mode_set(mode="OBJECT")
     return obj
 
