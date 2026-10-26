@@ -9,7 +9,7 @@ import sys
 
 import bpy
 import numpy as np
-from mathutils import Matrix
+from mathutils import Matrix, Quaternion, Vector
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 import detail  # noqa: E402
@@ -377,6 +377,97 @@ def rock(st, x, y, z, s, mat, flat=0.65):
            subdiv=2, jitter=0.18, rng=rng).rotation_euler.z = rng.uniform(0, 6.3)
 
 
+CRYSTALS = []  # the crystal materials of the world being built
+
+
+def crystal_material(name, deep, bright, tip):
+    """Glowing crystal: deep at the foot, bright inside, light at the tip (the mesh's "tip" attribute, 0..1).
+    It emits for the bake only, which marks its texels: no ambient occlusion and no detail there."""
+    if name in _MATERIALS:
+        return _MATERIALS[name]
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    nodes, links = mat.node_tree.nodes, mat.node_tree.links
+    bsdf = next(n for n in nodes if n.type == "BSDF_PRINCIPLED")
+    bsdf.inputs["Roughness"].default_value = 0.3
+    bsdf.inputs["Emission Color"].default_value = (1, 1, 1, 1)
+    bsdf.inputs["Emission Strength"].default_value = 1.0
+    attribute = nodes.new("ShaderNodeAttribute")
+    attribute.attribute_type = "GEOMETRY"
+    attribute.attribute_name = "tip"
+    ramp = nodes.new("ShaderNodeValToRGB")
+    ramp.color_ramp.elements[0].color = tuple(c ** 2.2 for c in deep) + (1,)
+    ramp.color_ramp.elements[1].color = tuple(c ** 2.2 for c in tip) + (1,)
+    ramp.color_ramp.elements[1].position = 0.97
+    middle = ramp.color_ramp.elements.new(0.5)
+    middle.color = tuple(c ** 2.2 for c in bright) + (1,)
+    links.new(attribute.outputs["Fac"], ramp.inputs["Fac"])
+    links.new(ramp.outputs["Color"], bsdf.inputs["Base Color"])
+    _MATERIALS[name] = mat
+    CRYSTALS.append(mat)
+    return mat
+
+
+def crystal(base, axis, length, radius, mat, rng):
+    """A hexagonal shard from base along axis: a prism narrowing a little, then a six sided point; faceted.
+    The foot starts a bit below base so it sits in the rock, closed in case a slope lays it open."""
+    import bmesh
+    axis = Vector(axis).normalized()
+    side = axis.orthogonal().normalized()
+    side.rotate(Quaternion(axis, rng.uniform(0, 1.05)))
+    other = axis.cross(side)
+    foot = Vector(base) - axis * length * 0.18
+    full = length * 1.18
+    bm = bmesh.new()
+    tip_layer = bm.verts.layers.float.new("tip")
+    rings = []
+    for t, r in ((0.0, 1.0), (0.7, 0.88)):
+        ring = []
+        for i in range(6):
+            a = math.pi / 3 * i
+            co = foot + axis * full * t + (side * math.cos(a) + other * math.sin(a)) * radius * r * rng.uniform(0.9, 1.1)
+            v = bm.verts.new(co)
+            v[tip_layer] = t
+            ring.append(v)
+        rings.append(ring)
+    apex = bm.verts.new(foot + axis * full + side * radius * rng.uniform(-0.2, 0.2))
+    apex[tip_layer] = 1.0
+    for i in range(6):
+        j = (i + 1) % 6
+        bm.faces.new((rings[0][i], rings[0][j], rings[1][j], rings[1][i]))
+        bm.faces.new((rings[1][i], rings[1][j], apex))
+    bm.faces.new(list(reversed(rings[0])))
+    mesh = bpy.data.meshes.new("crystal")
+    bm.to_mesh(mesh)
+    bm.free()
+    obj = bpy.data.objects.new("crystal", mesh)
+    bpy.context.scene.collection.objects.link(obj)
+    return _finish(obj, mat, smooth_shade=False)
+
+
+def crystal_cluster(st, x, y, out, height_fn, mat, glow_color, s=1.0):
+    """A few shards of a few sizes growing from the rock at (x, y), fanning out from their middle and leaning away
+    from the field (out), a pulsing glow among them."""
+    rng = st.rng
+    out = np.array([out[0], out[1], 0.0])
+    count = int(rng.integers(4, 8))
+    main = rng.uniform(0.55, 0.85) * s
+    top = 0.0
+    for i in range(count):
+        if i == 0:
+            offset, length = np.zeros(3), main
+        else:
+            a, r = rng.uniform(0, 2 * math.pi), rng.uniform(0.12, 0.3) * s
+            offset, length = np.array([math.cos(a) * r, math.sin(a) * r, 0.0]), main * rng.uniform(0.3, 0.75)
+        spread = offset / max(np.linalg.norm(offset), 1e-6) * rng.uniform(0.45, 0.9) if i else np.zeros(3)
+        axis = np.array([0, 0, 1.0]) + spread + out * rng.uniform(0.15, 0.45) + rng.uniform(-0.12, 0.12, 3)
+        px, py = x + offset[0], y + offset[1]
+        z = ground_height(st, px, py, height_fn)
+        crystal((px, py, z), axis, length, length * rng.uniform(0.15, 0.2), mat, rng)
+        top = max(top, z + length * 0.8)
+    glow((x + out[0] * 0.15, y + out[1] * 0.15, top - main * 0.35), glow_color, 0.5 + 0.45 * main, GLOW_PULSE)
+
+
 def bush(st, x, y, z, s, mat):
     rng = st.rng
     start = len(PROPS)
@@ -706,7 +797,6 @@ def world_rocky(st):
     ground, img = terrain(st, height, color, "ground")
     grey = material("rock_grey", (0.6, 0.6, 0.64), 0.25, 1.5)
     grey2 = material("rock_light", (0.74, 0.74, 0.78), 0.2, 1.5)
-    brown = material("rock_brown", (0.5, 0.3, 0.16), 0.3, 1.5)
     bush_mat = material("bush", (0.18, 0.5, 0.14), 0.2, 4.0)
     taken = []
     # boulder piles like the one on the map
@@ -719,12 +809,16 @@ def world_rocky(st):
     for (x, y) in st.scatter(110, lambda x, y: float(st.outside(x, y) > edge(x, y) + 1.6), 0.7, taken, margin=0.5):
         rock(st, x, y, ground_height(st, x, y, height), st.rng.uniform(0.4, 1.1), grey if st.rng.random() < 0.6 else grey2,
              flat=0.75)
-    # crags on the cliff rim
-    for (x, y) in st.scatter(60, lambda x, y: float(abs(st.outside(x, y) - edge(x, y) - 0.8) < 0.35), 0.6, taken,
-                             margin=1.0):
-        z = ground_height(st, x, y, height)
-        cone((x, y, z - 0.5), st.rng.uniform(0.3, 0.5), st.rng.uniform(0.9, 1.5), brown, vertices=5).rotation_euler.z = \
-            st.rng.uniform(0, 6)
+    # glowing crystals growing from the ridge's crest and flanks
+    # purple: it stands out from the orange rock (red melts into it) and goes with the floor's grey lilac
+    crystal_mat = crystal_material("crystal", (0.32, 0.07, 0.58), (0.74, 0.36, 1.0), (0.96, 0.88, 1.0))
+    for (x, y) in st.scatter(30, lambda x, y: float(abs(st.outside(x, y) - edge(x, y) - 0.8) < 0.35), 1.1, taken,
+                             margin=1.0, tries=200):
+        e = 0.05
+        out = np.array([st.outside(np.array(x + e), np.array(y)) - st.outside(np.array(x - e), np.array(y)),
+                        st.outside(np.array(x), np.array(y + e)) - st.outside(np.array(x), np.array(y - e))], float)
+        out = out / max(np.linalg.norm(out), 1e-6)
+        crystal_cluster(st, x, y, out, height, crystal_mat, (0.5, 0.2, 0.85), st.rng.uniform(0.85, 1.25))
     for (x, y) in st.scatter(30, lambda x, y: float(st.outside(x, y) > edge(x, y) + 1), 0.6, taken, margin=0.5):
         bush(st, x, y, ground_height(st, x, y, height), st.rng.uniform(0.6, 1.0), bush_mat)
     for (x, y) in st.near_border(40, 0.4, taken, depth=1.0):
@@ -1400,6 +1494,9 @@ def bake(obj, kind, img):
     if kind == "COLOR":
         bpy.context.scene.cycles.samples = 1
         bpy.ops.object.bake(type="DIFFUSE", pass_filter={"COLOR"}, margin=24)
+    elif kind == "EMIT":
+        bpy.context.scene.cycles.samples = 1
+        bpy.ops.object.bake(type="EMIT", margin=4)
     else:
         bpy.context.scene.cycles.samples = 48
         bpy.ops.object.bake(type="AO", margin=24)
@@ -1473,6 +1570,7 @@ def build(world, size_key):
     PROPS.clear()
     WATER.clear()
     SPINNERS.clear()
+    CRYSTALS.clear()
     setup_cycles()
     st = Stage(w, h, seed=world * 100 + w + h)
     ground, ground_color = fn(st)
@@ -1511,7 +1609,19 @@ def build(world, size_key):
     # the props' detail from their colours, as for the ground but with nothing steep
     half = PROP_TEX // 2
     rgb = texels.reshape(PROP_TEX, PROP_TEX, 4)[..., :3]
-    PROPS_DETAIL[:] = [detail.mask(DETAIL[1], rgb, np.zeros(rgb.shape[:2])).reshape(half, 2, half, 2, 4).mean(axis=(1, 3))]
+    props_mask = detail.mask(DETAIL[1], rgb, np.zeros(rgb.shape[:2]))
+    # the crystals' texels, they glow: no detail and no occlusion there
+    glowing = np.zeros(PROP_TEX * PROP_TEX, bool)
+    if CRYSTALS:
+        crystal_mask = bpy.data.images.new("crystal_mask", PROP_TEX, PROP_TEX)
+        crystal_mask.colorspace_settings.name = "Non-Color"
+        crystal_mask.generated_color = (0, 0, 0, 1)
+        bake(props, "EMIT", crystal_mask)
+        emitted = np.empty(PROP_TEX * PROP_TEX * 4, np.float32)
+        crystal_mask.pixels.foreach_get(emitted)
+        glowing = emitted.reshape(-1, 4)[:, 0] > 0.5
+        props_mask[glowing.reshape(PROP_TEX, PROP_TEX)] = 0
+    PROPS_DETAIL[:] = [props_mask.reshape(half, 2, half, 2, 4).mean(axis=(1, 3))]
     props_ao.pixels.foreach_set(np.tile(np.array([1.0, 0.0, 1.0, 1.0], np.float32), AO_TEX * AO_TEX))
     bake(props, "AO", props_ao)
     bake(ground, "AO", ground_ao)
@@ -1520,6 +1630,7 @@ def build(world, size_key):
     soft = soft.reshape(-1, 4)
     soft[(soft[:, 0] > 0.99) & (soft[:, 1] < 0.01) & (soft[:, 2] > 0.99), :3] = 1.0
     soft[:, :3] = 0.4 + 0.6 * soft[:, :3]
+    soft[glowing, :3] = 1.0
     props_ao.pixels.foreach_set(soft.ravel())
     for obj in occluders:
         bpy.data.objects.remove(obj, do_unlink=True)
