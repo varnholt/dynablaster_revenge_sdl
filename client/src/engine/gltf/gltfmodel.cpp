@@ -318,6 +318,7 @@ void GltfModel::load(const std::string& filename)
    {
       const cgltf_node& source = data->nodes[i];
       Node& node = _nodes[i];
+      node._name = source.name ? source.name : "";
       node._parent = source.parent ? static_cast<int32_t>(cgltf_node_index(data, source.parent)) : -1;
 
       if (source.has_translation)
@@ -682,6 +683,130 @@ float GltfModel::getAnimationDuration(int32_t animation) const
 {
    return animation >= 0 && animation < static_cast<int32_t>(_animations.size()) ? _animations[static_cast<size_t>(animation)]._duration
                                                                                  : 0.0f;
+}
+
+std::vector<float> GltfModel::measureWalk(int32_t animation, std::string_view prefix, int32_t samples) const
+{
+   if (animation < 0 || animation >= static_cast<int32_t>(_animations.size()) || _joints.empty() || samples < 1)
+   {
+      return {};
+   }
+
+   // the feet: per joint whose name starts with prefix, the vertices that follow it most
+   std::vector<const Vertex*> vertices;
+   std::vector<size_t> foot_of;
+   std::vector<size_t> foot_joints;
+   for (const Primitive& primitive : _primitives)
+   {
+      if (!primitive._skinned)
+      {
+         continue;
+      }
+
+      for (const Vertex& vertex : primitive._vertices)
+      {
+         const auto strongest = std::distance(vertex._weights, std::max_element(vertex._weights, vertex._weights + 4));
+         const auto joint = static_cast<size_t>(std::lround(vertex._joints[strongest]));
+
+         if (joint >= _joints.size() || !_nodes[static_cast<size_t>(_joints[joint])]._name.starts_with(prefix))
+         {
+            continue;
+         }
+
+         const auto known = std::ranges::find(foot_joints, joint);
+         foot_of.push_back(static_cast<size_t>(std::distance(foot_joints.begin(), known)));
+         if (known == foot_joints.end())
+         {
+            foot_joints.push_back(joint);
+         }
+         vertices.push_back(&vertex);
+      }
+   }
+
+   if (vertices.empty())
+   {
+      return {};
+   }
+
+   // the feet posed at a time, z-up: x, y (backwards, the model faces -y), z
+   std::vector<Matrix4> globals;
+   std::vector<Matrix4> skin(_joints.size());
+   const auto place = [&](float time, std::vector<std::array<float, 3>>& positions)
+   {
+      pose(animation, time, globals);
+      for (size_t j = 0; j < _joints.size(); j++)
+      {
+         skin[j] = multiply(Y_UP_TO_Z_UP, multiply(globals[static_cast<size_t>(_joints[j])], _inverse_bind[j]));
+      }
+
+      positions.assign(vertices.size(), {0.0f, 0.0f, 0.0f});
+      for (size_t v = 0; v < vertices.size(); v++)
+      {
+         const Vertex& vertex = *vertices[v];
+         for (size_t k = 0; k < 4; k++)
+         {
+            const Matrix4& m = skin[std::min(static_cast<size_t>(std::lround(vertex._joints[k])), skin.size() - 1)];
+            const float* p = vertex._position;
+            for (size_t row = 0; row < 3; row++)
+            {
+               positions[v][row] += vertex._weights[k] * (m[row] * p[0] + m[4 + row] * p[1] + m[8 + row] * p[2] + m[12 + row]);
+            }
+         }
+      }
+   };
+
+   // seen from above, the foot moving backwards under the body is the one carrying it, the others swing
+   // forwards: per step of the cycle the ground covered is how far the sole (a foot's lowest vertices) of the
+   // fastest foot moving backwards goes; feet far above the ground (upper legs, a lifted foot) don't count
+   const float duration = _animations[static_cast<size_t>(animation)]._duration;
+   const float height = std::max(_maximum.z - _minimum.z, 0.01f);
+   const float sole = 0.02f * height;
+   const float lifted = 0.1f * height;
+   const size_t feet = foot_joints.size();
+   std::vector<std::array<float, 3>> current;
+   std::vector<std::array<float, 3>> next;
+   std::vector<float> lowest(feet);
+   std::vector<float> backwards(feet);
+   std::vector<int32_t> count(feet);
+   place(0.0f, current);
+
+   std::vector<float> covered{0.0f};
+   for (int32_t i = 1; i <= samples; i++)
+   {
+      place(duration * static_cast<float>(i) / static_cast<float>(samples), next);
+
+      std::ranges::fill(lowest, 1e9f);
+      std::ranges::fill(backwards, 0.0f);
+      std::ranges::fill(count, 0);
+      for (size_t v = 0; v < vertices.size(); v++)
+      {
+         lowest[foot_of[v]] = std::min(lowest[foot_of[v]], current[v][2]);
+      }
+
+      for (size_t v = 0; v < vertices.size(); v++)
+      {
+         if (current[v][2] < lowest[foot_of[v]] + sole)
+         {
+            backwards[foot_of[v]] += next[v][1] - current[v][1];
+            count[foot_of[v]]++;
+         }
+      }
+
+      const float ground = *std::ranges::min_element(lowest);
+      float step = 0.0f;
+      for (size_t f = 0; f < feet; f++)
+      {
+         if (lowest[f] < ground + lifted && count[f] > 0)
+         {
+            step = std::max(step, backwards[f] / static_cast<float>(count[f]));
+         }
+      }
+
+      covered.push_back(covered.back() + step);
+      std::swap(current, next);
+   }
+
+   return covered;
 }
 
 const Vector& GltfModel::getMinimum() const

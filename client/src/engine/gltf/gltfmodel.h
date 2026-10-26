@@ -78,6 +78,12 @@ public:
    //! seconds
    [[nodiscard]] float getAnimationDuration(int32_t animation) const;
 
+   //! how far a walk carries the model (model units), measured from its feet, the joints whose names start
+   //! with prefix: a foot carrying the model moves backwards under it as fast as the model moves forwards,
+   //! so the backward sweep of the carrying feet is the ground covered. One value per sample, evenly spread
+   //! over the cycle and its end, from 0 to the stride; empty if no vertex follows such a joint
+   [[nodiscard]] std::vector<float> measureWalk(int32_t animation, std::string_view prefix, int32_t samples) const;
+
    //! bind pose bounds, z-up
    [[nodiscard]] const Vector& getMinimum() const;
    [[nodiscard]] const Vector& getMaximum() const;
@@ -171,6 +177,7 @@ private:
 
    struct Node
    {
+      std::string _name;
       int32_t _parent = -1;
       std::array<float, 3> _translation{0.0f, 0.0f, 0.0f};
       std::array<float, 4> _rotation{0.0f, 0.0f, 0.0f, 1.0f};
