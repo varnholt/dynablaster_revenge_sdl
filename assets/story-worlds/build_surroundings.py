@@ -1079,6 +1079,19 @@ def spinner(start, place, turns, phase=0.0):
     SPINNERS.append((spin_id, place, turns, phase))
 
 
+def slider(start, place, travel, strokes, phase=0.0):
+    """Like spinner(), the props made since start move along place's z axis instead: travel tiles there and back,
+    strokes times per loop, easing in and out at both ends; phase is a fraction of a stroke."""
+    spinner(start, place, (travel, strokes), phase)
+
+
+def place_parts(start, place):
+    """Puts the props made since start, built around the origin, where place says."""
+    bpy.context.view_layer.update()
+    for part in PROPS[start:]:
+        part.matrix_world = place @ part.matrix_world
+
+
 def gear(x, y, z, radius, mat, angle, teeth=10, depth=0.2, turns=0, phase=0.0):
     """Upright against a wall, facing angle; turning when turns isn't 0."""
     start = len(PROPS)
@@ -1089,10 +1102,8 @@ def gear(x, y, z, radius, mat, angle, teeth=10, depth=0.2, turns=0, phase=0.0):
         box((math.cos(a) * radius, math.sin(a) * radius, depth * 0.05), (radius * 0.3, radius * 0.25, depth * 0.9), mat,
             rotation=a)
     cylinder((0, 0, depth), radius * 0.25, depth * 0.6, mat, vertices=12)
-    bpy.context.view_layer.update()
     place = Matrix.Translation((x, y, z)) @ Matrix.Rotation(angle, 4, "Z") @ Matrix.Rotation(math.pi / 2, 4, "Y")
-    for part in PROPS[start:]:
-        part.matrix_world = place @ part.matrix_world
+    place_parts(start, place)
     if turns:
         spinner(start, place, turns, phase)
 
@@ -1180,6 +1191,14 @@ def separate_spinners(props):
         turning.parent = pivot
         part.parent = turning
         part.matrix_parent_inverse = place.inverted()
+        if isinstance(turns, tuple):
+            # a slider: sampled, the game interpolates linearly between the keys
+            travel, strokes = turns
+            for frame in range(0, LOOP_FRAMES + 1, 4):
+                t = strokes * frame / LOOP_FRAMES + phase
+                turning.location = (0.0, 0.0, travel * 0.5 * (1.0 - math.cos(2 * math.pi * t)))
+                turning.keyframe_insert("location", index=2, frame=frame)
+            continue
         turning.rotation_euler = (0.0, 0.0, phase)
         turning.keyframe_insert("rotation_euler", index=2, frame=0)
         turning.rotation_euler = (0.0, 0.0, phase + 2 * math.pi * turns)
@@ -1409,51 +1428,360 @@ def world_castle_2(st):
     return ground, img
 
 
+# --- the final floor --------------------------------------------------------------------------------
+
+PULSE_SPEED = 2.5  # how fast a pulsing glow breathes, radians a second (glow-vert.glsl)
+
+
+def lit_material(name, color, variation=0.1, scale=4.0, color2=None):
+    """A surface giving its own light (a screen, a lamp, a charged coil): baked like any other colour, it emits for
+    the bake only, which marks its texels like the crystals': no ambient occlusion and no detail there."""
+    mat = material(name, color, variation, scale, color2=color2)
+    if mat not in CRYSTALS:
+        bsdf = next(n for n in mat.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
+        bsdf.inputs["Emission Color"].default_value = (1, 1, 1, 1)
+        bsdf.inputs["Emission Strength"].default_value = 1.0
+        CRYSTALS.append(mat)
+    return mat
+
+
+def torus(loc, major, minor, mat, segments=24, sides=6):
+    bpy.ops.mesh.primitive_torus_add(major_radius=major, minor_radius=minor, major_segments=segments,
+                                     minor_segments=sides, location=loc)
+    return _finish(bpy.context.object, mat)
+
+
+def glow_phase(x, y):
+    """How many seconds a glow's animation runs ahead: GlowSprites::set() takes it from the glow's position."""
+    return math.fmod(abs(x * 12.9898 + y * 78.233), 100.0)
+
+
+def chase(p0, p1, z, color, size, spacing=0.6, lag=0.2):
+    """Pulsing glows from p0 to p1 whose pulses run along them, from p0 to p1: each one nudged (a tenth of a tile at
+    most) to where its phase (glow_phase()) lags the one before by lag seconds."""
+    period = 2 * math.pi / PULSE_SPEED
+    p0, p1 = np.array(p0, float), np.array(p1, float)
+    length = float(np.linalg.norm(p1 - p0))
+    d = (p1 - p0) / max(length, 1e-6)
+    count = max(2, int(round(length / spacing)) + 1)
+    nudges = np.linspace(-0.1, 0.1, 801)
+    first = glow_phase(*p0)
+    for i in range(count):
+        base = p0 + d * (length * i / (count - 1))
+        want = first - i * lag
+        err = [abs((glow_phase(*(base + d * n)) - want + period / 2) % period - period / 2) for n in nudges]
+        x, y = base + d * nudges[int(np.argmin(err))] if i else base
+        glow((float(x), float(y), z), color, size, GLOW_PULSE)
+
+
+def reel(x, y, z, radius, mat, spoke, angle, turns, phase=0.0):
+    """A tape reel upright on a front facing angle: a disc with three light spokes, so its turning shows."""
+    start = len(PROPS)
+    cylinder((0, 0, 0), radius, 0.05, mat, vertices=20)
+    for i in range(3):
+        a = 2 * math.pi * i / 3
+        box((math.cos(a) * radius * 0.5, math.sin(a) * radius * 0.5, 0.05), (radius * 0.8, 0.07, 0.015), spoke,
+            rotation=a)
+    cylinder((0, 0, 0.05), radius * 0.22, 0.03, spoke, vertices=10)
+    place = Matrix.Translation((x, y, z)) @ Matrix.Rotation(angle, 4, "Z") @ Matrix.Rotation(math.pi / 2, 4, "Y")
+    place_parts(start, place)
+    spinner(start, place, turns, phase)
+
+
+def mainframe(x, y, z, white, dark, reel_mat, spoke, lamps, status):
+    """A computer of the stage's hard blocks' kind against the north wall (its front at y): a white cabinet, two tape
+    reels turning behind a dark window, a row of blinking lamps, a lit status bar on top."""
+    box((x, y + 0.36, z), (1.6, 0.76, 2.4), white, bevel=0.04)
+    box((x, y - 0.01, z + 1.2), (1.34, 0.06, 0.92), dark)
+    for k, side in enumerate((-1, 1)):
+        reel(x + side * 0.34, y - 0.05, z + 1.66, 0.28, reel_mat, spoke, -math.pi / 2, turns=3 * side,
+             phase=k * 0.7)
+    for k in range(6):
+        color, light = lamps[k % 3]
+        lx = x - 0.55 + k * 0.22
+        box((lx, y - 0.01, z + 0.72), (0.12, 0.05, 0.08), color)
+        glow((lx, y - 0.08, z + 0.76), light, 0.22, GLOW_BLINK)
+    box((x, y - 0.01, z + 2.12), (1.2, 0.05, 0.08), status)
+
+
+def wall_screen(x, y, z, width, height, frame, screen, light):
+    """A screen hanging on the north wall (its face at y), its light breathing on the room."""
+    box((x, y + 0.04, z), (width + 0.16, 0.1, height + 0.16), frame, bevel=0.02)
+    box((x, y - 0.02, z + 0.08), (width, 0.04, height), screen)
+    glow((x, y - 0.35, z + 0.08 + height * 0.5), light, 0.45 * width, GLOW_PULSE)
+
+
+def control_desk(x, y, z, grey, panel, dark, screen, lamps):
+    """An operator's desk facing the wall screens: its slanted panel and its monitors face the room's south."""
+    box((x, y, z), (1.8, 0.62, 0.7), grey, bevel=0.03)
+    top = box((x, y - 0.06, z + 0.66), (1.7, 0.48, 0.05), panel)
+    top.rotation_euler.x = 0.35
+    for k, side in enumerate((-1, 1)):
+        box((x + side * 0.45, y + 0.2, z + 0.72), (0.56, 0.1, 0.42), dark, bevel=0.015)
+        box((x + side * 0.45, y + 0.14, z + 0.78), (0.46, 0.03, 0.3), screen)
+        _, light = lamps[k]
+        glow((x + side * 0.45, y + 0.02, z + 0.93), (0.35, 0.65, 1.0), 0.4, GLOW_PULSE)
+        glow((x - side * 0.1, y - 0.14, z + 0.74), light, 0.16, GLOW_BLINK)
+
+
+def power_coil(x, y, z, angle, dark, copper, charge, red):
+    """A tall coil charging the castle: a drum, copper windings round its core, a charged ball crackling on top, a
+    red lamp at its foot towards the room."""
+    cylinder((x, y, z), 0.55, 0.35, dark, vertices=16)
+    cylinder((x, y, z + 0.3), 0.2, 1.96, dark, vertices=10)
+    for k in range(4):
+        cylinder((x, y, z + 0.55 + k * 0.4), 0.36, 0.2, copper, vertices=14)
+    cylinder((x, y, z + 2.2), 0.3, 0.1, dark, vertices=14)
+    uv_sphere((x, y, z + 2.58), 0.3, charge, segments=14, rings=8)
+    glow((x, y, z + 2.58), (0.35, 0.8, 1.0), 1.5, GLOW_PULSE)
+    glow((x, y, z + 2.58), (0.7, 0.95, 1.0), 0.55, GLOW_FLAME)
+    dx, dy = math.cos(angle), math.sin(angle)
+    box((x + dx * 0.55, y + dy * 0.55, z + 0.12), (0.1, 0.16, 0.12), red, rotation=angle)
+    glow((x + dx * 0.64, y + dy * 0.64, z + 0.18), (1.0, 0.25, 0.15), 0.35, GLOW_BLINK)
+
+
+def power_press(x, y, z, angle, dark, steel, hazard, hot, phase):
+    """A press stamping a glowing ingot: two posts, a beam with the ram's sleeve, the ram and its head going down
+    and up again."""
+    dx, dy = math.cos(angle), math.sin(angle)
+    tx, ty = -dy, dx
+    a = angle + math.pi / 2
+    box((x, y, z), (1.5, 1.0, 0.3), dark, rotation=a, bevel=0.03)
+    box((x, y, z + 0.3), (0.8, 0.6, 0.12), steel, rotation=a)
+    box((x, y, z + 0.42), (0.5, 0.3, 0.12), hot, rotation=a)
+    glow((x, y, z + 0.5), (1.0, 0.5, 0.18), 0.7, GLOW_FLAME)
+    for side in (-1, 1):
+        box((x + tx * side * 0.62, y + ty * side * 0.62, z + 0.3), (0.18, 0.18, 2.4), steel, rotation=a)
+    box((x, y, z + 2.7), (1.5, 0.34, 0.3), hazard, rotation=a, bevel=0.02)
+    cylinder((x, y, z + 2.15), 0.17, 0.56, dark, vertices=12)
+    start = len(PROPS)
+    cylinder((x, y, z + 1.15), 0.1, 1.1, steel, vertices=10)
+    box((x, y, z + 0.95), (1.0, 0.62, 0.22), hazard, rotation=a, bevel=0.02)
+    slider(start, Matrix.Translation((x, y, z)), -0.4, 2, phase)
+
+
+def floor_fan(x, y, z, frame_mat, blade_mat, pit, turns):
+    """A fan in a pit in the floor, its blades turning over the furnace's glow below."""
+    # the glowing floor of the pit: wider than the opening, its edges hidden in the frame
+    box((x, y, z - 0.08), (1.2, 1.2, 0.1), pit)
+    for (ox, oy, sx, sy) in ((0, 0.575, 1.3, 0.15), (0, -0.575, 1.3, 0.15), (0.575, 0, 0.15, 1.0),
+                             (-0.575, 0, 0.15, 1.0)):
+        box((x + ox, y + oy, z - 0.05), (sx, sy, 0.19), frame_mat)
+    glow((x, y, z + 0.02), (1.0, 0.42, 0.14), 0.85, GLOW_FLAME)
+    start = len(PROPS)
+    cylinder((0, 0, 0.04), 0.1, 0.07, blade_mat, vertices=10)
+    for i in range(5):
+        a = 2 * math.pi * i / 5
+        blade = box((math.cos(a) * 0.27, math.sin(a) * 0.27, 0.06), (0.34, 0.13, 0.02), blade_mat)
+        blade.rotation_euler = (0.45, 0.0, a)
+    place = Matrix.Translation((x, y, z))
+    place_parts(start, place)
+    spinner(start, place, turns)
+
+
+def capacitors(x, y, z, steel, dark, charge):
+    """A bank of four capacitors on a plate, charged, their caps lit."""
+    box((x, y, z - 0.05), (1.0, 1.0, 0.17), steel, bevel=0.02)
+    for ox in (-0.24, 0.24):
+        for oy in (-0.24, 0.24):
+            cylinder((x + ox, y + oy, z + 0.1), 0.19, 0.6, dark, vertices=12)
+            cylinder((x + ox, y + oy, z + 0.7), 0.14, 0.05, charge, vertices=12)
+    glow((x, y, z + 0.8), (0.3, 0.75, 1.0), 0.8, GLOW_PULSE)
+
+
+def beacon(x, y, z, dark, lamp, light, turns):
+    """A warning light: a lamp in a shade that sweeps round it."""
+    cylinder((x, y, z), 0.17, 0.08, dark, vertices=12)
+    cylinder((x, y, z + 0.08), 0.11, 0.26, lamp, vertices=12)
+    cylinder((x, y, z + 0.34), 0.17, 0.05, dark, vertices=12)
+    start = len(PROPS)
+    box((0.0, 0.125, 0.1), (0.27, 0.04, 0.22), dark)
+    place = Matrix.Translation((x, y, z))
+    place_parts(start, place)
+    spinner(start, place, turns)
+    glow((x, y, z + 0.22), light, 0.9, GLOW_BLINK)
+
+
+def reactor(x, y, z, s, dark, steel, charge, red, ring_mat):
+    """The castle's heart: an energy column on a plinth, clamped, two tilted rings wobbling round it, red lamps on
+    four pylons."""
+    cylinder((x, y, z), 1.25 * s, 0.3, dark, vertices=24)
+    cylinder((x, y, z + 0.3), 0.95 * s, 0.2, steel, vertices=24)
+    top = z + 0.5 + 2.7 * s
+    cylinder((x, y, z + 0.45), 0.36 * s, top - z - 0.4, charge, vertices=16)
+    for k in range(3):
+        cylinder((x, y, z + 0.5 + (0.6 + k * 0.75) * s), 0.46 * s, 0.14, dark, vertices=16)
+    cylinder((x, y, top), 0.56 * s, 0.26, dark, vertices=16)
+    cylinder((x, y, top + 0.26), 0.3 * s, 0.12, steel, vertices=16)
+    for k in range(4):
+        a = math.pi / 4 + k * math.pi / 2
+        px, py = x + math.cos(a) * 1.08 * s, y + math.sin(a) * 1.08 * s
+        box((px, py, z + 0.3), (0.14, 0.14, 1.9 * s), steel, rotation=a)
+        box((px, py, z + 0.3 + 1.9 * s), (0.2, 0.2, 0.12), red, rotation=a)
+        glow((px, py, z + 0.45 + 1.9 * s), (1.0, 0.22, 0.12), 0.5, GLOW_BLINK)
+    for k, (height, tilt, turns) in enumerate(((1.25, 0.32, 2), (2.25, -0.38, -3))):
+        start = len(PROPS)
+        ring = torus((0, 0, 0), 0.8 * s, 0.05 * s, ring_mat)
+        ring.rotation_euler.x = tilt
+        place = Matrix.Translation((x, y, z + 0.5 + height * s))
+        place_parts(start, place)
+        spinner(start, place, turns, phase=k * 1.3)
+    glow((x, y, z + 0.5 + 1.5 * s), (0.3, 0.75, 1.0), 2.8 * s, GLOW_PULSE)
+    for k in range(3):
+        glow((x, y, z + 0.5 + (0.3 + k * 0.95) * s), (0.75, 0.97, 1.0), 0.75 * s, GLOW_FLAME)
+    glow((x, y, top + 0.45), (0.45, 0.85, 1.0), 1.1 * s, GLOW_PULSE)
+
+
 def world_castle_final(st):
-    """8: the final floor, the castle's control room: teal floor, computer banks with red lights, screens."""
+    """8: the final floor, the castle's control room and the heart of its machinery. The teal diamond floor and the
+    grey metal border of the original; mainframes with turning tape reels, wall screens and operators' desks behind
+    the field, the reactor in their middle, power coils and presses along the side walls, fans in the floor, glowing
+    conduits carrying the power round the field, warning lights: cold teal and blue against red and amber. The final
+    fight (the single screen stage) has the reactor bigger and the big screen in alarm red."""
+    final_fight = (st.w, st.h) == SIZES[None]
+    offset_x, offset_north = 4.2, 3.8
+    x0, x1 = -APRON - offset_x, st.w + APRON + offset_x
+    y0, y1 = -st.h - APRON - 6.0, APRON + offset_north
+    z = FLOOR_Z
+    s = 1.25 if final_fight else 1.0
+
+    # where the machines stand, known before the floor is painted: it gets hazard pads under them
+    north = [x for x in np.arange(x0 + 1.05, x1 - 0.8, 2.0) if abs(x - st.cx) > 3.4]
+    sides = [y for y in np.arange(y1 - 1.9, y0 + 1.2, -3.0)]
+    fans = [y - 1.5 for y in sides if y - 1.5 > y0 + 1.0]
+    coil_x, fan_x = 0.95, 2.8  # in from the side walls
+    bus_y, bus_x = APRON + 0.75, 2.05  # the conduits' main lines: in front of the desks, between coils and fans
+    pads = [(st.cx, 3.1, 1.45 * s, True)]
+    for i, y in enumerate(sides):
+        for x in (x0 + coil_x, x1 - coil_x):
+            pads.append((x, y, 0.72 if i % 2 == 0 else 0.95, i % 2 == 0))
+    for y in fans:
+        for x in (x0 + fan_x, x1 - fan_x):
+            pads.append((x, y, 0.82, False))
+    # the conduits, axis aligned segments: the bus round the field from the reactor, branches into the field's ring
+    # and to the coils
+    ring = 1.27  # from the field's edge, just off the border blocks
+    lines = [((x0 + bus_x, bus_y), (x1 - bus_x, bus_y)), ((st.cx, bus_y), (st.cx, 3.1 - 1.2 * s)),
+             ((x0 + bus_x, bus_y), (x0 + bus_x, sides[-1])), ((x1 - bus_x, bus_y), (x1 - bus_x, sides[-1]))]
+    for i, y in enumerate(sides):
+        if i % 2 == 0:
+            lines += [((x0 + coil_x + 0.5, y), (-ring, y)), ((st.w + ring, y), (x1 - coil_x - 0.5, y))]
+    for x in north:
+        if 0 < x < st.w:
+            lines.append(((x, ring), (x, bus_y)))
+
     def height(x, y):
         return np.full_like(x, FLOOR_Z, dtype=float)
 
     def color(TX, TY, TZ, slope):
         rgb = diamond_floor(st, TX, TY, (0.12, 0.5, 0.56), (0.06, 0.36, 0.44), (0.04, 0.22, 0.28), size=1.4)
-        return apron_mix(st, TX, TY, rgb, rgb)
+        rgb = apron_mix(st, TX, TY, rgb, rgb)
+        # the hall a shade darker than the field, its lights stand out
+        rgb = rgb * (1.0 - 0.28 * smooth(1.4, 3.0, st.outside(TX, TY)))[..., None]
+        # dark steel pads with black and amber hazard edges under the machines
+        stripe = np.floor((TX + TY) * 2.2) % 2
+        hazard = mix((0.08, 0.07, 0.06), (0.95, 0.62, 0.1), stripe)
+        plate = tread_floor(TX, TY, (0.26, 0.29, 0.32), 0.2)
+        for (px, py, half, round_pad) in pads:
+            d = np.hypot(TX - px, TY - py) if round_pad else np.maximum(np.abs(TX - px), np.abs(TY - py))
+            inside = smooth(half + 0.02, half - 0.02, d)
+            rgb = mix(rgb, plate, inside)
+            rgb = mix(rgb, hazard, inside * smooth(half - 0.2, half - 0.16, d))
+        # the conduits: a dark groove, a bright core, its light on the floor around
+        dist = np.abs(st.outside_box(TX, TY, ring))
+        for (ax, ay), (bx, by) in lines:
+            lo_x, hi_x, lo_y, hi_y = min(ax, bx), max(ax, bx), min(ay, by), max(ay, by)
+            dx = np.maximum(np.maximum(lo_x - TX, TX - hi_x), 0)
+            dy = np.maximum(np.maximum(lo_y - TY, TY - hi_y), 0)
+            dist = np.minimum(dist, np.hypot(dx, dy))
+        rgb = rgb + np.array([0.1, 0.32, 0.4]) * smooth(0.5, 0.08, dist)[..., None] * 0.35
+        rgb = mix(rgb, (0.03, 0.05, 0.07), smooth(0.12, 0.09, dist))
+        rgb = mix(rgb, (0.55, 0.95, 1.0), smooth(0.045, 0.025, dist))
+        return rgb
 
     ground, img = terrain(st, height, color, "ground")
-    wall = material("tech_wall", (0.68, 0.7, 0.74), 0.05, 1.0, kind="bricks", mortar=(0.4, 0.42, 0.46))
-    white = material("console_white", (0.88, 0.88, 0.9), 0.04, 5.0)
-    grey = material("console_grey", (0.55, 0.57, 0.62), 0.05, 5.0)
-    screen = material("screen", (0.2, 0.45, 0.95), 0.25, 6.0, color2=(0.5, 0.8, 1.0))
-    red = material("led_red", (0.95, 0.38, 0.3), 0.05)
-    yellow = material("vent_yellow", (0.95, 0.78, 0.42), 0.1)
-    dark = material("tech_dark", (0.12, 0.13, 0.16), 0.05)
-    x0, x1, y0, y1 = room(st, wall, offset_x=4.2, offset_north=3.8)
-    z = FLOOR_Z
-    i = 0
-    for (x, y, a) in along_walls(x0, x1, y0, y1, 1.8, skip_x=st.cx):
-        i += 1
-        dx, dy = math.cos(a), math.sin(a)
-        cx, cy = x + dx * 0.45, y + dy * 0.45
-        # a computer like the stage's hard blocks: white case, slanted panel, red light
-        box((cx, cy, z), (1.5, 0.8, 1.0), white, rotation=a + math.pi / 2, bevel=0.04)
-        box((cx + dx * 0.05, cy + dy * 0.05, z + 1.0), (1.5, 0.6, 0.5), grey, rotation=a + math.pi / 2, bevel=0.03)
-        box((cx + dx * 0.36, cy + dy * 0.36, z + 1.05), (1.0, 0.04, 0.35), screen if i % 2 else dark, rotation=a + math.pi / 2)
-        box((cx + dx * 0.41, cy + dy * 0.41, z + 0.45), (0.3, 0.04, 0.08), red, rotation=a + math.pi / 2)
-        glow((cx + dx * 0.46, cy + dy * 0.46, z + 0.49), (1.0, 0.46, 0.36), 0.3, GLOW_BLINK)
-        if i % 2:
-            glow((cx + dx * 0.42, cy + dy * 0.42, z + 1.22), (0.45, 0.72, 1.0), 0.55, GLOW_PULSE)
-        # vents above
-        box((x + dx * 0.08, y + dy * 0.08, z + 2.6), (1.2, 0.06, 0.3), yellow if i % 2 else dark, rotation=a + math.pi / 2)
-    # the big screen and the core behind the field
-    box((st.cx, y1 + 0.02, z + 1.4), (4.2, 0.12, 2.2), dark)
-    box((st.cx, y1 - 0.05, z + 1.55), (3.8, 0.1, 1.9), screen)
-    glow((st.cx, y1 - 0.4, z + 2.5), (0.45, 0.72, 1.0), 2.2, GLOW_PULSE)
-    for side in (-1, 1):
-        cylinder((st.cx + side * 2.8, y1 - 0.6, z), 0.45, 3.2, white, vertices=20)
-        cylinder((st.cx + side * 2.8, y1 - 0.6, z + 3.2), 0.5, 0.2, grey, vertices=20)
-        for k in range(4):
-            box((st.cx + side * 2.8, y1 - 1.05, z + 0.5 + k * 0.6), (0.3, 0.04, 0.12), red if k % 2 else yellow)
-            glow((st.cx + side * 2.8, y1 - 1.1, z + 0.56 + k * 0.6), (1.0, 0.46, 0.36) if k % 2 else (1.0, 0.82, 0.48), 0.3,
-                 GLOW_BLINK)
+    wall = material("tech_wall", (0.5, 0.53, 0.58), 0.06, 1.0, kind="bricks", mortar=(0.26, 0.28, 0.32))
+    white = material("console_white", (0.86, 0.87, 0.9), 0.04, 5.0)
+    grey = material("console_grey", (0.5, 0.53, 0.58), 0.05, 5.0)
+    dark = material("tech_dark", (0.11, 0.12, 0.15), 0.05)
+    steel = material("steel", (0.42, 0.45, 0.5), 0.08, 5.0)
+    copper = material("coil_copper", (0.78, 0.42, 0.2), 0.1, 6.0)
+    hazard = material("hazard_amber", (0.95, 0.66, 0.12), 0.08, 4.0)
+    spoke = material("reel_spoke", (0.8, 0.82, 0.86), 0.04)
+    pipe = material("pipe_steel", (0.36, 0.4, 0.46), 0.08, 5.0)
+    screen = lit_material("screen", (0.08, 0.3, 0.75), 0.25, 9.0, color2=(0.45, 0.85, 1.0))
+    alarm = lit_material("alarm_screen", (0.6, 0.04, 0.04), 0.25, 9.0, color2=(1.0, 0.35, 0.2))
+    panel = lit_material("desk_panel", (0.05, 0.12, 0.25), 0.2, 14.0, color2=(0.3, 0.7, 0.95))
+    charge = lit_material("charge", (0.45, 0.9, 1.0), 0.15, 6.0, color2=(0.85, 1.0, 1.0))
+    status = lit_material("status_cyan", (0.4, 0.9, 1.0), 0.05)
+    red = lit_material("lamp_red", (1.0, 0.18, 0.12), 0.05)
+    amber = lit_material("lamp_amber", (1.0, 0.62, 0.12), 0.05)
+    green = lit_material("lamp_green", (0.4, 1.0, 0.55), 0.05)
+    hot = lit_material("hot_metal", (1.0, 0.45, 0.1), 0.25, 8.0, color2=(1.0, 0.8, 0.35))
+    furnace = lit_material("fan_furnace", (0.6, 0.14, 0.03), 0.25, 6.0, color2=(0.95, 0.45, 0.1))
+    lamps = [(red, (1.0, 0.25, 0.15)), (amber, (1.0, 0.62, 0.2)), (green, (0.4, 1.0, 0.55))]
+    assert (x0, x1, y0, y1) == room(st, wall, offset_x=offset_x, offset_north=offset_north)
+
+    # behind the field: mainframes and wall screens over desks, the big screen and the reactor in the middle
+    for i, x in enumerate(north):
+        if i % 2 == 0:
+            mainframe(x, y1 - 0.74, z, white, dark, dark, spoke, lamps, status)
+        else:
+            box((x, y1 - 0.31, z), (1.6, 0.62, 1.1), grey, bevel=0.04)
+            for k in range(3):
+                color, light = lamps[(i + k) % 3]
+                box((x - 0.4 + k * 0.4, y1 - 0.63, z + 0.8), (0.14, 0.04, 0.1), color)
+                glow((x - 0.4 + k * 0.4, y1 - 0.7, z + 0.85), light, 0.22, GLOW_BLINK)
+            wall_screen(x, y1 - 0.06, z + 1.5, 1.5, 1.0, dark, screen, (0.35, 0.65, 1.0))
+        if i % 4 == 1 and abs(x - st.cx) > 4.0:
+            control_desk(x - 1.0, APRON + 1.55, z, grey, panel, dark, screen, lamps[:2])
+    big = (1.0, 0.2, 0.12) if final_fight else (0.35, 0.65, 1.0)
+    wall_screen(st.cx, y1 - 0.06, z + 1.2, 4.4, 2.3, dark, alarm if final_fight else screen, big)
+    reactor(st.cx, 3.1, z, s, dark, steel, charge, red, hazard)
+    # warning lights: on brackets either side of the big screen and on the floor in the room's back corners
+    for bx in (st.cx - 2.75, st.cx + 2.75, x0 + 0.45, x1 - 0.45):
+        high = abs(bx - st.cx) < 3
+        if high:
+            box((bx, y1 - 0.25, z + 2.3), (0.36, 0.5, 0.3), dark)
+        beacon(bx, y1 - 0.4, z + 2.6 if high else z, dark, red, (1.0, 0.22, 0.12), 4)
+    # an alarm strip along the top of the north wall
+    box(((x0 + x1) * 0.5, y1 - 0.03, z + 4.05), (x1 - x0 - 0.2, 0.06, 0.1), red)
+    for x in np.arange(x0 + 1.5, x1 - 1.0, 3.0):
+        glow((float(x), y1 - 0.12, z + 4.1), (1.0, 0.22, 0.12), 0.5, GLOW_BLINK)
+
+    # the side walls: coils and presses, fans in the floor and capacitors between them
+    for i, y in enumerate(sides):
+        for x, a in ((x0 + coil_x, 0.0), (x1 - coil_x, math.pi)):
+            if i % 2 == 0:
+                power_coil(x, y, z, a, dark, copper, charge, red)
+            else:
+                power_press(x - math.cos(a) * 0.1, y, z, a, dark, steel, hazard, hot, phase=(i * 0.37) % 1.0)
+    for i, y in enumerate(fans):
+        for k, x in enumerate((x0 + fan_x, x1 - fan_x)):
+            if (i + k) % 2 == 0:
+                floor_fan(x, y, z, steel, dark, furnace, 5 * (1 if k else -1))
+            else:
+                capacitors(x, y, z, steel, dark, status)
+
+    # pipes along the walls, clamped, the power running along them
+    for (p0, p1) in (((x0 + 0.3, y1 - 0.25), (x1 - 0.3, y1 - 0.25)), ((x0 + 0.25, y1 - 0.3), (x0 + 0.25, y0)),
+                     ((x1 - 0.25, y1 - 0.3), (x1 - 0.25, y0))):
+        pipe_run(p0, p1, z + 3.7, 0.18, pipe)
+        length = math.hypot(p1[0] - p0[0], p1[1] - p0[1])
+        for t in np.arange(0.75, length - 0.3, 1.5):
+            px = p0[0] + (p1[0] - p0[0]) * t / length
+            py = p0[1] + (p1[1] - p0[1]) * t / length
+            coupling = cylinder((px, py, z + 3.64), 0.215, 0.12, dark, vertices=12)
+            coupling.rotation_euler = (math.pi / 2, 0, math.atan2(p1[1] - p0[1], p1[0] - p0[0]) + math.pi / 2)
+            coupling.location.z = z + 3.7
+    # the power running along the floor's conduits and the pipes: out from the reactor, round the field
+    cyan = (0.3, 0.78, 1.0)
+    for x_end in (x0 + bus_x, x1 - bus_x):
+        chase((st.cx, bus_y), (x_end, bus_y), z + 0.05, cyan, 0.34)
+        chase((x_end, bus_y), (x_end, sides[-1]), z + 0.05, cyan, 0.34)
+        wall_x = x0 + 0.25 if x_end < st.cx else x1 - 0.25
+        chase((st.cx, y1 - 0.25), (wall_x, y1 - 0.25), z + 3.7, cyan, 0.42, spacing=0.75)
+        chase((wall_x, y1 - 0.3), (wall_x, y0 + 2.0), z + 3.7, cyan, 0.42, spacing=0.75)
     return ground, img
 
 
