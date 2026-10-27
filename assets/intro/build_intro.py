@@ -48,8 +48,8 @@ ACTORS = {
                "actions": [(1, "run", "loop"), (s(5.2), "panic", "loop"), (s(9.0), "look_up", "loop")],
                "from": s(4.0)},
     "doctor": {"model": "doctor.glb", "scale": 1.3,
-               "actions": [(1, "run", "loop"), (s(4.6), "fall", "hold"), (s(6.6), "panic", "loop"),
-                           (s(9.4), "stand", "loop")],
+               "actions": [(1, "run", "loop"), (s(4.2), "turn", "loop"), (s(4.6), "fall", "hold"),
+                           (s(4.6) + 24, "cower", "loop")],
                "from": s(3.1)},
 }
 
@@ -129,21 +129,20 @@ def stage(actors):
     key(player, s(5.3), (3.7, 0.8, 0.27), (0, 0, 180))
 
     # the doctor runs out of the door right of the dome (build_lab.py), from the back of the hall behind it,
-    # hidden by the door until he flings it open; straight out until he's clear of the facade, then he turns
-    # towards the dome and is thrown onto his back by the blast. The door swings out to the right, clear of his
-    # path and of the red lamp beside it.
+    # hidden by the door until he flings it open; out and away to the right, then he stops, shuffles round to the
+    # dome, sees the dragon above it and falls back onto his bottom, facing it, where he stays. The door swings out
+    # to the right, clear of his path and of the red lamp beside it.
     door = actors["door"]["holder"]
     key(door, 1, DOOR_HINGE, (0, 0, 0))
     key(door, s(3.1) + 4, DOOR_HINGE, (0, 0, 0))
     key(door, s(3.1) + 8, rotation=(0, 0, 88))
     key(door, s(3.1) + 13, rotation=(0, 0, 100))
     doctor = actors["doctor"]["holder"]
+    # rotation 0 faces -y, out of the door; he faces the way he runs, and the dome where he turns to
     key(doctor, s(3.1), (10.88, 6.95, 0.27), (0, 0, 0))
     key(doctor, s(3.75), (10.88, 5.05, 0.27), (0, 0, 0))
-    key(doctor, s(4.1), rotation=(0, 0, 40))
-    key(doctor, s(4.6), (9.8, 2.6, 0.27), (0, 0, 40))
-    key(doctor, s(5.4), (10.2, 1.9, 0.27), (0, 0, 20))
-    key(doctor, s(6.6), (10.2, 1.9, 0.27), (0, 0, 180))
+    key(doctor, s(4.2), (11.6, 3.2, 0.27), (0, 0, 21))
+    key(doctor, s(4.6), (11.6, 3.2, 0.27), (0, 0, -103))
 
 
 def camera():

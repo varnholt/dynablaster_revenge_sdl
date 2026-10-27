@@ -85,13 +85,12 @@ class Builder:
         return self.groups.index(name)
 
     def add(self, mesh_bm, color, bone=None, matrix=Matrix(), weights=None, paint=False, shell=""):
-        """Copies mesh_bm in, transformed, coloured; weights(co before the transform) -> {bone: w} overrides
-        the rigid bone. Painted parts (eyes, cheeks) only colour the surface under them once refined (refine.py);
+        """Copies mesh_bm in, transformed, coloured; weights(co in the model, after the transform) -> {bone: w}
+        overrides the rigid bone. Painted parts (eyes, cheeks) only colour the surface under them once refined (refine.py);
         parts with a shell name fuse into a surface of their own there, like hair on a head."""
         if shell not in self.shells:
             self.shells.append(shell)
         uv = self.palette.uv(color)
-        local = {v: v.co.copy() for v in mesh_bm.verts}
         mesh_bm.transform(matrix)
         if matrix.determinant() < 0:
             bmesh.ops.reverse_faces(mesh_bm, faces=mesh_bm.faces)
@@ -99,7 +98,7 @@ class Builder:
         for v in mesh_bm.verts:
             nv = self.bm.verts.new(v.co)
             mapping[v] = nv
-            influence = weights(local[v]) if weights else {bone: 1.0}
+            influence = weights(v.co) if weights else {bone: 1.0}
             for b, w in influence.items():
                 if w > 0.0:
                     nv[self.deform][self._group(b)] = w
@@ -256,6 +255,88 @@ class Biped:
         return [(s * self.hx, 0, self.hip), (s * self.hx, 0, self.hip / 2), (s * self.hx, 0, 0.06)]
 
 
+def smoothstep(a, b, x):
+    t = min(max((x - a) / (b - a), 0.0), 1.0)
+    return t * t * (3 - 2 * t)
+
+
+class Body:
+    """The skeleton of a person built like the game's bomberman, feet on the ground at the origin, facing -y:
+    root (moves the whole), pelvis, spine, chest, neck, head; per side (L at +x) upper_arm, forearm, hand from the
+    chest and thigh, shin, foot from the pelvis. Arms and legs hang straight down; elbow and knee lie halfway,
+    the parts across them bend smoothly (see arm_weights, leg_weights)."""
+
+    def __init__(self, builder, hip, shoulder, sx, neck, hand, hx=0.08, foot=0.1):
+        self.hip, self.shoulder, self.sx, self.neck, self.hand, self.hx = hip, shoulder, sx, neck, hand, hx
+        self.elbow = (shoulder + hand) / 2
+        self.knee = hip / 2
+        self.ankle = 0.05
+        self.chest = hip + (shoulder - hip) * 0.55
+        builder.bone("root", (0, 0, 0), (0, 0, hip * 0.6))
+        builder.bone("pelvis", (0, 0, hip), (0, 0, hip + 0.06), "root")
+        builder.bone("spine", (0, 0, hip + 0.06), (0, 0, self.chest), "pelvis")
+        builder.bone("chest", (0, 0, self.chest), (0, 0, neck), "spine")
+        builder.bone("neck", (0, 0, neck), (0, 0, neck + 0.05), "chest")
+        builder.bone("head", (0, 0, neck + 0.05), (0, 0, neck + 0.35), "neck")
+        for side, s in (("L", 1), ("R", -1)):
+            builder.bone(f"upper_arm.{side}", (s * sx, 0, shoulder), (s * sx, 0, self.elbow), "chest")
+            builder.bone(f"forearm.{side}", (s * sx, 0, self.elbow), (s * sx, 0, hand), f"upper_arm.{side}")
+            builder.bone(f"hand.{side}", (s * sx, 0, hand), (s * sx, 0, hand - 0.06), f"forearm.{side}")
+            builder.bone(f"thigh.{side}", (s * hx, 0, hip), (s * hx, 0, self.knee), "pelvis")
+            builder.bone(f"shin.{side}", (s * hx, 0, self.knee), (s * hx, 0, self.ankle), f"thigh.{side}")
+            builder.bone(f"foot.{side}", (s * hx, 0, self.ankle), (s * hx, -foot, self.ankle), f"shin.{side}")
+
+    def arm(self, s):
+        return [(s * self.sx, 0, self.shoulder), (s * (self.sx + 0.01), 0, (self.shoulder + self.elbow) / 2),
+                (s * (self.sx + 0.02), 0, self.elbow), (s * (self.sx + 0.025), 0, (self.elbow + self.hand) / 2),
+                (s * (self.sx + 0.03), 0, self.hand)]
+
+    def leg(self, s):
+        return [(s * self.hx, 0, self.hip), (s * self.hx, 0, (self.hip + self.knee) / 2), (s * self.hx, 0, self.knee),
+                (s * self.hx, 0, (self.knee + self.ankle) / 2), (s * self.hx, 0, self.ankle + 0.01)]
+
+    def arm_weights(self, side, blend=0.03):
+        """Parts of an arm: the upper arm above the elbow, the forearm below, blended over 2 * blend round it;
+        the hand below the wrist."""
+        def weights(co):
+            lower = smoothstep(self.elbow + blend, self.elbow - blend, co.z)
+            hand = smoothstep(self.hand + 0.01, self.hand - 0.02, co.z)
+            return {f"upper_arm.{side}": 1.0 - lower, f"forearm.{side}": lower - hand, f"hand.{side}": hand}
+        return weights
+
+    def leg_weights(self, side, blend=0.03):
+        """Parts of a leg: thigh above the knee, shin below, blended round it; the foot round the ankle."""
+        def weights(co):
+            lower = smoothstep(self.knee + blend, self.knee - blend, co.z)
+            foot = smoothstep(self.ankle + 0.03, self.ankle, co.z)
+            return {f"thigh.{side}": 1.0 - lower, f"shin.{side}": lower - foot, f"foot.{side}": foot}
+        return weights
+
+    def torso_weights(self, hem=None):
+        """Parts of the trunk by height: pelvis, spine, chest, blended where they meet; below the hips a hanging
+        hem's bone (a coat's, a dress's) if there is one, so it can swing."""
+        def weights(co):
+            z = co.z
+            upper = smoothstep(self.chest - 0.04, self.chest + 0.04, z)
+            middle = smoothstep(self.hip, self.hip + 0.1, z)
+            result = {"chest": upper, "spine": middle - upper, "pelvis": 1.0 - middle}
+            if hem:
+                down = smoothstep(self.hip - 0.02, self.hip - 0.2, z)
+                result = {k: v * (1.0 - down) for k, v in result.items()}
+                result[hem] = down
+            return result
+        return weights
+
+
+def body_shells(bone):
+    """refine's shells for a Body: each arm and each leg one surface, so it can move without dragging the trunk's
+    along, the rest one."""
+    for limb, parts in (("arm", ("upper_arm", "forearm", "hand")), ("leg", ("thigh", "shin", "foot"))):
+        if bone.split(".")[0] in parts:
+            return f"{limb}.{bone.split('.')[1]}"
+    return "body"
+
+
 LIFT = {"L": (0, -1, 0), "R": (0, 1, 0)}  # turns an arm or leg out sideways and up
 FORWARD = (1, 0, 0)  # bends the body or head forwards (towards -y), swings a hanging arm or leg backwards
 
@@ -283,9 +364,24 @@ def turn(*steps):
     return q
 
 
-def action(rig, name, frames, keys, cyclic=True):
+def poses(keys):
+    """Key poses [(frame, {bone: rotation or (rotation, offset)})] as action()'s tracks: every bone that any pose
+    moves is keyed in all of them (at rest where a pose leaves it out), so nothing drifts in from another key."""
+    bones = sorted({bone for _, pose in keys for bone in pose})
+    tracks = {bone: [] for bone in bones}
+    for frame, pose in keys:
+        for bone in bones:
+            value = pose.get(bone, turn())
+            rotation, offset = value if isinstance(value, tuple) else (value, None)
+            tracks[bone].append((frame, rotation if rotation is not None else turn(), offset or (0, 0, 0)))
+    return tracks
+
+
+def action(rig, name, frames, keys, cyclic=True, follow=()):
     """keys: {bone: [(frame, rotation or None, offset or None), ...]}, rotations (see turn()) and offsets in
-    armature space, on top of the rest pose and the parents' poses."""
+    armature space, on top of the rest pose and the parents' poses; the in-betweens ease in and out of the keys,
+    across the loop's seam too when it's cyclic. follow: (bone, stiffness, damping) of bones that aren't keyed but
+    swing after their parents' motion (see follow_through)."""
     act = bpy.data.actions.new(name)
     act.use_fake_user = True
     rig.animation_data_create()
@@ -310,8 +406,12 @@ def action(rig, name, frames, keys, cyclic=True):
     if cyclic:
         for fc in _fcurves(act):
             fc.modifiers.new("CYCLES")
+            # with the cycle in place the automatic handles run smoothly over the seam instead of stopping at it
+            fc.update()
     act.frame_range = (1, frames)
     act.use_frame_range = True
+    for bone, stiffness, damping in follow:
+        follow_through(rig, act, bone, stiffness, damping, cyclic)
     # leave the rest pose untouched for the next action
     for pose_bone in rig.pose.bones:
         pose_bone.rotation_quaternion = (1, 0, 0, 0)
@@ -322,6 +422,53 @@ def action(rig, name, frames, keys, cyclic=True):
     track.mute = True
     rig.animation_data.action = None
     return act
+
+
+def follow_through(rig, act, bone, stiffness, damping, cyclic):
+    """Bakes a dangling bone's swing into act, frame by frame: its tip hangs on a spring (stiffness 0..1 pulls it
+    back to where its parent carries it, damping 0..1 keeps that much of its speed), so a coat's hem or a tail
+    trails the body's moves and swings on after they stop. A loop is run three times and the last one kept, which
+    then joins up with its start."""
+    scene = bpy.context.scene
+    rig.animation_data.action = act
+    slots = getattr(act, "slots", None)
+    if slots:
+        rig.animation_data.action_slot = slots[0]
+    pose_bone = rig.pose.bones[bone]
+    parent = pose_bone.parent
+    length = pose_bone.bone.length
+    offset = parent.bone.matrix_local.inverted() @ pose_bone.bone.matrix_local
+    start, end = (int(f) for f in act.frame_range)
+    frames = list(range(start, end + 1))
+
+    def carried(frame):
+        scene.frame_set(frame)
+        return parent.matrix @ offset
+
+    tip = carried(start) @ Vector((0, length, 0))
+    speed = Vector()
+    kept = {}
+    for loop in range(3 if cyclic else 1):
+        for frame in frames:
+            matrix = carried(frame)
+            head = matrix.translation
+            speed = (speed + (matrix @ Vector((0, length, 0)) - tip) * stiffness) * damping
+            tip = head + (tip + speed - head).normalized() * length
+            kept[frame] = (matrix, tip.copy())
+    pose_bone.rotation_mode = "QUATERNION"
+    previous = None
+    for frame in frames:
+        matrix, tip = kept[frame]
+        frame_rotation = matrix.to_quaternion()
+        hanging = frame_rotation @ Vector((0, 1, 0))
+        swing = hanging.rotation_difference(tip - matrix.translation)
+        q = frame_rotation.inverted() @ swing @ frame_rotation
+        if previous is not None and previous.dot(q) < 0:
+            q.negate()
+        previous = q
+        pose_bone.rotation_quaternion = q
+        pose_bone.keyframe_insert("rotation_quaternion", frame=frame)
+    scene.frame_set(start)
 
 
 def _fcurves(act):
