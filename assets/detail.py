@@ -193,6 +193,34 @@ def stone(rng):
     return normalised(image, 0.13)
 
 
+def masonry(rng, rows=8, per_row=4, mortar=0.05):
+    """Courses of dressed blocks, each its own shade and a little worn at the edges, the joints between them
+    dark and every course shifted against the one below; rows run along u, so the courses lie level on walls."""
+    size = SIZE
+    image = np.zeros((size, size))
+    joint = np.zeros((size, size))
+    course = size // rows
+    x = np.arange(size)
+    for row in range(rows):
+        # the course's joints, wrapping round so the image tiles
+        cuts = np.sort((rng.uniform(0, 1, per_row) * 0.5 + np.arange(per_row)) / per_row * size + rng.uniform(0, size))
+        cuts %= size
+        cuts.sort()
+        block = np.searchsorted(cuts, x) % per_row
+        shade = rng.normal(0, 1, per_row)[block]
+        # distance to the nearest vertical joint, wrapping round
+        gap = np.abs(x[:, None] - cuts[None, :])
+        gap = np.minimum(gap, size - gap).min(axis=1)
+        y0 = row * course
+        image[y0:y0 + course] = shade[None, :]
+        across = np.minimum(np.arange(course), course - 1 - np.arange(course))[:, None]
+        joint[y0:y0 + course] = np.minimum(across, gap[None, :]) / (course * mortar * 2)
+    worn = np.clip(joint, 0, 1) ** 0.5
+    image = image * 0.6 + fbm(rng, size, 24) * 0.4 + periodic_noise(rng, size, 140) * 0.25
+    image = image * worn - (1.0 - worn) * 2.2
+    return normalised(image, 0.2)
+
+
 def wood(rng):
     """Planed wood along u: long fine grain lines that drift a little, a few knots."""
     size = SIZE

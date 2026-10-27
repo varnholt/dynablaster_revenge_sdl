@@ -1,8 +1,10 @@
-# The mountains' rock up close, put into the finished backdrop.glb: weathered rock and coarse slabs on the cliffs
-# and steep slopes, stone grain and grit on the gentler ones. Projected along the axes in the game (triplanar), so
-# the cliffs get their grain where the colour, projected from above, can't give it.
+# The mountains' rock and the castle's stone up close, put into the finished backdrop.glb: weathered rock and
+# coarse slabs on the cliffs and steep slopes, stone grain and grit on the gentler ones; the castle's walls built of
+# blocks, its roofs of slates. Projected along the axes in the game (triplanar), so the cliffs get their grain where
+# the colour, projected from above, can't give it.
 #   python backdrop_detail.py <out dir>
-# Plain python with numpy, run by build_all.py after build_backdrop.py (which leaves terrain_slope.npy).
+# Plain python with numpy, run by build_all.py after build_backdrop.py (which leaves terrain_slope.npy and
+# castle_mask.npy).
 import os
 import sys
 
@@ -16,6 +18,10 @@ import detail  # noqa: E402
 REPEATS = [0.2, 0.07, 0.35, 0.3]
 STRENGTH = 0.7
 
+# the castle: blocks some 0.35 high on the walls, slates half that on the roofs
+CASTLE_REPEATS = [0.36, 0.6, 0.36, 0.36]
+CASTLE_STRENGTH = 0.8
+
 
 def main(out):
     # the mask only blends broad areas, half the colour texture's size is plenty
@@ -26,7 +32,12 @@ def main(out):
     rng = np.random.default_rng(23)
     layers = [detail.rock(rng), detail.rock(rng), detail.stone(rng), detail.grit(rng)]
     detail.embed(os.path.join(out, "backdrop.glb"), {"terrain": mask}, layers, REPEATS, STRENGTH)
-    print("RESULT backdrop detail", mask.shape)
+    castle = np.load(os.path.join(out, "castle_mask.npy"))
+    rng = np.random.default_rng(29)
+    blocks = [detail.masonry(rng), detail.masonry(rng, rows=16, per_row=8, mortar=0.08)]
+    detail.embed(os.path.join(out, "backdrop.glb"), {"backdrop_palette": castle}, blocks + blocks, CASTLE_REPEATS,
+                 CASTLE_STRENGTH)
+    print("RESULT backdrop detail", mask.shape, castle.shape)
 
 
 if __name__ == "__main__":

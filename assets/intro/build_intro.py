@@ -37,6 +37,7 @@ ACTORS = {
     "backdrop": {"model": "backdrop.glb", "scale": 1.0, "actions": []},
     "dome": {"model": "dome.glb", "scale": 1.0, "actions": [(BURST, "burst", "hold")]},
     "door": {"model": "door.glb", "scale": 1.0, "actions": []},
+    "lights": {"model": "lights.glb", "scale": 1.0, "actions": []},
     "dragon": {"model": "dragon.glb", "scale": 1.6, "actions": [(1, "fly", "loop")], "from": BURST,
                "until": s(13.6)},
     "princess": {"model": "princess.glb", "scale": 1.1, "actions": [(1, "dangle", "loop")],
