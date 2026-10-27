@@ -61,8 +61,10 @@ def crag(x, y):
     def wobble(seed, lobes):
         return noise.noise(Vector((math.cos(a) * lobes, math.sin(a) * lobes, seed)))
 
-    # a ragged rim, never cutting into the castle; each band of cliffs wanders on its own
-    r = d - 1.4 * wobble(0.5, 2.2)
+    # a ragged rim, never cutting into the castle; each band of cliffs wanders on its own, and the noise over the
+    # ground (not only round the peak) keeps the bands from reading as rings
+    r = d - 1.4 * wobble(0.5, 2.2) - 1.6 * smoothstep(PLATEAU - 1.0, PLATEAU + 2.0, d) * noise.noise(
+        Vector((x * 0.22, y * 0.22, 2.7)))
     drop = 5.0 + 2.0 * wobble(4.1, 1.6)
     ledge = 2.4 + 1.6 * wobble(7.3, 2.6)
     lower = 6.0 + 3.0 * wobble(9.9, 1.3)
@@ -78,20 +80,47 @@ def crag(x, y):
     return top - lower - (r - PLATEAU - 3.6 - ledge) * 0.85
 
 
+def furrows(x, y, cx, cy, seed=0.0):
+    """Ridges and gullies running down from a summit at cx, cy, as rain and frost carve them: ridged noise
+    stretched along the way down, so the slopes break into spurs instead of rising as round cones."""
+    d = math.hypot(x - cx, y - cy)
+    a = math.atan2(y - cy, x - cx)
+    # the angle as a distance round the peak, so the spurs are about as wide near it as far down
+    around = a * max(d, 4.0)
+    warp = noise.noise(Vector((x * 0.05, y * 0.05, 6.1))) * 6.0
+    ridged = 0.0
+    weight = 1.0
+    scale = 0.16
+    for octave in range(3):
+        n = noise.noise(Vector(((around + warp) * scale, d * scale * 0.25, 13.0 + seed + octave * 7.0)))
+        ridged += (1.0 - abs(n) * 2.0) * weight
+        weight *= 0.5
+        scale *= 2.1
+    return ridged / 1.75
+
+
 def height(x, y):
     h = 0.0
-    for sx, sy, sh, sw in SUMMITS:
+    carved = 0.0
+    for k, (sx, sy, sh, sw) in enumerate(SUMMITS):
         d = math.hypot((x - sx) / sw, (y - sy) / (sw * 0.8))
-        h = max(h, sh * max(0.0, 1.0 - d) ** 1.3)
+        summit = sh * max(0.0, 1.0 - d) ** 1.3
+        if summit > h:
+            h = summit
+            # the gullies cut deeper on the steep upper slopes, and fade out at the foot
+            carved = furrows(x, y, sx, sy, k * 3.1) * min(summit / 5.0, 1.0) * 1.6
     top = crag(x, y)
     rough = noise.noise(Vector((x * 0.12, y * 0.12, 0.0))) * 2.2 + noise.noise(Vector((x * 0.4, y * 0.4, 3.0))) * 0.7
     # the plateau stays level, the cliffs below it get rough
     on_crag = top > h
-    rim = smoothstep(PLATEAU, PLATEAU + 1.0, math.hypot(x - PEAK.x, y - PEAK.y))
+    d = math.hypot(x - PEAK.x, y - PEAK.y)
+    rim = smoothstep(PLATEAU, PLATEAU + 1.0, d)
+    # the spurs and gullies grow deeper away from the plateau
+    carve = furrows(x, y, PEAK.x, PEAK.y) * 1.8 * smoothstep(PLATEAU + 1.0, PLATEAU + 6.0, d)
     if on_crag:
-        return top + rough * 0.8 * rim
+        return top + rough * 0.8 * rim + carve
     # the far ones fade into the night below the horizon line
-    return max(h + rough * min(h / 6.0, 1.0), -0.5 + rough * 0.2)
+    return max(h + carved + rough * min(h / 6.0, 1.0), -0.5 + rough * 0.2)
 
 
 STEP = 0.6  # the terrain's grid before decimating
@@ -152,8 +181,11 @@ def terrain_material():
     # strata across the steep faces
     steep = np.clip((1.0 - normal[..., 2] - 0.45) / 0.25, 0.0, 1.0)
     wobble = np.vectorize(lambda a, b: noise.noise(Vector((a * 0.3, b * 0.3, 5.0))))(x, y)
-    strata = 0.5 + 0.5 * np.sin((z + wobble * 0.8) * 2 * math.pi / 1.1)
-    color *= (1.0 - 0.28 * steep * strata ** 3)[..., None]
+    # the rock's layers dip across the mountain rather than following its height (round a peak those would be
+    # rings), and they break off here and there
+    strata = 0.5 + 0.5 * np.sin((z + 0.22 * x - 0.14 * y + wobble * 2.0) * 2 * math.pi / 1.6)
+    broken = np.clip(np.vectorize(lambda a, b: noise.noise(Vector((a * 0.15, b * 0.15, 21.0))))(x, y) * 2.0 + 0.5, 0, 1)
+    color *= (1.0 - 0.12 * steep * broken * strata ** 3)[..., None]
     # crevices: lower than the heights around them
     blur = z.copy()
     for _ in range(6):
@@ -161,6 +193,9 @@ def terrain_material():
     color *= np.clip(1.0 + (z - blur) * 0.5, 0.65, 1.15)[..., None]
     mottle = np.vectorize(lambda a, b: noise.noise(Vector((a * 1.7, b * 1.7, 9.0))))(x, y)
     color *= (1.0 + 0.08 * mottle)[..., None]
+    # the slope (rise over run) per texel, for the detail masks backdrop_detail.py adds after the export
+    np.save(os.path.join(toy.out_dir(), "terrain_slope.npy"),
+            (np.sqrt(np.maximum(1.0 - normal[..., 2] ** 2, 0.0)) / normal[..., 2]).astype(np.float32))
     # a byte image keeps the srgb colours as they are, like the palette's
     rgba = np.concatenate([np.clip(color, 0, 1), np.ones((h, w, 1))], axis=-1).astype(np.float32)
     image = bpy.data.images.new("terrain_color", w, h)

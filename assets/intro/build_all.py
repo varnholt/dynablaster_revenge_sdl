@@ -6,6 +6,7 @@
 #   build_doctor.py    the doctor
 #   build_lab.py       the lab from the first world's scenery with a door, its dome in voronoi cells that burst
 #   build_backdrop.py  the mountains with the castle
+#   backdrop_detail.py their rock up close (plain python, after Blender)
 #   build_sky.py       the night sky's map (python, no blender)
 #   build_intro.py     stages them all: intro.txt, the timeline StoryIntroDrawable plays
 # Blender is found via the BLENDER environment variable or in its default install folder.
@@ -50,6 +51,7 @@ subprocess.run([sys.executable, os.path.join(HERE, "build_sky.py"), OUT], check=
 for script in ("build_dragon.py", "build_princess.py", "build_doctor.py", "build_lab.py", "build_backdrop.py",
                "build_intro.py"):
     run_blender(script, OUT)
+subprocess.run([sys.executable, os.path.join(HERE, "backdrop_detail.py"), OUT], check=True)
 for name in FILES:
     shutil.copy(os.path.join(OUT, name), INTRO)
 print("intro data in", os.path.normpath(INTRO))
