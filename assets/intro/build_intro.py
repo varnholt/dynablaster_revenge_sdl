@@ -107,10 +107,10 @@ def stage(actors):
         key(dragon, frame, location, rotation)
 
     # the black bomberman up on its head, the princess by the shoulders in its claws: children of the dragon's
-    # body bone, placed (feet on the origin) in the dragon's own units while it's in its rest pose
+    # head and body bones, placed (feet on the origin) in the dragon's own units while it's in its rest pose
     rig = actors["dragon"]["rig"]
     bpy.context.view_layer.update()
-    for name, offset in (("rider", (0.0, 0.15, 1.58)), ("princess", (0.0, -0.5, 0.04))):
+    for name, offset, bone in (("rider", (0.0, 0.15, 1.58), "head"), ("princess", (0.0, -0.5, 0.04), "body")):
         holder = actors[name]["holder"]
         # turned as the dragon is, so they face where its head points (whichever way it's turned just now)
         turned = rig.matrix_world.to_quaternion().to_matrix().to_4x4()
@@ -118,7 +118,7 @@ def stage(actors):
             (ACTORS[name]["scale"],) * 3 + (1,))
         holder.parent = rig
         holder.parent_type = "BONE"
-        holder.parent_bone = "body"
+        holder.parent_bone = bone
         bpy.context.view_layer.update()
         holder.matrix_world = world
 
