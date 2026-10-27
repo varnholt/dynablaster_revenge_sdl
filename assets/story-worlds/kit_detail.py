@@ -15,6 +15,9 @@ import glb  # noqa: E402
 STORY = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "client", "data", "game", "story")
 STRENGTH = {"floor": 0.3, "border": 0.45}
 MASK = 256
+# pieces whose grey is stone, not metal: the castle set's brushed metal (its third image) goes to its stone (the
+# fourth), its fine streaks made world 6's ashlar border look like brushed steel
+STONE = {(6, "border")}
 
 
 def apply(world, folder=STORY):
@@ -28,6 +31,9 @@ def apply(world, folder=STORY):
         material = next(m for m in gltf["materials"] if m.get("name") == name)
         rgb = detail.base_color(gltf, binary, material, MASK)
         mask = detail.mask(kind, rgb, np.zeros(rgb.shape[:2]))
+        if (world, piece) in STONE:
+            mask[..., 3] += mask[..., 2]
+            mask[..., 2] = 0
         detail.embed(path, {name: mask}, detail.images(kind), detail.repeats(kind), strength)
 
 

@@ -1085,7 +1085,9 @@ def gear(x, y, z, radius, mat, angle, teeth=10, depth=0.2, turns=0, phase=0.0):
     cylinder((0, 0, 0), radius, depth, mat, vertices=24)
     for i in range(teeth):
         a = 2 * math.pi * i / teeth
-        box((math.cos(a) * radius, math.sin(a) * radius, 0), (radius * 0.3, radius * 0.25, depth), mat, rotation=a)
+        # a hair thinner than the wheel, else their faces share its planes
+        box((math.cos(a) * radius, math.sin(a) * radius, depth * 0.05), (radius * 0.3, radius * 0.25, depth * 0.9), mat,
+            rotation=a)
     cylinder((0, 0, depth), radius * 0.25, depth * 0.6, mat, vertices=12)
     bpy.context.view_layer.update()
     place = Matrix.Translation((x, y, z)) @ Matrix.Rotation(angle, 4, "Z") @ Matrix.Rotation(math.pi / 2, 4, "Y")
@@ -1105,7 +1107,9 @@ def gear_train(x, y, z, angle, metal, dark, rubber):
     # 12 and 8 teeth: 2 and 3 turns per loop, the small one starts half a tooth on
     gear(gx, gy, height, big, metal, angle, teeth=12, turns=-2)
     distance = big + small + 0.03
-    gear(gx + tx * distance, gy + ty * distance, height, small, metal, angle, teeth=8, turns=3, phase=math.pi / 8)
+    # thinner than the big one: where their teeth mesh they don't lie in one plane
+    gear(gx + tx * distance, gy + ty * distance, height, small, metal, angle, teeth=8, depth=0.15, turns=3,
+         phase=math.pi / 8)
     # the pulley in front of the big gear, the motor's pulley below it, the belt between them
     pulley = 0.22
     px, py = gx + dx * 0.32, gy + dy * 0.32
@@ -1225,19 +1229,23 @@ def tread_floor(TX, TY, base, size=0.25):
 
 
 def torch(x, y, angle, z, iron, wood):
-    """A torch in an iron bracket on the wall, burning."""
+    """A torch in an iron bracket, burning. (x, y) lies on the surface it hangs on, angle is the way it faces: the
+    plate sinks a little into it (a column is round), an arm reaches out into the torch's shaft."""
     dx, dy = math.cos(angle), math.sin(angle)
-    box((x + dx * 0.05, y + dy * 0.05, z - 0.15), (0.14, 0.14, 0.3), iron, rotation=angle)
-    cylinder((x + dx * 0.25, y + dy * 0.25, z - 0.05), 0.05, 0.5, wood, vertices=6)
-    cylinder((x + dx * 0.25, y + dy * 0.25, z + 0.38), 0.09, 0.14, iron, vertices=8)
-    glow((x + dx * 0.25, y + dy * 0.25, z + 0.5), (1.0, 0.62, 0.28), 0.9, GLOW_FIRE)
+    out = 0.22  # the shaft's axis from the surface
+    box((x, y, z - 0.2), (0.12, 0.14, 0.3), iron, rotation=angle)
+    box((x + dx * out * 0.5, y + dy * out * 0.5, z - 0.08), (out + 0.04, 0.05, 0.05), iron, rotation=angle)
+    cylinder((x + dx * out, y + dy * out, z - 0.15), 0.05, 0.6, wood, vertices=6)
+    cylinder((x + dx * out, y + dy * out, z + 0.38), 0.09, 0.14, iron, vertices=8)
+    glow((x + dx * out, y + dy * out, z + 0.5), (1.0, 0.62, 0.28), 0.9, GLOW_FIRE)
 
 
 def banner(x, y, angle, z, cloth, trim):
     """A long red banner with a gold hem and a gold diamond, hanging flat against the wall."""
     dx, dy = math.cos(angle), math.sin(angle)
     box((x + dx * 0.04, y + dy * 0.04, z + 0.4), (0.95, 0.05, 2.1), cloth, rotation=angle + math.pi / 2)
-    box((x + dx * 0.05, y + dy * 0.05, z + 0.32), (0.95, 0.06, 0.1), trim, rotation=angle + math.pi / 2)
+    # the hem a little wider than the cloth, their ends would share a plane
+    box((x + dx * 0.05, y + dy * 0.05, z + 0.32), (1.0, 0.06, 0.1), trim, rotation=angle + math.pi / 2)
     box((x + dx * 0.04, y + dy * 0.04, z + 2.5), (1.15, 0.08, 0.08), trim, rotation=angle + math.pi / 2)
     crest = box((x + dx * 0.07, y + dy * 0.07, z + 1.25), (0.32, 0.04, 0.32), trim)
     crest.rotation_euler = (0.0, 0.0, angle + math.pi / 2)
@@ -1256,8 +1264,9 @@ def brazier(x, y, z, iron, embers):
         a = 2 * math.pi * k / 3
         box((x + math.cos(a) * 0.22, y + math.sin(a) * 0.22, z), (0.07, 0.07, 0.75), iron)
     cone((x, y, z + 0.6), 0.18, 0.35, iron, vertices=12, radius2=0.42)
-    cylinder((x, y, z + 0.9), 0.36, 0.05, embers, vertices=12)
-    glow((x, y, z + 0.97), (1.0, 0.58, 0.24), 1.3, GLOW_FIRE)
+    # a low mound of embers heaped on the bowl's top, not a disc in the same plane (they fought for the pixels)
+    dome((x, y, z + 0.92), 0.37, embers, segments=12, rings=3).scale = (1.0, 1.0, 0.22)
+    glow((x, y, z + 0.98), (1.0, 0.58, 0.24), 1.3, GLOW_FIRE)
 
 
 def barrel(x, y, z, wood, iron, s=1.0):
@@ -1299,7 +1308,8 @@ def world_castle_1(st):
     for (x, y, a) in along_walls(x0, x1, y0, y1, spacing, skip_x=st.cx):
         dx, dy = math.cos(a), math.sin(a)
         column(x + dx * 0.45, y + dy * 0.45, z, 4.4, stone, cap)
-        torch(x + dx * 0.92, y + dy * 0.92, a, z + 2.2, iron, wood)
+        # on the column's face towards the room, its shaft's radius is 0.36
+        torch(x + dx * 0.79, y + dy * 0.79, a, z + 2.2, iron, wood)
     for (x, y, a) in along_walls(x0 + spacing * 0.5, x1 - spacing * 0.5, y0, y1 - spacing * 0.5, spacing,
                                  skip_x=st.cx):
         if abs(a + math.pi / 2) < 0.1:
@@ -1313,7 +1323,8 @@ def world_castle_1(st):
     for h in (0.6, 1.5, 2.4):
         box((st.cx, y1 - 0.42, z + h), (2.45, 0.06, 0.14), iron)
     for side in (-1, 1):
-        torch(st.cx + side * 2.0, y1 - 0.4, -math.pi / 2, z + 2.0, iron, wood)
+        # on the frame beside the door, clear of the columns next to the gate
+        torch(st.cx + side * 1.4, y1 - 0.34, -math.pi / 2, z + 2.0, iron, wood)
     # braziers beside the field, barrels and crates by the walls
     for bx in (-APRON - 1.6, st.w + APRON + 1.6):
         for by in (APRON + 1.2, -st.h * 0.5, -st.h - APRON - 1.2):
@@ -1369,7 +1380,8 @@ def world_castle_2(st):
         else:
             # a furnace in the wall, the fire's glow flickering on the deck
             box((x + dx * 0.3, y + dy * 0.3, z), (1.6, 0.6, 1.6), dark, rotation=a + math.pi / 2, bevel=0.05)
-            box((x + dx * 0.58, y + dy * 0.58, z + 0.3), (1.0, 0.04, 0.7), fire, rotation=a + math.pi / 2)
+            # the fire stands a little proud of the furnace's front, flush they fought for the pixels
+            box((x + dx * 0.6, y + dy * 0.6, z + 0.3), (1.0, 0.04, 0.7), fire, rotation=a + math.pi / 2)
             for k in range(4):
                 box((x + dx * 0.62 + dy * (k - 1.5) * 0.25, y + dy * 0.62 - dx * (k - 1.5) * 0.25, z + 0.25),
                     (0.06, 0.06, 0.8), dark, rotation=a)
