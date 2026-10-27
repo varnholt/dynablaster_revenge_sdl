@@ -61,19 +61,56 @@ float noise(vec2 p)
    return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
 }
 
-// slope of one travelling wave
-vec2 wave(vec2 p, vec2 direction, float frequency, float speed, float amplitude)
+// how much of a wave of this frequency survives where one pixel covers footprint units: in the
+// distance a pixel spans several crests, they'd alias into moiré bands, so they fade out
+float resolved(float frequency, float footprint)
 {
-   float phase = dot(p, direction) * frequency + u_time * speed;
-   return direction * cos(phase) * frequency * amplitude;
+   return 1.0 - smoothstep(1.0, 3.0, footprint * frequency);
+}
+
+// the slope of the sea: many waves, each smaller and shorter than the last and each running its own
+// way, with sharp crests and wide flat troughs (exp(sin) rather than a plain sine, which looks like a
+// tin roof). Every wave pushes the point along its slope before the next one is taken, so the small
+// waves ride on the big ones and crowd together on their crests, as on real water
+const int WAVES = 18;
+const float WAVE_HEIGHT = 0.7;
+const float DRAG = 0.38;
+
+vec2 sea(vec2 p, float footprint)
+{
+   float angle = 0.0;
+   float frequency = 0.8;
+   float weight = 1.0;
+   float total = 0.0;
+   vec2 slope = vec2(0.0);
+   for (int i = 0; i < WAVES; ++i)
+   {
+      vec2 direction = vec2(sin(angle), cos(angle));
+      // deep water: a wave's speed goes with the square root of its length
+      float x = dot(direction, p) * frequency + u_time * 1.2 * sqrt(frequency);
+      float height = exp(sin(x) - 1.0);
+      float rise = height * cos(x);
+      slope += direction * rise * frequency * weight * resolved(frequency, footprint);
+      total += weight;
+      p -= direction * rise * weight * DRAG;
+      weight *= 0.82;
+      frequency *= 1.18;
+      // a far apart, unrelated turn for each wave
+      angle += 1232.399963;
+   }
+   return slope / total * WAVE_HEIGHT;
 }
 
 void main()
 {
    vec2 p = world.xy;
-   vec2 slope = wave(p, normalize(vec2(1.0, 0.3)), 2.1, 1.3, 0.035) + wave(p, normalize(vec2(-0.4, 1.0)), 3.3, 1.9, 0.022) +
-                wave(p, normalize(vec2(0.8, -0.7)), 5.7, 2.6, 0.012) + wave(p, normalize(vec2(-1.0, -0.2)), 9.1, 3.4, 0.006);
-   slope += (vec2(noise(p * 4.0 + u_time * 0.4), noise(p * 4.0 - u_time * 0.35 + 7.0)) - 0.5) * 0.06;
+   vec2 footprint = fwidth(p);
+   float pixel = max(footprint.x, footprint.y);
+
+   // some stretches of the sea are calmer, others choppier
+   float rough = 0.6 + 0.8 * noise(TURN * p * 0.06 + vec2(u_time * 0.015, -u_time * 0.01));
+   vec2 slope = sea(p, pixel) * rough;
+   slope += (vec2(noise(p * 4.0 + u_time * 0.4), noise(p * 4.0 - u_time * 0.35 + 7.0)) - 0.5) * 0.04 * resolved(25.0, pixel);
    vec3 n = normalize(vec3(-slope, 1.0));
 
    vec4 data = texture(u_data, uv);
