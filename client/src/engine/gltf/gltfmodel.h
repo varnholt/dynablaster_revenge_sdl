@@ -75,6 +75,9 @@ public:
    //! index of the animation with that name, -1 if there's none
    [[nodiscard]] int32_t findAnimation(std::string_view name) const;
 
+   //! index of the first node with that name, -1 if there's none
+   [[nodiscard]] int32_t findNode(std::string_view name) const;
+
    //! seconds
    [[nodiscard]] float getAnimationDuration(int32_t animation) const;
 
@@ -97,8 +100,10 @@ public:
    //! uploads the gpu resources, needs the gl context
    void initializeGL();
 
-   //! draws the model posed by the animation at time (seconds, wrapped), no animation for -1
-   void draw(const Matrix& transform, int32_t animation, float time, const Look& look);
+   //! draws the model posed by the animation at time (seconds, wrapped), no animation for -1; only the
+   //! meshes of the node root (see findNode()) and its children if root isn't -1, so one file can hold
+   //! variants of a piece side by side
+   void draw(const Matrix& transform, int32_t animation, float time, const Look& look, int32_t root = -1);
 
    //! the shader and its state for a batch of draw() calls
    static void begin();
@@ -212,6 +217,9 @@ private:
    };
 
    void load(const std::string& filename);
+
+   //! node is root or one of its children, grandchildren, ...
+   [[nodiscard]] bool isPartOf(int32_t node, int32_t root) const;
    void pose(int32_t animation, float time, std::vector<Matrix4>& globals) const;
 
    bool _valid = false;

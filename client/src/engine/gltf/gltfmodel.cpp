@@ -679,6 +679,34 @@ int32_t GltfModel::findAnimation(std::string_view name) const
    return -1;
 }
 
+int32_t GltfModel::findNode(std::string_view name) const
+{
+   for (size_t i = 0; i < _nodes.size(); i++)
+   {
+      if (_nodes[i]._name == name)
+      {
+         return static_cast<int32_t>(i);
+      }
+   }
+
+   return -1;
+}
+
+bool GltfModel::isPartOf(int32_t node, int32_t root) const
+{
+   while (node >= 0)
+   {
+      if (node == root)
+      {
+         return true;
+      }
+
+      node = _nodes[static_cast<size_t>(node)]._parent;
+   }
+
+   return false;
+}
+
 float GltfModel::getAnimationDuration(int32_t animation) const
 {
    return animation >= 0 && animation < static_cast<int32_t>(_animations.size()) ? _animations[static_cast<size_t>(animation)]._duration
@@ -1022,7 +1050,7 @@ void GltfModel::end()
    activeDevice().setShader(0);
 }
 
-void GltfModel::draw(const Matrix& transform, int32_t animation, float time, const Look& look)
+void GltfModel::draw(const Matrix& transform, int32_t animation, float time, const Look& look, int32_t root)
 {
    if (!_valid)
    {
@@ -1049,6 +1077,11 @@ void GltfModel::draw(const Matrix& transform, int32_t animation, float time, con
    {
       // the water has a shader of its own, see drawWater()
       if (primitive._water)
+      {
+         continue;
+      }
+
+      if (root >= 0 && !isPartOf(primitive._node, root))
       {
          continue;
       }

@@ -35,6 +35,18 @@ Matrix at(float x, float y, float angle = 0.0f)
 {
    return Matrix::rotateZ(angle) * Matrix::position(x + 0.5f, -(y + 0.5f), 0.0f);
 }
+
+//! a tile position's own number, the same every frame, unalike for neighbours
+uint32_t scramble(int32_t x, int32_t y)
+{
+   uint32_t h = static_cast<uint32_t>(x) * 0x8da6b343u ^ static_cast<uint32_t>(y) * 0xd8163841u;
+   h ^= h >> 16;
+   h *= 0x7feb352du;
+   h ^= h >> 15;
+   h *= 0x846ca68bu;
+   h ^= h >> 16;
+   return h;
+}
 }  // namespace
 
 StoryField::StoryField() = default;
@@ -111,6 +123,20 @@ StoryField::Kit& StoryField::getKit()
       kit._floor = loadPiece(_world, "floor");
       kit._border = loadPiece(_world, "border");
       kit._corner = loadPiece(_world, "corner");
+
+      // the border's variants, nodes border_0, border_1, ...; none for a single block
+      for (int32_t i = 0; kit._border->isValid(); i++)
+      {
+         const int32_t node = kit._border->findNode(std::format("border_{}", i));
+
+         if (node < 0)
+         {
+            break;
+         }
+
+         kit._border_variants.push_back(node);
+      }
+
       kit._surroundings = loadPiece(_world, "surroundings");
       it = _kits.emplace(_world, std::move(kit)).first;
    }
@@ -139,25 +165,64 @@ void StoryField::drawBorder(Kit& kit, const Matrix& transform)
 
    const GltfModel::Look look;
    constexpr float quarter = 0.5f * std::numbers::pi_v<float>;
+   const auto& variants = kit._border_variants;
+   const auto count = static_cast<uint32_t>(variants.size());
+   uint32_t previous = count;
 
-   // pieces face the field
+   // each tile picks a variant of the block by its position, never the one of the tile before it on the way
+   // round the field, so the row doesn't repeat; a model without variants is drawn whole
+   const auto piece = [&](GltfModel& model, int32_t x, int32_t y, float angle)
+   {
+      int32_t root = -1;
+
+      if (&model == kit._border.get() && count > 0)
+      {
+         const uint32_t h = scramble(x, y);
+         uint32_t variant = h % count;
+
+         if (variant == previous && count > 1)
+         {
+            variant = (variant + 1 + (h >> 16) % (count - 1)) % count;
+         }
+
+         previous = variant;
+         root = variants[variant];
+      }
+
+      model.draw(at(static_cast<float>(x), static_cast<float>(y), angle) * transform, -1, 0.0f, look, root);
+   };
+
+   GltfModel& border = *kit._border;
+   GltfModel& corner = kit._corner->isValid() ? *kit._corner : border;
+
+   // clockwise from the top left corner, the pieces face the field
+   piece(corner, -1, -1, 0.0f);
+
    for (int32_t x = 0; x < _width; x++)
    {
-      kit._border->draw(at(static_cast<float>(x), -1.0f) * transform, -1, 0.0f, look);
-      kit._border->draw(at(static_cast<float>(x), static_cast<float>(_height), 2.0f * quarter) * transform, -1, 0.0f, look);
+      piece(border, x, -1, 0.0f);
    }
+
+   piece(corner, _width, -1, -quarter);
 
    for (int32_t y = 0; y < _height; y++)
    {
-      kit._border->draw(at(-1.0f, static_cast<float>(y), quarter) * transform, -1, 0.0f, look);
-      kit._border->draw(at(static_cast<float>(_width), static_cast<float>(y), -quarter) * transform, -1, 0.0f, look);
+      piece(border, _width, y, -quarter);
    }
 
-   GltfModel& corner = kit._corner->isValid() ? *kit._corner : *kit._border;
-   corner.draw(at(-1.0f, -1.0f) * transform, -1, 0.0f, look);
-   corner.draw(at(static_cast<float>(_width), -1.0f, -quarter) * transform, -1, 0.0f, look);
-   corner.draw(at(-1.0f, static_cast<float>(_height), quarter) * transform, -1, 0.0f, look);
-   corner.draw(at(static_cast<float>(_width), static_cast<float>(_height), 2.0f * quarter) * transform, -1, 0.0f, look);
+   piece(corner, _width, _height, 2.0f * quarter);
+
+   for (int32_t x = _width - 1; x >= 0; x--)
+   {
+      piece(border, x, _height, 2.0f * quarter);
+   }
+
+   piece(corner, -1, _height, quarter);
+
+   for (int32_t y = _height - 1; y >= 0; y--)
+   {
+      piece(border, -1, y, quarter);
+   }
 }
 
 void StoryField::render()
