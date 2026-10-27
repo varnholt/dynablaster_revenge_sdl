@@ -69,57 +69,102 @@ def action(rig, name, base, keys, frames, cyclic=True):
     track.mute = True
 
 
+# the antenna's ball swings after the head; at 60 frames a second a softer spring than the 24 frame models'
+BOBBLE = [("bobble1", 0.1, 0.86), ("bobble2", 0.1, 0.86), ("bobble3", 0.1, 0.86)]
+UP = (0, 0, 1)  # turns about the vertical
+STEP = 3  # frames between the keys sampled from the poses' curves
+
+
+def wave(frame, frames, lag=0.0):
+    """-1..1 round a loop of frames, lag (in loops) behind."""
+    return math.sin(2 * math.pi * (frame / frames - lag))
+
+
+def sampled(rig, name, base, frames, pose):
+    """An action from pose(frame) keyed every STEP frames round the loop: the limbs move in arcs and the parts
+    further out lag behind the ones they hang on, the antenna swings after the head."""
+    keys = [(frame, pose(frame)) for frame in range(0, frames + 1, STEP)]
+    action(rig, name, base, keys, frames)
+    act = bpy.data.actions[name]
+    for bone, stiffness, damping in BOBBLE:
+        rig.animation_data.action = act
+        toy.follow_through(rig, act, bone, stiffness, damping, True)
+    rig.animation_data.action = None
+
+
 def panic(rig, base):
-    # arms flapping up and down against each other, forearms flung about, hopping from foot to foot, head shaking
-    def pose(left_up, right_up, hop, shake):
-        return {
-            "up_arm_l": (turn((UP_L, left_up)), None), "up_arm_r": (turn((UP_R, right_up)), None),
-            "low_arm_l": (turn((UP_L, left_up * 0.4)), None), "low_arm_r": (turn((UP_R, right_up * 0.4)), None),
+    """Flailing: the arms flap up and down against each other, the forearms whipping a beat behind, hopping from
+    foot to foot, the body twisting and the head shaking after it; half a second a loop."""
+    frames = 30
+
+    def pose(f):
+        flap = wave(f, frames)
+        hop = abs(wave(f, frames, 0.1)) * 0.025
+        left = 75 + 45 * flap
+        right = 75 - 45 * flap
+        p = {
+            "up_arm_l": (turn((UP_L, left)), None), "up_arm_r": (turn((UP_R, right)), None),
+            "low_arm_l": (turn((UP_L, 35 * wave(f, frames, 0.15))), None),
+            "low_arm_r": (turn((UP_R, -35 * wave(f, frames, 0.15))), None),
+            "hand_l": (turn((UP_L, 25 * wave(f, frames, 0.25))), None),
+            "hand_r": (turn((UP_R, -25 * wave(f, frames, 0.25))), None),
             "root": (None, (0, 0, hop)),
-            "foot_l": (None, (0, 0, max(hop, 0) * 0.8)), "foot_r": (None, (0, 0, max(-hop, 0) * 0.8)),
-            "CTRL_head": (turn(((0, 0, 1), shake), (LEGS_FORWARD, 12)), None),
+            "spine2": (turn((UP, 8 * flap)), None),
+            "CTRL_head": (turn((UP, -14 * wave(f, frames, 0.2)), (LEGS_FORWARD, 12)), None),
         }
-    keys = [(0, pose(120, 30, 0.02, 12)), (8, pose(75, 75, 0.0, 0)), (15, pose(30, 120, -0.02, -12)),
-            (23, pose(75, 75, 0.0, 0)), (30, pose(120, 30, 0.02, 12))]
-    # the hop lifts the whole body, the foot on the ground stays down
-    for _, p in keys:
-        hop = p["root"][1][2]
-        p["foot_l"] = (None, (0, 0, -hop + (0.02 if hop > 0 else 0)))
-        p["foot_r"] = (None, (0, 0, -hop + (0.02 if hop < 0 else 0)))
-    action(rig, "panic", base, keys, 30)
+        # the hop lifts the whole body, the foot on the ground stays down
+        lead = wave(f, frames, 0.1) > 0
+        p["foot_l"] = (None, (0, 0, -hop + (0.02 if lead else 0)))
+        p["foot_r"] = (None, (0, 0, -hop + (0.02 if not lead else 0)))
+        return p
+    sampled(rig, "panic", base, frames, pose)
 
 
 def ride(rig, base):
-    # astride the dragon's neck: legs forward and apart, the left hand holding on, the right fist up, bobbing
-    def pose(fist, bob):
+    """Astride the dragon's neck: legs forward and apart, the left hand holding on, the right fist pumping; the
+    body rides the wingbeat (the dragon's 16 frame flap at 24 frames a second is 40 frames here), sinking as the
+    dragon is lifted, the fist and head a beat behind."""
+    frames = 40
+
+    def pose(f):
+        bob = wave(f, frames, 0.25)
+        pump = wave(f, frames, 0.4)
         legs = {}
         for side, s in (("l", 1), ("r", -1)):
             legs[f"up_leg_{side}"] = (turn((LEGS_FORWARD, 70), ((0, -s, 0), 35)), None)
-            legs[f"low_leg_{side}"] = (turn((LEGS_FORWARD, 10)), None)
+            legs[f"low_leg_{side}"] = (turn((LEGS_FORWARD, 10 + 4 * bob)), None)
             legs[f"foot_{side}"] = (turn((LEGS_FORWARD, 20)), (s * 0.07, -0.09, 0.09))
         return {
             **legs,
-            "root": (None, (0, 0, bob)),
+            "root": (None, (0, 0, -0.012 * bob)),
             "CTRL_pelvis": (turn((BEND, -8)), None),
+            "spine2": (turn((BEND, 4 * bob)), None),
             "up_arm_l": (turn((UP_L, 15), ((0, 0, 1), 50)), None),
             "low_arm_l": (turn(((0, 0, 1), 30)), None),
-            "up_arm_r": (turn((UP_R, 95 + fist * 0.5)), None),
-            "low_arm_r": (turn((UP_R, 55 + fist)), None),
-            "CTRL_head": (turn((BEND, 8)), None),
+            "up_arm_r": (turn((UP_R, 100 + 12 * pump)), None),
+            "low_arm_r": (turn((UP_R, 60 + 25 * pump)), None),
+            "hand_r": (turn((UP_R, 10 * wave(f, frames, 0.5))), None),
+            "CTRL_head": (turn((BEND, 8 - 6 * wave(f, frames, 0.35))), None),
         }
-    keys = [(0, pose(0, 0.0)), (15, pose(15, 0.012)), (30, pose(0, 0.0))]
-    action(rig, "ride", base, keys, 30)
+    sampled(rig, "ride", base, frames, pose)
 
 
 def look_up(rig, base):
-    # standing, arms a little out, staring up after the dragon
-    def pose(sway):
+    """Standing, staring up after the dragon: breathing, the weight shifting, the head following it a little from
+    side to side, the arms hanging slightly out; two seconds a loop."""
+    frames = 120
+
+    def pose(f):
+        breath = wave(f, frames / 2)
+        sway = wave(f, frames)
         return {
-            "CTRL_head": (turn((LEGS_FORWARD, 30), ((0, 0, 1), sway)), None),
-            "spine3": (turn((LEGS_FORWARD, 6)), None),
-            "up_arm_l": (turn((UP_L, 20)), None), "up_arm_r": (turn((UP_R, 20)), None),
+            "CTRL_head": (turn((LEGS_FORWARD, 30 + 2 * breath), ((0, 0, 1), 5 * wave(f, frames, 0.1))), None),
+            "spine3": (turn((LEGS_FORWARD, 6 + 1.5 * breath)), None),
+            "CTRL_pelvis": (turn(((0, 1, 0), 2 * sway)), (0.004 * sway, 0, 0)),
+            "up_arm_l": (turn((UP_L, 20 + 3 * breath)), None), "up_arm_r": (turn((UP_R, 20 + 3 * breath)), None),
+            "low_arm_l": (turn((UP_L, 6)), None), "low_arm_r": (turn((UP_R, 6)), None),
         }
-    action(rig, "look_up", base, [(0, pose(-4)), (60, pose(4)), (120, pose(-4))], 120)
+    sampled(rig, "look_up", base, frames, pose)
 
 
 def colour_map(index):

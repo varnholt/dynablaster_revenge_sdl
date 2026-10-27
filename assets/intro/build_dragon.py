@@ -1,5 +1,7 @@
 # The dragon of the intro: a chubby green dragon with bat wings, the black bomberman rides on its head and it
-# carries the princess off in its claws. One action, "fly", a flap of the wings that loops.
+# carries the princess off in its claws. One action, "fly", a flap of the wings that loops. Rigged like the intro's
+# people: a spine of body, chest, neck and head, two-bone arms and legs, wings that fold at elbow and wrist, a tail of
+# four bones whose end swings after the rest.
 #   blender --background --factory-startup --python build_dragon.py -- <out dir>
 # writes dragon.glb and dragon.blend. About 1.9 high without the wings, the player being 1.
 #
@@ -252,9 +254,9 @@ def claws():
 
 def tail_end():
     points = [(0, 0.98, 0.3), (0, 1.16, 0.38), (0, 1.28, 0.56), (0, 1.32, 0.72)]
-    part("tail", tube(points, [0.11, 0.08, 0.055, 0.03], 16), lambda co: GREEN.lerp(BACK, 0.5), "tail2")
+    part("tail", tube(points, [0.11, 0.08, 0.055, 0.03], 16), lambda co: GREEN.lerp(BACK, 0.5), "tail")
     spade = toy.slab([(0, -0.02), (0.15, 0.1), (0.05, 0.13), (0, 0.3), (-0.05, 0.13), (-0.15, 0.1)], 0.05)
-    part("spade", spade, lambda co: BACK.lerp(MEMBRANE_OUT, max(co.z, 0.0) / 0.3 * 0.6), "tail2",
+    part("spade", spade, lambda co: BACK.lerp(MEMBRANE_OUT, max(co.z, 0.0) / 0.3 * 0.6), "tail",
          trs((0, 1.32, 0.7), (-25, 0, 90)))
 
 
@@ -349,33 +351,53 @@ def wings():
 
 # --- rig, weights, bake ---------------------------------------------------------------------------------
 
+ELBOW = Vector((0.45, 0.46))  # in the wing's plane, where the wing's arm bends
+
 BONES = {
     "root": ((0, 0, 0), (0, 0, 0.3), None),
-    "body": ((0, 0.05, 0.4), (0, -0.05, 1.2), "root"),
-    "head": ((0, -0.08, 1.25), (0, -0.15, 1.92), "body"),
-    "tail1": ((0, 0.4, 0.45), (0, 0.85, 0.3), "root"),
-    "tail2": ((0, 0.85, 0.3), (0, 1.3, 0.7), "tail1"),
+    "body": ((0, 0.05, 0.4), (0, 0, 0.8), "root"),
+    "chest": ((0, 0, 0.8), (0, -0.05, 1.2), "body"),
+    "neck": ((0, -0.05, 1.2), (0, -0.08, 1.32), "chest"),
+    "head": ((0, -0.08, 1.32), (0, -0.15, 1.92), "neck"),
+    "tail1": ((0, 0.4, 0.45), (0, 0.62, 0.34), "root"),
+    "tail2": ((0, 0.62, 0.34), (0, 0.85, 0.3), "tail1"),
+    "tail3": ((0, 0.85, 0.3), (0, 1.08, 0.42), "tail2"),
+    "tail4": ((0, 1.08, 0.42), (0, 1.32, 0.72), "tail3"),
 }
 for _s, _n in ((1, "L"), (-1, "R")):
-    _root = (_s * SHOULDER.x, SHOULDER.y, SHOULDER.z)
-    _wrist = (_s * (SHOULDER.x + WRIST.x * 0.97), SHOULDER.y + WRIST.x * 0.24, SHOULDER.z + WRIST.y)
-    BONES[f"wing_in.{_n}"] = (_root, _wrist, "body")
-    BONES[f"wing_out.{_n}"] = (_wrist, (_s * (SHOULDER.x + SPAN), SHOULDER.y + 0.44, SHOULDER.z + 0.44),
-                               f"wing_in.{_n}")
-    BONES[f"arm.{_n}"] = ((_s * 0.3, -0.14, 1.0), (_s * 0.22, -0.48, 0.52), "body")
-    BONES[f"leg.{_n}"] = ((_s * 0.3, 0.06, 0.42), (_s * 0.34, -0.14, 0.07), "root")
+    _place = wing_matrix(_s)
+    _root = _place @ Vector((0, 0, 0))
+    _elbow = _place @ Vector((ELBOW.x, 0, ELBOW.y))
+    _wrist = _place @ Vector((WRIST.x, 0, WRIST.y))
+    _tip = _place @ Vector((SPAN, 0, 0.44))
+    BONES[f"wing_upper.{_n}"] = (tuple(_root), tuple(_elbow), "chest")
+    BONES[f"wing_fore.{_n}"] = (tuple(_elbow), tuple(_wrist), f"wing_upper.{_n}")
+    BONES[f"wing_out.{_n}"] = (tuple(_wrist), tuple(_tip), f"wing_fore.{_n}")
+    BONES[f"upper_arm.{_n}"] = ((_s * 0.3, -0.14, 1.0), (_s * 0.26, -0.31, 0.76), "chest")
+    BONES[f"forearm.{_n}"] = ((_s * 0.26, -0.31, 0.76), (_s * 0.22, -0.48, 0.52), f"upper_arm.{_n}")
+    BONES[f"thigh.{_n}"] = ((_s * 0.3, 0.06, 0.42), (_s * 0.32, -0.04, 0.25), "root")
+    BONES[f"shin.{_n}"] = ((_s * 0.32, -0.04, 0.25), (_s * 0.34, -0.14, 0.07), f"thigh.{_n}")
 
-BODY_BONES = ["root", "body", "head", "tail1", "tail2", "arm.L", "arm.R", "leg.L", "leg.R"]
+# the bones the body's one smooth shape blends between
+BODY_BONES = ["root", "body", "chest", "neck", "head", "tail1", "tail2", "tail3", "tail4"] + [
+    f"{bone}.{n}" for bone in ("upper_arm", "forearm", "thigh", "shin") for n in ("L", "R")]
 
 
 def weights(co, region, x):
-    """{bone: weight} for a vertex: the body blends between its nearest bones, the rest is rigid."""
+    """{bone: weight} for a vertex: the body blends between its nearest bones, the wings by the distance out along
+    their span (x), the tail's end along its length; claws and toes ride on the forearm and the shin."""
     if region.startswith("wing."):
         name = region[5:]
-        outer = smoothstep(WRIST.x - 0.3, WRIST.x + 0.15, x)
-        return {f"wing_in.{name}": 1.0 - outer, f"wing_out.{name}": outer}
-    if region in ("arm", "leg"):
-        return {f"{region}.{'L' if co.x > 0 else 'R'}": 1.0}
+        upper = 1.0 - smoothstep(0.25, 0.55, x)
+        outer = smoothstep(WRIST.x - 0.15, WRIST.x + 0.15, x)
+        return {f"wing_upper.{name}": upper, f"wing_fore.{name}": 1.0 - upper - outer, f"wing_out.{name}": outer}
+    if region == "arm":
+        return {f"forearm.{'L' if co.x > 0 else 'R'}": 1.0}
+    if region == "leg":
+        return {f"shin.{'L' if co.x > 0 else 'R'}": 1.0}
+    if region == "tail":
+        end = smoothstep(1.02, 1.16, co.y)
+        return {"tail3": 1.0 - end, "tail4": end}
     if region != "body":
         return {region: 1.0}
     near = []
@@ -404,7 +426,7 @@ def join(body):
     """Everything into one mesh with its paint, its region per vertex kept for the weights, and per face what
     refine.py needs: the part it belongs to, whether it's only painted on, the surface it fuses into (the body
     with its brows, lids and tail; the thin details; each wing's arm and fingers; each membrane)."""
-    regions = ["body", "head", "arm", "leg", "tail2", "wing.L", "wing.R"]
+    regions = ["body", "head", "arm", "leg", "tail", "wing.L", "wing.R"]
     paint = body.data.color_attributes.new("paint", "FLOAT_COLOR", "POINT")
     for v in body.data.vertices:
         paint.data[v.index].color = (*linear(body_colour(v.co, v.normal)), 1.0)
@@ -483,38 +505,44 @@ def rig(obj, regions):
     return rig_obj
 
 
+# the tail's end and the shins swing after the rest: the tail heavy and slow, the legs dangling
+FOLLOW = [("tail3", 0.2, 0.78), ("tail4", 0.16, 0.8), ("shin.L", 0.3, 0.7), ("shin.R", 0.3, 0.7)]
+PITCH = (1, 0, 0)  # tips the body, head or tail forwards (towards -y)
+
+
 def animate(rig_obj):
-    """One flap in 16 frames: the wings beat down with the outer part trailing, the body bobs up as they do."""
+    """One flap in 16 frames. The downstroke drives from the shoulder, the forearm a frame behind and the hand's
+    span two, spread wide; on the upstroke the wing folds at elbow and wrist and opens again at the top. The body
+    is lifted by each downstroke and sinks between them, the chest rocking with the beat while neck and head make
+    up for it so the head stays steady; tail and legs trail along."""
     frames = 16
-    up, down = 46, -34
     keys = {}
     for name, s in (("L", 1), ("R", -1)):
         lift = (0, -s, 0)  # turns the span up
         sweep = (0, 0, s)  # turns the span back
-        keys[f"wing_in.{name}"] = [
-            (1, turn((lift, up), (sweep, 10)), None),
-            (7, turn((lift, down), (sweep, -12)), None),
-            (11, turn((lift, down + 8), (sweep, -6)), None),
-            (17, turn((lift, up), (sweep, 10)), None),
-        ]
-        keys[f"wing_out.{name}"] = [
-            (1, turn((lift, -12)), None),
-            (5, turn((lift, 20)), None),
-            (9, turn((lift, -28)), None),
-            (13, turn((lift, -30)), None),
-            (17, turn((lift, -12)), None),
-        ]
-        keys[f"leg.{name}"] = [(1, turn(((1, 0, 0), -10 + s * 4)), None), (9, turn(((1, 0, 0), 12 - s * 4)), None),
-                               (17, turn(((1, 0, 0), -10 + s * 4)), None)]
-        keys[f"arm.{name}"] = [(1, turn(((1, 0, 0), 4)), None), (9, turn(((1, 0, 0), -4)), None),
-                               (17, turn(((1, 0, 0), 4)), None)]
-    keys["root"] = [(1, None, (0, 0, -0.06)), (9, None, (0, 0, 0.1)), (17, None, (0, 0, -0.06))]
-    keys["head"] = [(1, turn(((1, 0, 0), 5)), None), (9, turn(((1, 0, 0), -5)), None), (17, turn(((1, 0, 0), 5)), None)]
-    keys["tail1"] = [(1, turn(((0, 0, 1), 10)), None), (9, turn(((0, 0, 1), -10)), None),
-                     (17, turn(((0, 0, 1), 10)), None)]
-    keys["tail2"] = [(1, turn(((1, 0, 0), -15)), None), (9, turn(((1, 0, 0), 15)), None),
-                     (17, turn(((1, 0, 0), -15)), None)]
-    toy.action(rig_obj, "fly", frames, keys)
+        # (frame, up, sweep) of each segment round the beat; later segments lag and fold on the way up
+        upper = [(1, 50, 8), (7, -36, -10), (11, -10, 0), (17, 50, 8)]
+        fore = [(1, -15, 18), (3, 10, 0), (8, 6, -4), (12, -35, 30), (17, -15, 18)]
+        out = [(1, -10, 25), (4, 25, 0), (9, -20, -6), (13, -40, 35), (17, -10, 25)]
+        for bone, track in (("wing_upper", upper), ("wing_fore", fore), ("wing_out", out)):
+            keys[f"{bone}.{name}"] = [(f, turn((lift, a), (sweep, b)), None) for f, a, b in track]
+        # the arms hold on to the princess; the thighs pull up a little as the body is lifted
+        keys[f"upper_arm.{name}"] = [(1, turn((PITCH, 4)), None), (9, turn((PITCH, -3)), None),
+                                     (17, turn((PITCH, 4)), None)]
+        keys[f"forearm.{name}"] = [(1, turn((PITCH, -6)), None), (10, turn((PITCH, 4)), None),
+                                   (17, turn((PITCH, -6)), None)]
+        keys[f"thigh.{name}"] = [(1, turn((PITCH, -14 + s * 4)), None), (9, turn((PITCH, 10 - s * 4)), None),
+                                 (17, turn((PITCH, -14 + s * 4)), None)]
+    keys["root"] = [(1, None, (0, 0, -0.05)), (5, None, (0, 0, -0.07)), (10, None, (0, 0, 0.11)),
+                    (17, None, (0, 0, -0.05))]
+    keys["chest"] = [(1, turn((PITCH, -5)), None), (8, turn((PITCH, 6)), None), (17, turn((PITCH, -5)), None)]
+    keys["neck"] = [(1, turn((PITCH, 4)), None), (9, turn((PITCH, -5)), None), (17, turn((PITCH, 4)), None)]
+    keys["head"] = [(1, turn((PITCH, 2)), None), (10, turn((PITCH, -3)), None), (17, turn((PITCH, 2)), None)]
+    keys["tail1"] = [(1, turn(((0, 0, 1), 8), (PITCH, 6)), None), (9, turn(((0, 0, 1), -8), (PITCH, -6)), None),
+                     (17, turn(((0, 0, 1), 8), (PITCH, 6)), None)]
+    keys["tail2"] = [(1, turn(((0, 0, 1), 6)), None), (11, turn(((0, 0, 1), -6)), None),
+                     (17, turn(((0, 0, 1), 6)), None)]
+    toy.action(rig_obj, "fly", frames, keys, follow=FOLLOW)
 
 
 def build():
