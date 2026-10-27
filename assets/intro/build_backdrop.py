@@ -291,6 +291,14 @@ def build(out):
     windows = []
     castle(b, windows)
     mesh = b.build_static()
+    # which of the castle's palette swatches get which detail (rows bottom up like the palette): walls blocks,
+    # roofs slates, windows and gate none; for backdrop_detail.py
+    size = toy.CELL * toy.GRID
+    mask = np.zeros((size, size, 4), dtype=np.float32)
+    for key, layer in (("wall", 0), ("wall_light", 0), ("roof", 1)):
+        row, col = divmod(palette.index[key], toy.GRID)
+        mask[row * toy.CELL:(row + 1) * toy.CELL, col * toy.CELL:(col + 1) * toy.CELL, layer] = 1.0
+    np.save(os.path.join(out, "castle_mask.npy"), mask)
     # the windows' glow, read by the game from the nodes' extras: [r, g, b, size, mode], 1 flickers
     for i, spot in enumerate(windows):
         glow = bpy.data.objects.new(f"glow.{i:03d}", None)

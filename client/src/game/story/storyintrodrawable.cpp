@@ -24,8 +24,49 @@ constexpr float FADE_OUT = 1.2f;
 constexpr float Z_NEAR = 0.3f;
 constexpr float Z_FAR = 400.0f;
 
-// moonlight on the scene
+// moonlight on the figures and the mountains
 const Vector NIGHT(0.72f, 0.78f, 0.98f);
+
+// the lab and its door are the first world's scenery, painted for the day: moonlit they sink deeper and bluer
+// into the night than the figures, who'd get lost against them otherwise
+const Vector NIGHT_SET(0.25f, 0.28f, 0.42f);
+
+// the lab's lit windows shine at their own colour, whatever the moon does
+const Vector LAMPLIGHT(1.3f, 1.3f, 1.3f);
+
+// the dome's pale glass, dimmed so it doesn't glow against the dark lab
+const Vector DOME(0.5f, 0.56f, 0.78f);
+
+// how the night lights an actor
+Vector lightOn(const std::string& actor)
+{
+   if (actor == "lab" || actor == "door")
+   {
+      return NIGHT_SET;
+   }
+
+   if (actor == "lights")
+   {
+      return LAMPLIGHT;
+   }
+
+   return actor == "dome" ? DOME : NIGHT;
+}
+
+// the night air: the sky's blue in the shadows, the moon catching the silhouettes, the far mountains fading into
+// the dark round the lab; the haze and the moon on the edges fade in and out with the picture
+GltfModel::Atmosphere nightAir(float fade)
+{
+   GltfModel::Atmosphere air;
+   air._haze = Vector(0.06f, 0.06f, 0.15f) * fade;
+   air._strength = 0.5f;
+   air._near = 30.0f;
+   air._far = 160.0f;
+   air._box = Vector4(-5.0f, -5.0f, 18.0f, 16.0f);
+   air._ambient = Vector(0.5f, 0.55f, 0.8f);
+   air._rim = Vector(0.9f, 1.05f, 1.6f) * fade;
+   return air;
+}
 
 Matrix readMatrix(std::istream& in)
 {
@@ -275,19 +316,19 @@ void StoryIntroDrawable::paintGL()
    _sky->setBrightness(fade);
    _sky->render();
 
-   GltfModel::Look look;
-   look._tint = NIGHT * fade;
-
    GltfModel::setDaylight(1.0f);
-   GltfModel::setAtmosphere({});
+   GltfModel::setAtmosphere(nightAir(fade));
    GltfModel::begin();
 
-   for (const Actor& actor : _actors)
+   const auto draw = [this, fade](const Actor& actor)
    {
       if (_time < actor._from || _time >= actor._until)
       {
-         continue;
+         return;
       }
+
+      GltfModel::Look look;
+      look._tint = lightOn(actor._name) * fade;
 
       // the last action started so far
       int32_t animation = -1;
@@ -309,6 +350,11 @@ void StoryIntroDrawable::paintGL()
       }
 
       actor._model->draw(sample(actor._matrices, _time), animation, time, look);
+   };
+
+   for (const Actor& actor : _actors)
+   {
+      draw(actor);
    }
 
    GltfModel::end();

@@ -3,6 +3,7 @@
 # writes
 #   lab.glb          world1/surroundings_13x11.glb with the dome cut out of its props and a doorway right of it
 #   door.glb         that doorway's door, hinged on its origin
+#   lights.glb       the lab's lit windows and strips at night
 #   dome.glb         the dome broken into voronoi cells, whole in its rest pose; "burst" blows the cells round the
 #                    top out along their normals, then they tumble down
 # all in the scenery's own coordinates (field coordinates, z up).
@@ -112,6 +113,70 @@ def cut_door(props):
     print("RESULT door: removed", len(doomed), "panel faces,", len(opening), "facade faces")
 
 
+LIGHT_COLORS = {
+    "lamp": (1.0, 0.80, 0.48),
+    "strip": (0.50, 0.70, 1.0),
+}
+
+
+def find_lights(props):
+    """The lab's dark window panes and the blue strips over them, from the facade's colours: (kind, lo, hi) of
+    each, lo and hi the corners of its rectangle on the facade."""
+    image = next(i for i in bpy.data.images if i.name.startswith("props_color"))
+    w, h = image.size
+    pixels = image.pixels[:]
+    bm = bmesh.new()
+    bm.from_mesh(props.data)
+    bm.transform(props.matrix_world)
+    uvs = bm.loops.layers.uv.active
+    found = {}
+    for f in bm.faces:
+        centre = f.calc_center_median()
+        if f.normal.y > -0.99 or abs(centre.y - (FRONT_Y - 0.04)) > 0.02:
+            continue
+        u = sum(loop[uvs].uv.x for loop in f.loops) / len(f.loops)
+        v = sum(loop[uvs].uv.y for loop in f.loops) / len(f.loops)
+        i = ((int(v * h) % h) * w + int(u * w) % w) * 4
+        r, g, b = pixels[i:i + 3]
+        kind = "lamp" if max(r, g, b) < 0.25 else "strip" if b > 0.6 and r < 0.2 else None
+        if kind:
+            # each pane or strip is two triangles, keyed by the bay they're in
+            found.setdefault((kind, round(centre.x)), []).extend(v.co.copy() for v in f.verts)
+    bm.free()
+    lights = []
+    for (kind, _), corners in sorted(found.items()):
+        lo = Vector((min(c.x for c in corners), min(c.y for c in corners), min(c.z for c in corners)))
+        hi = Vector((max(c.x for c in corners), max(c.y for c in corners), max(c.z for c in corners)))
+        lights.append((kind, lo, hi))
+    print("RESULT lab lights", sum(k == "lamp" for k, _, _ in lights), "panes",
+          sum(k == "strip" for k, _, _ in lights), "strips")
+    return lights
+
+
+def lights(out, found):
+    """lights.glb: the lab at night, lamplight behind its window panes and the blue strips over them glowing
+    like the machines inside; quads just in front of the facade the intro draws at full brightness, the panes
+    with a soft halo ([r, g, b, size, mode], as the backdrop's windows)."""
+    toy.reset()
+    palette = toy.Palette("lights_palette", LIGHT_COLORS)
+    b = toy.Builder("lights", palette)
+    for i, (kind, lo, hi) in enumerate(found):
+        y = lo.y - 0.01
+        bm = bmesh.new()
+        bm.faces.new([bm.verts.new(c) for c in ((lo.x, y, lo.z), (hi.x, y, lo.z), (hi.x, y, hi.z), (lo.x, y, hi.z))])
+        b.add(bm, kind)
+        if kind == "lamp":
+            node = bpy.data.objects.new(f"glow.{i:03d}", None)
+            node.location = ((lo.x + hi.x) / 2, y - 0.05, (lo.z + hi.z) / 2)
+            node["glow"] = [1.0, 0.72, 0.38, 1.1, 0]
+            bpy.context.scene.collection.objects.link(node)
+    b.build_static()
+    bpy.ops.object.select_all(action="SELECT")
+    bpy.ops.export_scene.gltf(filepath=os.path.join(out, "lights.glb"), export_format="GLB", use_selection=True,
+                              export_extras=True)
+    print("RESULT exported lights.glb")
+
+
 def block(builder, color, lo, hi):
     """A box from corner lo to corner hi."""
     bm = bmesh.new()
@@ -167,11 +232,13 @@ def lab(out):
     bpy.ops.import_scene.gltf(filepath=SCENERY)
     cut_dome(bpy.data.objects["props"])
     cut_door(bpy.data.objects["props"])
+    found = find_lights(bpy.data.objects["props"])
     doorway()
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.export_scene.gltf(filepath=os.path.join(out, "lab.glb"), export_format="GLB", use_selection=True,
                               export_extras=True)
     print("RESULT exported lab.glb")
+    return found
 
 
 def point(phi, theta, inset=0.0):
@@ -385,6 +452,6 @@ def burst(rig, pieces):
 
 
 out = toy.out_dir()
-lab(out)
+lights(out, lab(out))
 door(out)
 dome(out)
