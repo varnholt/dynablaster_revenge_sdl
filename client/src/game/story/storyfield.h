@@ -4,6 +4,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "levels/level.h"
 
@@ -48,6 +49,9 @@ private:
    {
       std::unique_ptr<GltfModel> _floor;
       std::unique_ptr<GltfModel> _border;
+
+      //! the border's variants (nodes border_0, border_1, ...), empty if it has a single block
+      std::vector<int32_t> _border_variants;
       std::unique_ptr<GltfModel> _corner;
       std::unique_ptr<GltfModel> _surroundings;
 
