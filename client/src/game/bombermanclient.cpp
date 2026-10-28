@@ -43,6 +43,7 @@
 #include "math/vector.h"
 #include "messagepacket.h"
 #include "pausepacket.h"
+#include "storycontinuepacket.h"
 #include "playerinfectedpacket.h"
 #include "playerkilledpacket.h"
 #include "playerstats.h"
@@ -79,9 +80,16 @@
 
 // SDL
 #include <SDL3/SDL_keycode.h>
+#include <SDL3/SDL_timer.h>
 #include <SDL3_net/SDL_net.h>
 
 #include <cstdint>
+
+namespace
+{
+// milliseconds the continue prompt ignores answers after it opened
+constexpr uint64_t CONTINUE_ANSWER_DELAY = 1000;
+}  // namespace
 
 // static variables
 std::optional<std::reference_wrapper<BombermanClient>> BombermanClient::_instance;
@@ -1094,8 +1102,23 @@ void BombermanClient::processStopGameResponse(const StopGameResponsePacket& resp
 
    _dead = true;
 
+   // the last life is lost but the story goes on until the player decides: ask whether to continue
+   if (isStory() && _story_game_over && !response.isFinished())
+   {
+      _continue_prompt = true;
+      _continue_selected = true;
+      _continue_prompt_opened = SDL_GetTicks();
+      continuePromptSignal(true, true);
+   }
+
    if (response.isFinished())
    {
+      if (_continue_prompt)
+      {
+         _continue_prompt = false;
+         continuePromptSignal(false, false);
+      }
+
       gameStoppedSignal();
 
       SoundManager& sm = SoundManager::getInstance();
@@ -1429,6 +1452,7 @@ void BombermanClient::processPacket(const Packet& packet)
       case Packet::STORYSTATE:
       {
          const auto& state = static_cast<const StoryStatePacket&>(packet);
+         _story_game_over = state.getState() == StoryStatePacket::StateGameOver;
          storyStateSignal(state.getStage(), state.getLives(), state.getScore(), state.getState(), state.getEnemiesLeft());
          break;
       }
@@ -1687,6 +1711,11 @@ void BombermanClient::removeBombKeyFlag()
 */
 void BombermanClient::processKeyPressed(int key)
 {
+   if (processContinueKey(key))
+   {
+      return;
+   }
+
    // there's nobody to chat with in the story mode, return sets off the remote controlled bombs like in the original
    if (isDetonateKey(key))
    {
@@ -1942,6 +1971,14 @@ void BombermanClient::resetGameData()
       pausedSignal(false);
    }
 
+   _story_game_over = false;
+
+   if (_continue_prompt)
+   {
+      _continue_prompt = false;
+      continuePromptSignal(false, false);
+   }
+
    GameStateMachine::getInstance().setState(Constants::GameStopped);
 }
 
@@ -2154,6 +2191,47 @@ void BombermanClient::togglePause()
       PausePacket request(!_paused);
       send(request);
    }
+}
+
+bool BombermanClient::processContinueKey(int key)
+{
+   if (!_continue_prompt)
+   {
+      return false;
+   }
+
+   const GameSettings::ControllerSettings& controller_settings = GameSettings::getInstance().getControllerSettings();
+
+   if (key == controller_settings.getLeftKey() || key == controller_settings.getRightKey())
+   {
+      _continue_selected = !_continue_selected;
+      continuePromptSignal(true, _continue_selected);
+      return true;
+   }
+
+   if (key == controller_settings.getBombKey() || key == SDLK_RETURN || key == SDLK_KP_ENTER || key == SDLK_SPACE)
+   {
+      // the bomb key may still be hammered from the moment of dying, that's no answer yet
+      if (SDL_GetTicks() - _continue_prompt_opened >= CONTINUE_ANSWER_DELAY)
+      {
+         answerContinue(_continue_selected);
+      }
+
+      return true;
+   }
+
+   // escape still leaves the game
+   return false;
+}
+
+void BombermanClient::answerContinue(bool accepted)
+{
+   _continue_prompt = false;
+   _story_game_over = false;
+   continuePromptSignal(false, accepted);
+
+   StoryContinuePacket answer(accepted);
+   send(answer);
 }
 
 void BombermanClient::skipToNextWorld()

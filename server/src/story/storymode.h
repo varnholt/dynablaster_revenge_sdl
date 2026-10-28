@@ -66,6 +66,13 @@ public:
    //! game over or all stages done
    [[nodiscard]] bool isFinished() const;
 
+   //! the last life is lost, the player may still continue the stage
+   [[nodiscard]] bool isGameOver() const;
+
+   //! the player continues after the last life: the stage again with fresh lives, the score back to 0 and the
+   //! starting abilities, as the original's password for the stage would give them
+   void continueGame();
+
    //! milliseconds until the next attempt or stage begins
    [[nodiscard]] int32_t getNextStageDelay() const;
 

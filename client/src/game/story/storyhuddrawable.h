@@ -27,6 +27,9 @@ public:
    //! shows the pause screen
    void setPaused(bool paused);
 
+   //! after the last life: asks whether to continue, counting down, yes or no selected
+   void setContinuePrompt(bool shown, bool yes);
+
 private:
    void showBanner(const std::string& title, const std::string& subtitle);
 
@@ -35,6 +38,9 @@ private:
 
    //! the big "PAUSED" in the countdown's look, with the hint how to continue
    void drawPaused(BitmapFont& font);
+
+   //! "GAME OVER" and the password kept up, below them "CONTINUE?", yes and no and the seconds left
+   void drawContinuePrompt(BitmapFont& font);
 
    BitmapFont* _font = nullptr;
    PSD _paused_psd;
@@ -50,4 +56,7 @@ private:
    float _banner_time = -1.0f;
    float _last_time = 0.0f;
    bool _paused = false;
+   bool _continue_prompt = false;
+   bool _continue_yes = true;
+   float _continue_time = 0.0f;
 };

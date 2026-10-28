@@ -144,6 +144,8 @@ set(DYNABLASTER_SHARED_SOURCES
     ../shared/packet.h
     ../shared/pausepacket.cpp
     ../shared/pausepacket.h
+    ../shared/storycontinuepacket.cpp
+    ../shared/storycontinuepacket.h
     ../shared/storyskippacket.cpp
     ../shared/storyskippacket.h
     ../shared/packetstreambuffer.cpp

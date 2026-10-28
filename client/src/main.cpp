@@ -381,6 +381,7 @@ int main(int /*argc*/, char** /*argv*/)
          story_hud_drawable.setState(stage, lives, score, state, enemies_left);
       }
    );
+   bomberman_client.continuePromptSignal.connect([&](bool shown, bool yes) { story_hud_drawable.setContinuePrompt(shown, yes); });
    bomberman_client.pausedSignal.connect(
       [&](bool paused)
       {

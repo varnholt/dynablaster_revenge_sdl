@@ -8,12 +8,15 @@
 #include "menus/psdlayer.h"
 
 // shared
+#include "constants.h"
 #include "storystage.h"
 #include "storystatepacket.h"
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <format>
+#include <tuple>
 
 namespace
 {
@@ -106,6 +109,23 @@ void StoryHudDrawable::setPaused(bool paused)
    _paused = paused;
 }
 
+void StoryHudDrawable::setContinuePrompt(bool shown, bool yes)
+{
+   if (shown && !_continue_prompt)
+   {
+      _continue_time = 0.0f;
+   }
+
+   // answered: the game over banner it replaced doesn't come back
+   if (!shown)
+   {
+      _banner_time = -1.0f;
+   }
+
+   _continue_prompt = shown;
+   _continue_yes = yes;
+}
+
 void StoryHudDrawable::drawStats(BitmapFont& font)
 {
    const auto& stages = getStoryStages();
@@ -146,6 +166,47 @@ void StoryHudDrawable::drawPaused(BitmapFont& font)
    font.draw();
 }
 
+void StoryHudDrawable::drawContinuePrompt(BitmapFont& font)
+{
+   const auto& stages = getStoryStages();
+   const std::string_view password = stages[static_cast<size_t>(std::clamp(_stage, 0, static_cast<int32_t>(stages.size()) - 1))]._password;
+   const int32_t seconds = std::max(STORY_CONTINUE_TIME - static_cast<int32_t>(std::floor(_continue_time)), 0);
+   const float alpha = std::min(_continue_time / FADE_TIME, 1.0f);
+
+   font.setColor(1.0f, 1.0f, 1.0f, 1.0f);
+   font.buildVertices(0.45f, "GAME OVER", 0.0f, SCREEN_HEIGHT * 0.36f, SCREEN_WIDTH);
+   font.draw();
+   font.setColor(1.0f, 0.85f, 0.4f, 1.0f);
+   font.buildVertices(0.2f, std::format("PASSWORD {}", password), 0.0f, SCREEN_HEIGHT * 0.48f, SCREEN_WIDTH);
+   font.draw();
+
+   font.setColor(1.0f, 1.0f, 1.0f, alpha);
+   font.buildVertices(0.3f, std::format("CONTINUE?  {}", seconds), 0.0f, SCREEN_HEIGHT * 0.6f, SCREEN_WIDTH);
+   font.draw();
+
+   // the choice: the selected one bright, the other dimmed
+   const float width = SCREEN_WIDTH * 0.12f;
+   for (const auto& [label, x, selected] : {std::tuple{"YES", SCREEN_WIDTH * 0.5f - width, _continue_yes},
+                                            std::tuple{"NO", SCREEN_WIDTH * 0.5f, !_continue_yes}})
+   {
+      if (selected)
+      {
+         font.setColor(1.0f, 0.85f, 0.4f, alpha);
+      }
+      else
+      {
+         font.setColor(0.55f, 0.55f, 0.6f, alpha);
+      }
+
+      font.buildVertices(0.3f, label, x, SCREEN_HEIGHT * 0.7f, width);
+      font.draw();
+   }
+
+   font.setColor(0.8f, 0.8f, 0.85f, alpha);
+   font.buildVertices(0.14f, "LEFT / RIGHT TO CHOOSE, BOMB TO CONFIRM", 0.0f, SCREEN_HEIGHT * 0.8f, SCREEN_WIDTH);
+   font.draw();
+}
+
 void StoryHudDrawable::showBanner(const std::string& title, const std::string& subtitle)
 {
    _banner_title = title;
@@ -162,6 +223,11 @@ void StoryHudDrawable::animate(float global_time)
    if (_paused)
    {
       _paused_time += dt;
+   }
+
+   if (_continue_prompt)
+   {
+      _continue_time += dt;
    }
 
    if (_banner_time >= 0.0f && !_paused)
@@ -193,7 +259,11 @@ void StoryHudDrawable::paintGL()
    BitmapFont& font = *_font;
    drawStats(font);
 
-   if (_banner_time >= 0.0f && !_paused)
+   if (_continue_prompt)
+   {
+      drawContinuePrompt(font);
+   }
+   else if (_banner_time >= 0.0f && !_paused)
    {
       const float fade_in = std::min(_banner_time / FADE_TIME, 1.0f);
       const float fade_out = std::clamp((BANNER_TIME - _banner_time) / FADE_TIME, 0.0f, 1.0f);

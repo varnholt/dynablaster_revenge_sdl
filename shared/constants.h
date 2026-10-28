@@ -50,6 +50,9 @@ inline constexpr int32_t STORY_FLAME_LINGER_TIME = 500;
 inline constexpr float STORY_TOUCH_DISTANCE = 0.7f;
 inline constexpr float STORY_SPAWN_PROTECTION = 1.0f;
 
+// seconds the player has after the last life to answer whether to continue the stage
+inline constexpr int32_t STORY_CONTINUE_TIME = 10;
+
 // client
 inline constexpr int32_t CLIENT_MESSAGE_TEXT_MAXIMUM = 80;
 inline constexpr int32_t SHOW_WINNER_FADE_IN_TIME = 500;
