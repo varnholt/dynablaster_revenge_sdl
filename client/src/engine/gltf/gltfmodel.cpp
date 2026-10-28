@@ -65,8 +65,8 @@ struct Shader
    int32_t _shell = -1;
 };
 
-// the layers a fur is drawn in on top of the bare skin
-constexpr int32_t FUR_SHELLS = 8;
+// the most layers a fur is drawn in on top of the bare skin
+constexpr int32_t MAX_FUR_SHELLS = 12;
 
 // texture units: colour, occlusion, night, then the detail mask and the detail images
 constexpr int32_t DETAIL_MASK_UNIT = 3;
@@ -1177,9 +1177,11 @@ void GltfModel::draw(const Matrix& transform, int32_t animation, float time, con
       // the fur, layer by layer further out; not while fading, the shells would show through each other
       if (primitive._fur.x > 0.0f && look._alpha >= 1.0f)
       {
-         for (int32_t layer = 1; layer <= FUR_SHELLS; layer++)
+         // about a shell every 0.015 units of fur, else long fur shows its layers
+         const int32_t shells = std::clamp(static_cast<int32_t>(primitive._fur.x / 0.015f), 4, MAX_FUR_SHELLS);
+         for (int32_t layer = 1; layer <= shells; layer++)
          {
-            const float t = static_cast<float>(layer) / static_cast<float>(FUR_SHELLS);
+            const float t = static_cast<float>(layer) / static_cast<float>(shells);
             activeDevice().setParameter(shader._shell, Vector4(primitive._fur.x * t, t, primitive._fur.y, 0.0f));
             glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(primitive._indices.size()), GL_UNSIGNED_INT, nullptr);
          }

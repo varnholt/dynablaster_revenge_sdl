@@ -76,8 +76,9 @@ float strand(highp vec3 p, float layer)
       highp vec3 q = p + float(grid) * 0.5;
       highp vec3 cell = floor(q);
       highp vec3 centre = vec3(hash(cell), hash(cell + 17.0), hash(cell + 31.0)) * 0.6 + 0.2;
-      float reach = 0.55 + 0.45 * hash(cell + 53.0);
-      float thickness = 0.42 * (1.0 - layer / reach);
+      float reach = 0.45 + 0.55 * hash(cell + 53.0);
+      // thick at the root, a fine point at the tip: soft, not a bristle
+      float thickness = 0.62 * pow(max(1.0 - layer / reach, 0.0), 1.4);
       if (layer < reach)
       {
          nearest = min(nearest, length(q - cell - centre) / max(thickness, 0.001));
@@ -157,7 +158,10 @@ void main()
    }
 
    float shell = u_shell.y;
-   if (shell > 0.0 && (texture(u_color, uv).a < 0.5 || strand(local * u_shell.z, shell) > 1.0))
+   // strands lean together in tufts further out: each tuft's strands are looked up nearer their tuft's middle
+   highp vec3 tuft = (local * u_shell.z * 0.25);
+   highp vec3 lean = (vec3(hash(floor(tuft)), hash(floor(tuft) + 7.0), hash(floor(tuft) + 13.0)) - 0.5) * 2.0;
+   if (shell > 0.0 && (texture(u_color, uv).a < 0.5 || strand(local * u_shell.z + lean * shell * 0.8, shell) > 1.0))
    {
       discard;
    }
@@ -198,7 +202,8 @@ void main()
    // the fur darker down at its roots, where little light gets in
    if (shell > 0.0)
    {
-      albedo *= 0.7 + 0.45 * shell;
+      // the light caught in the tips, each strand a shade of its own
+      albedo *= (0.78 + 0.4 * shell) * (0.94 + 0.12 * hash(floor(local * u_shell.z)));
    }
    albedo *= u_tint;
    float occlusion = texture(u_occlusion, uv).r;

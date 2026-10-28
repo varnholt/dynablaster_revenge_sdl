@@ -16,7 +16,7 @@ def balloon():
 
 
 def tiger():
-    m = Model("Tiger", motion="walk", skin="fur", fur=(0.09, 22))
+    m = Model("Tiger", motion="walk", skin="fur", fur=(0.16, 14))
     orange, dark = hexcol("f07800"), hexcol("c05a00")
     m.add(Ellipsoid((0, 0, 1.25), (0.82, 0.72, 0.78), orange))
     for side in (-1, 1):

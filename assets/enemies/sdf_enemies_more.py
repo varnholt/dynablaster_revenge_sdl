@@ -36,7 +36,7 @@ def totem():
 
 
 def imp():
-    m = Model("Imp", motion="walk", skin=("fur", {"scale": 1.4}), fur=(0.07, 26))
+    m = Model("Imp", motion="walk", skin=("fur", {"scale": 1.4}), fur=(0.12, 18))
     purple, orange = hexcol("9a28ff"), hexcol("ff8a10")
     m.add(Ellipsoid((0, 0, 1.2), (0.7, 0.62, 0.7), purple))
     for side in (-1, 1):
@@ -219,7 +219,7 @@ def puffer():
 
 
 def cyclops():
-    m = Model("Cyclops", scale=1.5, boss=True, motion="float", skin=("fur", {"scale": 0.8}), fur=(0.11, 18))
+    m = Model("Cyclops", scale=1.5, boss=True, motion="float", skin=("fur", {"scale": 0.8}), fur=(0.18, 12))
     c = hexcol("1a7cff")
     m.add(Ellipsoid((0, 0, 1.25), (0.62, 0.56, 1.0), c))
     m.add(Cylinder((0, 0, 0.35), 0.62, 0.35, 0.15, c, blend=0.2))
@@ -260,7 +260,7 @@ def gourd():
 
 def cloud():
     # puffer' pink cloud: four soft lobes around a darker heart, two big eyes
-    m = Model("Cloud", target=1000, motion="float", skin=("fur", {"scale": 0.6}), fur=(0.14, 14))
+    m = Model("Cloud", target=1000, motion="float", skin=("fur", {"scale": 0.6}), fur=(0.2, 10))
     pink, heart = hexcol("ff9ae0"), hexcol("d860c0")
     m.add(Ellipsoid((0, 0, 0.92), (0.42, 0.4, 0.42), heart))
     for x, z in ((-0.44, 1.32), (0.44, 1.32), (-0.44, 0.52), (0.44, 0.52)):
