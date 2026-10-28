@@ -13,7 +13,7 @@ def legs(m, leg, foot, hip_z=0.62, spread=0.26, radius=0.085):
 
 
 def droplet():
-    m = Model("Droplet")
+    m = Model("Droplet", skin="slime")
     c = hexcol("12b4ff")
     m.add(Ellipsoid((0, 0, 0.75), (0.7, 0.62, 0.72), c))
     m.add(Capsule((0, 0, 1.15), (0, 0, 1.95), 0.5, 0.07, c, blend=0.25), bone="top")
@@ -23,7 +23,7 @@ def droplet():
 
 
 def totem():
-    m = Model("Totem", motion="float")
+    m = Model("Totem", motion="float", skin="metal")
     gold = hexcol("ffc018")
     m.add(Cylinder((0, 0, 0.98), 0.6, 0.45, 0.14, hexcol("ffd860")))
     # flat bell skirt: a wide, low rounded cylinder instead of a round cone that ends in a ball
@@ -36,7 +36,7 @@ def totem():
 
 
 def imp():
-    m = Model("Imp", motion="walk")
+    m = Model("Imp", motion="walk", skin=("fur", {"scale": 1.4}), fur=(0.07, 26))
     purple, orange = hexcol("9a28ff"), hexcol("ff8a10")
     m.add(Ellipsoid((0, 0, 1.2), (0.7, 0.62, 0.7), purple))
     for side in (-1, 1):
@@ -50,7 +50,7 @@ def imp():
 
 
 def onion():
-    m = Model("Onion", motion="walk")
+    m = Model("Onion", motion="walk", skin=("ribbed", {"ribs": 12}))
     blue = hexcol("1a7cff")
     m.add(Ellipsoid((0, 0, 1.05), (0.72, 0.68, 0.6), blue))
     m.add(Capsule((0, 0, 1.38), (0, 0, 2.0), 0.5, 0.06, hexcol("c0b8e8"), blend=0.15), bone="top")
@@ -61,20 +61,32 @@ def onion():
 
 
 def croc():
-    # the open jaw used to leave a thin gap; now one closed body with the mouth painted on
-    m = Model("Croc")
-    m.add(RoundBox((0, 0, 0.85), (0.6, 0.5, 0.65), 0.22, hexcol("38d000")))
+    """A crocodile standing up: long snout with teeth along it, eyes bulging on top of the head, a row of ridges down
+    its back, a heavy tail, scales all over and a pale belly."""
+    m = Model("Croc", motion="walk", skin="scales")
+    green, belly, dark = hexcol("3cb400"), hexcol("d8e890"), hexcol("1e6400")
+    m.add(Ellipsoid((0, 0.08, 0.95), (0.62, 0.62, 0.62), green))
+    m.add(Ellipsoid((0, -0.22, 0.85), (0.48, 0.4, 0.45), belly, blend=0.12), skin="rubber")
+    m.add(RoundBox((0, -0.62, 1.22), (0.36, 0.42, 0.2), 0.14, green, blend=0.2))
     for side in (-1, 1):
-        m.paint(Decal((side * 0.28, 1.22), (0.17, 0.13), WHITE, rect=True))
-        m.paint(Decal((side * 0.28, 1.2), (0.07, 0.08), BLACK, rect=True))
-    m.paint(Decal((0, 0.62), (0.45, 0.13), hexcol("401010"), rect=True))
-    for i in range(5):
-        m.paint(Decal((-0.36 + i * 0.18, 0.7), (0.05, 0.06), hexcol("ff2020"), rect=True))
+        m.add(Ellipsoid((side * 0.22, -0.4, 1.45), (0.17, 0.17, 0.15), green, blend=0.1))
+        m.paint(Decal((side * 0.1, -0.98), (0.045, 0.035), BLACK, facing=(0, 0, 1)))
+    for i in range(4):
+        m.add(Ellipsoid((0, -0.15 + i * 0.24, 1.6 - i * 0.12), (0.08, 0.11, 0.09), dark, blend=0.06), skin="rubber")
+    m.add(Capsule((0, 0.55, 0.62), (0.05, 1.15, 0.22), 0.3, 0.08, green, blend=0.2), bone="tail")
+    legs(m, green, dark, hip_z=0.55, spread=0.34, radius=0.1)
+    # eyes looking ahead from their bumps, a wide mouth with teeth along the snout's sides
+    for side in (-1, 1):
+        m.paint(Decal((side * 0.22, 1.5), (0.1, 0.09), hexcol("ffd800")))
+        m.paint(Decal((side * 0.22, 1.49), (0.03, 0.07), BLACK))
+    m.paint(Decal((0, 1.1), (0.36, 0.025), hexcol("401010"), rect=True))
+    for i in range(6):
+        m.paint(Decal((-0.3 + i * 0.12, 1.07), (0.025, 0.035), WHITE, rect=True))
     return m
 
 
 def blob():
-    m = Model("Blob")
+    m = Model("Blob", skin="slime")
     c = hexcol("1088ff")
     m.add(Ellipsoid((0, 0, 1.0), (0.7, 0.62, 0.95), c))
     m.add(Cylinder((0, 0, 0.35), 0.68, 0.35, 0.15, c, blend=0.15))
@@ -84,7 +96,7 @@ def blob():
 
 
 def grinner():
-    m = Model("Grinner")
+    m = Model("Grinner", skin="peel")
     m.add(Ellipsoid((0, 0, 1.0), (0.82, 0.74, 0.82), hexcol("ffaa00")))
     m.eyes(0.26, 1.25, eye=(0.12, 0.2), pupil=(0.06, 0.1))
     m.paint(Decal((0, 0.72), (0.3, 0.17), BLACK))
@@ -93,7 +105,7 @@ def grinner():
 
 
 def hothead():
-    m = Model("Hothead")
+    m = Model("Hothead", skin="skin")
     m.add(Ellipsoid((0, 0, 0.85), (0.75, 0.68, 0.62), hexcol("ff9a00")))
     for px, h in ((-0.48, 0.5), (-0.17, 0.75), (0.17, 0.85), (0.48, 0.55)):
         m.add(Capsule((px, 0, 1.2), (px * 1.25, 0, 1.25 + h), 0.26, 0.07, hexcol("ff2000"), blend=0.15),
@@ -104,7 +116,7 @@ def hothead():
 
 
 def jester():
-    m = Model("Jester", motion="walk")
+    m = Model("Jester", motion="walk", skin="fabric")
     m.add(Ellipsoid((0, 0, 1.1), (0.68, 0.6, 0.7), hexcol("ff8a10")))
     m.add(Capsule((0, -0.48, 1.18), (0, -0.92, 1.12), 0.17, 0.06, hexcol("e01818"), blend=0.06), bone="nose")
     for side in (-1, 1):
@@ -118,7 +130,7 @@ def jester():
 
 
 def statue():
-    m = Model("Statue")
+    m = Model("Statue", skin="stone")
     grey = hexcol("d8d8d8")
     m.add(Ellipsoid((0, 0, 1.05), (0.62, 0.56, 0.9), grey))
     m.add(Cylinder((0, 0, 0.35), 0.62, 0.35, 0.15, grey, blend=0.15))
@@ -131,7 +143,7 @@ def statue():
 
 
 def spinner():
-    m = Model("Spinner", motion="spin")
+    m = Model("Spinner", motion="spin", skin="metal")
     m.add(Capsule((0, 0, 1.45), (0, 0, 0.95), 0.6, 0.18, hexcol("d02020")))
     m.add(Capsule((0, 0, 0.95), (0, 0, 0.42), 0.18, 0.42, hexcol("ffc018"), blend=0.1))
     m.add(Cylinder((0, 0, 0.16), 0.52, 0.16, 0.08, hexcol("ffc018"), blend=0.15))
@@ -141,7 +153,7 @@ def spinner():
 
 
 def sprout():
-    m = Model("Sprout")
+    m = Model("Sprout", skin=("skin", {"spots": hexcol("1a7a00")}))
     m.add(Ellipsoid((0, 0, 1.0), (0.78, 0.7, 0.75), hexcol("2ab800")))
     m.add(Torus((0, 0, 1.55), 0.45, 0.12, hexcol("e81890"), blend=0.08), bone="top",
           head=(0, 0, 1.45), tail=(0, 0, 1.7))
@@ -151,7 +163,7 @@ def sprout():
 
 
 def chomper():
-    m = Model("Chomper")
+    m = Model("Chomper", skin="stone")
     m.add(RoundBox((0, 0, 0.82), (0.62, 0.45, 0.55), 0.2, hexcol("222222")))
     m.add(Capsule((0, 0, 1.3), (0, 0, 1.62), 0.3, 0.14, hexcol("ffc018"), blend=0.1), bone="top")
     m.add(RoundBox((0, -0.05, 0.16), (0.6, 0.44, 0.1), 0.08, hexcol("ffa000"), blend=0.06))
@@ -162,7 +174,7 @@ def chomper():
 
 
 def coin():
-    m = Model("Coin", motion="spin")
+    m = Model("Coin", motion="spin", skin="metal")
     m.add(Cylinder((0, 0, 1.0), 0.8, 0.15, 0.08, hexcol("ffb000"), upright_y=True))
     m.add(Torus((0, 0, 1.0), 0.74, 0.08, hexcol("ffd860"), blend=0.04, upright=True))
     m.eyes(0.22, 1.18, eye=(0.12, 0.17), pupil=(0.06, 0.09))
@@ -172,7 +184,7 @@ def coin():
 
 def serpent():
     # lies along its heading: the head leads towards -y and the body trails straight behind it
-    m = Model("Serpent", boss=True, motion="slither")
+    m = Model("Serpent", boss=True, motion="slither", skin="scales")
     blue = hexcol("2860e0")
     for i in range(5):
         x, y, z = 0.0, 0.72 + i * 0.62, 0.5
@@ -191,7 +203,7 @@ def serpent():
 
 
 def puffer():
-    m = Model("Puffer", scale=1.5, boss=True)
+    m = Model("Puffer", scale=1.5, boss=True, skin=("skin", {"spots": hexcol("1a70c0")}))
     c, pale = hexcol("38b0ff"), hexcol("a0e0ff")
     m.add(Ellipsoid((0, 0, 0.8), (0.85, 0.7, 0.65), c))
     for i in range(5):
@@ -207,7 +219,7 @@ def puffer():
 
 
 def cyclops():
-    m = Model("Cyclops", scale=1.5, boss=True, motion="float")
+    m = Model("Cyclops", scale=1.5, boss=True, motion="float", skin=("fur", {"scale": 0.8}), fur=(0.11, 18))
     c = hexcol("1a7cff")
     m.add(Ellipsoid((0, 0, 1.25), (0.62, 0.56, 1.0), c))
     m.add(Cylinder((0, 0, 0.35), 0.62, 0.35, 0.15, c, blend=0.2))
@@ -222,7 +234,7 @@ def cyclops():
 
 def eyeball():
     # its own model instead of a separate piece floating next to the cyclops
-    m = Model("Eyeball", target=800)
+    m = Model("Eyeball", target=800, skin="rubber")
     pink = hexcol("ff70d0")
     m.add(Ellipsoid((0, 0, 0.5), (0.34, 0.3, 0.38), pink))
     m.add(Cylinder((0, 0, 0.18), 0.32, 0.18, 0.08, pink, blend=0.1))
@@ -233,7 +245,7 @@ def eyeball():
 
 def gourd():
     # bafa: a magenta gourd with a crest, frowning brows and a red flank
-    m = Model("Gourd")
+    m = Model("Gourd", skin=("ribbed", {"ribs": 8}))
     pink, crest, red = hexcol("ff28f0"), hexcol("d860e0"), hexcol("ff1030")
     m.add(Ellipsoid((0, 0, 0.62), (0.8, 0.7, 0.6), pink))
     m.add(Ellipsoid((0, 0, 1.28), (0.56, 0.5, 0.5), pink, blend=0.28))
@@ -248,7 +260,7 @@ def gourd():
 
 def cloud():
     # puffer' pink cloud: four soft lobes around a darker heart, two big eyes
-    m = Model("Cloud", target=1000, motion="float")
+    m = Model("Cloud", target=1000, motion="float", skin=("fur", {"scale": 0.6}), fur=(0.14, 14))
     pink, heart = hexcol("ff9ae0"), hexcol("d860c0")
     m.add(Ellipsoid((0, 0, 0.92), (0.42, 0.4, 0.42), heart))
     for x, z in ((-0.44, 1.32), (0.44, 1.32), (-0.44, 0.52), (0.44, 0.52)):

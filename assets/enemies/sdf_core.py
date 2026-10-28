@@ -12,6 +12,7 @@ from mathutils import Vector
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 from uvs import unwrap  # noqa: E402
+import skins  # noqa: E402
 
 # nothing thinner than this (in model units, before scale) survives as geometry
 MIN_RADIUS = 0.06
@@ -186,8 +187,15 @@ class Decal:
 
 
 class Model:
-    def __init__(self, name, scale=1.0, boss=False, target=None, motion="hop"):
+    def __init__(self, name, scale=1.0, boss=False, target=None, motion="hop", skin="rubber", fur=None):
+        """skin: the pattern over the shapes' colours (see skins.py), a name or (name, options); a shape can have
+        its own. fur: (length in model units, strands per unit) grows real fur where the skin is "fur", drawn as
+        shells by the game (gltf-vert.glsl)."""
         self.name = name
+        self.skin = skin
+        self.fur = fur
+        # per texel of the colour texture how much fur grows there, set by paint_texture()
+        self.fur_mask = None
         self.scale = scale
         self.boss = boss
         self.target = target or (2000 if boss else 1500)
@@ -198,10 +206,11 @@ class Model:
         # bone name -> (parent, head, tail) in model units, "body" is implicit
         self.bones = {}
 
-    def add(self, shape, bone="body", parent="body", head=None, tail=None):
+    def add(self, shape, bone="body", parent="body", head=None, tail=None, skin=None):
         """Shapes drive the skin weights of their bone; a capsule's bone runs from a to b by default."""
         self.shapes.append(shape)
         shape.bone = bone
+        shape.skin = skin
         if bone != "body" and bone not in self.bones:
             if head is None:
                 head = shape.a if isinstance(shape, Capsule) else shape.c
@@ -225,10 +234,33 @@ class Model:
             d = smin(d, s.sdf(p), s.blend)
         return d
 
+    def nearest(self, p):
+        """Per point the index of the shape it belongs to."""
+        return np.argmin(np.stack([s.sdf(p) for s in self.shapes], axis=1), axis=1)
+
     def colors(self, p):
-        dists = np.stack([s.sdf(p) for s in self.shapes], axis=1)
         palette = np.array([s.color for s in self.shapes])
-        return palette[np.argmin(dists, axis=1)]
+        return palette[self.nearest(p)]
+
+    def furry(self, p):
+        """Per point whether its shape's skin is fur."""
+        kinds = [shape.skin or self.skin for shape in self.shapes]
+        names = np.array([(k if isinstance(k, str) else k[0]) == "fur" for k in kinds])
+        return names[self.nearest(p)]
+
+    def patterned(self, p, normals):
+        """The colours at p with every shape's skin over them."""
+        which = self.nearest(p)
+        col = np.array([s.color for s in self.shapes])[which]
+        for i, shape in enumerate(self.shapes):
+            skin = shape.skin or self.skin
+            if not skin:
+                continue
+            kind, options = (skin, {}) if isinstance(skin, str) else skin
+            hit = which == i
+            if hit.any():
+                col[hit] = skins.apply(kind, col[hit], p[hit], normals[hit], **options)
+        return col
 
 
 def surface(model):
@@ -436,14 +468,20 @@ def paint_texture(low, model, img, supersample=2):
     nrm, _ = _bake_geometry(low, "normal", size)
     pos = pos / model.scale
     col = np.zeros((len(pos), 3))
-    col[covered] = model.colors(pos[covered])
+    col[covered] = model.patterned(pos[covered], nrm[covered])
+    fur = np.zeros(len(pos))
+    if model.fur:
+        fur[covered] = model.furry(pos[covered])
     for decal in model.decals:
         hit = covered.copy()
         hit[covered] = decal.mask(pos[covered], nrm[covered])
         col[hit] = decal.color
+        # eyes and mouths stay bare
+        fur[hit] = 0.0
     col[~covered] = col[covered].mean(axis=0)
     col = col.reshape(size, size, 3)
     col = col.reshape(img.size[0], supersample, img.size[0], supersample, 3).mean(axis=(1, 3))
+    model.fur_mask = fur.reshape(img.size[0], supersample, img.size[0], supersample).mean(axis=(1, 3))
     rgba = np.concatenate([np.clip(col, 0, 1) ** (1 / 2.2), np.ones(col.shape[:2] + (1,))], axis=2)
     img.pixels.foreach_set(rgba.astype(np.float32).ravel())
     img.update()

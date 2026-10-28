@@ -18,6 +18,9 @@ uniform float u_skinned;
 // seconds
 uniform float u_time;
 
+// a fur shell: x how far out along the normal, y the layer (0 the skin itself, 1 the tips), z strands per unit
+uniform vec4 u_shell;
+
 out vec2 uv;
 out vec3 nrm;
 
@@ -26,6 +29,9 @@ out float height;
 
 // world position, where the detail textures are tiled
 out highp vec3 world;
+
+// the position on the bare model, where a fur's strands stand
+out highp vec3 local;
 
 void main()
 {
@@ -40,7 +46,8 @@ void main()
    // gusts running through the cloth
    float phase = dot(a_position, vec3(0.85, 0.45, 0.6));
    float gust = 0.6 * sin(u_time * 2.7 - phase) + 0.4 * sin(u_time * 4.3 - phase * 1.9 + 1.3);
-   vec4 position = vec4(a_position + a_wave.xyz * gust, 1.0);
+   vec4 position = vec4(a_position + a_wave.xyz * gust + a_normal * u_shell.x, 1.0);
+   local = a_position;
 
    uv = a_texcoord0;
    nrm = normalize(mat3(u_model) * mat3(skin) * a_normal);

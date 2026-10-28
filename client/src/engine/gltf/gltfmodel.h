@@ -8,6 +8,7 @@
 
 #include "math/matrix.h"
 #include "math/vector.h"
+#include "math/vector2.h"
 #include "math/vector4.h"
 
 //! a model from a binary glTF (.glb): textured meshes, optionally skinned and animated
@@ -176,6 +177,10 @@ private:
       //! a cutout material's doubleSided: both sides drawn, the back lit with the normal flipped; opaque materials
       //! keep their back faces culled, Blender's exporter marks every material double sided unless told otherwise
       bool _double_sided = false;
+
+      //! extras "fur": [length, strands per unit]: fur grows where the colour's alpha is set, drawn as shells
+      //! pushed out along the normals up to length; 0 length for none
+      Vector2 _fur;
       uint32_t _vertex_buffer = 0;
       uint32_t _index_buffer = 0;
    };
