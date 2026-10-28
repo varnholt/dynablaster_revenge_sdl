@@ -21,6 +21,7 @@
 // engine
 #include "drawable.h"
 #include "math/matrix.h"
+#include "math/vector2.h"
 
 // shared
 #include "mapitem.h"
@@ -218,6 +219,16 @@ private:
    std::unique_ptr<StoryField> _story_field;
    std::unique_ptr<ExitPortal> _exit_portal;
    int _story_enemies_left = -1;
+
+   //! per player where it stood when the waders were last gathered and its walking speed since (world xy)
+   struct Wading
+   {
+      Vector2 _position;
+      Vector2 _velocity;
+   };
+   std::map<int, Wading> _wading;
+   float _wading_time = 0.0f;
+   void updateWaders();
    int _story_stage = -1;
    bool _paused = false;
 

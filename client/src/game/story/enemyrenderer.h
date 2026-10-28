@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "engine/render/watersurface.h"
 #include "enemytype.h"
 #include "math/matrix.h"
 
@@ -31,6 +32,9 @@ public:
 
    //! draws with the camera of the scene that rendered last
    void render();
+
+   //! adds the living enemies, where they stand and how fast they walk, in world coordinates
+   void addWaders(std::vector<WaterSurface::Wader>& waders) const;
 
    //! types drawn with the player model instead of a glTF one
    [[nodiscard]] static bool isBomberman(EnemyType type);

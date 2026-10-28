@@ -749,8 +749,8 @@ def build_world(index, spec):
         border.name = "border"
         project_uv(border, "cube")
     elif kind == "crate":
-        # hard edged, the stripes run right up to them
-        border = box("border", (0.98, 0.98, 0.95), 0.015, 1)
+        # rounded off, the stripes run on over the bevel
+        border = box("border", (0.98, 0.98, 0.95), 0.035, 2)
         border.location.z = 0.475
         bpy.ops.object.transform_apply(location=True)
         project_uv(border, "cube")

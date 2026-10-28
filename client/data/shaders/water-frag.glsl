@@ -24,6 +24,11 @@ uniform vec4 u_haze;
 uniform highp vec4 u_haze_box;
 uniform vec2 u_haze_range;
 
+// who stands in the water: xy where, zw how fast they walk (tiles a second), u_wader_count of them
+const int MAX_WADERS = 16;
+uniform vec4 u_waders[MAX_WADERS];
+uniform float u_wader_count;
+
 // the viewport in window pixels
 uniform vec2 u_origin;
 uniform vec2 u_size;
@@ -101,6 +106,68 @@ vec2 sea(vec2 p, float footprint)
    return slope / total * WAVE_HEIGHT;
 }
 
+// the water round someone's feet: a ring of foam hugging them, ripples running off in rings, behind a walker
+// a wake spreading out in a V; returns the foam, adds the ripples' slope
+float wading(vec2 p, inout vec2 slope)
+{
+   float foam = 0.0;
+   for (int i = 0; i < MAX_WADERS; ++i)
+   {
+      if (float(i) >= u_wader_count)
+      {
+         break;
+      }
+
+      vec2 offset = p - u_waders[i].xy;
+      float d = length(offset);
+      if (d > 2.0)
+      {
+         continue;
+      }
+
+      vec2 velocity = u_waders[i].zw;
+      float speed = length(velocity);
+      float walking = smoothstep(0.3, 1.5, speed);
+      float seed = float(i) * 1.7;
+
+      // the ring at their feet, broken up, pushed out ahead of a walker
+      vec2 ahead = speed > 0.01 ? velocity / speed : vec2(0.0);
+      float bow = dot(offset / max(d, 0.001), ahead) * walking;
+      // a little wider than the feet, the body hides the inner part
+      float radius = 0.36 + 0.03 * sin(u_time * 3.0 + seed) + 0.08 * bow;
+      float churn = noise(offset * 9.0 + vec2(u_time * 0.8, seed)) * 0.6 + noise(offset * 17.0 - u_time * 1.1) * 0.4;
+      float ring = exp(-pow((d - radius) / (0.06 + 0.03 * walking), 2.0)) * (0.7 + 0.6 * churn);
+      ring += smoothstep(radius, radius - 0.08, d) * 0.6 * churn;
+
+      // ripples, one going out every second or so, thinning as they spread
+      for (int k = 0; k < 2; ++k)
+      {
+         float age = fract(u_time * (0.7 + 0.3 * walking) + float(k) * 0.5 + seed);
+         float at = radius + age * 1.3;
+         float across = (d - at) / 0.04;
+         float wave = exp(-across * across) * (1.0 - age) * (1.0 - age);
+         slope += offset / max(d, 0.001) * wave * -across * 0.05;
+         ring += wave * 0.25 * smoothstep(0.35, 0.7, churn);
+      }
+
+      // the wake: two arms trailing behind at about twenty degrees, lumpy foam along them
+      if (walking > 0.0)
+      {
+         float behind = -dot(offset, ahead);
+         float side = abs(offset.x * ahead.y - offset.y * ahead.x);
+         float arm = (side - behind * 0.36) / (0.05 + behind * 0.06);
+         float trail = exp(-arm * arm) * smoothstep(0.1, 0.35, behind) * smoothstep(1.8, 0.5, behind);
+         float lumps = noise(vec2(behind * 6.0 - u_time * speed * 1.5, side * 8.0 + seed));
+         ring += trail * walking * (0.4 + 0.7 * lumps);
+         // churned water straight behind
+         ring += exp(-side * side / 0.02) * smoothstep(0.2, 0.3, behind) * smoothstep(1.0, 0.3, behind) * walking * churn * 0.5;
+      }
+
+      foam = max(foam, ring);
+   }
+   return clamp(foam, 0.0, 1.0);
+}
+
 void main()
 {
    vec2 p = world.xy;
@@ -110,6 +177,7 @@ void main()
    // some stretches of the sea are calmer, others choppier
    float rough = 0.6 + 0.8 * noise(TURN * p * 0.06 + vec2(u_time * 0.015, -u_time * 0.01));
    vec2 slope = sea(p, pixel) * rough;
+   float waded = wading(p, slope);
    slope += (vec2(noise(p * 4.0 + u_time * 0.4), noise(p * 4.0 - u_time * 0.35 + 7.0)) - 0.5) * 0.04 * resolved(25.0, pixel);
    vec3 n = normalize(vec3(-slope, 1.0));
 
@@ -164,6 +232,7 @@ void main()
    // the inside of the band isn't one sheet of white, it thins out here and there and fills in again
    float thin = noise(TURN * q * 3.0 + vec2(u_time * 0.15, u_time * 0.1)) * 0.6 + noise(TURN * TURN * q * 6.5 - u_time * 0.2) * 0.4;
    foam *= 1.0 - alive * 0.2 * smoothstep(0.4, 0.8, thin);
+   foam = max(foam, waded * 0.9);
    color = mix(color, vec3(0.92, 0.96, 1.0), foam * 0.85);
 
    if (u_haze.a > 0.0)

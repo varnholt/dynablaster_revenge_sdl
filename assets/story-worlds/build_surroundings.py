@@ -139,7 +139,8 @@ _MATERIALS = {}
 
 
 def material(name, color, variation=0.12, scale=3.0, kind="noise", color2=None, mortar=None):
-    """Procedural colour (baked later): noise, bricks or stripes on the world position."""
+    """Procedural colour (baked later): noise, bricks or plates (riveted panels, bricks without the offset) on the
+    world position."""
     if name in _MATERIALS:
         return _MATERIALS[name]
     # colours are given like the ground's, in sRGB
@@ -154,7 +155,7 @@ def material(name, color, variation=0.12, scale=3.0, kind="noise", color2=None, 
     geometry = nodes.new("ShaderNodeNewGeometry")
     low = tuple(max(0.0, c * (1 - variation)) for c in color) + (1,)
     high = tuple(min(1.0, c * (1 + variation)) for c in color) + (1,)
-    if kind == "bricks":
+    if kind in ("bricks", "plates"):
         sep = nodes.new("ShaderNodeSeparateXYZ")
         links.new(geometry.outputs["Position"], sep.inputs[0])
         add = nodes.new("ShaderNodeMath")
@@ -166,7 +167,11 @@ def material(name, color, variation=0.12, scale=3.0, kind="noise", color2=None, 
         links.new(sep.outputs[2], comb.inputs[1])
         brick = nodes.new("ShaderNodeTexBrick")
         brick.inputs["Scale"].default_value = scale
-        brick.inputs["Mortar Size"].default_value = 0.025
+        brick.inputs["Mortar Size"].default_value = 0.025 if kind == "bricks" else 0.012
+        if kind == "plates":
+            brick.offset = 0.0
+            brick.inputs["Brick Width"].default_value = 1.0
+            brick.inputs["Row Height"].default_value = 0.6
         brick.inputs["Color1"].default_value = low
         brick.inputs["Color2"].default_value = high
         brick.inputs["Mortar"].default_value = (mortar or tuple(c * 0.55 for c in color)) + (1,)
@@ -251,8 +256,11 @@ def cone(loc, radius, depth, mat, vertices=16, radius2=0.0):
     return _finish(bpy.context.object, mat)
 
 
-def box(loc, size, mat, rotation=0.0, bevel=0.0):
-    """Standing on loc."""
+def box(loc, size, mat, rotation=0.0, bevel=None):
+    """Standing on loc. Edges are rounded a little unless bevel says otherwise (0: sharp); a hard cube edge
+    catches no light and looks like an unfinished model."""
+    if bevel is None:
+        bevel = min(0.035, min(size) * 0.12) if min(size) >= 0.08 else 0.0
     bpy.ops.mesh.primitive_cube_add(size=1, location=(loc[0], loc[1], loc[2] + size[2] * 0.5))
     obj = bpy.context.object
     obj.scale = size
@@ -325,11 +333,11 @@ def sway(obj, base, top, amount=1.0):
 
 # --- prop kinds -----------------------------------------------------------------------------------
 
-def branch(p0, p1, radius, mat):
-    """A tapering limb from p0 to p1."""
+def branch(p0, p1, radius, mat, taper=0.45):
+    """A limb from p0 to p1 tapering to taper times its radius."""
     d = np.subtract(p1, p0)
     length = float(np.linalg.norm(d))
-    bpy.ops.mesh.primitive_cone_add(vertices=6, radius1=radius, radius2=radius * 0.45, depth=length,
+    bpy.ops.mesh.primitive_cone_add(vertices=6, radius1=radius, radius2=radius * taper, depth=length,
                                     location=tuple(np.add(p0, p1) * 0.5))
     obj = bpy.context.object
     obj.rotation_mode = "QUATERNION"
@@ -339,30 +347,48 @@ def branch(p0, p1, radius, mat):
 
 
 def tree_round(st, x, y, z, s, leaves, trunk):
-    """A broadleaf: a trunk forking into a few limbs, each ending in a cluster of leaves, gaps between them
-    where the limbs show."""
+    """A broadleaf about 1.7 s tall: a leaning trunk forking into limbs, the limbs into twigs, a lumpy cluster of
+    leaves on every twig and gaps in the crown where the wood shows."""
     rng = st.rng
     start = len(PROPS)
-    cylinder((x, y, z - 0.05), 0.09 * s, 0.7 * s, trunk, vertices=8)
-    fork = (x, y, z + 0.6 * s)
-    ends = []
-    for i in range(3):
-        a = 2 * math.pi * i / 3 + rng.uniform(-0.4, 0.4)
-        reach = rng.uniform(0.28, 0.38) * s
-        end = (x + math.cos(a) * reach, y + math.sin(a) * reach, z + rng.uniform(0.95, 1.15) * s)
-        branch(fork, end, 0.06 * s, trunk)
-        ends.append(end)
-    ends.append((x + rng.uniform(-0.05, 0.05) * s, y + rng.uniform(-0.05, 0.05) * s, z + 1.3 * s))
-    branch(fork, ends[-1], 0.06 * s, trunk)
-    fuse(start, 0.02 * s, 260)
-    # the leaves, a cluster round each limb's end
-    for end in ends:
+    lean = rng.normal(0, 0.05, 2) * s
+    fork = (x + lean[0], y + lean[1], z + 0.6 * s)
+    branch((x, y, z - 0.1), fork, 0.12 * s, trunk, taper=0.75)
+    tips = []  # per limb its twigs' ends
+    count = rng.integers(4, 6)
+    for i in range(count + 1):
+        if i < count:
+            a = 2 * math.pi * i / count + rng.uniform(-0.3, 0.3)
+            rise = rng.uniform(0.55, 0.85)  # radians from upright
+        else:
+            a, rise = rng.uniform(0, 2 * math.pi), rng.uniform(0.0, 0.2)  # the leader, nearly straight up
+        length = rng.uniform(0.42, 0.52) * s
+        d = np.array([math.cos(a) * math.sin(rise), math.sin(a) * math.sin(rise), math.cos(rise)])
+        end = tuple(np.add(fork, d * length))
+        branch(fork, end, 0.07 * s, trunk, taper=0.7)
+        # a knot where the twigs start, the remesh would part a joint of thin cone ends
+        sphere(end, 0.05 * s, trunk, subdiv=1)
+        ends = []
+        for k in range(rng.integers(2, 4)):
+            b = a + rng.uniform(-0.9, 0.9)
+            up = rise * 0.6 + rng.uniform(-0.2, 0.3)
+            e = np.array([math.cos(b) * math.sin(up), math.sin(b) * math.sin(up), math.cos(up)])
+            twig = tuple(np.add(end, e * rng.uniform(0.2, 0.3) * s))
+            branch(end, twig, 0.045 * s, trunk, taper=0.7)
+            ends.append(twig)
+        tips.append(ends)
+    sphere(fork, 0.09 * s, trunk, subdiv=1)
+    # fine enough that the twigs stay whole
+    fuse(start, 0.012 * s, 2000)
+    # the leaves: per limb one mesh of clusters round its twigs' ends, so the crown stays lumpy
+    for ends in tips:
         cluster = len(PROPS)
-        for k in range(3):
-            o = rng.normal(0, 0.09, 3) * s
-            sphere((end[0] + o[0], end[1] + o[1], end[2] + o[2] + 0.06 * s), rng.uniform(0.17, 0.24) * s, leaves,
-                   jitter=0.1, rng=rng)
-        sway(fuse(cluster, 0.025 * s, 160, smooth_steps=1), z + 0.5 * s, z + 1.6 * s)
+        for end in ends:
+            for k in range(3):
+                o = rng.normal(0, 0.07, 3) * s
+                sphere((end[0] + o[0], end[1] + o[1], end[2] + o[2] + 0.05 * s), rng.uniform(0.16, 0.21) * s,
+                       leaves, jitter=0.12, rng=rng)
+        sway(fuse(cluster, 0.015 * s, 260, smooth_steps=1), z + 0.5 * s, z + 1.8 * s)
 
 
 def tree_pine(st, x, y, z, s, leaves, trunk):
@@ -500,8 +526,8 @@ def wall_run(p0, p1, z, height, thickness, mat, cap_mat=None, merlons=False):
 
 # --- terrain --------------------------------------------------------------------------------------
 
-def terrain(st, height_fn, color_fn, name):
-    step = 0.5
+def terrain(st, height_fn, color_fn, name, step=0.5):
+    """step: the mesh's grid in tiles, finer where steep slopes would show its facets."""
     xs = np.arange(st.x0, st.x1 + 1e-6, step)
     ys = np.arange(st.y0, st.y1 + 1e-6, step)
     X, Y = np.meshgrid(xs, ys)
@@ -710,9 +736,10 @@ def world_meadow(st):
         for p0, p1 in zip(pts, pts[1:]):
             wall_run(p0, p1, z, 1.0, 0.6, white, cap)
         taken.append((ex, ey, 2.4))
-    for (x, y) in st.scatter(70, lambda x, y: 0.4 + 0.6 * smooth(2, 6, st.outside(x, y)), 1.3, taken):
+    # big trees, thinning out towards the field so they hide little of it
+    for (x, y) in st.scatter(60, lambda x, y: smooth(0.5, 1.8, st.outside(x, y)), 1.8, taken):
         z = ground_height(st, x, y, height)
-        s = st.rng.uniform(0.9, 1.6)
+        s = st.rng.uniform(1.6, 2.5)
         if st.rng.random() < 0.35:
             tree_pine(st, x, y, z, s * 1.3, leaves[2], trunk)
         else:
@@ -769,9 +796,10 @@ def world_rocky(st):
         return 0.9 + fbm(x, y, 0.5, 3, 13) * 0.9
 
     def ridge(x, y):
-        t = st.outside(x, y) - edge(x, y) - 0.8
-        jag = 0.8 + fbm(x, y, 0.9, 4, 14) * 1.4
-        return np.exp(-(t / 0.75) ** 2) * jag
+        t = st.outside(x, y) - edge(x, y) - 1.2
+        jag = 0.7 + fbm(x, y, 0.9, 4, 14) * 1.1 + (fbm(x, y, 2.5, 2, 26) - 0.5) * 0.5
+        # wide enough that its flanks keep some of the ground texture's resolution, which is laid on from above
+        return np.exp(-(t / 1.05) ** 2) * jag
 
     def height(x, y):
         d = st.outside(x, y)
@@ -786,8 +814,16 @@ def world_rocky(st):
         crack = smooth(0.12, 0.04, f2 - f1)
         cobble = mix((0.52, 0.52, 0.62), (0.68, 0.68, 0.76), smooth(0.7, 0.0, f1) * 0.6 + fbm(TX, TY, 2.0, 2, 16) * 0.4)
         cobble = mix(cobble, (0.3, 0.3, 0.38), crack)
-        strata = np.sin(TZ * 9 + fbm(TX, TY, 0.6, 3, 17) * 4) * 0.5 + 0.5
-        brown = mix((0.34, 0.16, 0.07), (0.62, 0.34, 0.15), strata)
+        # layered sandstone: beds of their own shade with dark seams between them, broken into blocks by cracks,
+        # sharp lines the eye reads as detail where the texture is stretched over the flanks
+        layer = (TZ - FLOOR_Z) * 6 + fbm(TX, TY, 0.6, 3, 17) * 2.5
+        bed = np.floor(layer)
+        shade = _hash(bed, np.floor(fbm(TX, TY, 0.3, 2, 22) * 3), 23) * 0.7 + fbm(TX, TY, 1.8, 3, 24) * 0.3
+        brown = mix((0.4, 0.19, 0.08), (0.66, 0.37, 0.17), shade)
+        seam = layer - bed
+        brown = mix(brown, (0.22, 0.1, 0.05), smooth(0.12, 0.0, np.minimum(seam, 1 - seam)) * 0.8)
+        b1, b2 = voronoi(TX * 3.2, TY * 3.2, 25)
+        brown = mix(brown, (0.25, 0.12, 0.06), smooth(0.07, 0.02, b2 - b1) * 0.6)
         highland = mix((0.5, 0.48, 0.44), (0.64, 0.62, 0.58), fbm(TX, TY, 0.5, 4, 18))
         highland = mix(highland, (0.32, 0.5, 0.2), smooth(0.55, 0.75, fbm(TX, TY, 0.25, 3, 19)) * 0.7)
         mountain = mix((0.46, 0.46, 0.52), (0.62, 0.62, 0.68), fbm(TX, TY, 0.4, 4, 20))
@@ -796,7 +832,7 @@ def world_rocky(st):
         rgb = mix(cobble, rgb, smooth(0.0, 0.25, d - edge(TX, TY)))
         return apron_mix(st, TX, TY, rgb, cobble, reach=0.4, ragged=0.3)
 
-    ground, img = terrain(st, height, color, "ground")
+    ground, img = terrain(st, height, color, "ground", step=0.25)
     grey = material("rock_grey", (0.6, 0.6, 0.64), 0.25, 1.5)
     grey2 = material("rock_light", (0.74, 0.74, 0.78), 0.2, 1.5)
     bush_mat = material("bush", (0.18, 0.5, 0.14), 0.2, 4.0)
@@ -814,7 +850,7 @@ def world_rocky(st):
     # glowing crystals growing from the ridge's crest and flanks
     # purple: it stands out from the orange rock (red melts into it) and goes with the floor's grey lilac
     crystal_mat = crystal_material("crystal", (0.32, 0.07, 0.58), (0.74, 0.36, 1.0), (0.96, 0.88, 1.0))
-    for (x, y) in st.scatter(30, lambda x, y: float(abs(st.outside(x, y) - edge(x, y) - 0.8) < 0.35), 1.1, taken,
+    for (x, y) in st.scatter(30, lambda x, y: float(abs(st.outside(x, y) - edge(x, y) - 1.2) < 0.4), 1.1, taken,
                              margin=1.0, tries=200):
         e = 0.05
         out = np.array([st.outside(np.array(x + e), np.array(y)) - st.outside(np.array(x - e), np.array(y)),
@@ -1205,14 +1241,38 @@ def separate_spinners(props):
         turning.keyframe_insert("rotation_euler", index=2, frame=LOOP_FRAMES)
 
 
-def pipe_run(p0, p1, z, radius, mat):
+def torus(loc, major, minor, mat, segments=24, sides=6):
+    bpy.ops.mesh.primitive_torus_add(major_radius=major, minor_radius=minor, major_segments=segments,
+                                     minor_segments=sides, location=loc)
+    return _finish(bpy.context.object, mat)
+
+
+def pipe_run(p0, p1, z, radius, mat, flange=None, flange_mat=None, valve_mat=None, valve_every=0):
+    """A pipe from p0 to p1 at height z; with flange (tiles) a bolted collar that often along it, with valve_every
+    a hand wheel on every so many collars, facing up."""
     (x0, y0), (x1, y1) = p0, p1
     length = math.hypot(x1 - x0, y1 - y0)
+    turn = (math.pi / 2, 0, math.atan2(y1 - y0, x1 - x0) + math.pi / 2)
     obj = cylinder(((x0 + x1) / 2, (y0 + y1) / 2, z - length / 2), radius, length, mat, vertices=12)
-    obj.rotation_euler = (math.pi / 2, 0, math.atan2(y1 - y0, x1 - x0) + math.pi / 2)
+    obj.rotation_euler = turn
     obj.location.z = z
     for (px, py) in (p0, p1):
         uv_sphere((px, py, z), radius * 1.15, mat, segments=12, rings=8)
+    if not flange:
+        return
+    count = int(length / flange)
+    for i in range(1, count):
+        t = i / count
+        fx, fy = x0 + (x1 - x0) * t, y0 + (y1 - y0) * t
+        collar = cylinder((fx, fy, z - 0.05), radius * 1.4, 0.1, flange_mat or mat, vertices=12)
+        collar.rotation_euler = turn
+        collar.location.z = z
+        if valve_every and i % valve_every == 0:
+            cylinder((fx, fy, z), radius * 0.25, radius + 0.12, flange_mat or mat, vertices=6)
+            torus((fx, fy, z + radius + 0.14), 0.16, 0.025, valve_mat or mat, segments=16, sides=5)
+            for k in range(2):
+                box((fx, fy, z + radius + 0.125), (0.3, 0.03, 0.03), valve_mat or mat, rotation=k * math.pi / 2,
+                    bevel=0)
 
 
 def paving(TX, TY, light, dark, joint, size=1.0, seed=60):
@@ -1358,6 +1418,62 @@ def world_castle_1(st):
     return ground, img
 
 
+def pilaster(x, y, angle, z, height, steel, dark):
+    """An I-beam standing against a wall (x, y on its face, angle the way the room is), bolted to a foot plate."""
+    dx, dy = math.cos(angle), math.sin(angle)
+    a = angle + math.pi / 2
+    box((x + dx * 0.04, y + dy * 0.04, z), (0.42, 0.08, height), steel, rotation=a)
+    box((x + dx * 0.16, y + dy * 0.16, z), (0.08, 0.24, height), steel, rotation=a)
+    box((x + dx * 0.29, y + dy * 0.29, z), (0.42, 0.08, height), steel, rotation=a)
+    box((x + dx * 0.17, y + dy * 0.17, z), (0.6, 0.44, 0.12), dark, rotation=a)
+
+
+def piston(x, y, angle, z, dark, brass, steel, phase):
+    """A steam cylinder working a crosshead up and down: the cylinder on its housing, the rod, the crosshead
+    riding two guide rails that are bolted to the wall."""
+    dx, dy = math.cos(angle), math.sin(angle)
+    tx, ty = -dy, dx
+    a = angle + math.pi / 2
+    px, py = x + dx * 0.55, y + dy * 0.55
+    box((px, py, z), (0.9, 0.9, 0.4), dark, rotation=a)
+    cylinder((px, py, z + 0.4), 0.36, 0.12, steel, vertices=16)
+    cylinder((px, py, z + 0.52), 0.3, 0.9, brass, vertices=16)
+    cylinder((px, py, z + 1.42), 0.36, 0.12, steel, vertices=16)
+    for side in (-1, 1):
+        rx, ry = x + dx * 0.12 + tx * side * 0.32, y + dy * 0.12 + ty * side * 0.32
+        box((rx, ry, z + 0.4), (0.1, 0.12, 2.6), steel, rotation=a)
+        box((rx - dx * 0.06, ry - dy * 0.06, z + 2.9), (0.14, 0.1, 0.12), dark, rotation=a)
+    start = len(PROPS)
+    cylinder((px, py, z + 1.3), 0.08, 0.9, steel, vertices=10)
+    box((x + dx * 0.4, y + dy * 0.4, z + 2.1), (0.84, 0.62, 0.2), dark, rotation=a)
+    slider(start, Matrix.Translation((px, py, z)), 0.45, 2, phase)
+
+
+def crate(x, y, z, s, side, frame, rotation):
+    """A crate: panels of side inside a frame of beams along its edges."""
+    box((x, y, z + 0.01), (s * 0.94, s * 0.94, s * 0.96), side, rotation=rotation)
+    c, w = math.cos(rotation), math.sin(rotation)
+    for i in (-1, 1):
+        for j in (-1, 1):
+            ox, oy = (i * c - j * w) * s * 0.44, (i * w + j * c) * s * 0.44
+            box((x + ox, y + oy, z), (s * 0.12, s * 0.12, s), frame, rotation=rotation)
+    for h in (0.0, s * 0.88):
+        for k in range(2):
+            r = rotation + k * math.pi / 2
+            for e in (-1, 1):
+                box((x - math.sin(r) * e * s * 0.44, y + math.cos(r) * e * s * 0.44, z + h), (s, s * 0.12, s * 0.12),
+                    frame, rotation=r)
+
+
+def drum(x, y, z, body, rim, s=1.0):
+    """An oil drum: rolling hoops round it, a rim round its lid."""
+    cylinder((x, y, z), 0.3 * s, 0.85 * s, body, vertices=16)
+    # the hoops clear of the drum's ends, a rim round the lid: no faces sharing a plane
+    for h in (0.06, 0.3, 0.55):
+        cylinder((x, y, z + h * s), 0.315 * s, 0.05 * s, rim, vertices=16)
+    torus((x, y, z + 0.85 * s), 0.29 * s, 0.025 * s, rim, segments=16, sides=6)
+
+
 def world_castle_2(st):
     """7: the second floor, the castle's machinery: a steel deck, dark iron walls with glowing furnace mouths, gears,
     pipes and pistons along them, hazard stripes, crates and drums."""
@@ -1374,11 +1490,15 @@ def world_castle_2(st):
         return apron_mix(st, TX, TY, rgb, rgb)
 
     ground, img = terrain(st, height, color, "ground")
-    iron = material("iron_wall", (0.36, 0.32, 0.29), 0.1, 1.0, kind="bricks", mortar=(0.16, 0.15, 0.14))
+    iron = material("iron_wall", (0.36, 0.32, 0.29), 0.12, 1.4, kind="plates", mortar=(0.13, 0.12, 0.11))
+    steel = material("steel_beam", (0.5, 0.52, 0.56), 0.1, 5.0)
+    crate_side = material("crate_side", (0.62, 0.45, 0.26), 0.15, 6.0, color2=(0.48, 0.32, 0.17))
+    oil = material("oil_drum", (0.2, 0.36, 0.5), 0.1, 5.0)
     brass = material("brass", (0.8, 0.62, 0.26), 0.1, 5.0)
     copper = material("copper", (0.72, 0.38, 0.2), 0.1, 5.0)
     dark = material("dark_metal", (0.22, 0.23, 0.27), 0.08, 5.0)
     lamp = material("lamp_red", (0.96, 0.4, 0.3), 0.1)
+    lamp_glass = material("lamp_glass", (1.0, 0.85, 0.6), 0.05)
     green = material("lamp_green", (0.5, 0.9, 0.66), 0.1)
     rubber = material("belt_rubber", (0.12, 0.11, 0.1), 0.1)
     fire = material("furnace_fire", (1.0, 0.5, 0.12), 0.25, 6.0, color2=(1.0, 0.85, 0.35))
@@ -1392,10 +1512,7 @@ def world_castle_2(st):
         if i % 3 == 0:
             gear_train(x, y, z, a, brass, dark, rubber)
         elif i % 3 == 1:
-            # a piston in its housing
-            box((x + dx * 0.5, y + dy * 0.5, z), (0.9, 0.9, 0.5), dark, rotation=a, bevel=0.03)
-            cylinder((x + dx * 0.5, y + dy * 0.5, z + 0.5), 0.22, 1.6, brass, vertices=14)
-            box((x + dx * 0.5, y + dy * 0.5, z + 2.1), (0.8, 0.8, 0.25), dark, rotation=a)
+            piston(x, y, a, z, dark, brass, steel, phase=i * 0.37)
         else:
             # a furnace in the wall, the fire's glow flickering on the deck
             box((x + dx * 0.3, y + dy * 0.3, z), (1.6, 0.6, 1.6), dark, rotation=a + math.pi / 2, bevel=0.05)
@@ -1410,21 +1527,32 @@ def world_castle_2(st):
                           lamp if k > 0 else green, segments=10, rings=6)
                 glow((x + dx * 0.66 + dy * k * 0.6, y + dy * 0.66 - dx * k * 0.6, z + 1.3),
                      (1.0, 0.48, 0.36) if k > 0 else (0.55, 1.0, 0.72), 0.3, GLOW_BLINK)
-    # pipes running along the walls
+    # I-beams between the machines, a lamp on each, a beam along the top of the walls
+    for (x, y, a) in along_walls(x0, x1, y0, y1, 3.0):
+        dx, dy = math.cos(a), math.sin(a)
+        bx, by = x - dy * 1.5, y + dx * 1.5
+        if x0 <= bx <= x1 and y0 <= by <= y1:
+            pilaster(bx, by, a, z, 4.3, steel, dark)
+            wall_lamp(bx + dx * 0.3, by + dy * 0.3, a, z + 2.9, dark, lamp_glass)
+    for (p0, p1) in (((x0, y1), (x1, y1)), ((x0, y0), (x0, y1)), ((x1, y0), (x1, y1))):
+        mx, my = (p0[0] + p1[0]) * 0.5, (p0[1] + p1[1]) * 0.5
+        box((mx, my, z + 4.15), (math.hypot(p1[0] - p0[0], p1[1] - p0[1]) + 0.5, 0.5, 0.3), steel,
+            rotation=math.atan2(p1[1] - p0[1], p1[0] - p0[0]))
+    # pipes running along the walls, bolted together every tile and a half, a valve now and then
     for h, r, m in ((0.7, 0.14, copper), (3.4, 0.2, brass)):
-        pipe_run((x0 + 0.35, y1 + 0.2), (x1 - 0.35, y1 + 0.2), z + h, r, m)
-        pipe_run((x0 + 0.25, y0), (x0 + 0.25, y1 - 0.1), z + h, r, m)
-        pipe_run((x1 - 0.25, y0), (x1 - 0.25, y1 - 0.1), z + h, r, m)
+        for p0, p1 in (((x0 + 0.35, y1 + 0.2), (x1 - 0.35, y1 + 0.2)), ((x0 + 0.25, y0), (x0 + 0.25, y1 - 0.1)),
+                       ((x1 - 0.25, y0), (x1 - 0.25, y1 - 0.1))):
+            pipe_run(p0, p1, z + h, r, m, flange=1.5, flange_mat=dark, valve_mat=lamp, valve_every=3 if h < 1 else 0)
     # yellow crates and drums between the field and the hazard band
     taken = []
     between = lambda x, y: float(st.outside(x, y) > 0.9) * float(st.outside(x, y) < 2.6)  # noqa: E731
     for (x, y) in st.scatter(16, between, 1.1, taken, margin=0.9):
         if st.rng.random() < 0.5:
-            box((x, y, z), (0.8, 0.8, 0.8), yellow, rotation=st.rng.uniform(-0.2, 0.2), bevel=0.03)
+            crate(x, y, z, 0.8, crate_side, yellow, st.rng.uniform(-0.2, 0.2))
             if st.rng.random() < 0.4:
-                box((x, y, z + 0.8), (0.6, 0.6, 0.55), dark, rotation=st.rng.uniform(-0.4, 0.4), bevel=0.03)
+                crate(x, y, z + 0.8, 0.55, crate_side, dark, st.rng.uniform(-0.4, 0.4))
         else:
-            cylinder((x, y, z), 0.3, 0.85, dark if st.rng.random() < 0.5 else copper, vertices=12)
+            drum(x, y, z, oil if st.rng.random() < 0.5 else copper, dark)
     return ground, img
 
 
@@ -1443,12 +1571,6 @@ def lit_material(name, color, variation=0.1, scale=4.0, color2=None):
         bsdf.inputs["Emission Strength"].default_value = 1.0
         CRYSTALS.append(mat)
     return mat
-
-
-def torus(loc, major, minor, mat, segments=24, sides=6):
-    bpy.ops.mesh.primitive_torus_add(major_radius=major, minor_radius=minor, major_segments=segments,
-                                     minor_segments=sides, location=loc)
-    return _finish(bpy.context.object, mat)
 
 
 def glow_phase(x, y):
@@ -1555,7 +1677,8 @@ def power_press(x, y, z, angle, dark, steel, hazard, hot, phase):
     box((x, y, z + 2.7), (1.5, 0.34, 0.3), hazard, rotation=a, bevel=0.02)
     cylinder((x, y, z + 2.15), 0.17, 0.56, dark, vertices=12)
     start = len(PROPS)
-    cylinder((x, y, z + 1.15), 0.1, 1.1, steel, vertices=10)
+    # long enough to stay in its sleeve at the bottom of the stroke
+    cylinder((x, y, z + 1.15), 0.1, 1.45, steel, vertices=10)
     box((x, y, z + 0.95), (1.0, 0.62, 0.22), hazard, rotation=a, bevel=0.02)
     slider(start, Matrix.Translation((x, y, z)), -0.4, 2, phase)
 

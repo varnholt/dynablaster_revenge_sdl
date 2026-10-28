@@ -31,6 +31,8 @@ WaterSurface::WaterSurface()
    _flow_param = activeDevice().getParameterIndex("u_flow");
    _haze_box_param = activeDevice().getParameterIndex("u_haze_box");
    _haze_range_param = activeDevice().getParameterIndex("u_haze_range");
+   _waders_param = activeDevice().getParameterIndex("u_waders");
+   _wader_count_param = activeDevice().getParameterIndex("u_wader_count");
 
    glGenTextures(1, &_refraction);
 }
@@ -84,6 +86,12 @@ void WaterSurface::captureRefraction()
    glBindTexture(GL_TEXTURE_2D, 0);
 }
 
+void WaterSurface::setWaders(std::vector<Wader> waders)
+{
+   _waders = std::move(waders);
+   _waders.resize(std::min(_waders.size(), MAX_WADERS));
+}
+
 void WaterSurface::render(GltfModel& model, const Vector& eye)
 {
    if (!_reflection)
@@ -114,6 +122,20 @@ void WaterSurface::render(GltfModel& model, const Vector& eye)
    activeDevice().setParameter(_haze_param, Vector4(air._haze.x, air._haze.y, air._haze.z, air._strength));
    activeDevice().setParameter(_haze_box_param, air._box);
    activeDevice().setParameter(_haze_range_param, Vector2(air._near, std::max(air._far, air._near + 0.001f)));
+
+   std::vector<float> waders;
+   waders.reserve(_waders.size() * 4);
+   for (const Wader& wader : _waders)
+   {
+      waders.insert(waders.end(), {wader._position.x, wader._position.y, wader._velocity.x, wader._velocity.y});
+   }
+
+   if (!waders.empty())
+   {
+      glUniform4fv(_waders_param, static_cast<GLsizei>(_waders.size()), waders.data());
+   }
+
+   activeDevice().setParameter(_wader_count_param, static_cast<float>(_waders.size()));
 
    glActiveTexture(GL_TEXTURE1);
    glBindTexture(GL_TEXTURE_2D, _reflection->texture());

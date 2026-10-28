@@ -251,6 +251,21 @@ void EnemyRenderer::animate(float dt)
    }
 }
 
+void EnemyRenderer::addWaders(std::vector<WaterSurface::Wader>& waders) const
+{
+   for (const auto& [id, instance] : _instances)
+   {
+      if (instance._dying >= 0.0f)
+      {
+         continue;
+      }
+
+      // a moment after the shown position stopped they stand, no more wake behind them
+      const bool walking = instance._standing < 0.1f;
+      waders.push_back({Vector2(instance._x, -instance._y), walking ? Vector2(instance._vx, -instance._vy) : Vector2(0.0f, 0.0f)});
+   }
+}
+
 void EnemyRenderer::render()
 {
    if (_instances.empty())
