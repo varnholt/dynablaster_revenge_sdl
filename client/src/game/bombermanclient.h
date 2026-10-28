@@ -308,7 +308,7 @@ public:
    void togglePause();
 
    //! the story's continue prompt: left and right pick yes or no, the bomb key or return answers
-   //! eturn true if the key was the prompt's
+   //! \return true if the key was the prompt's
    bool processContinueKey(int key);
 
    //! sends the answer to the continue prompt and closes it
