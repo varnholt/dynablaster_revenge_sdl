@@ -1,6 +1,7 @@
 # The ending after the original's: in the castle's machine room the player runs after the black bomberman, who
 # flees to the far end and turns; the princess comes running in through the doorway past him to the player and
-# tells him all about it, the player jumps for joy, and the black bomberman sits down and cries. THE END.
+# tells him all about it, the player jumps for joy, and the black bomberman sits down and cries his eyes out (his
+# tears from build_tears.py). THE END.
 #   blender --background --factory-startup --python build_ending.py -- <out dir> [render <frame,...>]
 # Assembles the models the build_*.py scripts wrote to <out dir>, stages them and writes ending.txt (see
 # cutscene.py). Rotation 0 faces the camera (-y), 90 faces right (+x), -90 left.
@@ -26,6 +27,9 @@ ACTORS = {
     "rival": {"model": "player_dark.glb", "scale": 2.4,
               "actions": [(1, "run", "loop"), (s(3.4), "idle", "loop"), (s(SIT), "sit", "hold"),
                           (s(SIT + SIT_LENGTH), "cry", "loop")]},
+    # hung on the rival in stage(), so it has his scale already
+    "tears": {"model": "tears.glb", "scale": 1.0, "actions": [(s(SIT + SIT_LENGTH), "fall", "loop")],
+              "from": s(SIT + SIT_LENGTH)},
     "player": {"model": "player.glb", "scale": 2.4,
                "actions": [(1, "run", "loop"), (s(3.6), "idle", "loop"), (s(6.0), "win", "hold"),
                            (s(6.0 + WIN_LENGTH), "idle", "loop")],
@@ -45,6 +49,7 @@ def stage(actors):
     key(rival, s(3.8), rotation=(0, 0, -90))
     key(rival, s(SIT - 0.3), rotation=(0, 0, -90))
     key(rival, s(SIT), (3.55, 0.25, 0.0), (0, 0, -25))
+    actors["tears"]["holder"].parent = rival
 
     player = actors["player"]["holder"]
     key(player, s(0.6), (-8.5, 0.35, 0.0), (0, 0, 90))
