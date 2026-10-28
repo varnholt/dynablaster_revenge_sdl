@@ -23,10 +23,11 @@ def area(obj):
     return sum(poly.area for poly in obj.data.polygons) * factor
 
 
-def reduce(obj, per_area=PROPS, minimum=MINIMUM, keep=("spin",)):
+def reduce(obj, per_area=PROPS, minimum=MINIMUM, keep=("spin",), protect=None):
     """Collapses obj to per_area triangles per square unit of its surface, at least minimum. Meshes with a face
     attribute named in keep (the scenery's spinning parts) stay as they are: collapsing mixes faces across them.
-    Returns the triangles before and after."""
+    protect names a vertex group whose vertices the collapse leaves where they are. Returns the triangles before
+    and after."""
     before = triangles(obj)
     if any(name in obj.data.attributes for name in keep):
         return before, before
@@ -37,6 +38,10 @@ def reduce(obj, per_area=PROPS, minimum=MINIMUM, keep=("spin",)):
     collapse.decimate_type = "COLLAPSE"
     collapse.ratio = target / before
     collapse.use_collapse_triangulate = True
+    if protect:
+        collapse.vertex_group = protect
+        collapse.invert_vertex_group = True
+        collapse.vertex_group_factor = 1000.0
     active = bpy.context.view_layer.objects.active
     bpy.context.view_layer.objects.active = obj
     bpy.ops.object.modifier_apply(modifier=collapse.name)

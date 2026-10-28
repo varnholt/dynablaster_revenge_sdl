@@ -58,7 +58,7 @@ public:
       float _size = 0.5f;
 
       //! 0 steady, 1 flickering flame, 2 blinking, 3 pulsing, 4 a fire: an animated flame standing on the
-      //! position, its halo flickering with it
+      //! position, its halo flickering with it, 6 a firefly: wandering round the position, glowing up now and then
       int32_t _mode = 0;
    };
 
@@ -162,6 +162,11 @@ private:
       int32_t _night_image = -1;
 
       //! fine surface detail (grass, gravel, bark) tiled over the colour in world space, from the material's
+      //! extras "screen": [dark rgb, bright rgb]: a screen showing live static between the two colours, unlit
+      bool _screen = false;
+      Vector _screen_dark;
+      Vector _screen_bright;
+
       //! extras "detail": [mask, image 0..3, repeats per unit 0..3, strength]: up to four detail images, the
       //! mask's rgba (read at the colour's uvs) how much of each shows where; 0 strength for none
       int32_t _detail_mask_image = -1;
