@@ -14,6 +14,7 @@ import numpy as np
 from mathutils import Matrix, Vector
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import budget  # noqa: E402
 import glb  # noqa: E402
 
 ARGS = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
@@ -2201,6 +2202,10 @@ def gulls():
     return objects, [day, night]
 
 
+# triangles per square unit of the islands' ground (budget.reduce())
+ISLAND_BUDGET = 0.5
+
+
 def islands():
     """The islands with their sandy shallows as one object, the palms as another (they sway, see "wave")."""
     objects, images = [], []
@@ -2227,6 +2232,8 @@ def islands():
                                             (co[:, 1] - ys[0]) / (ys[-1] - ys[0])], 1).ravel())
         for poly in mesh.polygons:
             poly.use_smooth = True
+        # far out at sea: the flat seabed needs next to nothing, the coast keeps its triangles
+        print("RESULT island", index, *budget.reduce(obj, ISLAND_BUDGET), "tris", flush=True)
         u = (np.arange(ISLAND_TEX) + 0.5) / ISLAND_TEX
         TX, TY = np.meshgrid(xs[0] + u * (xs[-1] - xs[0]), ys[0] + u * (ys[-1] - ys[0]))
         TZ = seabed(TX, TY)
@@ -2408,6 +2415,13 @@ def export_material(name, color_img, ao_img, night_img=None):
 
 def join_props(name, parts=None):
     objs = [o for o in (PROPS if parts is None else parts) if o.name in bpy.data.objects]
+    # down to the triangles their shapes need; the sails keep theirs, the wind bends them along them
+    if name != "cloth":
+        before = after = 0
+        for o in objs:
+            b, a = budget.reduce(o)
+            before, after = before + b, after + a
+        print("RESULT", name, before, "->", after, "tris", flush=True)
     bpy.ops.object.select_all(action="DESELECT")
     for o in objs:
         o.select_set(True)

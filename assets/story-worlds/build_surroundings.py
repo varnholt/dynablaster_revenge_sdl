@@ -12,6 +12,7 @@ import numpy as np
 from mathutils import Matrix, Quaternion, Vector
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import budget  # noqa: E402
 import detail  # noqa: E402
 import glb  # noqa: E402
 import grass  # noqa: E402
@@ -274,9 +275,11 @@ def box(loc, size, mat, rotation=0.0, bevel=None):
     return _finish(obj, mat, smooth_shade=False)
 
 
-def fuse(start, voxel, faces, smooth_steps=0):
+def fuse(start, voxel, faces, smooth_steps=0, tris=None):
     """Joins the props made since start into one closed mesh: no hidden inner faces that would bake black.
-    The voxel size grows until the remesh stays near faces on its own; decimating it instead tears holes."""
+    The voxel size grows until the remesh stays near faces on its own. With tris the remesh is fine enough for
+    thin parts (twigs) and collapsed down to that many triangles afterwards, which keeps the vertices where the
+    shape needs them; a coarse remesh would lose the thin parts, a fine one wastes triangles on flat surfaces."""
     parts = PROPS[start:]
     del PROPS[start:]
     bpy.ops.object.select_all(action="DESELECT")
@@ -295,6 +298,13 @@ def fuse(start, voxel, faces, smooth_steps=0):
         smoothing = obj.modifiers.new("Smooth", "SMOOTH")
         smoothing.iterations = smooth_steps
         bpy.ops.object.modifier_apply(modifier=smoothing.name)
+    if tris:
+        count = sum(len(poly.vertices) - 2 for poly in obj.data.polygons)
+        if count > tris:
+            collapse = obj.modifiers.new("Decimate", "DECIMATE")
+            collapse.decimate_type = "COLLAPSE"
+            collapse.ratio = tris / count
+            bpy.ops.object.modifier_apply(modifier=collapse.name)
     for poly in obj.data.polygons:
         poly.use_smooth = True
     PROPS.append(obj)
@@ -379,7 +389,7 @@ def tree_round(st, x, y, z, s, leaves, trunk):
         tips.append(ends)
     sphere(fork, 0.09 * s, trunk, subdiv=1)
     # fine enough that the twigs stay whole
-    fuse(start, 0.012 * s, 2000)
+    fuse(start, 0.012 * s, 2000, tris=320)
     # the leaves: per limb one mesh of clusters round its twigs' ends, so the crown stays lumpy
     for ends in tips:
         cluster = len(PROPS)
@@ -388,7 +398,7 @@ def tree_round(st, x, y, z, s, leaves, trunk):
                 o = rng.normal(0, 0.07, 3) * s
                 sphere((end[0] + o[0], end[1] + o[1], end[2] + o[2] + 0.05 * s), rng.uniform(0.16, 0.21) * s,
                        leaves, jitter=0.12, rng=rng)
-        sway(fuse(cluster, 0.015 * s, 260, smooth_steps=1), z + 0.5 * s, z + 1.8 * s)
+        sway(fuse(cluster, 0.015 * s, 260, smooth_steps=1, tris=90), z + 0.5 * s, z + 1.8 * s)
 
 
 def tree_pine(st, x, y, z, s, leaves, trunk):
@@ -2119,6 +2129,12 @@ def export_material(name, color_img, ao_img):
 
 def join_props(name):
     objs = [o for o in PROPS if o.name in bpy.data.objects]
+    # every prop down to the triangles its shape needs
+    before = after = 0
+    for o in objs:
+        b, a = budget.reduce(o)
+        before, after = before + b, after + a
+    print("RESULT props", before, "->", after, "tris", flush=True)
     bpy.ops.object.select_all(action="DESELECT")
     for o in objs:
         o.select_set(True)
@@ -2164,6 +2180,8 @@ def build(world, size_key):
     setup_cycles()
     st = Stage(w, h, seed=world * 100 + w + h)
     ground, ground_color = fn(st)
+    before, after = budget.reduce(ground, budget.GROUND)
+    print("RESULT ground", before, "->", after, "tris", flush=True)
 
     occluders = border_occluders(w, h)
     for water, _ in WATER:
