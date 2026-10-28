@@ -5,7 +5,7 @@
 # newer glibc than SteamOS ships, it rebuilds the same commit locally (WSL on Windows,
 # natively on Linux) and deploys that instead.
 #
-# Usage: tools/steamdeck-deploy/deploy_steamdeck.sh [--local] [--run-id <id>] [--force]
+# Usage: steam/deploy_steamdeck.sh [--local] [--run-id <id>] [--force]
 #   --local        skip CI, always build locally
 #   --run-id <id>  deploy the artifact of a specific workflow run
 #   --force        close the game on the Deck if it is running
