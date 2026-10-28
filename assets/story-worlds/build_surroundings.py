@@ -1428,9 +1428,12 @@ def banner(x, y, angle, z, cloth, trim):
     # the hem a little wider than the cloth, their ends would share a plane
     box((x + dx * 0.05, y + dy * 0.05, z + 0.32), (1.0, 0.06, 0.1), trim, rotation=angle + math.pi / 2)
     box((x + dx * 0.04, y + dy * 0.04, z + 2.5), (1.15, 0.08, 0.08), trim, rotation=angle + math.pi / 2)
-    crest = box((x + dx * 0.07, y + dy * 0.07, z + 1.25), (0.32, 0.04, 0.32), trim)
+    # made round the origin and moved there after turning: box() bakes its location into the mesh, a turn
+    # afterwards would swing the diamond round the world's origin, off the banner and into the air
+    crest = box((0.0, 0.0, -0.16), (0.32, 0.04, 0.32), trim)
     crest.rotation_euler = (0.0, 0.0, angle + math.pi / 2)
     crest.rotation_euler.rotate_axis("Y", math.pi / 4)
+    crest.location = (x + dx * 0.07, y + dy * 0.07, z + 1.41)
 
 
 def column(x, y, z, height, stone, cap):
