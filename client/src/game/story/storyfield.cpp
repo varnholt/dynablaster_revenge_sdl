@@ -225,6 +225,11 @@ void StoryField::drawBorder(Kit& kit, const Matrix& transform)
    }
 }
 
+void StoryField::setWaders(std::vector<WaterSurface::Wader> waders)
+{
+   _waders = std::move(waders);
+}
+
 void StoryField::render()
 {
    Kit& kit = getKit();
@@ -306,6 +311,7 @@ void StoryField::render()
       const Vector eye(inverse.xz / inverse.wz, inverse.yz / inverse.wz, inverse.zz / inverse.wz);
 
       _water->captureRefraction();
+      _water->setWaders(std::move(_waders));
       _water->render(scenery, eye);
    }
 

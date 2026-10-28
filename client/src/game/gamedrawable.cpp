@@ -1513,6 +1513,7 @@ void GameDrawable::paintGL()
       {
          // the stage is built from the world's kit instead of the arena, with the arena's camera
          _level->getScene().setupCamera(shake);
+         updateWaders();
          _story_field->render();
       }
       else
@@ -1661,4 +1662,41 @@ bool GameDrawable::isCameraFollowingPlayer() const
 void GameDrawable::setCameraFollowingPlayer(bool value)
 {
    _camera_follows_player = value;
+}
+
+void GameDrawable::updateWaders()
+{
+   const float now = GlobalTime::Instance().getTime();
+   const float dt = now - _wading_time;
+   _wading_time = now;
+
+   std::vector<WaterSurface::Wader> waders;
+   std::map<int, Wading> wading;
+
+   for (const auto& [player_id, player] : _player_list)
+   {
+      if (player->isKilled())
+      {
+         continue;
+      }
+
+      const Vector& position = player->getPosition();
+      Wading now_wading{Vector2(position.x, position.y), Vector2(0.0f, 0.0f)};
+
+      if (const auto before = _wading.find(player_id); before != _wading.end() && dt > 0.0f && dt < 0.25f)
+      {
+         // eased, the positions come in steps of the server's updates
+         const Vector2 velocity((position.x - before->second._position.x) / dt, (position.y - before->second._position.y) / dt);
+         const float ease = std::min(1.0f, dt * 10.0f);
+         now_wading._velocity = Vector2(before->second._velocity.x + (velocity.x - before->second._velocity.x) * ease,
+                                        before->second._velocity.y + (velocity.y - before->second._velocity.y) * ease);
+      }
+
+      wading[player_id] = now_wading;
+      waders.push_back({now_wading._position, now_wading._velocity});
+   }
+
+   _wading = std::move(wading);
+   _enemies->addWaders(waders);
+   _story_field->setWaders(std::move(waders));
 }

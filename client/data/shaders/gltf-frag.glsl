@@ -14,6 +14,13 @@ uniform float u_flash;
 uniform float u_alpha;
 uniform vec3 u_tint;
 
+// a screen (u_screen 1): live static between its dark and bright colour, scanlines, a bar rolling up, unlit;
+// u_time is the scenery's clock in seconds
+uniform float u_screen;
+uniform vec3 u_screen_dark;
+uniform vec3 u_screen_bright;
+uniform highp float u_time;
+
 // fragments above this height are dropped (mirror images)
 uniform highp float u_clip;
 
@@ -105,11 +112,36 @@ vec3 triplanar(sampler2D image, highp float scale, vec3 weights)
    return result;
 }
 
+highp float screenHash(highp vec2 p)
+{
+   p = fract(p * vec2(0.1031, 0.1030));
+   p += dot(p, p.yx + 33.33);
+   return fract((p.x + p.y) * p.x);
+}
+
 void main()
 {
    if (height > u_clip)
    {
       discard;
+   }
+
+   if (u_screen > 0.5)
+   {
+      // static in coarse cells, a new pattern twelve times a second, over a slow blotchy picture
+      highp float frame = floor(u_time * 12.0);
+      highp vec2 cell = floor(uv * vec2(96.0, 64.0));
+      float grain = screenHash(cell + frame * 17.0);
+      highp vec2 blot = floor(uv * vec2(8.0, 5.0));
+      float picture = 0.5 + 0.5 * sin(u_time * 0.7 + screenHash(blot) * 6.28);
+      float scan = 0.82 + 0.18 * sin(uv.y * 340.0);
+      float bar = smoothstep(0.08, 0.0, abs(fract(uv.y * 0.6 - u_time * 0.15) - 0.5)) * 0.35;
+      float level = clamp(mix(picture, grain, 0.55) * scan + bar, 0.0, 1.0);
+      vec3 screen = mix(u_screen_dark, u_screen_bright, level);
+      // dimmer towards the edges, like a tube
+      screen *= 1.0 - 0.35 * pow(length(uv - 0.5) * 1.4, 3.0);
+      o_color = vec4(screen, u_alpha);
+      return;
    }
 
    if (u_alpha_cutoff > 0.0)

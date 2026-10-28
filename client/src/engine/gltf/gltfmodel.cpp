@@ -59,6 +59,9 @@ struct Shader
    int32_t _rim = -1;
    int32_t _alpha_cutoff = -1;
    int32_t _double_sided = -1;
+   int32_t _screen = -1;
+   int32_t _screen_dark = -1;
+   int32_t _screen_bright = -1;
    int32_t _shell = -1;
 };
 
@@ -540,6 +543,13 @@ void GltfModel::load(const std::string& filename)
             primitive._occlusion_image = image_of(source.material->occlusion_texture);
             primitive._night_image = image_of(source.material->emissive_texture);
 
+            if (const auto screen = readExtras<6>(source.material->extras.data, "screen"))
+            {
+               primitive._screen = true;
+               primitive._screen_dark = Vector((*screen)[0], (*screen)[1], (*screen)[2]);
+               primitive._screen_bright = Vector((*screen)[3], (*screen)[4], (*screen)[5]);
+            }
+
             if (const auto detail = readExtras<10>(source.material->extras.data, "detail"))
             {
                const auto image = [data](float index)
@@ -1014,6 +1024,9 @@ void GltfModel::begin()
       shader._rim = activeDevice().getParameterIndex("u_rim");
       shader._alpha_cutoff = activeDevice().getParameterIndex("u_alpha_cutoff");
       shader._double_sided = activeDevice().getParameterIndex("u_double_sided");
+      shader._screen = activeDevice().getParameterIndex("u_screen");
+      shader._screen_dark = activeDevice().getParameterIndex("u_screen_dark");
+      shader._screen_bright = activeDevice().getParameterIndex("u_screen_bright");
       shader._shell = activeDevice().getParameterIndex("u_shell");
    }
 
@@ -1124,6 +1137,13 @@ void GltfModel::draw(const Matrix& transform, int32_t animation, float time, con
             glActiveTexture(GL_TEXTURE0 + static_cast<GLenum>(DETAIL_UNIT) + static_cast<GLenum>(i));
             glBindTexture(GL_TEXTURE_2D, texture_of(primitive._detail_images[i]));
          }
+      }
+
+      activeDevice().setParameter(shader._screen, primitive._screen ? 1.0f : 0.0f);
+      if (primitive._screen)
+      {
+         activeDevice().setParameter(shader._screen_dark, primitive._screen_dark);
+         activeDevice().setParameter(shader._screen_bright, primitive._screen_bright);
       }
 
       activeDevice().setParameter(shader._has_night, primitive._night_image >= 0 ? 1.0f : 0.0f);

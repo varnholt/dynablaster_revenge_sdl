@@ -9,7 +9,7 @@ layout(location = 0) in vec3 a_center;
 layout(location = 1) in vec2 a_corner;
 layout(location = 2) in vec3 a_color;
 
-// size, mode (0 steady, 1 flame, 2 blink, 3 pulse, 4 fire, 5 a fire's flame), phase
+// size, mode (0 steady, 1 flame, 2 blink, 3 pulse, 4 fire, 5 a fire's flame, 6 firefly), phase
 layout(location = 3) in vec3 a_light;
 
 uniform mat4 u_modelViewProjection;
@@ -38,7 +38,7 @@ void main()
    color = a_color;
    fire = vec3(0.0, mod(t, 1000.0), 0.0);
 
-   if (mode > 4.5)
+   if (mode > 4.5 && mode < 5.5)
    {
       // the flame: its base on the light's position, its tip size * 0.75 above, size * 0.2 to either side
       float size = a_light.x;
@@ -68,7 +68,18 @@ void main()
 
    vec3 position_world = a_center;
    float strength = 1.0;
-   if (mode > 3.5)
+   if (mode > 5.5)
+   {
+      // a firefly: loops lazily round its spot, a different path for each, low over the grass; it lights up for
+      // a moment every few seconds and fades out again
+      float p = a_light.z;
+      position_world += vec3(0.9 * sin(t * 0.31 + p) + 0.4 * sin(t * 0.83 + p * 2.1),
+                             0.9 * cos(t * 0.27 + p * 1.3) + 0.4 * sin(t * 0.71 + p * 0.7),
+                             0.25 * sin(t * 0.53 + p * 1.7) + 0.08 * sin(t * 3.1 + p));
+      float beat = fract(t * 0.22 + p * 0.37);
+      strength = 0.08 + 0.92 * smoothstep(0.0, 0.08, beat) * smoothstep(0.45, 0.2, beat);
+   }
+   else if (mode > 3.5)
    {
       // a fire's halo around the flame's middle, breathing with it
       position_world.z += a_light.x * 0.3;

@@ -258,7 +258,8 @@ def normal_at(p):
 def dome_shell():
     """The half dome as a closed shell of glass."""
     bm = bmesh.new()
-    columns, rows = 120, 44
+    # smooth shaded a coarse grid is round enough, the cells are cut by planes and keep their sharp edges
+    columns, rows = 60, 22
     layers = []
     for inset in (0.0, THICKNESS):
         grid = []

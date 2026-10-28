@@ -6,12 +6,12 @@
 #include <string>
 #include <vector>
 
+#include "engine/render/watersurface.h"
 #include "levels/level.h"
 
 class GltfModel;
 class GlowSprites;
 class Matrix;
-class WaterSurface;
 
 //! the floor and border of a story mode stage, tiled from the current world's glTF kit;
 //! also scrolls the camera over stages larger than one screen
@@ -37,6 +37,9 @@ public:
 
    [[nodiscard]] float getOffsetX() const;
    [[nodiscard]] float getOffsetY() const;
+
+   //! who stands on the field (world xy), they leave foam where it's flooded
+   void setWaders(std::vector<WaterSurface::Wader> waders);
 
    void render();
 
@@ -82,4 +85,5 @@ private:
 
    //! reflection and refraction of the scenery's water
    std::unique_ptr<WaterSurface> _water;
+   std::vector<WaterSurface::Wader> _waders;
 };

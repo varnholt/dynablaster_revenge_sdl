@@ -124,7 +124,7 @@ def height(x, y):
 
 
 STEP = 0.6  # the terrain's grid before decimating
-TRIANGLES = 24000  # what the decimation leaves, most of them where the shape changes: the crag and the ridges
+TRIANGLES = 12000  # what the decimation leaves, most of them where the shape changes: the crag and the ridges
 TEXTURE = (2048, 1024)  # the terrain's colour, projected from above
 
 
