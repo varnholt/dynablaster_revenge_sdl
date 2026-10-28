@@ -230,6 +230,11 @@ bool MenuPageTextEditItem::isEditingActive() const
    return _editing_active;
 }
 
+int MenuPageTextEditItem::getActivationCount() const
+{
+   return _activation_count;
+}
+
 void MenuPageTextEditItem::moveCursorRight()
 {
    setCursorPosition(std::min(getCursorPosition() + 1, static_cast<int>(getText().length())));
@@ -263,6 +268,7 @@ void MenuPageTextEditItem::activated()
    updateCursorHighlight();
 
    _editing_active = true;
+   ++_activation_count;
    MenuPageItem::activated();
 }
 

@@ -8,6 +8,7 @@ import sys
 import time
 
 import bpy
+import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -15,9 +16,30 @@ import sdf_core  # noqa: E402
 import sdf_enemies  # noqa: E402
 import sdf_rig  # noqa: E402
 
+sys.path.insert(0, os.path.join(HERE, ".."))
+import glb  # noqa: E402
+
 ARGS = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 OUT = os.path.abspath(ARGS[0]) if ARGS else os.path.join(HERE, "out")
 ONLY = {name.lower() for name in ARGS[1:]}
+
+
+def add_fur(path, name, fur, mask):
+    """Puts the fur mask into the colour texture's alpha (where the game grows fur, see gltf-frag.glsl) and the fur's
+    length and density into the material's extras."""
+    img = bpy.data.images[f"sdf_{name}_color"]
+    size = img.size[0]
+    rgba = np.empty(size * size * 4, np.float32)
+    img.pixels.foreach_get(rgba)
+    rgba = rgba.reshape(size, size, 4)
+    rgba[..., 3] = mask
+    # Blender's rows run bottom up, a png's top down
+    data = glb.png((np.clip(rgba[::-1], 0, 1) * 255 + 0.5).astype(np.uint8))
+    glb.replace_image(path, img.name, data)
+    gltf, binary = glb.read(path)
+    for material in gltf.get("materials", []):
+        material.setdefault("extras", {})["fur"] = list(fur)
+    glb.write(path, gltf, binary)
 
 
 def build():
@@ -27,6 +49,7 @@ def build():
     start = time.time()
     enemies, bosses = sdf_enemies.ENEMIES, sdf_enemies.BOSSES
     builders = {}
+    furs = {}
     for build_model in sdf_enemies.MODELS:
         model = build_model()
         if ONLY and model.name.lower() not in ONLY:
@@ -39,12 +62,16 @@ def build():
         else:
             offset = ((bosses.index(build_model) - (len(bosses) - 1) / 2) * 4.6, 8.0, 0)
         _, info = sdf_core.convert(model, scene.collection, os.path.join(OUT, "textures"), offset)
+        if model.fur:
+            furs[model.name] = (model.fur, model.fur_mask)
         print("RESULT built", model.name, info, f"{time.time() - start:.0f} s", flush=True)
     for low in [o for o in scene.objects if "_SDF" in o.name and o.type == "MESH"]:
         name = low.name.split("_SDF")[0]
         arm = sdf_rig.build_armature(builders[name](), low)
         sdf_rig.animate(builders[name](), arm)
         size = sdf_rig.export_animated_glb(arm, low, name.lower(), os.path.join(OUT, "glb"))
+        if furs.get(name):
+            add_fur(os.path.join(OUT, "glb", f"{name.lower()}.glb"), name.lower(), *furs[name])
         print("RESULT exported", name.lower(), size // 1024, "kb", flush=True)
     print("RESULT seconds", round(time.time() - start))
 

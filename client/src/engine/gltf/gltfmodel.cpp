@@ -62,7 +62,11 @@ struct Shader
    int32_t _screen = -1;
    int32_t _screen_dark = -1;
    int32_t _screen_bright = -1;
+   int32_t _shell = -1;
 };
+
+// the layers a fur is drawn in on top of the bare skin
+constexpr int32_t FUR_SHELLS = 8;
 
 // texture units: colour, occlusion, night, then the detail mask and the detail images
 constexpr int32_t DETAIL_MASK_UNIT = 3;
@@ -560,6 +564,11 @@ void GltfModel::load(const std::string& filename)
                primitive._detail_strength = primitive._detail_mask_image >= 0 ? (*detail)[9] : 0.0f;
             }
 
+            if (const auto fur = readExtras<2>(source.material->extras.data, "fur"))
+            {
+               primitive._fur = Vector2((*fur)[0], (*fur)[1]);
+            }
+
             if (source.material->alpha_mode == cgltf_alpha_mode_mask)
             {
                // cgltf reads a missing alphaCutoff as the spec's 0.5
@@ -1018,6 +1027,7 @@ void GltfModel::begin()
       shader._screen = activeDevice().getParameterIndex("u_screen");
       shader._screen_dark = activeDevice().getParameterIndex("u_screen_dark");
       shader._screen_bright = activeDevice().getParameterIndex("u_screen_bright");
+      shader._shell = activeDevice().getParameterIndex("u_shell");
    }
 
    activeDevice().setShader(shader._program);
@@ -1163,6 +1173,19 @@ void GltfModel::draw(const Matrix& transform, int32_t animation, float time, con
 
       glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, primitive._index_buffer);
       glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(primitive._indices.size()), GL_UNSIGNED_INT, nullptr);
+
+      // the fur, layer by layer further out; not while fading, the shells would show through each other
+      if (primitive._fur.x > 0.0f && look._alpha >= 1.0f)
+      {
+         for (int32_t layer = 1; layer <= FUR_SHELLS; layer++)
+         {
+            const float t = static_cast<float>(layer) / static_cast<float>(FUR_SHELLS);
+            activeDevice().setParameter(shader._shell, Vector4(primitive._fur.x * t, t, primitive._fur.y, 0.0f));
+            glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(primitive._indices.size()), GL_UNSIGNED_INT, nullptr);
+         }
+
+         activeDevice().setParameter(shader._shell, Vector4(0.0f, 0.0f, 0.0f, 0.0f));
+      }
 
       if (primitive._double_sided)
       {
