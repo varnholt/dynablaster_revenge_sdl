@@ -46,6 +46,7 @@
 #include "stonemapitem.h"
 #include "stopgamerequestpacket.h"
 #include "stopgameresponsepacket.h"
+#include "storycontinuepacket.h"
 #include "storyskippacket.h"
 #include "stringutils.h"
 #include "timepacket.h"
@@ -2074,6 +2075,14 @@ void Game::stopGame()
    // => end the game in that case
    if (_story)
    {
+      // the last life is lost: the story isn't over before the player decides whether to continue
+      if (_story->isGameOver() && getPlayerCount() > 0)
+      {
+         awaitContinue();
+         announceStopped(false);
+         return;
+      }
+
       finished = _story->isFinished() || getPlayerCount() == 0;
 
       if (!finished)
@@ -2092,6 +2101,11 @@ void Game::stopGame()
       finished = _game_round.isFinished();
    }
 
+   announceStopped(finished);
+}
+
+void Game::announceStopped(bool finished)
+{
    if (finished)
    {
       // send and rounds stats if a round is finished
@@ -2110,6 +2124,44 @@ void Game::stopGame()
    // the "finished" flag is added to let the client know whether to switch
    // back to the lounge or to stay in the win drawable
    _outgoing_packets.push_back(std::make_unique<StopGameResponsePacket>(_game_id, finished));
+}
+
+void Game::awaitContinue()
+{
+   _awaiting_continue = true;
+   const int32_t wait = ++_continue_wait;
+
+   // a little longer than the client counts down, so its last second still gets through
+   singleShotWhileAlive((STORY_CONTINUE_TIME + 1) * 1000,
+                        [this, wait]()
+                        {
+                           if (_awaiting_continue && wait == _continue_wait)
+                           {
+                              continueStory(false);
+                           }
+                        });
+}
+
+void Game::continueStory(bool accepted)
+{
+   if (!_story || !_awaiting_continue)
+   {
+      return;
+   }
+
+   _awaiting_continue = false;
+
+   if (accepted)
+   {
+      Log::info("Game::continueStory: the player continues");
+      _story->continueGame();
+      nextRound();
+   }
+   else
+   {
+      Log::info("Game::continueStory: the player gives up");
+      announceStopped(true);
+   }
 }
 
 void Game::nextRound()
@@ -2412,6 +2464,12 @@ void Game::processPacket(Connection& connection, const Packet& packet)
             setPaused(static_cast<const PausePacket&>(packet).isPaused());
          }
 
+         break;
+      }
+
+      case Packet::STORYCONTINUE:
+      {
+         continueStory(static_cast<const StoryContinuePacket&>(packet).isAccepted());
          break;
       }
 

@@ -234,6 +234,9 @@ public:
    Signal<int, int> enemyHitSignal;
    Signal<int, int, int, int, int> storyStateSignal;
    Signal<bool> pausedSignal;
+
+   //! the story's continue prompt after the last life: shown or not, "yes" selected or "no"
+   Signal<bool, bool> continuePromptSignal;
    Signal<> leaveGameSignal;
 
 public:
@@ -303,6 +306,13 @@ public:
 
    //! asks the server to pause or resume the running story mode game
    void togglePause();
+
+   //! the story's continue prompt: left and right pick yes or no, the bomb key or return answers
+   //! eturn true if the key was the prompt's
+   bool processContinueKey(int key);
+
+   //! sends the answer to the continue prompt and closes it
+   void answerContinue(bool accepted);
 
    //! asks the server to jump to the first stage of the next world of the running story mode game
    void skipToNextWorld();
@@ -490,6 +500,16 @@ private:
 
    //! story mode game paused
    bool _paused = false;
+
+   //! the last life of the story is lost
+   bool _story_game_over = false;
+
+   //! the continue prompt is shown, "yes" is selected in it
+   bool _continue_prompt = false;
+   bool _continue_selected = true;
+
+   //! when the continue prompt opened, in SDL ticks
+   uint64_t _continue_prompt_opened = 0;
 
    //! map items by unique id
    std::unordered_map<int, std::unique_ptr<MapItem>> _map_items;

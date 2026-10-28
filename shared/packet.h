@@ -60,7 +60,8 @@ public:
       ENEMYHIT,
       STORYSTATE,
       PAUSE,
-      STORYSKIP
+      STORYSKIP,
+      STORYCONTINUE
    };
 
    // read constructor

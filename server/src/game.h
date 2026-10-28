@@ -190,6 +190,9 @@ public:
    void setPaused(bool paused);
    [[nodiscard]] bool isPaused() const;
 
+   //! story mode after the last life: the player's answer whether to continue the stage
+   void continueStory(bool accepted);
+
    //! player was killed
    Signal<int> playerKilledSignal;
 
@@ -362,6 +365,12 @@ private:
    //! Timer::singleShot() that is dropped if this game has been destroyed in the meantime
    void singleShotWhileAlive(int32_t milliseconds, std::function<void()> callback);
 
+   //! the story's last life is lost: waits for the player to continue, ends the story if they don't in time
+   void awaitContinue();
+
+   //! tells the players the game stopped, finished: all rounds are over
+   void announceStopped(bool finished);
+
    //! static game id counter
    static int _game_id_counter;
 
@@ -487,6 +496,12 @@ private:
 
    //! the story mode is paused
    bool _paused = false;
+
+   //! the story waits for the player to continue after the last life
+   bool _awaiting_continue = false;
+
+   //! counts the waits for a continue, so a timeout only ends the one it was started for
+   int32_t _continue_wait = 0;
 
    //! remote controlled bombs in the order they were dropped
    std::vector<std::weak_ptr<BombMapItem>> _remote_bombs;

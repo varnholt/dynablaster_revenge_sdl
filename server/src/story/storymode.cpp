@@ -644,6 +644,19 @@ bool StoryMode::isFinished() const
    return _game_over || _completed;
 }
 
+bool StoryMode::isGameOver() const
+{
+   return _game_over;
+}
+
+void StoryMode::continueGame()
+{
+   _lives = STORY_LIVES;
+   _score = 0;
+   _abilities = {};
+   _game_over = false;
+}
+
 int32_t StoryMode::getNextStageDelay() const
 {
    return _cleared ? STAGE_CLEARED_DELAY : LIFE_LOST_DELAY;

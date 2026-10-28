@@ -45,6 +45,7 @@
 #include "stonedroppacket.h"
 #include "stopgamerequestpacket.h"
 #include "stopgameresponsepacket.h"
+#include "storycontinuepacket.h"
 #include "storyskippacket.h"
 #include "storystatepacket.h"
 #include "timepacket.h"
@@ -250,6 +251,9 @@ std::unique_ptr<Packet> Packet::deserialize(BinaryReader& in)
          break;
       case Packet::STORYSKIP:
          packet = std::make_unique<StorySkipPacket>();
+         break;
+      case Packet::STORYCONTINUE:
+         packet = std::make_unique<StoryContinuePacket>();
          break;
       default:
          break;
