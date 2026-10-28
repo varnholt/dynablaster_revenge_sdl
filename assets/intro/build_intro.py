@@ -6,29 +6,20 @@
 # camera's; the events. With "render" it also renders those frames through the camera to <out dir>/frames.
 import math
 import os
-import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import bpy  # noqa: E402
-from mathutils import Euler, Matrix, Vector  # noqa: E402
+from mathutils import Matrix, Vector  # noqa: E402
 
+import cutscene  # noqa: E402
 import toy  # noqa: E402
+from cutscene import FPS, key, s  # noqa: E402
 
-FPS = 24
 LENGTH = 15 * FPS
 BURST = 3 * FPS + 1  # the frame the dome breaks
 DOME_CENTRE = Vector((6.5, 5.6, 0.3))
 DOOR_HINGE = (11.44, 5.825, 0.28)  # build_lab.py's, the door right of the dome
-
-ARGS = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
-RENDER = [int(f) for f in ARGS[2].split(",")] if len(ARGS) > 2 and ARGS[1] == "render" else []
-
-
-def s(seconds):
-    """Seconds to the frame they start."""
-    return 1 + round(seconds * FPS)
-
 
 # who's in it: the model, its size, the frames it's seen from and until and the actions it plays from which frame
 # on, no earlier than it's seen ("hold" stops at the end)
@@ -52,40 +43,6 @@ ACTORS = {
                            (s(4.6) + 24, "cower", "loop")],
                "from": s(3.1)},
 }
-
-
-def load(out, name, spec):
-    path = os.path.join(out, spec["model"])
-    if not os.path.exists(path):
-        print("RESULT missing", spec["model"])
-        return None
-    before = set(bpy.data.objects)
-    actions_before = set(bpy.data.actions)
-    bpy.ops.import_scene.gltf(filepath=path)
-    new = [o for o in bpy.data.objects if o not in before]
-    roots = [o for o in new if o.parent is None]
-    # one empty to move the whole thing, whatever the importer made
-    holder = bpy.data.objects.new(name, None)
-    bpy.context.scene.collection.objects.link(holder)
-    for r in roots:
-        r.parent = holder
-    holder.scale = (spec["scale"],) * 3
-    rig = next((o for o in new if o.type == "ARMATURE"), None)
-    # blender renames an action whose name is taken (a second "run" becomes "run.001")
-    actions = {re.sub(r"\.\d+$", "", a.name.split("|")[-1]): a for a in bpy.data.actions if a not in actions_before}
-    if rig and rig.animation_data:
-        rig.animation_data.action = None
-    return {"holder": holder, "rig": rig, "actions": actions, "objects": new}
-
-
-def key(obj, frame, location=None, rotation=None, constant=False):
-    """Keys the holder's location and/or rotation (euler degrees) at frame."""
-    if location is not None:
-        obj.location = location
-        obj.keyframe_insert("location", frame=frame)
-    if rotation is not None:
-        obj.rotation_euler = Euler(tuple(math.radians(a) for a in rotation))
-        obj.keyframe_insert("rotation_euler", frame=frame)
 
 
 def stage(actors):
@@ -171,118 +128,4 @@ def camera():
     return cam
 
 
-def place_actions(actors):
-    """NLA strips for the preview renders, the same timing the game uses."""
-    for name, actor in actors.items():
-        rig = actor["rig"]
-        if rig is None:
-            continue
-        rig.animation_data_create()
-        spec = ACTORS[name]
-        track = rig.animation_data.nla_tracks.new()
-        segments = spec["actions"]
-        for i, (start, action_name, mode) in enumerate(segments):
-            action = actor["actions"].get(action_name)
-            if action is None:
-                print("RESULT", name, "has no action", action_name)
-                continue
-            begin = max(start, spec.get("from", 1))
-            end = segments[i + 1][0] if i + 1 < len(segments) else LENGTH + 1
-            strip = track.strips.new(action_name, begin, action)
-            length = action.frame_range[1] - action.frame_range[0]
-            if mode == "loop":
-                strip.repeat = max((end - begin) / max(length, 1), 0.01)
-            else:
-                strip.extrapolation = "HOLD_FORWARD"
-            strip.frame_end = min(strip.frame_end, end)
-
-
-def visibility(actors):
-    for name, actor in actors.items():
-        spec = ACTORS[name]
-        first, last = spec.get("from", 1), spec.get("until", LENGTH + 1)
-        for obj in actor["objects"]:
-            for frame, hidden in ((1, first > 1), (first, False), (last, True)):
-                if frame <= LENGTH:
-                    obj.hide_render = hidden
-                    obj.keyframe_insert("hide_render", frame=frame)
-
-
-def columns(m):
-    """A matrix as the game's Matrix holds it: column by column, the translation last."""
-    return " ".join(f"{m[row][col]:.5f}" for col in range(4) for row in range(4))
-
-
-def export(out, actors, cam):
-    """intro.txt, see StoryIntroDrawable::load(): actors with their actions and a matrix per frame (one for those
-    that stay put), then the camera's horizontal fov and matrix per frame."""
-    scene = bpy.context.scene
-    matrices = {name: [] for name in actors}
-    camera = []
-    for frame in range(1, LENGTH + 1):
-        scene.frame_set(frame)
-        for name, actor in actors.items():
-            matrices[name].append(columns(actor["holder"].matrix_world))
-        camera.append(f"{math.degrees(cam.data.angle):.3f} {columns(cam.matrix_world)}")
-    lines = [f"fps {FPS} frames {LENGTH}"]
-    for name, actor in actors.items():
-        spec = ACTORS[name]
-        first = spec.get("from", 1)
-        keep = matrices[name] if len(set(matrices[name])) > 1 else matrices[name][:1]
-        lines.append(f"actor {name} {spec['model']} {(first - 1) / FPS:.4f} "
-                     f"{(spec.get('until', LENGTH + 1) - 1) / FPS:.4f} {len(spec['actions'])} {len(keep)}")
-        for start, action, mode in spec["actions"]:
-            lines.append(f"action {(max(start, first) - 1) / FPS:.4f} {action} {mode}")
-        lines.extend(keep)
-    lines.append(f"camera {len(camera)}")
-    lines.extend(camera)
-    with open(os.path.join(out, "intro.txt"), "w", newline="\n") as f:
-        f.write("\n".join(lines) + "\n")
-    print("RESULT wrote intro.txt")
-
-
-def render(out, cam, frames):
-    scene = bpy.context.scene
-    try:
-        scene.render.engine = "BLENDER_EEVEE_NEXT"
-    except TypeError:
-        scene.render.engine = "BLENDER_EEVEE"
-    scene.render.resolution_x, scene.render.resolution_y = 960, 540
-    world = bpy.data.worlds.new("night")
-    world.use_nodes = True
-    next(n for n in world.node_tree.nodes if n.type == "BACKGROUND").inputs[0].default_value = (0.01, 0.012, 0.04, 1)
-    scene.world = world
-    moon = bpy.data.objects.new("moon", bpy.data.lights.new("moon", "SUN"))
-    moon.data.energy = 2.2
-    moon.data.color = (0.75, 0.82, 1.0)
-    moon.rotation_euler = (math.radians(50), math.radians(-20), math.radians(-25))
-    scene.collection.objects.link(moon)
-    os.makedirs(os.path.join(out, "frames"), exist_ok=True)
-    for frame in frames:
-        scene.frame_set(frame)
-        scene.render.filepath = os.path.join(out, "frames", f"intro_{frame:04d}.png")
-        bpy.ops.render.render(write_still=True)
-    print("RESULT rendered", len(frames))
-
-
-def build(out):
-    toy.reset()
-    scene = bpy.context.scene
-    scene.render.fps = FPS
-    scene.frame_start, scene.frame_end = 1, LENGTH
-    actors = {}
-    for name, spec in ACTORS.items():
-        actor = load(out, name, spec)
-        if actor:
-            actors[name] = actor
-    stage(actors)
-    place_actions(actors)
-    visibility(actors)
-    cam = camera()
-    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(out, "intro.blend"))
-    export(out, actors, cam)
-    if RENDER:
-        render(out, cam, RENDER)
-
-
-build(toy.out_dir())
+cutscene.build(toy.out_dir(), "intro", ACTORS, LENGTH, stage, camera)

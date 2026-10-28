@@ -30,7 +30,8 @@
 #include "game/musicplayerdrawable.h"
 #include "game/roundsdrawable.h"
 #include "game/story/storyhuddrawable.h"
-#include "game/story/storyintrodrawable.h"
+#include "storystatepacket.h"
+#include "game/story/storycutscenedrawable.h"
 #include "devscript.h"
 #include "game/soundmanager.h"
 #include "game/videooptions.h"
@@ -357,9 +358,27 @@ int main(int /*argc*/, char** /*argv*/)
    StoryHudDrawable story_hud_drawable(device);
    story_hud_drawable.initializeGL();
 
-   // the story mode's intro, played when SINGLE is pressed
-   StoryIntroDrawable story_intro_drawable(device);
+   // the story mode's intro, played when SINGLE is pressed, and its ending, played once the last stage is cleared
+   StoryCutsceneDrawable story_intro_drawable(device, "story/intro/intro.txt");
    story_intro_drawable.initializeGL();
+   StoryCutsceneDrawable story_ending_drawable(device, "story/intro/ending.txt");
+   story_ending_drawable.initializeGL();
+   bool story_completed = false;
+
+   // any key, click or controller button skips the cutscene that's playing
+   const auto skip_cutscene = [&]()
+   {
+      for (StoryCutsceneDrawable* cutscene : {&story_intro_drawable, &story_ending_drawable})
+      {
+         if (cutscene->isPlaying())
+         {
+            cutscene->skip();
+            return true;
+         }
+      }
+
+      return false;
+   };
 
    // win/trophy screen, drives its own visibility off GameStateMachine's state changes
    GameWinDrawable game_win_drawable(device);
@@ -444,6 +463,11 @@ int main(int /*argc*/, char** /*argv*/)
          game_drawable.setStoryStage(stage);
          game_drawable.setStoryEnemiesLeft(enemies_left);
          story_hud_drawable.setState(stage, lives, score, state, enemies_left);
+
+         if (state == StoryStatePacket::StateCompleted)
+         {
+            story_completed = true;
+         }
       }
    );
    bomberman_client.continuePromptSignal.connect([&](bool shown, bool yes) { story_hud_drawable.setContinuePrompt(shown, yes); });
@@ -465,6 +489,7 @@ int main(int /*argc*/, char** /*argv*/)
          logo_drawable.setVisible(false);
          menu_cursor.setVisible(false);
          story_intro_drawable.setVisible(false);
+         story_ending_drawable.setVisible(false);
          game_drawable.setVisible(true);
          game_messaging_drawable.setVisible(true);
          game_stats_drawable.setVisible(true);
@@ -485,6 +510,7 @@ int main(int /*argc*/, char** /*argv*/)
    auto show_menu_again = [&]()
    {
       story_intro_drawable.setVisible(false);
+      story_ending_drawable.setVisible(false);
       game_drawable.setVisible(false);
       game_messaging_drawable.setVisible(false);
       game_stats_drawable.setVisible(false);
@@ -500,7 +526,31 @@ int main(int /*argc*/, char** /*argv*/)
    bomberman_client.showMenuSignal.connect(show_menu_again);
    // a finished game shows the win screen first and switches to the menu once it faded out;
    // showMenu() above (early leave, no valid game id) switches immediately
-   bomberman_client.gameStoppedSignal.connect([&]() { Timer::singleShot(SHOW_WINNER_TIME_SUM, show_menu_again); });
+   bomberman_client.gameStoppedSignal.connect(
+      [&]()
+      {
+         Timer::singleShot(
+            SHOW_WINNER_TIME_SUM,
+            [&]()
+            {
+               if (!story_completed)
+               {
+                  show_menu_again();
+                  return;
+               }
+
+               // the whole story is done: its ending first, then the menu
+               story_completed = false;
+               game_drawable.setVisible(false);
+               game_messaging_drawable.setVisible(false);
+               game_stats_drawable.setVisible(false);
+               countdown_drawable.setVisible(false);
+               story_hud_drawable.setVisible(false);
+               story_ending_drawable.play(show_menu_again);
+            }
+         );
+      }
+   );
    bomberman_client.showMainMenuSignal.connect([&]() { menu_drawable.pageChangeRequest("data/menus/mainmenu.psd"); });
 
    // SINGLE plays the intro first, the story mode starts once it's over; it stays up until the game shows
@@ -526,10 +576,9 @@ int main(int /*argc*/, char** /*argv*/)
    controller_input.buttonPressedSignal.connect(
       [&](ControllerInput::Id, ControllerInput::Button button)
       {
-         // any button skips the intro
-         if (story_intro_drawable.isPlaying())
+         // any button skips a cutscene
+         if (skip_cutscene())
          {
-            story_intro_drawable.skip();
             return;
          }
 
@@ -589,9 +638,10 @@ int main(int /*argc*/, char** /*argv*/)
    // the frame is drawn offscreen at the video options' resolution, then shown 16:9 with their brightness
    VideoOutput video_output(device);
 
-   const std::array<std::reference_wrapper<Drawable>, 9> animated_drawables{
+   const std::array<std::reference_wrapper<Drawable>, 10> animated_drawables{
       logo_drawable,
       story_intro_drawable,
+      story_ending_drawable,
       game_drawable,
       game_stats_drawable,
       countdown_drawable,
@@ -602,11 +652,12 @@ int main(int /*argc*/, char** /*argv*/)
    };
 
    // in drawing order
-   const std::array<std::reference_wrapper<Drawable>, 14> painted_drawables{
+   const std::array<std::reference_wrapper<Drawable>, 15> painted_drawables{
       menu_drawable,
       menu_cursor,
       logo_drawable,
       story_intro_drawable,
+      story_ending_drawable,
       game_drawable,
       game_messaging_drawable,
       game_stats_drawable,
@@ -732,10 +783,9 @@ int main(int /*argc*/, char** /*argv*/)
             }
             case SDL_EVENT_MOUSE_BUTTON_DOWN:
             {
-               // a click skips the intro
-               if (story_intro_drawable.isPlaying())
+               // a click skips a cutscene
+               if (skip_cutscene())
                {
-                  story_intro_drawable.skip();
                   break;
                }
 
@@ -756,11 +806,11 @@ int main(int /*argc*/, char** /*argv*/)
             case SDL_EVENT_KEY_DOWN:
             {
                // so does any key
-               if (story_intro_drawable.isPlaying())
+               if (story_intro_drawable.isPlaying() || story_ending_drawable.isPlaying())
                {
                   if (!event.key.repeat)
                   {
-                     story_intro_drawable.skip();
+                     skip_cutscene();
                   }
                   break;
                }

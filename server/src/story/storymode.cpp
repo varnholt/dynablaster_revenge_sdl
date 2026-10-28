@@ -636,7 +636,7 @@ void StoryMode::skipToNextWorld()
    }
 
    const int32_t next_world = (_stage_index / STORY_STAGES_PER_WORLD + 1) * STORY_STAGES_PER_WORLD;
-   stageCleared(next_world % static_cast<int32_t>(getStoryStages().size()));
+   stageCleared(next_world);
 }
 
 bool StoryMode::isFinished() const

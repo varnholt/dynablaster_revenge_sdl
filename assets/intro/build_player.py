@@ -1,8 +1,9 @@
-# The intro's bombermen: the player imported by import_hjb.py with three more actions, and the black bomberman
-# riding the dragon, the same model with the black player's colours.
+# The cutscenes' bombermen: the player imported by import_hjb.py with more actions, and the black bomberman riding
+# the dragon and crying at the end, the same model with the black player's colours.
 #   blender --background <out dir>/player.blend --python build_player.py -- <out dir>
-# adds "panic" (flailing, hopping from foot to foot), "ride" (astride the dragon, a fist raised) and "look_up"
-# (standing, staring after the dragon), then writes player.glb (white) and player_dark.glb (black).
+# adds "panic" (flailing, hopping from foot to foot), "ride" (astride the dragon, a fist raised), "look_up"
+# (standing, staring after the dragon), "sit" (sinking down onto his bottom, the hands going to the face, once) and
+# "cry" (sitting, sobbing into his hands), then writes player.glb (white) and player_dark.glb (black).
 # The actions run at 60 fps like the imported ones; poses are the idle's first frame with turns on top.
 import math
 import os
@@ -167,6 +168,58 @@ def look_up(rig, base):
     sampled(rig, "look_up", base, frames, pose)
 
 
+SIT_DROP = 0.13  # how far the body sinks sitting down: the hips (0.18 up) end up just above the floor
+FOOT_LIFT = 0.05  # the feet tipped onto their heels would reach below the floor
+ARM_LIFT, ARM_IN = 80, 30  # the upper arms forwards and in towards the face
+FOREARM, FOREARM_IN = 50, 22  # the forearms up and in, the fists ending just in front of the visor
+
+
+def sitting(sob=0.0, rub=0.0, depth=1.0):
+    """On his bottom, legs out in front, hunched over with the hands at his eyes; sob shakes the shoulders and
+    drops the head, rub moves the hands over the eyes; depth 0..1 from standing to sitting."""
+    drop = SIT_DROP * depth
+    pose = {
+        "root": (None, (0, 0, -drop)),
+        "CTRL_pelvis": (turn((BEND, -10 * depth)), None),
+        "spine2": (turn((BEND, (18 + 4 * sob) * depth)), None),
+        "spine3": (turn((BEND, (10 + 5 * sob) * depth)), None),
+        "CTRL_head": (turn((BEND, (22 + 8 * sob) * depth)), None),
+        # the hanging arms swing forwards and up, the forearms bend in to the eyes
+        # (the fists stay in front of the visor, not in the helmet)
+        "up_arm_l": (turn((LEGS_FORWARD, ARM_LIFT * depth), ((0, 0, 1), (-ARM_IN + 4 * rub) * depth)), None),
+        "up_arm_r": (turn((LEGS_FORWARD, ARM_LIFT * depth), ((0, 0, 1), (ARM_IN + 4 * rub) * depth)), None),
+        "low_arm_l": (turn((LEGS_FORWARD, (FOREARM + 8 * rub) * depth), ((0, 0, 1), -FOREARM_IN * depth)), None),
+        "low_arm_r": (turn((LEGS_FORWARD, (FOREARM - 8 * rub) * depth), ((0, 0, 1), FOREARM_IN * depth)), None),
+    }
+    for side, s in (("l", 1), ("r", -1)):
+        pose[f"up_leg_{side}"] = (turn((LEGS_FORWARD, 75 * depth), ((0, -s, 0), 12 * depth)), None)
+        pose[f"low_leg_{side}"] = (turn((LEGS_FORWARD, -15 * depth)), None)
+        # the feet hang off the pelvis: back down onto the floor, out in front
+        pose[f"foot_{side}"] = (turn((LEGS_FORWARD, 25 * depth)), (s * 0.015 * depth, -0.08 * depth, drop + FOOT_LIFT * depth))
+    return pose
+
+
+def sit(rig, base):
+    """Giving up: the knees buckle, he drops onto his bottom with a little bounce and his hands go to his face;
+    once, 40 frames, ending in cry's first pose."""
+    keys = [(0, sitting(depth=0.0)), (10, sitting(depth=0.35)), (20, sitting(depth=1.08)), (26, sitting(depth=0.97)),
+            (40, sitting())]
+    action(rig, "sit", base, keys, 40, cyclic=False)
+
+
+def cry(rig, base):
+    """Sitting and crying into his hands: sobs shake his shoulders in bursts, the hands rub his eyes, the antenna
+    trembles after the head; two seconds a loop."""
+    frames = 120
+
+    def pose(f):
+        burst = max(0.0, wave(f, frames)) ** 0.5
+        sob = burst * abs(wave(f, 20))
+        rub = wave(f, 40, 0.2)
+        return sitting(sob=sob, rub=rub)
+    sampled(rig, "cry", base, frames, pose)
+
+
 def colour_map(index):
     """player_<index>.tga with player-ao.tga's red multiplied in, like import_hjb.py bakes player_1."""
     color = bpy.data.images.load(os.path.join(DATA, f"player_{index}.tga"))
@@ -193,13 +246,15 @@ out = toy.out_dir()
 rig = next(o for o in bpy.data.objects if o.type == "ARMATURE")
 mesh = next(o for o in bpy.data.objects if o.type == "MESH" and o.parent == rig)
 rig.animation_data_create()
-for name in ("panic", "ride", "look_up"):
+for name in ("panic", "ride", "look_up", "sit", "cry"):
     if name in bpy.data.actions:
         bpy.data.actions.remove(bpy.data.actions[name])
 base = base_pose(rig)
 panic(rig, base)
 ride(rig, base)
 look_up(rig, base)
+sit(rig, base)
+cry(rig, base)
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(out, "player_intro.blend"))
 export(rig, mesh, os.path.join(out, "player.glb"))
 

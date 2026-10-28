@@ -7,9 +7,12 @@
 #   build_lab.py       the lab from the first world's scenery with a door and its lit windows, its dome in voronoi
 #                      cells that burst
 #   build_backdrop.py  the mountains with the castle
+#   build_room.py      the ending's machine room in the castle
 #   backdrop_detail.py their rock up close (plain python, after Blender)
+#   room_detail.py     the room's bricks and blocks up close (plain python, after Blender)
 #   build_sky.py       the night sky's map (python, no blender)
-#   build_intro.py     stages them all: intro.txt, the timeline StoryIntroDrawable plays
+#   build_intro.py     stages the intro: intro.txt, the timeline StoryCutsceneDrawable plays
+#   build_ending.py    stages the ending: ending.txt
 # Blender is found via the BLENDER environment variable or in its default install folder.
 import glob
 import os
@@ -22,7 +25,7 @@ OUT = os.path.join(HERE, "out")
 INTRO = os.path.join(HERE, "..", "..", "client", "data", "game", "story", "intro")
 FILES = ["lab.glb", "door.glb", "lights.glb", "backdrop.glb", "dome.glb", "dragon.glb", "princess.glb", "doctor.glb",
          "player.glb", "player_dark.glb", "sky.tga",
-         "intro.txt"]
+         "intro.txt", "room.glb", "ending.txt"]
 
 
 def blender():
@@ -50,9 +53,10 @@ run_blender("import_hjb.py", os.path.join(OUT, "player.blend"), os.path.join(OUT
 run_blender("build_player.py", OUT, blend=os.path.join(OUT, "player.blend"))
 subprocess.run([sys.executable, os.path.join(HERE, "build_sky.py"), OUT], check=True)
 for script in ("build_dragon.py", "build_princess.py", "build_doctor.py", "build_lab.py", "build_backdrop.py",
-               "build_intro.py"):
+               "build_room.py", "build_intro.py", "build_ending.py"):
     run_blender(script, OUT)
 subprocess.run([sys.executable, os.path.join(HERE, "backdrop_detail.py"), OUT], check=True)
+subprocess.run([sys.executable, os.path.join(HERE, "room_detail.py"), OUT], check=True)
 for name in FILES:
     shutil.copy(os.path.join(OUT, name), INTRO)
 print("intro data in", os.path.normpath(INTRO))

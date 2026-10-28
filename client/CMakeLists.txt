@@ -465,8 +465,8 @@ add_library(dynablaster_core STATIC
     src/game/story/storyfield.h
     src/game/story/storyhuddrawable.cpp
     src/game/story/storyhuddrawable.h
-    src/game/story/storyintrodrawable.cpp
-    src/game/story/storyintrodrawable.h
+    src/game/story/storycutscenedrawable.cpp
+    src/game/story/storycutscenedrawable.h
     src/game/gamestatsdrawable.h
     src/game/hotkeydrawable.cpp
     src/game/hotkeydrawable.h
