@@ -169,6 +169,9 @@ def look_up(rig, base):
 
 
 SIT_DROP = 0.13  # how far the body sinks sitting down: the hips (0.18 up) end up just above the floor
+FOOT_LIFT = 0.05  # the feet tipped onto their heels would reach below the floor
+ARM_LIFT, ARM_IN = 80, 30  # the upper arms forwards and in towards the face
+FOREARM, FOREARM_IN = 50, 22  # the forearms up and in, the fists ending just in front of the visor
 
 
 def sitting(sob=0.0, rub=0.0, depth=1.0):
@@ -182,16 +185,17 @@ def sitting(sob=0.0, rub=0.0, depth=1.0):
         "spine3": (turn((BEND, (10 + 5 * sob) * depth)), None),
         "CTRL_head": (turn((BEND, (22 + 8 * sob) * depth)), None),
         # the hanging arms swing forwards and up, the forearms bend in to the eyes
-        "up_arm_l": (turn((LEGS_FORWARD, 90 * depth), ((0, 0, 1), (-45 + 5 * rub) * depth)), None),
-        "up_arm_r": (turn((LEGS_FORWARD, 90 * depth), ((0, 0, 1), (45 + 5 * rub) * depth)), None),
-        "low_arm_l": (turn((LEGS_FORWARD, (40 + 10 * rub) * depth), ((0, 0, 1), -45 * depth)), None),
-        "low_arm_r": (turn((LEGS_FORWARD, (40 - 10 * rub) * depth), ((0, 0, 1), 45 * depth)), None),
+        # (the fists stay in front of the visor, not in the helmet)
+        "up_arm_l": (turn((LEGS_FORWARD, ARM_LIFT * depth), ((0, 0, 1), (-ARM_IN + 4 * rub) * depth)), None),
+        "up_arm_r": (turn((LEGS_FORWARD, ARM_LIFT * depth), ((0, 0, 1), (ARM_IN + 4 * rub) * depth)), None),
+        "low_arm_l": (turn((LEGS_FORWARD, (FOREARM + 8 * rub) * depth), ((0, 0, 1), -FOREARM_IN * depth)), None),
+        "low_arm_r": (turn((LEGS_FORWARD, (FOREARM - 8 * rub) * depth), ((0, 0, 1), FOREARM_IN * depth)), None),
     }
     for side, s in (("l", 1), ("r", -1)):
         pose[f"up_leg_{side}"] = (turn((LEGS_FORWARD, 75 * depth), ((0, -s, 0), 12 * depth)), None)
         pose[f"low_leg_{side}"] = (turn((LEGS_FORWARD, -15 * depth)), None)
         # the feet hang off the pelvis: back down onto the floor, out in front
-        pose[f"foot_{side}"] = (turn((LEGS_FORWARD, 25 * depth)), (s * 0.015 * depth, -0.08 * depth, drop))
+        pose[f"foot_{side}"] = (turn((LEGS_FORWARD, 25 * depth)), (s * 0.015 * depth, -0.08 * depth, drop + FOOT_LIFT * depth))
     return pose
 
 
