@@ -43,7 +43,9 @@
 #include "menus/menu.h"
 #include "menus/menudrawable.h"
 #include "menus/menumousecursor.h"
+#include "menus/menupage.h"
 #include "menus/menupagenavigator.h"
+#include "menus/menupagetextedit.h"
 
 #include "game/bombermanclient.h"
 #include "game/positioninterpolation.h"
@@ -88,6 +90,64 @@ SDL_Keycode mapEditingKey(SDL_Keycode key)
          return SDLK_UNKNOWN;
    }
 }
+
+/// \brief keeps SDL text input, and with it SDL_EVENT_TEXT_INPUT, on only while there is something
+/// to type into: the open chat in game, or a menu line edit the player selected. On a Steam Deck SDL
+/// brings up Steam's on-screen keyboard whenever text input is turned on, so leaving it on all the
+/// time had the keyboard pop up right at startup. Key events (movement, menu navigation, the
+/// editing keys) arrive either way.
+class TextInputSwitch
+{
+public:
+   void update(SDL_Window* window, bool game_visible, bool chat_active, MenuDrawable& menu)
+   {
+      const MenuPageTextEditItem* text_edit = game_visible ? nullptr : selectedTextEdit(menu);
+      const bool wanted = game_visible ? chat_active : text_edit != nullptr;
+
+      // selecting the line edit again re-opens the on-screen keyboard after it was dismissed
+      const int activations = text_edit ? text_edit->getActivationCount() : 0;
+      const bool reselected = text_edit && (text_edit != _text_edit || activations != _activations);
+      _text_edit = text_edit;
+      _activations = activations;
+
+      const bool active = SDL_TextInputActive(window);
+      if (wanted && (!active || reselected))
+      {
+         if (active)
+         {
+            SDL_StopTextInput(window);
+         }
+         SDL_StartTextInput(window);
+      }
+      else if (!wanted && active)
+      {
+         SDL_StopTextInput(window);
+      }
+   }
+
+private:
+   static const MenuPageTextEditItem* selectedTextEdit(MenuDrawable& menu)
+   {
+      const auto page = menu.getMenu().getCurrentPage();
+      if (!page)
+      {
+         return nullptr;
+      }
+
+      const auto item = page->get().getActiveItem();
+      if (!item)
+      {
+         return nullptr;
+      }
+
+      const auto* text_edit = dynamic_cast<const MenuPageTextEditItem*>(&item->get());
+      return text_edit && text_edit->isEditingActive() ? text_edit : nullptr;
+   }
+
+   // only compared, never dereferenced - the page may have dropped the item by the next frame
+   const MenuPageTextEditItem* _text_edit = nullptr;
+   int _activations = 0;
+};
 
 /// \brief the keys of GameSettings::ControllerSettings, as set on the controls options page
 bool isConfiguredGameKey(SDL_Keycode key)
@@ -201,8 +261,13 @@ int main(int /*argc*/, char** /*argv*/)
       SDL_SetWindowAlwaysOnTop(context.window(), false);
    }
 
-   // needed for SDL_EVENT_TEXT_INPUT - off by default in SDL3.
+#ifdef __SWITCH__
+   // needed for SDL_EVENT_TEXT_INPUT - off by default in SDL3. Line edits use swkbd here.
    SDL_StartTextInput(context.window());
+#else
+   // turns SDL text input on only while a line edit or the chat takes text
+   TextInputSwitch text_input_switch;
+#endif
 
    // shaders (loaded by GLDevice::loadShader) and textures (loaded by Image via loadtga) are
    // both plain file reads, resolved against these search paths rather than a hardcoded
@@ -777,6 +842,9 @@ int main(int /*argc*/, char** /*argv*/)
       controls_page.update();
       controller_test_view.update();
       local_players.update(game_drawable.isVisible());
+
+      // after the controller handler, its button presses select line edits too
+      text_input_switch.update(context.window(), game_drawable.isVisible(), game_messaging_drawable.isActive(), menu_drawable);
 #endif
 
       if (dev_script.isActive())

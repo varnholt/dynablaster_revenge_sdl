@@ -36,6 +36,9 @@ public:
    const std::string& getMessage() const;
    void setMessage(const std::string& value);
 
+   //! whether the chat line is open for typing
+   bool isActive() const;
+
 public:
    void messageReceived(int sender_id, const std::string& message, bool typing_finished);
 
@@ -49,7 +52,6 @@ protected:
    void cleanupGlParameters();
 
    void setActive(bool active);
-   bool isActive() const;
    void toggleActive();
 
    void buildNickVertices();
