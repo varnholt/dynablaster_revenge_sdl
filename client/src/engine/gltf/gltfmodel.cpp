@@ -63,7 +63,7 @@ struct Shader
 };
 
 // the layers a fur is drawn in on top of the bare skin
-constexpr int32_t FUR_SHELLS = 14;
+constexpr int32_t FUR_SHELLS = 8;
 
 // texture units: colour, occlusion, night, then the detail mask and the detail images
 constexpr int32_t DETAIL_MASK_UNIT = 3;
