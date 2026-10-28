@@ -18,7 +18,7 @@ import toy  # noqa: E402
 FPS = 60
 FRAMES = 120  # the loop, cry's
 LOOP = FRAMES / FPS
-EYES = [(0.075, -0.2, 0.25), (-0.075, -0.2, 0.25)]
+EYES = [(0.035, -0.21, 0.205), (-0.035, -0.21, 0.205)]  # the visor's eye slits
 RADIUS = 0.013  # a drop, a small cartoon tear
 LEAVE = [0.1, 0.6]  # when each eye's drops well up, in the sob (cry's burst)
 WELL = 0.18  # seconds a drop takes to well up
