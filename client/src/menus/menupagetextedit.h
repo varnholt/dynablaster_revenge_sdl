@@ -54,6 +54,9 @@ public:
    //! check if editing is active
    bool isEditingActive() const;
 
+   //! how often the item was selected, it counts clicks on an already active item too
+   int getActivationCount() const;
+
    void setText(const std::string&);
 
    void setScale(float scale);
@@ -122,6 +125,8 @@ protected:
 
    bool _editing_active = false;
    bool _cursor_visible = false;
+
+   int _activation_count = 0;
 
    Color _color;
 
