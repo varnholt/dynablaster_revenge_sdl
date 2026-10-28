@@ -96,7 +96,7 @@ SDL_Keycode mapEditingKey(SDL_Keycode key)
 /// brings up Steam's on-screen keyboard whenever text input is turned on, so leaving it on all the
 /// time had the keyboard pop up right at startup. Key events (movement, menu navigation, the
 /// editing keys) arrive either way.
-class TextInputSwitch
+class TextInputToggle
 {
 public:
    void update(SDL_Window* window, bool game_visible, bool chat_active, MenuDrawable& menu)
@@ -266,7 +266,7 @@ int main(int /*argc*/, char** /*argv*/)
    SDL_StartTextInput(context.window());
 #else
    // turns SDL text input on only while a line edit or the chat takes text
-   TextInputSwitch text_input_switch;
+   TextInputToggle text_input_toggle;
 #endif
 
    // shaders (loaded by GLDevice::loadShader) and textures (loaded by Image via loadtga) are
@@ -844,7 +844,7 @@ int main(int /*argc*/, char** /*argv*/)
       local_players.update(game_drawable.isVisible());
 
       // after the controller handler, its button presses select line edits too
-      text_input_switch.update(context.window(), game_drawable.isVisible(), game_messaging_drawable.isActive(), menu_drawable);
+      text_input_toggle.update(context.window(), game_drawable.isVisible(), game_messaging_drawable.isActive(), menu_drawable);
 #endif
 
       if (dev_script.isActive())
