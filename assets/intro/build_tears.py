@@ -1,8 +1,8 @@
-# The black bomberman's tears in the ending, cartoon style: in each sob a fountain of big fat drops gushes out of
-# both eyes in arcs, splatting on the floor either side of him; between the sobs a few drops dribble off his visor.
+# The black bomberman's tears in the ending: in each sob a couple of drops well up under his visor at both eyes, run
+# down it, drip off and fall to the floor with a little splash.
 #   blender --background --factory-startup --python build_tears.py -- <out dir>
 # Writes tears.glb: a drop per bone, "fall" plays them round a two second loop, the same as build_player.py's "cry"
-# and started with it, so the gushes come with its sobs. Built in the player's own units and placed with him
+# and started with it, so the drops come with its sobs. Built in the player's own units and placed with him
 # (build_ending.py hangs it on the black bomberman), so EYES are where his eyes are in "cry", hunched over sitting on
 # the floor.
 import math
@@ -19,19 +19,20 @@ FPS = 60
 FRAMES = 120  # the loop, cry's
 LOOP = FRAMES / FPS
 EYES = [(0.075, -0.2, 0.25), (-0.075, -0.2, 0.25)]
-RADIUS = 0.04  # a drop, far bigger than a tear
-GUSH = 22  # drops from each eye in a sob
-SOB = 0.95  # seconds the sob gushes, from the start of the loop like cry's burst
-DRIBBLE = [1.15, 1.45, 1.75]  # when the drops between the sobs leave
-SPEED = (0.75, -0.18, 0.5)  # a gushing drop: out to the side (x mirrored per eye), forwards, up; per second
+RADIUS = 0.013  # a drop, a small cartoon tear
+LEAVE = [0.1, 0.6]  # when each eye's drops well up, in the sob (cry's burst)
+WELL = 0.18  # seconds a drop takes to well up
+RUN = 0.22  # seconds it runs down the visor
+RUN_DOWN = (0.008, -0.012, -0.04)  # how far: a little out to the side (x mirrored per eye), forwards, down
+DRIFT = (0.12, -0.05)  # falling: out to the side past his knees, forwards; per second
 GRAVITY = 1.6  # in the player's units, about three times his height a second squared
 FLOOR = 0.0
-SPLAT = 0.12  # seconds a drop lies flattened on the floor before it's gone
+SPLAT = 0.1  # seconds a drop lies flattened on the floor before it's gone
 
 
 def drop():
     """A tear: round at the bottom, drawn up into a point on top."""
-    bm = toy.sphere(RADIUS, segments=14, rings=10)
+    bm = toy.sphere(RADIUS, segments=12, rings=8)
     for v in bm.verts:
         if v.co.z > 0:
             v.co.z *= 1.0 + 1.6 * (v.co.z / RADIUS)
@@ -39,39 +40,40 @@ def drop():
     return bm
 
 
-def flight(age, eye, side, push, size):
-    """Where a drop age seconds after it left the eye is, which way it's going, its size and how far it's stretched
-    along the way, None once it's gone. push scales its speed: the sob's strength, or nearly nothing for a dribble."""
+def flight(age, eye, side):
+    """Where a drop age seconds after it started welling up is, which way it's going, its size and how far it's
+    stretched along the way, None once it's gone."""
     x, y, z = eye
-    vx, vy, vz = SPEED[0] * side * push, SPEED[1] * push, SPEED[2] * push
-    if age < 0.04:
-        # bursting out
-        return Vector((x, y, z)), Vector((vx, vy, vz)), size * (0.4 + 15 * age), 1.0
-    # when it hits the floor: z + vz t - g t^2 = FLOOR
-    land = (vz + math.sqrt(vz * vz + 4 * GRAVITY * (z - FLOOR))) / (2 * GRAVITY)
+    down = Vector((0, 0, -1))
+    if age < WELL:
+        return Vector((x, y, z)), down, 0.3 + 0.7 * age / WELL, 1.0
+    age -= WELL
+    run = Vector((RUN_DOWN[0] * side, RUN_DOWN[1], RUN_DOWN[2]))
+    if age < RUN:
+        # slow at first, then letting go
+        return Vector((x, y, z)) + run * (age / RUN) ** 2, down, 1.0, 1.15
+    age -= RUN
+    x, y, z = Vector((x, y, z)) + run
+    vx, vy = DRIFT[0] * side, DRIFT[1]
+    land = math.sqrt((z - FLOOR) / GRAVITY)
     if age < land:
-        position = Vector((x + vx * age, y + vy * age, z + vz * age - GRAVITY * age * age))
-        velocity = Vector((vx, vy, vz - 2 * GRAVITY * age))
-        return position, velocity, size, 1.0 + 0.4 * min(velocity.length, 1.0)
+        position = Vector((x + vx * age, y + vy * age, z - GRAVITY * age * age))
+        velocity = Vector((vx, vy, -2 * GRAVITY * age))
+        return position, velocity, 1.0, 1.0 + 0.3 * min(velocity.length, 1.0)
     if age < land + SPLAT:
-        # a splat: flat and wide
-        position = Vector((x + vx * land, y + vy * land, FLOOR + 0.005))
-        return position, Vector((0, 0, -1)), size * 1.7, 0.12
+        # a little splash: flat and wide
+        position = Vector((x + vx * land, y + vy * land, FLOOR + 0.004))
+        return position, down, 1.5, 0.15
     return None
 
 
 def drops():
-    """(eye, side, when it leaves, push, size) of every drop."""
+    """(eye, side, when it starts welling up) of every drop."""
     for eye in EYES:
         side = 1 if eye[0] > 0 else -1
-        for i in range(GUSH):
-            leave = SOB * i / GUSH
-            # the sob swells and ebbs; the drops spread a little so the stream isn't one line
-            strength = math.sin(math.pi * (i + 0.5) / GUSH) ** 0.5
-            jitter = 0.85 + 0.3 * ((i * 7) % 5) / 4
-            yield eye, side, leave, (0.55 + 0.45 * strength) * jitter, 0.8 + 0.35 * strength
-        for leave in DRIBBLE:
-            yield eye, side, leave, 0.12, 0.6
+        for k, leave in enumerate(LEAVE):
+            # the eyes not quite in step
+            yield eye, side, leave + (0.1 if side < 0 else 0.0) + 0.03 * k
 
 
 def build():
@@ -91,14 +93,14 @@ def build():
     act.use_fake_user = True
     rig.animation_data_create()
     rig.animation_data.action = act
-    for name, eye, side, leave, push, size in bones:
+    for name, eye, side, leave in bones:
         pose_bone = rig.pose.bones[name]
         pose_bone.rotation_mode = "QUATERNION"
         rest = pose_bone.bone.matrix_local.to_quaternion()
         previous = None
         for frame in range(FRAMES + 1):
             age = (frame / FPS - leave) % LOOP
-            state = flight(age, eye, side, push, size)
+            state = flight(age, eye, side)
             if state is None:
                 # gone: back inside the head, too small to see
                 position, velocity, scale, stretch = Vector(eye) + Vector((0, 0.05, 0)), Vector((0, 0, -1)), 0.0, 1.0
