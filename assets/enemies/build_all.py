@@ -1,6 +1,7 @@
 # Builds the story mode's enemies and bosses into client/data/game/enemies from scratch: python build_all.py [name ...]
 #   build_enemies.py     the models, rigged and animated (Blender)
 #   sdf_core.py          shapes smooth-unioned into one surface by signed distances, retopologised, painted
+#   skins.py             the patterns painted over the colours: fur, scales, slime, stone and so on
 #   sdf_rig.py           skeleton, skin weights from the shapes, idle, walk and die cycles
 #   sdf_enemies.py       the enemies' and bosses' shapes, colours and painted faces
 #   sdf_enemies_more.py

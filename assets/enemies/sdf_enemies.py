@@ -5,7 +5,7 @@ from sdf_core import BLACK, WHITE, Capsule, Cylinder, Decal, Ellipsoid, Model, R
 
 
 def balloon():
-    m = Model("Balloon", motion="float")
+    m = Model("Balloon", motion="float", skin="rubber")
     orange = hexcol("ee7a00")
     m.add(Ellipsoid((0, 0, 1.25), (0.8, 0.76, 0.86), orange))
     m.add(Capsule((0, 0, 0.5), (0, 0, 0.28), 0.14, 0.1, orange, blend=0.12), bone="dangle")
@@ -16,7 +16,7 @@ def balloon():
 
 
 def tiger():
-    m = Model("Tiger", motion="walk")
+    m = Model("Tiger", motion="walk", skin="fur", fur=(0.09, 22))
     orange, dark = hexcol("f07800"), hexcol("c05a00")
     m.add(Ellipsoid((0, 0, 1.25), (0.82, 0.72, 0.78), orange))
     for side in (-1, 1):
@@ -34,7 +34,7 @@ def tiger():
 
 
 def frog():
-    m = Model("Frog")
+    m = Model("Frog", skin=("skin", {"spots": hexcol("128000")}))
     m.add(Ellipsoid((0, 0, 0.48), (0.76, 0.68, 0.45), WHITE))
     m.add(Capsule((0, 0, 0.9), (0, 0, 1.75), 0.7, 0.14, hexcol("2ad000"), blend=0.12), bone="top")
     m.add(Torus((0, 0, 0.88), 0.66, 0.1, hexcol("e8e020"), blend=0.08))
@@ -44,7 +44,7 @@ def frog():
 
 
 def octopus():
-    m = Model("Octopus")
+    m = Model("Octopus", skin=("skin", {"spots": hexcol("c02070")}))
     pink = hexcol("ff4fa8")
     m.add(Ellipsoid((0, 0, 1.3), (0.78, 0.7, 0.62), pink))
     m.add(Ellipsoid((0, 0, 1.95), (0.18, 0.15, 0.14), hexcol("ff9fd0"), blend=0.1))
@@ -64,7 +64,7 @@ def octopus():
 
 
 def crab():
-    m = Model("Crab", scale=1.5, boss=True, motion="walk")
+    m = Model("Crab", scale=1.5, boss=True, motion="walk", skin=("scales", {"scale": 0.7}))
     blue, leg = hexcol("1a6cff"), hexcol("0a3cb0")
     m.add(Ellipsoid((0, 0, 1.05), (0.9, 0.7, 0.62), blue))
     for side in (-1, 1):
