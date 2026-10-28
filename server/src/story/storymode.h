@@ -60,7 +60,8 @@ public:
    //! the stage time ran out: the remaining enemies are replaced by coins
    void timeUp();
 
-   //! cheat: the stage counts as cleared and the first stage of the next world follows, after the last world the first one
+   //! cheat: the stage counts as cleared and the first stage of the next world follows, after the last world the story
+   //! is completed
    void skipToNextWorld();
 
    //! game over or all stages done

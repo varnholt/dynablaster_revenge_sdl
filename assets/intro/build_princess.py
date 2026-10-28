@@ -1,5 +1,6 @@
 # The princess the dragon carries off: big orange hair with a pink bow, a pink dress. Actions: "dangle" (held by
-# the shoulders in the dragon's claws, flailing and kicking) and "idle".
+# the shoulders in the dragon's claws, flailing and kicking), "idle", "run" and "talk" (back with the bomberman at
+# the end, bouncing and telling him all about it with her hands).
 #   blender --background --factory-startup --python build_princess.py -- <out dir>
 # writes princess.glb and princess.blend, about 0.95 high, the player being 1.
 import os
@@ -141,9 +142,47 @@ def idle(rig):
     toy.action(rig, "idle", 48, toy.poses(keys), follow=FOLLOW)
 
 
+def run(rig):
+    """Running with little quick steps, 12 frames for two: the knees come up high, the arms swing loose and wide
+    from the elbows, the hair bounces after her."""
+    def pose(lead, phase):
+        other = "R" if lead == "L" else "L"
+        s = 1 if lead == "L" else -1
+        # contact, passing, up: front leg, back leg, root height, arm on the lead side, other arm
+        front, back, height, lead_arm, other_arm = [
+            ((-35, 10, -10), (25, 60, 20), 0.0, (30, 50), (-40, 70)),
+            ((0, 25, 0), (-30, 100, 10), -0.02, (0, 60), (0, 60)),
+            ((25, 30, 25), (-50, 60, -5), 0.03, (-35, 70), (30, 50)),
+        ][phase]
+        return {**leg(lead, *front), **leg(other, *back), "root": (turn(), (0, 0, height)),
+                "pelvis": turn((UP, 6 * s)), "spine": turn((FORWARD, 8)), "chest": turn((UP, -8 * s)),
+                "head": turn((FORWARD, -4)), **arm(lead, *lead_arm, out=25), **arm(other, *other_arm, out=25)}
+    keys = [(1, pose("L", 0)), (3, pose("L", 1)), (5, pose("L", 2)), (7, pose("R", 0)), (9, pose("R", 1)),
+            (11, pose("R", 2)), (13, pose("L", 0))]
+    toy.action(rig, "run", 12, toy.poses(keys), follow=FOLLOW)
+
+
+def talk(rig):
+    """Back with the bomberman, overjoyed: bouncing on her toes, hands clasped then flung out as she tells him all
+    about it, the head tilting from side to side; 48 frames."""
+    def pose(bounce, hands, tilt):
+        open_ = 1.0 - hands
+        return {"root": (turn(), (0, 0, 0.025 * bounce)), "pelvis": turn((SIDE, 3 * tilt)),
+                "chest": turn((FORWARD, -4 * bounce), (SIDE, -3 * tilt)),
+                "head": turn((SIDE, 12 * tilt), (FORWARD, -6)),
+                **arm("L", -40 * hands - 20 * open_, 120 * hands + 30 * open_, out=15 * hands + 70 * open_),
+                **arm("R", -40 * hands - 20 * open_, 120 * hands + 30 * open_, out=15 * hands + 70 * open_),
+                **leg("L", -4, 8 + 10 * bounce, 15 * bounce), **leg("R", 4, 8 + 10 * bounce, 15 * bounce)}
+    keys = [(1, pose(0, 1, 1)), (7, pose(1, 1, 0.5)), (13, pose(0, 0.2, -1)), (19, pose(1, 0, -0.5)),
+            (25, pose(0, 0.6, 1)), (31, pose(1, 1, 0)), (37, pose(0, 0, -1)), (43, pose(1, 0.5, 0)), (49, pose(0, 1, 1))]
+    toy.action(rig, "talk", 48, toy.poses(keys), follow=FOLLOW)
+
+
 def animate(rig):
     dangle(rig)
     idle(rig)
+    run(rig)
+    talk(rig)
 
 
 rig, mesh = build()

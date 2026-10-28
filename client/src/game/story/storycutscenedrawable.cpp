@@ -1,6 +1,9 @@
-#include "storyintrodrawable.h"
+#include "storycutscenedrawable.h"
 
 #include "engine/gltf/gltfmodel.h"
+#include "menus/bitmapfont.h"
+#include "menus/defaultshader.h"
+#include "menus/fontpool.h"
 #include "engine/render/glowsprites.h"
 #include "engine/render/nightsky.h"
 #include "framework/gldevice.h"
@@ -16,13 +19,15 @@
 
 namespace
 {
-constexpr const char* TIMELINE = "story/intro/intro.txt";
 constexpr const char* MODELS = "story/intro/";
 constexpr const char* SKY = "story/intro/sky";
 constexpr float FADE_IN = 1.5f;
 constexpr float FADE_OUT = 1.2f;
 constexpr float Z_NEAR = 0.3f;
 constexpr float Z_FAR = 400.0f;
+constexpr float SCREEN_WIDTH = 1920.0f;
+constexpr float SCREEN_HEIGHT = 1080.0f;
+constexpr float CAPTION_FADE = 0.6f;
 
 // moonlight on the figures and the mountains
 const Vector NIGHT(0.72f, 0.78f, 0.98f);
@@ -36,6 +41,9 @@ const Vector LAMPLIGHT(1.3f, 1.3f, 1.3f);
 
 // the dome's pale glass, dimmed so it doesn't glow against the dark lab
 const Vector DOME(0.5f, 0.56f, 0.78f);
+
+// indoors (the ending's machine room): lamplight, a little warm, the same on the room and everyone in it
+const Vector INDOORS(0.92f, 0.9f, 0.86f);
 
 // how the night lights an actor
 Vector lightOn(const std::string& actor)
@@ -68,6 +76,15 @@ GltfModel::Atmosphere nightAir(float fade)
    return air;
 }
 
+// the air indoors: no haze, soft fill light in the shadows, a faint rim
+GltfModel::Atmosphere roomAir(float fade)
+{
+   GltfModel::Atmosphere air;
+   air._ambient = Vector(0.75f, 0.75f, 0.8f);
+   air._rim = Vector(0.5f, 0.5f, 0.55f) * fade;
+   return air;
+}
+
 Matrix readMatrix(std::istream& in)
 {
    std::array<float, 16> m{};
@@ -82,28 +99,29 @@ Matrix readMatrix(std::istream& in)
 }
 }  // namespace
 
-StoryIntroDrawable::StoryIntroDrawable(RenderDevice& device) : Drawable(device)
+StoryCutsceneDrawable::StoryCutsceneDrawable(RenderDevice& device, std::string timeline) : Drawable(device), _timeline(std::move(timeline))
 {
 }
 
-StoryIntroDrawable::~StoryIntroDrawable() = default;
+StoryCutsceneDrawable::~StoryCutsceneDrawable() = default;
 
-void StoryIntroDrawable::initializeGL()
+void StoryCutsceneDrawable::initializeGL()
 {
+   _font = &FontPool::Instance().get("outlined").value().get();
 }
 
-bool StoryIntroDrawable::load()
+bool StoryCutsceneDrawable::load()
 {
    if (_loaded || _load_failed)
    {
       return _loaded;
    }
 
-   auto file = DataPaths::open(TIMELINE);
+   auto file = DataPaths::open(_timeline);
 
    if (!file.is_open())
    {
-      Log::warning(std::format("StoryIntroDrawable: {} not found", TIMELINE));
+      Log::warning(std::format("StoryCutsceneDrawable: {} not found", _timeline));
       _load_failed = true;
       return false;
    }
@@ -113,6 +131,8 @@ bool StoryIntroDrawable::load()
    //   actor <name> <model> <from> <until> <action count> <matrix count>
    //      action <start> <name> <loop|hold>  (action count times)
    //      <16 floats, column by column>       (matrix count times)
+   //   indoors                                   (lit by lamps, not by the moon)
+   //   caption <from> <until> <text up to the end of the line>
    //   camera <n>
    //      <horizontal fov in degrees> <16 floats>  (n times)
    std::stringstream in;
@@ -151,7 +171,7 @@ bool StoryIntroDrawable::load()
 
             if (action._animation < 0)
             {
-               Log::warning(std::format("StoryIntroDrawable: {} has no animation {}", model, action._name));
+               Log::warning(std::format("StoryCutsceneDrawable: {} has no animation {}", model, action._name));
             }
          }
 
@@ -159,6 +179,16 @@ bool StoryIntroDrawable::load()
          {
             actor._matrices.push_back(readMatrix(in));
          }
+      }
+      else if (word == "indoors")
+      {
+         _indoors = true;
+      }
+      else if (word == "caption")
+      {
+         Caption& caption = _captions.emplace_back();
+         in >> caption._from >> caption._until;
+         std::getline(in >> std::ws, caption._text);
       }
       else if (word == "camera")
       {
@@ -177,7 +207,7 @@ bool StoryIntroDrawable::load()
 
    if (in.bad() || _camera.empty() || _actors.empty())
    {
-      Log::warning(std::format("StoryIntroDrawable: unable to read {}", TIMELINE));
+      Log::warning(std::format("StoryCutsceneDrawable: unable to read {}", _timeline));
       _actors.clear();
       _load_failed = true;
       return false;
@@ -211,7 +241,7 @@ bool StoryIntroDrawable::load()
    return true;
 }
 
-void StoryIntroDrawable::play(std::function<void()> finished)
+void StoryCutsceneDrawable::play(std::function<void()> finished)
 {
    _finished = std::move(finished);
    setVisible(true);
@@ -226,7 +256,7 @@ void StoryIntroDrawable::play(std::function<void()> finished)
    _last_time = 0.0f;
 }
 
-void StoryIntroDrawable::skip()
+void StoryCutsceneDrawable::skip()
 {
    if (isPlaying())
    {
@@ -234,12 +264,12 @@ void StoryIntroDrawable::skip()
    }
 }
 
-bool StoryIntroDrawable::isPlaying() const
+bool StoryCutsceneDrawable::isPlaying() const
 {
    return _time >= 0.0f;
 }
 
-void StoryIntroDrawable::finish()
+void StoryCutsceneDrawable::finish()
 {
    _time = -1.0f;
 
@@ -252,7 +282,7 @@ void StoryIntroDrawable::finish()
    }
 }
 
-void StoryIntroDrawable::animate(float global_time)
+void StoryCutsceneDrawable::animate(float global_time)
 {
    // global time comes in 16ms steps
    const float dt = _last_time > 0.0f ? (global_time - _last_time) * 0.016f : 0.0f;
@@ -271,7 +301,7 @@ void StoryIntroDrawable::animate(float global_time)
    }
 }
 
-Matrix StoryIntroDrawable::sample(const std::vector<Matrix>& matrices, float time) const
+Matrix StoryCutsceneDrawable::sample(const std::vector<Matrix>& matrices, float time) const
 {
    if (matrices.size() == 1)
    {
@@ -285,7 +315,7 @@ Matrix StoryIntroDrawable::sample(const std::vector<Matrix>& matrices, float tim
    return Matrix::blend(matrices[index], matrices[next], frame - static_cast<float>(index));
 }
 
-float StoryIntroDrawable::getFade() const
+float StoryCutsceneDrawable::getFade() const
 {
    if (!isPlaying())
    {
@@ -295,7 +325,7 @@ float StoryIntroDrawable::getFade() const
    return std::clamp(std::min(_time / FADE_IN, (_duration - _time) / FADE_OUT), 0.0f, 1.0f);
 }
 
-void StoryIntroDrawable::paintGL()
+void StoryCutsceneDrawable::paintGL()
 {
    GLDevice& device = static_cast<GLDevice&>(activeDevice());
    const float fade = getFade();
@@ -317,7 +347,7 @@ void StoryIntroDrawable::paintGL()
    _sky->render();
 
    GltfModel::setDaylight(1.0f);
-   GltfModel::setAtmosphere(nightAir(fade));
+   GltfModel::setAtmosphere(_indoors ? roomAir(fade) : nightAir(fade));
    GltfModel::begin();
 
    const auto draw = [this, fade](const Actor& actor)
@@ -328,7 +358,7 @@ void StoryIntroDrawable::paintGL()
       }
 
       GltfModel::Look look;
-      look._tint = lightOn(actor._name) * fade;
+      look._tint = (_indoors ? INDOORS : lightOn(actor._name)) * fade;
 
       // the last action started so far
       int32_t animation = -1;
@@ -363,5 +393,51 @@ void StoryIntroDrawable::paintGL()
    {
       _glows->setBrightness(fade);
       _glows->render(Matrix());
+   }
+
+   drawCaptions();
+}
+
+void StoryCutsceneDrawable::drawCaptions()
+{
+   if (!_font)
+   {
+      return;
+   }
+
+   GLDevice& device = static_cast<GLDevice&>(activeDevice());
+   bool begun = false;
+
+   for (const Caption& caption : _captions)
+   {
+      if (_time < caption._from || _time >= caption._until)
+      {
+         continue;
+      }
+
+      if (!begun)
+      {
+         device.setProjectionMatrix(Matrix::ortho(0.0f, SCREEN_WIDTH, SCREEN_HEIGHT, 0.0f, -1.0f, 1.0f));
+         glEnable(GL_BLEND);
+         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+         glDisable(GL_DEPTH_TEST);
+         glDepthMask(GL_FALSE);
+         device.setShader(getDefaultMenuShader());
+         begun = true;
+      }
+
+      const float alpha = std::clamp(std::min(_time - caption._from, caption._until - _time) / CAPTION_FADE, 0.0f, 1.0f);
+      _font->setColor(1.0f, 1.0f, 1.0f, alpha * getFade());
+      _font->buildVertices(0.45f, caption._text, 0.0f, SCREEN_HEIGHT * 0.22f, SCREEN_WIDTH);
+      _font->draw();
+   }
+
+   if (begun)
+   {
+      _font->setColor(1.0f, 1.0f, 1.0f, 1.0f);
+      device.setShader(0);
+      glDisable(GL_BLEND);
+      glEnable(GL_DEPTH_TEST);
+      glDepthMask(GL_TRUE);
    }
 }
