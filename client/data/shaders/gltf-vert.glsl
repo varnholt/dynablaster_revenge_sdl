@@ -46,7 +46,10 @@ void main()
    // gusts running through the cloth
    float phase = dot(a_position, vec3(0.85, 0.45, 0.6));
    float gust = 0.6 * sin(u_time * 2.7 - phase) + 0.4 * sin(u_time * 4.3 - phase * 1.9 + 1.3);
-   vec4 position = vec4(a_position + a_wave.xyz * gust + a_normal * u_shell.x, 1.0);
+   // fur shells pushed out along the normal and, the further out the more, sagging under their weight (the
+   // model's up is +y, glTF's)
+   vec3 fur = a_normal * u_shell.x - vec3(0.0, 0.45, 0.0) * u_shell.x * u_shell.y;
+   vec4 position = vec4(a_position + a_wave.xyz * gust + fur, 1.0);
    local = a_position;
 
    uv = a_texcoord0;
