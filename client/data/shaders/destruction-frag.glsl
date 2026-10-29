@@ -56,6 +56,9 @@ void main()
    shad = shad * faceShadow + vec4(1.0, 1.0, 1.0, 1.0) * (1.0 - faceShadow);
 
    vec4 final = (diff * tex * shad) + (spec * tex.a);
+   // the story's skins mark what glows of its own (a magma block's cracks) with alpha below 1, its pieces glow on
+   // as they fly (blockmaterial-frag.glsl); the original levels' skins are opaque
+   final.rgb += tex.rgb * (1.0 - tex.a) * 1.6;
 
    o_color = vec4(final.rgb, 1.0);
 }
