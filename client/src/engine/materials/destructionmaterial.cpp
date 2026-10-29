@@ -1,5 +1,8 @@
 #include "destructionmaterial.h"
+#include "blockmaterial.h"
+#include <algorithm>
 #include <cmath>
+#include <vector>
 #include "animation/motionmixer.h"
 #include "framework/gldevice.h"
 #include "image/image.h"
@@ -13,6 +16,16 @@
 
 DestructionMaterial::DestructionMaterial() : Material(MAP_DIFFUSE | MAP_REFLECT)
 {
+}
+
+void DestructionMaterial::setColorMap(const std::string& color_map)
+{
+   replaceTexture(_color_map, color_map);
+}
+
+void DestructionMaterial::setGlass(std::vector<Vector> tints)
+{
+   _glass_tints = std::move(tints);
 }
 
 DestructionMaterial::DestructionMaterial(
@@ -39,6 +52,8 @@ void DestructionMaterial::init()
    _param_texture = activeDevice().getParameterIndex("texturemap");
    _param_shadow = activeDevice().getParameterIndex("shadowmap");
    _param_shadow_camera = activeDevice().getParameterIndex("shadowCamera");
+   _param_glass = activeDevice().getParameterIndex("glass");
+   _param_tint = activeDevice().getParameterIndex("tint");
 }
 
 void DestructionMaterial::load(Stream& stream)
@@ -105,6 +120,7 @@ void DestructionMaterial::begin()
    activeDevice().bindSampler(_param_diffuse, 1);
    activeDevice().bindSampler(_param_texture, 2);
    activeDevice().bindSampler(_param_shadow, 3);
+   activeDevice().setParameter(_param_glass, _glass_tints.empty() ? 0.0f : 1.0f);
 
    // enable required vertex arrays
    glEnableVertexAttribArray(0);  // vertex data
@@ -156,6 +172,14 @@ void DestructionMaterial::renderDiffuse()
 
       if (geometry.isVisible())
       {
+         if (!_glass_tints.empty())
+         {
+            // the debris hangs under a node standing where its block stood: the block's tint
+            const auto block = geometry.getParent().parent();
+            const Matrix& at = block ? block->get().getTransform() : geometry.getTransform();
+            activeDevice().setParameter(_param_tint, _glass_tints[BlockMaterial::glassTint(at) % _glass_tints.size()]);
+         }
+
          activeDevice().push(geometry.getTransform());
 
          // draw mesh
@@ -172,6 +196,46 @@ void DestructionMaterial::renderDiffuse()
    }
 
    end();
+
+   if (!_glass_tints.empty())
+   {
+      drawBreakingLight();
+   }
+}
+
+void DestructionMaterial::drawBreakingLight()
+{
+   // once per broken block (its shards share the node standing where it stood), timed by its shards' frame
+   std::vector<const Node*> done;
+   BlockMaterial::beginLightPools();
+
+   for (const Buffer& buffer : _buffers)
+   {
+      const Geometry& geometry = buffer.geometry;
+      const Mesh& shard = geometry.getParent();
+      const auto block = shard.parent();
+      if (!geometry.isVisible() || !block || std::ranges::contains(done, &block->get()))
+      {
+         continue;
+      }
+      done.push_back(&block->get());
+
+      // the debris' frames run 30 a game tick, 62.5 ticks a second (GameDrawable::animate())
+      const float seconds = shard.getFrame() / (30.0f * 62.5f);
+      if (seconds > 1.0f)
+      {
+         continue;
+      }
+
+      const Matrix& at = block->get().getTransform();
+      const Vector& tint = _glass_tints[BlockMaterial::glassTint(at) % _glass_tints.size()];
+      // the flash: bright and wide at once, spreading, gone within half a second
+      BlockMaterial::drawLightPool(at, tint, 3.0f * std::exp(-seconds / 0.22f), 1.8f + seconds * 3.0f);
+      // the block's own light lingering, fading out as the shards fly
+      BlockMaterial::drawLightPool(at, tint, 0.7f * std::max(0.0f, 1.0f - seconds / 0.9f), 1.25f);
+   }
+
+   BlockMaterial::endLightPools();
 }
 
 void DestructionMaterial::update(float /*frame*/, const Matrix&)

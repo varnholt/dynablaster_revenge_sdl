@@ -5,7 +5,10 @@
 #include <functional>
 #include <memory>
 #include "animation/motionmixer.h"
+#include "framework/framebuffer.h"
 #include "gldevice.h"
+#include "math/vector2.h"
+#include "math/vector4.h"
 #include "image/image.h"
 #include "image/imagepool.h"
 #include "image/psd.h"
@@ -38,10 +41,146 @@ namespace
 {
 // shared ambient occlusion source layers, loaded on first use
 std::unique_ptr<PSD> matrix_layers;
+// the light pools' shader and quad (beginLightPools()), the blocks' extent in their own space (all blocks are
+// the same mesh)
+struct
+{
+   uint32_t shader = 0;
+   uint32_t quad = 0;
+   int32_t centre = 0;
+   int32_t extent = 0;
+   int32_t floor = 0;
+   int32_t tint = 0;
+   int32_t strength = 0;
+} pool;
+Vector block_min{1e9f, 1e9f, 1e9f};
+Vector block_max{-1e9f, -1e9f, -1e9f};
+// what glass blocks show through them, see captureBehind(); only copied while some blocks are glass
+uint32_t behind_texture = 0;
+bool glass_in_use = false;
 }  // namespace
 
 BlockMaterial::BlockMaterial() : Material(MAP_DIFFUSE | MAP_REFLECT)
 {
+}
+
+void BlockMaterial::setColorMap(const std::string& color_map)
+{
+   replaceTexture(_color_map, color_map);
+}
+
+void BlockMaterial::setVaried(bool varied)
+{
+   _varied = varied;
+}
+
+void BlockMaterial::setGlass(std::vector<Vector> tints)
+{
+   _glass_tints = std::move(tints);
+   glass_in_use = !_glass_tints.empty();
+}
+
+int32_t BlockMaterial::glassTint(const Matrix& transform)
+{
+   const Vector at = transform.translation();
+   const auto x = static_cast<uint32_t>(static_cast<int32_t>(std::floor(at.x * 2.0f + 0.5f)));
+   const auto y = static_cast<uint32_t>(static_cast<int32_t>(std::floor(at.y * 2.0f + 0.5f)));
+   return static_cast<int32_t>(((x * 73856093u) ^ (y * 19349663u)) % 3u);
+}
+
+void BlockMaterial::beginLightPools()
+{
+   if (!pool.shader)
+   {
+      pool.shader = activeDevice().loadShader("glasspool-vert.glsl", "glasspool-frag.glsl");
+      pool.centre = activeDevice().getParameterIndex("centre");
+      pool.extent = activeDevice().getParameterIndex("extent");
+      pool.floor = activeDevice().getParameterIndex("floorHeight");
+      pool.tint = activeDevice().getParameterIndex("tint");
+      pool.strength = activeDevice().getParameterIndex("strength");
+
+      // two triangles across the quad
+      pool.quad = activeDevice().createVertexBuffer(sizeof(Vector) * 6);
+      const std::span<Vector> corners = activeDevice().lockVertexBuffer<Vector>(pool.quad, sizeof(Vector) * 6);
+      corners[0] = Vector(-1.0f, -1.0f, 0.0f);
+      corners[1] = Vector(1.0f, -1.0f, 0.0f);
+      corners[2] = Vector(1.0f, 1.0f, 0.0f);
+      corners[3] = Vector(-1.0f, -1.0f, 0.0f);
+      corners[4] = Vector(1.0f, 1.0f, 0.0f);
+      corners[5] = Vector(-1.0f, 1.0f, 0.0f);
+      activeDevice().unlockVertexBuffer(pool.quad);
+   }
+
+   activeDevice().setShader(pool.shader);
+   glEnable(GL_BLEND);
+   glBlendFunc(GL_ONE, GL_ONE);
+   glDepthMask(GL_FALSE);
+   glBindBuffer(GL_ARRAY_BUFFER, pool.quad);
+   glEnableVertexAttribArray(0);
+   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vector), nullptr);
+}
+
+void BlockMaterial::drawLightPool(const Matrix& transform, const Vector& tint, float strength, float reach)
+{
+   // in the block's own space: round its foot, from its bottom a hair up so it lies on the floor
+   const Vector centre = (block_min + block_max) * 0.5f;
+   const Vector size = block_max - block_min;
+   activeDevice().setParameter(pool.centre, centre);
+   activeDevice().setParameter(pool.extent, Vector2(size.x * reach, size.y * reach));
+   activeDevice().setParameter(pool.floor, block_min.z + size.z * 0.01f);
+   activeDevice().setParameter(pool.tint, tint);
+   activeDevice().setParameter(pool.strength, strength);
+   activeDevice().push(transform);
+   glDrawArrays(GL_TRIANGLES, 0, 6);
+   activeDevice().pop();
+}
+
+void BlockMaterial::endLightPools()
+{
+   glDisableVertexAttribArray(0);
+   glDepthMask(GL_TRUE);
+   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+   glDisable(GL_BLEND);
+   activeDevice().setShader(0);
+}
+
+void BlockMaterial::drawLightPools()
+{
+   beginLightPools();
+
+   for (const Buffer& buffer : _buffers)
+   {
+      const Geometry& geometry = buffer.geometry;
+      if (geometry.isVisible())
+      {
+         drawLightPool(geometry.getTransform(), _glass_tints[glassTint(geometry.getTransform()) % _glass_tints.size()], 0.7f, 1.25f);
+      }
+   }
+
+   endLightPools();
+}
+
+void BlockMaterial::captureBehind()
+{
+   if (!glass_in_use)
+   {
+      return;
+   }
+
+   if (!behind_texture)
+   {
+      glGenTextures(1, &behind_texture);
+   }
+
+   const auto [x, y, width, height] = activeDevice().getViewPort();
+   glActiveTexture(GL_TEXTURE5);
+   glBindTexture(GL_TEXTURE_2D, behind_texture);
+   FrameBuffer::copyTexImage(x, y, width, height);
+   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+   glActiveTexture(GL_TEXTURE0);
 }
 
 BlockMaterial::BlockMaterial(
@@ -158,6 +297,15 @@ void BlockMaterial::init()
    _param_camera = activeDevice().getParameterIndex("camera");
    _param_shadow_camera = activeDevice().getParameterIndex("shadowCamera");
    _param_offset = activeDevice().getParameterIndex("uvOffset");
+   _param_variation = activeDevice().getParameterIndex("variation");
+   _param_glass = activeDevice().getParameterIndex("glass");
+   _param_tints = {activeDevice().getParameterIndex("tint0"), activeDevice().getParameterIndex("tint1"),
+                   activeDevice().getParameterIndex("tint2")};
+   _param_viewport = activeDevice().getParameterIndex("viewport");
+   _param_box_min = activeDevice().getParameterIndex("boxMin");
+   _param_box_max = activeDevice().getParameterIndex("boxMax");
+   _param_refraction = activeDevice().getParameterIndex("refraction");
+   _param_tint_choice = activeDevice().getParameterIndex("tintChoice");
 }
 
 void BlockMaterial::addGeometry(Geometry& geometry)
@@ -186,6 +334,11 @@ void BlockMaterial::addGeometry(Geometry& geometry)
 
          destination[i].uv.u = uv[i].u;
          destination[i].uv.v = uv[i].v;
+
+         _box_min = Vector(std::min(_box_min.x, vertices[i].x), std::min(_box_min.y, vertices[i].y), std::min(_box_min.z, vertices[i].z));
+         _box_max = Vector(std::max(_box_max.x, vertices[i].x), std::max(_box_max.y, vertices[i].y), std::max(_box_max.z, vertices[i].z));
+         block_min = _box_min;
+         block_max = _box_max;
       }
       activeDevice().unlockVertexBuffer(vertex_buffer.getVertexBuffer());
 
@@ -198,6 +351,8 @@ void BlockMaterial::addGeometry(Geometry& geometry)
 void BlockMaterial::begin()
 {
    Material::begin();
+
+   const bool glass = !_glass_tints.empty() && behind_texture;
 
    glBindTexture(GL_TEXTURE_2D, _diffuse_map);
 
@@ -219,6 +374,24 @@ void BlockMaterial::begin()
    activeDevice().bindSampler(_param_shadow, 2);
    activeDevice().bindSampler(_param_ambient, 3);
    activeDevice().bindSampler(_param_specular, 4);
+   activeDevice().setParameter(_param_variation, _varied ? 1.0f : 0.0f);
+   activeDevice().setParameter(_param_glass, glass ? 1.0f : 0.0f);
+   if (glass)
+   {
+      glActiveTexture(GL_TEXTURE5);
+      glBindTexture(GL_TEXTURE_2D, behind_texture);
+      glActiveTexture(GL_TEXTURE0);
+      activeDevice().bindSampler(_param_refraction, 5);
+      for (size_t i = 0; i < _param_tints.size(); i++)
+      {
+         activeDevice().setParameter(_param_tints[i], _glass_tints[i % _glass_tints.size()]);
+      }
+      const auto [x, y, width, height] = activeDevice().getViewPort();
+      activeDevice().setParameter(_param_viewport, Vector4(static_cast<float>(x), static_cast<float>(y),
+                                                        static_cast<float>(width), static_cast<float>(height)));
+      activeDevice().setParameter(_param_box_min, _box_min);
+      activeDevice().setParameter(_param_box_max, _box_max);
+   }
 
    // enable required vertex arrays
    glEnableVertexAttribArray(0);  // vertex data
@@ -290,6 +463,7 @@ void BlockMaterial::renderDiffuse()
          const Vector object_space_camera = inverse_view.translation();
          activeDevice().setParameter(_param_camera, object_space_camera);
          activeDevice().setParameter(_param_offset, Vector(x, y));
+         activeDevice().setParameter(_param_tint_choice, static_cast<float>(glassTint(geometry.getTransform())));
 
          activeDevice().push(geometry.getTransform());
 
@@ -307,6 +481,11 @@ void BlockMaterial::renderDiffuse()
    }
 
    end();
+
+   if (!_glass_tints.empty() && behind_texture)
+   {
+      drawLightPools();
+   }
 }
 
 void BlockMaterial::update(float /*frame*/, const Matrix& camera)

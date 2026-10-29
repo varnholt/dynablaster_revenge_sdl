@@ -71,6 +71,10 @@ public:
    //! levels with a time of day go through one day and night in it
    virtual void setDayTime(float phase);
 
+   //! the blocks' and the stones' (and their debris') skins from folder's block-unwrap.tga and stone-unwrap.tga, the
+   //! level's own where the folder has none; the story mode's worlds bring their own (data/game/story/world<n>)
+   void setBlockSkins(const std::string& folder);
+
    std::string path() const;
    SceneGraph& getScene() const;
    SceneGraph& getLevel() const;
@@ -108,6 +112,7 @@ protected:
    void loadDestructions(Camera& shadow_camera);
 
    LevelType _level_type;
+   std::string _block_skins;  // the folder setBlockSkins() took them from
    bool _aborted = false;
    bool _arena_hidden = false;
 

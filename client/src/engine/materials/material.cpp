@@ -110,6 +110,12 @@ void Material::addTexture(Texture& texture, const std::string& filename, int32_t
    _texture_queue.push_back({std::move(image), flags, texture});
 }
 
+void Material::replaceTexture(Texture& texture, const std::string& filename, int32_t flags)
+{
+   std::erase_if(_texture_queue, [&texture](const PendingTexture& pending) { return &pending.texture.get() == &texture; });
+   addTexture(texture, filename, flags);
+}
+
 void Material::addTexture(Texture& texture, std::unique_ptr<Image> image, int32_t flags)
 {
    _texture_queue.push_back({std::move(image), flags, texture});

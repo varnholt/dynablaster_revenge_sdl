@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <vector>
 #include "material.h"
 #include "math/matrix.h"
 #include "render/uv.h"
@@ -31,7 +32,18 @@ public:
    void addGeometry(Geometry& geometry) override;
    void renderDiffuse() override;
 
+   //! swaps the debris' colour image (the stones' unwrapped cube), uploaded on the next render
+   void setColorMap(const std::string& color_map);
+
+   //! the debris of glass blocks: shards in their block's tint (see BlockMaterial::setGlass), lit from inside;
+   //! empty: the stones' own colour
+   void setGlass(std::vector<Vector> tints);
+
+
 private:
+   // a breaking glass block's flash and its light fading out
+   void drawBreakingLight();
+
    void init() override;
    void begin() override;
    void end() override;
@@ -47,6 +59,9 @@ private:
    int32_t _param_texture = 0;
    int32_t _param_shadow = 0;
    int32_t _param_shadow_camera = 0;
+   int32_t _param_glass = 0;
+   int32_t _param_tint = 0;
+   std::vector<Vector> _glass_tints;
 
    std::optional<std::reference_wrapper<Camera>> _shadow_camera;
 };

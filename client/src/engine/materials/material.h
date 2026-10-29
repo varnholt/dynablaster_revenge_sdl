@@ -90,6 +90,10 @@ public:
    //! materials still waiting to upload the same file share one decoded image
    void addTexture(Texture& texture, const std::string& filename, int32_t flags = 1 | 2 | 4);
 
+   //! like addTexture(), dropping what's still waiting for the same texture: the queue runs last-in first-out, an
+   //! image queued earlier (the constructor's) would otherwise be uploaded after this one and win
+   void replaceTexture(Texture& texture, const std::string& filename, int32_t flags = 1 | 2 | 4);
+
    virtual void update(float frame, const Matrix& camera);
    virtual void renderDiffuse();
    virtual void addMesh(Mesh& mesh);
