@@ -584,18 +584,19 @@ add_executable(dynablaster_revenge_harness
 )
 target_link_libraries(dynablaster_revenge_harness PRIVATE dynablaster_core)
 
-foreach(dynablaster_target dynablaster_revenge dynablaster_revenge_harness)
-    # Shaders/textures load through FileStream at runtime (not compiled in), so they need to sit
-    # next to the exe - mirrors the DLL copy step above.
-    add_custom_command(TARGET ${dynablaster_target} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-            ${CMAKE_SOURCE_DIR}/data
-            $<TARGET_FILE_DIR:${dynablaster_target}>/data
-    )
-endforeach()
-
-# both executables copy into the same directory; serialize them so the copies never overlap
-add_dependencies(dynablaster_revenge_harness dynablaster_revenge)
+# Shaders/textures load through FileStream at runtime (not compiled in), so they need to sit
+# next to the exe. A custom target with no outputs runs on every build, so asset edits reach the
+# exe dir even when nothing relinks (a POST_BUILD step would skip them).
+add_custom_target(dynablaster_data ALL
+    COMMAND ${CMAKE_COMMAND}
+        -DSOURCE_DIR=${CMAKE_SOURCE_DIR}/data
+        -DDEST_DIR=$<TARGET_FILE_DIR:dynablaster_revenge>/data
+        -P ${CMAKE_SOURCE_DIR}/cmake/SyncData.cmake
+    COMMENT "Syncing game assets next to the executable"
+    VERBATIM
+)
+add_dependencies(dynablaster_revenge dynablaster_data)
+add_dependencies(dynablaster_revenge_harness dynablaster_data)
 
 enable_testing()
 add_executable(dynablaster_gles_compatibility_test tests/test_gles_compatibility.cpp)
