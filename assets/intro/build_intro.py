@@ -118,8 +118,11 @@ def camera():
         cam.keyframe_insert("rotation_euler", frame=frame)
         cam.data.keyframe_insert("lens", frame=frame)
 
-    # wide on the lab, pushing in; tilting up after the dragon; craning up and over to the castle
-    aim(1, (6.5, -19.0, 1.8), (6.5, 5.0, 3.6), 50)
+    # through the crown of the big tree south of the field (world 1 plants it for this, see world_meadow(): on
+    # ground levelled to 0.16, its crown about 2.3 to 4.2 high round x 5.6, y -19.6) out into the view: wide on the
+    # lab, pushing in; tilting up after the dragon; craning up and over to the castle
+    aim(1, (6.5, -23.0, 3.0), (6.5, 5.0, 3.6), 50)
+    aim(s(1.6), (6.5, -18.6, 2.2), (6.5, 5.0, 3.6), 50)
     aim(BURST, (6.5, -17.0, 1.8), (6.5, 5.0, 3.8), 50)
     aim(s(6.0), (6.5, -17.0, 1.9), (6.5, 5.0, 5.2), 50)
     aim(s(8.0), (6.5, -17.0, 2.2), (6.5, 6.0, 7.5), 50)

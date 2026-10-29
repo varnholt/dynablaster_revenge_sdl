@@ -73,7 +73,8 @@ def cut_dome(props):
         if p.z < 0.45 or p.y > FACADE_Y:
             return False
         d = ((p.x - CENTRE.x) ** 2 + (p.y - CENTRE.y) ** 2) / RADIUS ** 2 + ((p.z - CENTRE.z) / HEIGHT) ** 2
-        return 0.8 < d < 1.2
+        # tight enough that the scenery's ring foundation round the dome's foot (d 1.19 and up) stays
+        return 0.8 < d < 1.12
 
     doomed = [f for f in bm.faces if all(on_dome(v) for v in f.verts)]
     bmesh.ops.delete(bm, geom=doomed, context="FACES")
@@ -340,37 +341,36 @@ def loops(edges):
 
 
 def cell(shell, seed, others):
-    """The part of the shell nearer to seed than to any other: cut by the planes halfway, the cuts closed.
+    """The part of the shell nearer to seed than to any other: cut by the planes halfway, each cut closed flat in
+    its own plane right away. Closing a cell's whole rim at the end instead filled rims running over several
+    planes (the cells at the dome's foot and at the facade) with triangles cutting out through the glass.
     Returns the glass and the cut faces as two bmeshes, None if nothing is left."""
     bm = shell.copy()
+    cut_layer = bm.faces.layers.int.new("cut")
     for other in others:
         normal = (other - seed).normalized()
         middle = (other + seed) / 2
         geom = bm.verts[:] + bm.edges[:] + bm.faces[:]
-        bmesh.ops.bisect_plane(bm, geom=geom, dist=1e-6, plane_co=middle, plane_no=normal, clear_outer=True)
+        result = bmesh.ops.bisect_plane(bm, geom=geom, dist=1e-6, plane_co=middle, plane_no=normal,
+                                        clear_outer=True)
         if not bm.faces:
             bm.free()
             return None
+        rim = [e for e in result["geom_cut"] if isinstance(e, bmesh.types.BMEdge) and e.is_valid and e.is_boundary]
+        if rim:
+            for f in bmesh.ops.holes_fill(bm, edges=rim, sides=0)["faces"]:
+                f[cut_layer] = 1
     # the cuts leave vertices a hair apart where planes meet, welded they don't split the cell open later
     bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-4)
     bmesh.ops.dissolve_degenerate(bm, edges=bm.edges, dist=1e-4)
-    before = set(bm.faces)
-    # a cell inside the dome has two rims, round its outer face and its inner one: bridged, they become its
-    # sides; a cell at the dome's foot or the facade has one rim running round both, filled
-    boundary = [e for e in bm.edges if e.is_boundary]
-    if len(loops(boundary)) == 2:
-        bmesh.ops.bridge_loops(bm, edges=boundary)
-    else:
-        bmesh.ops.holes_fill(bm, edges=boundary, sides=0)
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-    cuts = [f for f in bm.faces if f not in before]
-    bmesh.ops.triangulate(bm, faces=cuts)
-    cuts = {f for f in bm.faces if f not in before}
+    # the caps are flat but often concave, triangulated within their plane
+    bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if f[cut_layer]])
     glass, edge = bmesh.new(), bmesh.new()
     for target, keep in ((glass, False), (edge, True)):
         mapping = {}
         for f in bm.faces:
-            if (f in cuts) != keep:
+            if bool(f[cut_layer]) != keep:
                 continue
             verts = []
             for v in f.verts:
@@ -412,6 +412,16 @@ def dome(out):
     print("RESULT dome", len(points), "cells", len(pieces), "fly")
 
 
+# the scenery's ring foundation round the dome (world 1's lab()): its steps' radii and tops
+STEPS = ((4.03, 0.59), (4.48, 0.48))
+
+
+def ground_at(p):
+    """Where a falling cell comes to rest at p: on a step of the foundation or on the ground."""
+    r = math.hypot(p.x - CENTRE.x, p.y - CENTRE.y)
+    return next((top for radius, top in STEPS if r < radius), 0.32)
+
+
 def burst(rig, pieces):
     """The cells round the impact pushed out along their normals, those nearest first and furthest, then they
     tumble down to the ground around the dome: 2.5 s at 24 fps."""
@@ -443,9 +453,10 @@ def burst(rig, pieces):
                 f = t - push
                 offset = normal * reach + velocity * f + Vector((0, 0, -0.5 * gravity * f * f))
                 angle_now = spin * (0.1 + f)
-            if centre.z + offset.z < 0.32:
+            floor = ground_at(centre + offset)
+            if centre.z + offset.z < floor:
                 landed = landed or (offset.copy(), angle_now)
-                offset = Vector((landed[0].x, landed[0].y, 0.32 - centre.z))
+                offset = Vector((landed[0].x, landed[0].y, floor - centre.z))
                 angle_now = landed[1]
             track.append((frame, turn((spin_axis, angle_now)), tuple(offset)))
         keys[name] = track

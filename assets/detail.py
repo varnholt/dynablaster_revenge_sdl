@@ -98,11 +98,15 @@ def soil(rng):
 
 
 def rock(rng):
-    """Weathered stone: broad patches, cracks between plates, grain."""
+    """Weathered stone: broad patches, grain, thin cracks that run a way and break off. Closed cracks round every
+    plate drew crazy paving over every steep slope (world 2's ridge) and read as broken uvs."""
     size = SIZE
     f1, f2, _ = cells(rng, size, 26)
-    crack = np.clip((f2 - f1) / 4.0, 0, 1)
-    image = fbm(rng, size, 4) * 0.7 + periodic_noise(rng, size, 90) * 0.35 - (1.0 - crack) * 1.6
+    line = 1.0 - np.clip((f2 - f1) / 2.0, 0, 1)
+    patches = fbm(rng, size, 4)
+    # the cracks only where the patches are dark: open ends, no closed cells
+    gate = np.clip(0.55 - patches * 0.7, 0, 1)
+    image = patches * 0.7 + periodic_noise(rng, size, 90) * 0.35 - line * gate * 1.2
     return normalised(image, 0.18)
 
 

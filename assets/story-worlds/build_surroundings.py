@@ -16,6 +16,7 @@ import budget  # noqa: E402
 import detail  # noqa: E402
 import glb  # noqa: E402
 import grass  # noqa: E402
+import palettes  # noqa: E402
 
 ARGS = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 OUT = ARGS[0] if ARGS else os.path.join(os.path.dirname(__file__), "surroundings")
@@ -159,6 +160,13 @@ class Stage:
 # --- materials ------------------------------------------------------------------------------------
 
 _MATERIALS = {}
+PALETTE = [1]  # the world being built: its colours are shades of its palette's (assets/palettes.py)
+
+
+def tint(rgb):
+    """A colour (or an image of them) as a shade of the world's palette: its own lightness, the hue of the
+    palette colour nearest it. Every colour of a world passes through here."""
+    return palettes.snap(PALETTE[0], rgb)
 
 
 def material(name, color, variation=0.12, scale=3.0, kind="noise", color2=None, mortar=None):
@@ -166,6 +174,9 @@ def material(name, color, variation=0.12, scale=3.0, kind="noise", color2=None, 
     world position."""
     if name in _MATERIALS:
         return _MATERIALS[name]
+    color = tint(color)
+    color2 = None if color2 is None else tint(color2)
+    mortar = None if mortar is None else tint(mortar)
     # colours are given like the ground's, in sRGB
     color = tuple(c ** 2.2 for c in color)
     color2 = None if color2 is None else tuple(c ** 2.2 for c in color2)
@@ -179,15 +190,32 @@ def material(name, color, variation=0.12, scale=3.0, kind="noise", color2=None, 
     low = tuple(max(0.0, c * (1 - variation)) for c in color) + (1,)
     high = tuple(min(1.0, c * (1 + variation)) for c in color) + (1,)
     if kind in ("bricks", "plates"):
+        def math(operation, a, b):
+            node = nodes.new("ShaderNodeMath")
+            node.operation = operation
+            for socket, value in zip(node.inputs, (a, b)):
+                if isinstance(value, float):
+                    socket.default_value = value
+                else:
+                    links.new(value, socket)
+            return node.outputs[0]
+
+        def lerp(a, b, t):
+            return math("ADD", a, math("MULTIPLY", t, math("SUBTRACT", b, a)))
+
         sep = nodes.new("ShaderNodeSeparateXYZ")
         links.new(geometry.outputs["Position"], sep.inputs[0])
-        add = nodes.new("ShaderNodeMath")
-        add.operation = "ADD"
-        links.new(sep.outputs[0], add.inputs[0])
-        links.new(sep.outputs[1], add.inputs[1])
+        normal = nodes.new("ShaderNodeSeparateXYZ")
+        links.new(geometry.outputs["Normal"], normal.inputs[0])
+        nx, ny, nz = (math("ABSOLUTE", normal.outputs[i], 0.0) for i in range(3))
+        x, y, z = sep.outputs[0], sep.outputs[1], sep.outputs[2]
+        # each face laid out along its own wall: courses along x on faces looking north or south, along y on those
+        # looking east or west, the pattern lying flat on faces looking up (a wall's top, not stripes wrapped over it)
+        u = lerp(x, y, math("GREATER_THAN", nx, ny))
+        top = math("GREATER_THAN", nz, 0.7)
         comb = nodes.new("ShaderNodeCombineXYZ")
-        links.new(add.outputs[0], comb.inputs[0])
-        links.new(sep.outputs[2], comb.inputs[1])
+        links.new(lerp(u, x, top), comb.inputs[0])
+        links.new(lerp(z, y, top), comb.inputs[1])
         brick = nodes.new("ShaderNodeTexBrick")
         brick.inputs["Scale"].default_value = scale
         brick.inputs["Mortar Size"].default_value = 0.025 if kind == "bricks" else 0.012
@@ -221,8 +249,11 @@ def material(name, color, variation=0.12, scale=3.0, kind="noise", color2=None, 
 PROPS = []
 
 
-def _finish(obj, mat, smooth_shade=True):
+def _finish(obj, mat, smooth_shade=True, lean=False):
+    """lean: a round primitive, already as coarse as its shape allows, the triangle budget leaves it alone."""
     obj.data.materials.append(mat)
+    if lean:
+        obj[budget.LEAN] = True
     for p in obj.data.polygons:
         p.use_smooth = smooth_shade
     PROPS.append(obj)
@@ -236,14 +267,14 @@ def sphere(loc, radius, mat, scale=(1, 1, 1), subdiv=2, jitter=0.0, rng=None):
     if jitter and rng is not None:
         for v in obj.data.vertices:
             v.co *= 1 + rng.uniform(-jitter, jitter)
-    return _finish(obj, mat)
+    return _finish(obj, mat, lean=subdiv <= 1)
 
 
 def uv_sphere(loc, radius, mat, scale=(1, 1, 1), segments=24, rings=12):
     bpy.ops.mesh.primitive_uv_sphere_add(segments=segments, ring_count=rings, radius=radius, location=loc)
     obj = bpy.context.object
     obj.scale = scale
-    return _finish(obj, mat)
+    return _finish(obj, mat, lean=segments <= 16)
 
 
 def dome(loc, radius, mat, segments=32, rings=10):
@@ -265,7 +296,7 @@ def cylinder(loc, radius, depth, mat, vertices=16, scale=(1, 1, 1), smooth_shade
                                         location=(loc[0], loc[1], loc[2] + depth * 0.5 * scale[2]))
     obj = bpy.context.object
     obj.scale = scale
-    _finish(obj, mat, smooth_shade)
+    _finish(obj, mat, smooth_shade, lean=vertices <= 16)
     # flat caps
     for p in obj.data.polygons:
         if abs(p.normal.z) > 0.9:
@@ -276,7 +307,7 @@ def cylinder(loc, radius, depth, mat, vertices=16, scale=(1, 1, 1), smooth_shade
 def cone(loc, radius, depth, mat, vertices=16, radius2=0.0):
     bpy.ops.mesh.primitive_cone_add(vertices=vertices, radius1=radius, radius2=radius2, depth=depth,
                                     location=(loc[0], loc[1], loc[2] + depth * 0.5))
-    return _finish(bpy.context.object, mat)
+    return _finish(bpy.context.object, mat, lean=vertices <= 16)
 
 
 # in the machine worlds the boxes' bigger faces are plates set in a frame (see box()), set per world by build()
@@ -316,6 +347,29 @@ def box(loc, size, mat, rotation=0.0, bevel=None, panel=None):
     return _finish(obj, mat, smooth_shade=False)
 
 
+def prism(x, y, z, width, profile, mat, bevel=0.015):
+    """A body of the side view profile ((y, z) pairs round it, relative to x, y, z) running width along x, its
+    edges rounded a little like box()'s."""
+    import bmesh
+    mesh = bpy.data.meshes.new("prism")
+    bm = bmesh.new()
+    ends = [[bm.verts.new((x + side * width * 0.5, y + v, z + h)) for v, h in profile] for side in (-1, 1)]
+    left, right = ends
+    count = len(profile)
+    bm.faces.new(left[::-1])
+    bm.faces.new(right)
+    for i in range(count):
+        j = (i + 1) % count
+        bm.faces.new((left[i], left[j], right[j], right[i]))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bmesh.ops.bevel(bm, geom=list(bm.edges), offset=bevel, segments=2, profile=0.5, affect="EDGES")
+    bm.to_mesh(mesh)
+    bm.free()
+    obj = bpy.data.objects.new("prism", mesh)
+    bpy.context.scene.collection.objects.link(obj)
+    return _finish(obj, mat, smooth_shade=False)
+
+
 def fuse(start, voxel, faces, smooth_steps=0, tris=None):
     """Joins the props made since start into one closed mesh: no hidden inner faces that would bake black.
     The voxel size grows until the remesh stays near faces on its own. With tris the remesh is fine enough for
@@ -330,6 +384,9 @@ def fuse(start, voxel, faces, smooth_steps=0, tris=None):
     bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
     bpy.ops.object.join()
     obj = bpy.context.object
+    # the join keeps the first part's properties: a fused crown or tree is no lean primitive, the budget takes it
+    if budget.LEAN in obj:
+        del obj[budget.LEAN]
     area = sum(poly.area for poly in obj.data.polygons)
     remesh = obj.modifiers.new("Remesh", "REMESH")
     remesh.mode = "VOXEL"
@@ -361,7 +418,7 @@ def glow(loc, color, size, mode=GLOW_STEADY):
     """A light's halo for the game (GltfModel::Glow): an empty with the glow in its extras."""
     obj = bpy.data.objects.new("glow", None)
     obj.location = loc
-    obj["glow"] = [float(c) for c in color] + [float(size), float(mode)]
+    obj["glow"] = [float(c) for c in tint(color)] + [float(size), float(mode)]
     bpy.context.scene.collection.objects.link(obj)
     return obj
 
@@ -443,7 +500,11 @@ def tree_round(st, x, y, z, s, leaves, trunk):
         sway(fuse(cluster, 0.015 * s, 260, smooth_steps=1, tris=90), z + 0.5 * s, z + 1.8 * s)
 
 
-def tree_pine(st, x, y, z, s, leaves, trunk):
+def tree_pine(st, x, y, z, s, leaves, trunk, taken=None):
+    """A pine of three cones; with taken its skirt's footprint goes in there, what's scattered later (mushrooms,
+    bushes, rocks) stays out from under it instead of poking through."""
+    if taken is not None:
+        taken.append((x, y, 0.55 * s))
     cylinder((x, y, z - 0.05), 0.08 * s, 0.5 * s, trunk, vertices=8)
     start = len(PROPS)
     for i, (r, h, o) in enumerate(((0.5, 0.75, 0.3), (0.4, 0.65, 0.68), (0.28, 0.55, 1.02))):
@@ -500,6 +561,7 @@ def crystal_material(name, deep, bright, tip):
     It emits for the bake only, which marks its texels: no ambient occlusion and no detail there."""
     if name in _MATERIALS:
         return _MATERIALS[name]
+    deep, bright, tip = tint(deep), tint(bright), tint(tip)
     mat = bpy.data.materials.new(name)
     mat.use_nodes = True
     nodes, links = mat.node_tree.nodes, mat.node_tree.links
@@ -652,6 +714,7 @@ def terrain(st, height_fn, color_fn, name, step=0.5):
     gy, gx = np.gradient(TZ, ty, tx)
     slope = np.hypot(gx, gy)
     rgb = color_fn(TX, TY, TZ, slope)
+    rgb = np.concatenate([tint(rows) for rows in np.array_split(np.clip(rgb, 0, 1), 16)])
     GROUND[:] = [height_fn, rgb, slope]
     # where grass, soil, rock and pebbles show up close, at half the colour's resolution
     half = GROUND_TEX // 2
@@ -740,8 +803,9 @@ def water_surface(st, height_fn, level, deep_color, field_depth=None):
         # over the field the floor tiles lie just below, the water still looks as deep as it should
         depth = np.where(st.outside(TX, TY, 1.0) <= 0, field_depth, depth)
     d = st.outside(TX, TY)
-    # along the shores and in a ring around the island's wall (1.2 tiles out from the apron)
-    foam = np.maximum(smooth(0.12, 0.0, depth), smooth(0.8, 1.05, d) * smooth(1.9, 1.45, d))
+    # along the shores and in a ring around the island's wall (1.2 tiles out from the apron); the ring weaker, at
+    # full strength the shader's churn and swell never take it below white and it reads as a solid band
+    foam = np.maximum(smooth(0.12, 0.0, depth), 0.62 * smooth(0.8, 1.05, d) * smooth(1.9, 1.45, d))
     # what the water laps against: the dry shore and the island's wall (where the ring of foam peaks)
     solid = (height_fn(TX, TY) >= level) | ((d > 1.0) & (d < 1.45))
     shore = shore_distance(solid, (st.x1 - st.x0) / size)
@@ -755,7 +819,7 @@ def water_surface(st, height_fn, level, deep_color, field_depth=None):
     tex.image = img
     mat.node_tree.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
     mesh.materials.append(mat)
-    obj["water"] = [float(c) for c in deep_color]
+    obj["water"] = [float(c) for c in tint(deep_color)]
     WATER.append((obj, img))
     return obj
 
@@ -792,29 +856,51 @@ def pebbles(TX, TY, base, stone, scale=3.0, seed=90):
 
 def world_meadow(st):
     """1: the meadow with Dr's lab and its white walls (the intro and the first map stop)."""
-    def height(x, y):
+    def rolling(x, y):
         d = st.outside(x, y)
         hills = fbm(x, y, 0.09, 4, 3) * 1.8 + smooth(6, 16, st.north(y)) * 2.2
         return FLOOR_Z + smooth(0.6, 5.0, d) * hills
 
+    # the walls' enclosures stand on ground levelled for them, easing back into the hills round them
+    pads = [(x, 2.6) for x in (-5.5, st.w + 5.5)]
+    levels = [float(rolling(np.array(px), np.array(py))) for px, py in pads]
+    # and the intro's tree on a known height, its crown where the intro's camera passes (camera() in build_intro.py)
+    pads.append((st.cx - 0.9, -st.h - 8.6))
+    levels.append(FLOOR_Z + 0.3)
+
+    def height(x, y):
+        z = rolling(x, y)
+        for (px, py), level in zip(pads, levels):
+            z = z + (level - z) * smooth(3.6, 2.6, np.hypot(x - px, y - py))
+        return z
+
     path_y = APRON + 0.3
 
     def color(TX, TY, TZ, slope):
-        rgb = grass_colors(TX, TY, (0.16, 0.42, 0.1), (0.36, 0.66, 0.18))
+        # a painter's meadow rather than one green: cool blue-green in the hollows, warm yellow-green where the sun
+        # lies, sun-dried ochre patches here and there, all held back in saturation
+        rgb = grass_colors(TX, TY, (0.21, 0.36, 0.2), (0.47, 0.6, 0.27))
+        warm = smooth(0.35, 0.75, fbm(TX, TY, 0.12, 3, 41))
+        rgb = mix(rgb, rgb * np.array((1.08, 1.03, 0.82)), warm)
+        dry = smooth(0.62, 0.78, fbm(TX, TY, 0.22, 4, 42)) * smooth(1.0, 3.0, st.outside(TX, TY))
+        rgb = mix(rgb, mix((0.56, 0.52, 0.3), (0.66, 0.6, 0.38), fbm(TX, TY, 1.5, 3, 43)), dry * 0.7)
         # a sandy path from the lab down to the field
         path = (np.abs(TX - st.cx - 0.6 * np.sin(TY * 0.4)) < 0.75) & (TY > path_y - 1) & (TY < 6.2)
-        rgb = mix(rgb, (0.72, 0.6, 0.4), path * (0.85 + 0.15 * vnoise(TX * 5, TY * 5, 9)))
-        rgb = mix(rgb, (0.12, 0.3, 0.08), smooth(0.25, 0.8, slope) * 0.5)
-        gravel = mix((0.6, 0.55, 0.44), (0.74, 0.68, 0.55), fbm(TX, TY, 2.0, 3, 91))
+        rgb = mix(rgb, (0.72, 0.63, 0.47), path * (0.85 + 0.15 * vnoise(TX * 5, TY * 5, 9)))
+        rgb = mix(rgb, (0.16, 0.28, 0.2), smooth(0.25, 0.8, slope) * 0.5)
+        gravel = mix((0.58, 0.54, 0.46), (0.72, 0.67, 0.57), fbm(TX, TY, 2.0, 3, 91))
         gravel = pebbles(TX, TY, gravel, (0.66, 0.64, 0.6), 3.5)
         return apron_mix(st, TX, TY, rgb, gravel)
 
     ground, img = terrain(st, height, color, "ground")
-    leaves = [material(f"leaves{i}", c) for i, c in enumerate(((0.14, 0.45, 0.1), (0.2, 0.55, 0.14), (0.1, 0.36, 0.12)))]
-    trunk = material("trunk", (0.35, 0.22, 0.12))
-    stone = material("boulder", (0.55, 0.55, 0.58), 0.25, 2.0)
-    white = material("white_wall", (0.88, 0.88, 0.86), 0.06, 5.0, kind="bricks", mortar=(0.62, 0.62, 0.62))
-    cap = material("wall_cap", (0.95, 0.95, 0.93), 0.03)
+    # foliage a step off the meadow's hue each: a warm olive, a sap green, a cool deep green for the pines
+    leaves = [material(f"meadow_leaves{i}", c, 0.16) for i, c in enumerate(((0.33, 0.47, 0.19), (0.25, 0.44, 0.2),
+                                                                             (0.15, 0.3, 0.22)))]
+    trunk = material("meadow_trunk", (0.37, 0.28, 0.21))
+    stone = material("meadow_boulder", (0.6, 0.58, 0.54), 0.25, 2.0)
+    # limestone, not paint white: warm, a little uneven
+    white = material("white_wall", (0.84, 0.8, 0.72), 0.08, 5.0, kind="bricks", mortar=(0.58, 0.54, 0.48))
+    cap = material("wall_cap", (0.9, 0.87, 0.8), 0.04)
 
     taken = []
     # Dr's lab behind the field, its dome just behind the border
@@ -823,8 +909,17 @@ def world_meadow(st):
         lab(st, st.cx + 15.5, APRON + 1.5, height, taken, 1.0)
         lab(st, st.cx - 15.5, APRON + 1.5, height, taken, 1.0)
     taken.append((st.cx, 3.5, 1.2))  # the path
+    # the intro's camera (assets/intro/build_intro.py) starts south of the field, behind a big broadleaf it pushes
+    # through, then looks across the field at the lab: that tree, and nothing else in the way
+    tree_x, tree_y = st.cx - 0.9, -st.h - 8.6
+    tree_round(st, tree_x, tree_y, ground_height(st, tree_x, tree_y, height), 2.6, leaves[0], trunk)
+    taken.append((tree_x, tree_y, 2.2))
+    for y in np.arange(-st.h - 7.0, -st.h - 0.5, 1.5):
+        taken.append((st.cx, float(y), 2.0))
 
-    # white walls like on the map: open enclosures left and right of the field
+    # white walls like on the map: open enclosures left and right of the field, built on a footing of fieldstone,
+    # piers at their ends and corner, stones fallen off them and weeds along their foot
+    footing = material("wall_footing", (0.5, 0.5, 0.48), 0.2, 3.0)
     for side in (-1, 1):
         ex = (-5.5 if side < 0 else st.w + 5.5)
         ey = 2.6
@@ -832,13 +927,30 @@ def world_meadow(st):
         pts = [(ex - 2.0 * side, ey + 1.6), (ex + 1.4 * side, ey + 1.6), (ex + 1.4 * side, ey - 1.2)]
         for p0, p1 in zip(pts, pts[1:]):
             wall_run(p0, p1, z, 1.0, 0.6, white, cap)
-        taken.append((ex, ey, 2.4))
+            length = math.hypot(p1[0] - p0[0], p1[1] - p0[1])
+            box(((p0[0] + p1[0]) * 0.5, (p0[1] + p1[1]) * 0.5, z - 0.45), (length + 0.2, 0.84, 0.55), footing,
+                rotation=math.atan2(p1[1] - p0[1], p1[0] - p0[0]), bevel=0.05)
+            # rubble and weeds along both faces
+            for k in range(int(length * 2)):
+                t = st.rng.uniform(0.05, 0.95)
+                n = st.rng.choice((-1, 1)) * st.rng.uniform(0.5, 0.75)
+                ax, ay = (p1[0] - p0[0]) / length, (p1[1] - p0[1]) / length
+                rx, ry = p0[0] + (p1[0] - p0[0]) * t - ay * n, p0[1] + (p1[1] - p0[1]) * t + ax * n
+                rz = ground_height(st, rx, ry, height)
+                if st.rng.random() < 0.45:
+                    rock(st, rx, ry, rz - 0.06, st.rng.uniform(0.14, 0.26), stone)
+                else:
+                    bush(st, rx, ry, rz - 0.05, st.rng.uniform(0.35, 0.55), leaves[1])
+        for (px, py) in pts:
+            box((px, py, z - 0.4), (0.8, 0.8, 1.62), white, bevel=0.04)
+            box((px, py, z + 1.22), (0.9, 0.9, 0.1), cap, bevel=0.02)
+        taken.append((ex, ey, 2.6))
     # big trees, thinning out towards the field so they hide little of it
     for (x, y) in st.scatter(60, lambda x, y: smooth(0.5, 1.8, st.outside(x, y)), 1.8, taken):
         z = ground_height(st, x, y, height)
         s = st.rng.uniform(1.6, 2.5)
         if st.rng.random() < 0.35:
-            tree_pine(st, x, y, z, s * 1.3, leaves[2], trunk)
+            tree_pine(st, x, y, z, s * 1.3, leaves[2], trunk, taken)
         else:
             tree_round(st, x, y, z, s, leaves[st.rng.integers(0, 2)], trunk)
     for (x, y) in st.scatter(26, lambda x, y: 1.0, 0.6, taken):
@@ -868,7 +980,10 @@ def lab(st, x, front, height_fn, taken, s=1.0):
     glass = material("lab_glass", (0.72, 0.9, 0.95), 0.05, 2.0)
     dark = material("lab_dark", (0.15, 0.16, 0.2), 0.05)
     width, depth = 11.0 * s, 2.6 * s
+    concrete = material("lab_concrete", (0.58, 0.58, 0.56), 0.1, 5.0)
     box((x, y, z - 0.3), (width, depth, 1.9 * s + 0.3), white, bevel=0.05)
+    # a plinth course along the building's foot, so it stands on a foundation rather than out of the grass
+    box((x, y - 0.06, z - 0.4), (width + 0.16, depth + 0.12, 0.52), concrete, bevel=0.03)
     box((x - 1.2 * s, y + 0.3 * s, z + 1.9 * s), (7.6 * s, 2.0 * s, 0.6 * s), grey, bevel=0.05)
     # vents and panels on the front
     for i in range(6):
@@ -879,8 +994,11 @@ def lab(st, x, front, height_fn, taken, s=1.0):
         glow((px + 0.45 * s, y - depth * 0.5 - 0.05, z + 0.85 * s), (1.0, 0.5, 0.36), 0.35 * s, GLOW_PULSE)
     for i in range(5):
         box((x - 3.8 * s + i * 1.1 * s, y - 0.7 * s, z + 2.5 * s), (0.7 * s, 0.08, 0.06 * s), dark)
-    # the dome with the capsule
+    # the dome with the capsule, on a ring foundation of two steps (the intro's lab keeps them: build_lab.py cuts
+    # the glass only, from 0.45 up and within its shell)
     dz = z - 0.1
+    for grow, top in ((0.5 * s, 0.06), (0.22 * s, 0.17)):
+        cylinder((x, y - depth * 0.5 - 0.2 * s, z - 0.4), 2.3 * s + grow, 0.4 + top, concrete, vertices=48)
     dome((x, y - depth * 0.5 - 0.2 * s, dz), 2.3 * s, glass)
     box((x, y - depth * 0.5 - 0.2 * s, dz + 0.9 * s), (3.4 * s, 0.4 * s, 0.22 * s), blue, bevel=0.05)
     taken.append((x, y, width * 0.55))
@@ -911,16 +1029,20 @@ def world_rocky(st):
         crack = smooth(0.12, 0.04, f2 - f1)
         cobble = mix((0.52, 0.52, 0.62), (0.68, 0.68, 0.76), smooth(0.7, 0.0, f1) * 0.6 + fbm(TX, TY, 2.0, 2, 16) * 0.4)
         cobble = mix(cobble, (0.3, 0.3, 0.38), crack)
-        # layered sandstone: beds of their own shade with dark seams between them, broken into blocks by cracks,
-        # sharp lines the eye reads as detail where the texture is stretched over the flanks
-        layer = (TZ - FLOOR_Z) * 6 + fbm(TX, TY, 0.6, 3, 17) * 2.5
+        # layered sandstone: beds of their own shade with dark seams between them and finer laminae inside. The
+        # texture is laid on from above, so only patterns that follow the height read as rock on the flanks; cracks
+        # drawn in plan (voronoi cells) came out as crazy paving smeared over the slopes
+        # the beds follow the height, and the ridge is a bumpy heap: sharp seams between them traced every bump
+        # like the lines of a map. So broad beds a little warped, blended softly into each other, only faint seams,
+        # and weathering blotches across them doing most of the work
+        layer = (TZ - FLOOR_Z) * 3.2 + fbm(TX, TY, 0.35, 3, 17) * 0.5
         bed = np.floor(layer)
-        shade = _hash(bed, np.floor(fbm(TX, TY, 0.3, 2, 22) * 3), 23) * 0.7 + fbm(TX, TY, 1.8, 3, 24) * 0.3
-        brown = mix((0.4, 0.19, 0.08), (0.66, 0.37, 0.17), shade)
-        seam = layer - bed
-        brown = mix(brown, (0.22, 0.1, 0.05), smooth(0.12, 0.0, np.minimum(seam, 1 - seam)) * 0.8)
-        b1, b2 = voronoi(TX * 3.2, TY * 3.2, 25)
-        brown = mix(brown, (0.25, 0.12, 0.06), smooth(0.07, 0.02, b2 - b1) * 0.6)
+        f = layer - bed
+        tone = _hash(bed, 0, 23) * (1 - smooth(0.7, 1.0, f)) + _hash(bed + 1, 0, 23) * smooth(0.7, 1.0, f)
+        shade = tone * 0.45 + fbm(TX, TY, 0.9, 4, 24) * 0.55
+        brown = mix((0.44, 0.24, 0.12), (0.64, 0.4, 0.21), shade)
+        brown = mix(brown, (0.3, 0.16, 0.08), smooth(0.08, 0.0, np.minimum(f, 1 - f)) * 0.3)
+        brown = mix(brown, (0.7, 0.55, 0.38), smooth(0.6, 0.8, fbm(TX, TY, 1.4, 3, 25)) * 0.35)
         highland = mix((0.5, 0.48, 0.44), (0.64, 0.62, 0.58), fbm(TX, TY, 0.5, 4, 18))
         highland = mix(highland, (0.32, 0.5, 0.2), smooth(0.55, 0.75, fbm(TX, TY, 0.25, 3, 19)) * 0.7)
         mountain = mix((0.46, 0.46, 0.52), (0.62, 0.62, 0.68), fbm(TX, TY, 0.4, 4, 20))
@@ -1029,7 +1151,7 @@ def world_river(st):
     for (x, y) in st.scatter(70, on_bank, 1.2, taken):
         z = ground_height(st, x, y, height)
         if st.rng.random() < 0.4:
-            tree_pine(st, x, y, z, st.rng.uniform(1.1, 1.7), leaves[2], trunk)
+            tree_pine(st, x, y, z, st.rng.uniform(1.1, 1.7), leaves[2], trunk, taken)
         else:
             tree_round(st, x, y, z, st.rng.uniform(1.0, 1.5), leaves[st.rng.integers(0, 2)], trunk)
     shore = lambda x, y: float(water_z + 0.02 < ground_height(st, x, y, height) < water_z + 0.25)
@@ -1071,7 +1193,7 @@ def world_forest(st):
     for (x, y) in st.scatter(160, lambda x, y: 0.5 + 0.5 * smooth(1, 4, st.outside(x, y)), 1.0, taken):
         z = ground_height(st, x, y, height)
         if st.rng.random() < 0.65:
-            tree_pine(st, x, y, z, st.rng.uniform(1.2, 2.2), pines[st.rng.integers(0, 2)], trunk)
+            tree_pine(st, x, y, z, st.rng.uniform(1.2, 2.2), pines[st.rng.integers(0, 2)], trunk, taken)
         else:
             tree_round(st, x, y, z, st.rng.uniform(1.1, 1.7), leaves, trunk)
     for (x, y) in st.scatter(16, lambda x, y: 1.0, 0.5, taken, margin=0.3):
@@ -1168,14 +1290,15 @@ def diamond_floor(st, TX, TY, light, dark, line, size=1.0):
     return mix(rgb, line, smooth(0.06, 0.02, edge))
 
 
-def room(st, wall_mat, offset_x=4.0, offset_north=3.6, height=4.5):
-    """The hall around the field: walls left, right and behind (the camera looks in from the south)."""
+def room(st, wall_mat, offset_x=4.0, offset_north=3.6, height=4.5, cap_mat=None):
+    """The hall around the field: walls left, right and behind (the camera looks in from the south), with cap_mat
+    a coping along their tops."""
     x0, x1 = -APRON - offset_x, st.w + APRON + offset_x
     y0, y1 = -st.h - APRON - 6.0, APRON + offset_north
     z = FLOOR_Z
-    wall_run((x0 - 0.5, y1 + 0.5), (x1 + 0.5, y1 + 0.5), z, height, 1.0, wall_mat)
-    wall_run((x0 - 0.5, y0), (x0 - 0.5, y1 + 0.5), z, height, 1.0, wall_mat)
-    wall_run((x1 + 0.5, y0), (x1 + 0.5, y1 + 0.5), z, height, 1.0, wall_mat)
+    wall_run((x0 - 0.5, y1 + 0.5), (x1 + 0.5, y1 + 0.5), z, height, 1.0, wall_mat, cap_mat)
+    wall_run((x0 - 0.5, y0), (x0 - 0.5, y1 + 0.5), z, height, 1.0, wall_mat, cap_mat)
+    wall_run((x1 + 0.5, y0), (x1 + 0.5, y1 + 0.5), z, height, 1.0, wall_mat, cap_mat)
     return x0, x1, y0, y1
 
 
@@ -1346,7 +1469,7 @@ def separate_spinners(props):
 def torus(loc, major, minor, mat, segments=24, sides=6):
     bpy.ops.mesh.primitive_torus_add(major_radius=major, minor_radius=minor, major_segments=segments,
                                      minor_segments=sides, location=loc)
-    return _finish(bpy.context.object, mat)
+    return _finish(bpy.context.object, mat, lean=True)
 
 
 def pipe_run(p0, p1, z, radius, mat, flange=None, flange_mat=None, valve_mat=None, valve_every=0):
@@ -1359,7 +1482,7 @@ def pipe_run(p0, p1, z, radius, mat, flange=None, flange_mat=None, valve_mat=Non
     obj.rotation_euler = turn
     obj.location.z = z
     for (px, py) in (p0, p1):
-        uv_sphere((px, py, z), radius * 1.15, mat, segments=12, rings=8)
+        uv_sphere((px, py, z), radius * 1.15, mat, segments=10, rings=6)
     if not flange:
         return
     count = int(length / flange)
@@ -1371,7 +1494,7 @@ def pipe_run(p0, p1, z, radius, mat, flange=None, flange_mat=None, valve_mat=Non
         collar.location.z = z
         if valve_every and i % valve_every == 0:
             cylinder((fx, fy, z), radius * 0.25, radius + 0.12, flange_mat or mat, vertices=6)
-            torus((fx, fy, z + radius + 0.14), 0.16, 0.025, valve_mat or mat, segments=16, sides=5)
+            torus((fx, fy, z + radius + 0.14), 0.16, 0.025, valve_mat or mat, segments=12, sides=4)
             for k in range(2):
                 box((fx, fy, z + radius + 0.125), (0.3, 0.03, 0.03), valve_mat or mat, rotation=k * math.pi / 2,
                     bevel=0)
@@ -1485,7 +1608,7 @@ def world_castle_1(st):
     cloth = material("banner_red", (0.68, 0.1, 0.1), 0.12, 4.0)
     gold = material("gold_trim", (0.92, 0.72, 0.28), 0.08, 5.0)
     embers = material("embers", (0.95, 0.42, 0.12), 0.3, 8.0, color2=(1.0, 0.8, 0.3))
-    x0, x1, y0, y1 = room(st, ashlar)
+    x0, x1, y0, y1 = room(st, ashlar, cap_mat=cap)
     z = FLOOR_Z
     # columns along the walls with a torch on each, banners between them
     spacing = 3.2
@@ -1576,7 +1699,7 @@ def drum(x, y, z, body, rim, s=1.0):
     # the hoops clear of the drum's ends, a rim round the lid: no faces sharing a plane
     for h in (0.06, 0.3, 0.55):
         cylinder((x, y, z + h * s), 0.315 * s, 0.05 * s, rim, vertices=16)
-    torus((x, y, z + 0.85 * s), 0.29 * s, 0.025 * s, rim, segments=16, sides=6)
+    torus((x, y, z + 0.85 * s), 0.29 * s, 0.025 * s, rim, segments=12, sides=4)
 
 
 def pallet(x, y, z, rotation, wood, load=None, dark=None, rng=None):
@@ -1668,8 +1791,9 @@ def chain(x, y, z_top, z_bottom, mat, hook=None):
     """A chain hanging from the beam, a hook at its end."""
     n = int((z_top - z_bottom) / 0.09)
     for k in range(n):
-        link = torus((x, y, z_top - k * 0.09), 0.04, 0.012, mat, segments=8, sides=4)
-        link.rotation_euler = (math.pi / 2, 0, (k % 2) * math.pi / 2)
+        # a link is a few pixels in the game's camera: flat bars, each turned against the last, read as a chain; a torus
+        # per link cost 64 triangles
+        box((x, y, z_top - k * 0.09 - 0.04), (0.07, 0.016, 0.09), mat, rotation=(k % 2) * math.pi / 2, bevel=0, panel=False)
     if hook is not None:
         h = torus((x, y, z_bottom - 0.08), 0.08, 0.025, hook, segments=10, sides=5)
         h.rotation_euler = (math.pi / 2, 0, 0)
@@ -1727,7 +1851,9 @@ def world_castle_2(st):
             for k in range(4):
                 box((x + dx * 0.62 + dy * (k - 1.5) * 0.25, y + dy * 0.62 - dx * (k - 1.5) * 0.25, z + 0.25),
                     (0.06, 0.06, 0.8), dark, rotation=a)
-            glow((x + dx * 0.9, y + dy * 0.9, z + 0.65), (1.0, 0.55, 0.2), 1.2, GLOW_FLAME)
+            # the glow's billboard through the mouth's plane: the iron above hides its upper half, the rest spills
+            # out over the deck (in front of the furnace it lit up the iron above the mouth)
+            glow((x + dx * 0.64, y + dy * 0.64, z + 0.6), (1.0, 0.55, 0.2), 1.2, GLOW_FLAME)
             for k in (-1, 1):
                 uv_sphere((x + dx * 0.62 + dy * k * 0.6, y + dy * 0.62 - dx * k * 0.6, z + 1.3), 0.07,
                           lamp if k > 0 else green, segments=10, rings=6)
@@ -1775,7 +1901,8 @@ def world_castle_2(st):
         zone = between if between(cx, cy) else beyond
         for k in range(st.rng.integers(2, 5)):
             px, py = cx + st.rng.uniform(-0.6, 0.6), cy + st.rng.uniform(-0.6, 0.6)
-            if zone(px, py) and all(math.hypot(px - qx, py - qy) > 0.62 for qx, qy in spots):
+            # apart by the biggest thing a spot gets, a crate 0.8 across turned a little
+            if zone(px, py) and all(math.hypot(px - qx, py - qy) > 0.95 for qx, qy in spots):
                 spots.append((px, py))
     for (x, y) in spots:
         pick = st.rng.random()
@@ -1787,7 +1914,11 @@ def world_castle_2(st):
         elif pick < 0.45:
             drum(x, y, z, oil if st.rng.random() < 0.5 else copper, dark)
             if st.rng.random() < 0.5:
-                drum(x + 0.45, y + st.rng.uniform(-0.2, 0.2), z, oil, dark)
+                # beside it, hoop to hoop (they're 0.63 across), not into it
+                a = st.rng.uniform(-0.35, 0.35)
+                bx, by = x + 0.66 * math.cos(a), y + 0.66 * math.sin(a)
+                if all(math.hypot(bx - qx, by - qy) > 0.8 for qx, qy in spots if (qx, qy) != (x, y)):
+                    drum(bx, by, z, oil, dark)
         elif pick < 0.65:
             pallet(x, y, z, turn, wood, sack if st.rng.random() < 0.5 else crate_side, dark, st.rng)
         elif pick < 0.8:
@@ -1897,17 +2028,34 @@ def wall_screen(x, y, z, width, height, frame, screen, light, look=SCREEN_BLUE):
 
 
 def control_desk(x, y, z, grey, panel, dark, screen, lamps):
-    """An operator's desk facing the wall screens: its slanted panel and its monitors face the room's south."""
-    box((x, y, z), (1.8, 0.62, 0.7), grey, bevel=0.03)
-    top = box((x, y - 0.06, z + 0.66), (1.7, 0.48, 0.05), panel)
-    top.rotation_euler.x = 0.35
+    """An operator's desk facing the wall screens: its top slopes up from the front, a deck of buttons on the
+    slope, two monitors on the flat at the back facing the room's south."""
+    # the body in side view (y, z): low at the front, the top sloping up to a flat at the back
+    front, back, low, high, flat = -0.31, 0.31, 0.6, 0.78, 0.08
+    tilt = (high - low) / (flat - front)
+
+    def on_slope(v, lift=0.0):
+        return low + (v - front) * tilt + lift
+
+    prism(x, y, z, 1.8, [(front, 0.0), (back, 0.0), (back, high), (flat, high), (front, low)], grey)
+    # the deck: a plate lying on the slope, buttons in two rows on it, every third lit in a lamp's colour
+    a, b = front + 0.03, flat - 0.03
+    prism(x, y, z, 1.62, [(a, on_slope(a, -0.01)), (b, on_slope(b, -0.01)), (b, on_slope(b, 0.02)),
+                          (a, on_slope(a, 0.02))], dark)
+    run = math.atan(tilt)
+    for row, v in enumerate((-0.2, -0.06)):
+        for k in range(8):
+            mat = lamps[(k + row) % 2][0] if (k + row) % 3 == 0 else panel
+            button = box((0.0, 0.0, 0.0), (0.1, 0.07, 0.025), mat, bevel=0, panel=False)
+            button.rotation_euler.x = run
+            button.location = (x - 0.63 + k * 0.18, y + v, z + on_slope(v, 0.015))
     for k, side in enumerate((-1, 1)):
-        box((x + side * 0.45, y + 0.2, z + 0.72), (0.56, 0.1, 0.42), dark, bevel=0.015)
-        box((x + side * 0.45, y + 0.14, z + 0.78), (0.46, 0.03, 0.3), screen)
-        screen_face(x + side * 0.45, y + 0.125, z + 0.78, 0.46, 0.3, SCREEN_BLUE)
+        box((x + side * 0.45, y + 0.2, z + high - 0.02), (0.56, 0.1, 0.42), dark, bevel=0.015)
+        box((x + side * 0.45, y + 0.14, z + high + 0.04), (0.46, 0.03, 0.3), screen)
+        screen_face(x + side * 0.45, y + 0.125, z + high + 0.04, 0.46, 0.3, SCREEN_BLUE)
         _, light = lamps[k]
-        glow((x + side * 0.45, y + 0.02, z + 0.93), (0.35, 0.65, 1.0), 0.4, GLOW_PULSE)
-        glow((x - side * 0.1, y - 0.14, z + 0.74), light, 0.16, GLOW_BLINK)
+        glow((x + side * 0.45, y + 0.02, z + high + 0.19), (0.35, 0.65, 1.0), 0.4, GLOW_PULSE)
+        glow((x - side * 0.5, y - 0.13, z + on_slope(-0.13, 0.07)), light, 0.16, GLOW_BLINK)
 
 
 def power_coil(x, y, z, angle, dark, copper, charge, red):
@@ -2479,6 +2627,7 @@ def build(world, size_key):
     w, h = SIZES[size_key]
     bpy.ops.wm.read_factory_settings(use_empty=True)
     _MATERIALS.clear()
+    PALETTE[0] = world
     PROPS.clear()
     WATER.clear()
     SPINNERS.clear()

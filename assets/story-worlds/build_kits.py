@@ -9,6 +9,9 @@ import bmesh
 import bpy
 import numpy as np
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import palettes  # noqa: E402
+
 ARGS = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 OUT = ARGS[0] if ARGS else os.path.join(os.path.dirname(__file__), "glb")
 ONLY = [int(a) for a in ARGS[1:]]
@@ -64,7 +67,11 @@ def bricks(size, rows=4, columns=2, mortar=0.06):
     return joint, brick
 
 
+PALETTE = [1]  # the world being built: its colours are shades of its palette's (assets/palettes.py)
+
+
 def image(name, rgb):
+    rgb = palettes.snap(PALETTE[0], np.clip(rgb, 0, 1))
     img = bpy.data.images.new(name, rgb.shape[1], rgb.shape[0], alpha=True)
     rgba = np.concatenate([np.clip(rgb, 0, 1), np.ones(rgb.shape[:2] + (1,))], axis=2)
     img.pixels.foreach_set(rgba.astype(np.float32).ravel())
@@ -443,6 +450,42 @@ def brick_texture(mortar_color, low, high, rows=4):
     return rgb
 
 
+def ashlar_texture(mortar_color, low, high, cap_low, cap_high):
+    """The castle border's atlas: its wall's two courses of blocks on the left half, the coping slab on the right,
+    darker at the slab's ends where it meets the next one (see ashlar_uv())."""
+    wall = brick_texture(mortar_color, low, high, rows=2)[:, ::2]
+    t = np.linspace(0, 1, TEX // 2)
+    slab = colorize(0.7 * noise(TEX, 5)[:, :TEX // 2] + 0.3 * noise(TEX, 14)[:, :TEX // 2], cap_low, cap_high)
+    joint = np.clip(1 - np.minimum(t, 1 - t) / 0.025, 0, 1)
+    slab = slab * (1 - 0.55 * joint)[None, :, None]
+    slab[:, (t < 0.008) | (t > 0.992)] = mortar_color
+    return np.concatenate([wall, slab], axis=1)
+
+
+def ashlar_uv(obj, body_height, body_depth, cap_bottom, cap_height, cap_depth):
+    """Lays the castle border's wall faces onto the atlas' left half, a course per half of the height and the
+    blocks' joints where the next block's continue, and the coping's onto the right half, one slab per block."""
+    if not obj.data.uv_layers:
+        obj.data.uv_layers.new()
+    uv = obj.data.uv_layers.active.data
+    for poly in obj.data.polygons:
+        n = poly.normal
+        cap = poly.center.z > cap_bottom + 0.005
+        depth = cap_depth if cap else body_depth
+        for li in poly.loop_indices:
+            co = obj.data.vertices[obj.data.loops[li].vertex_index].co
+            along = co.x + 0.5 if abs(n.x) < max(abs(n.y), abs(n.z)) else co.y / depth + 0.5
+            if abs(n.z) > max(abs(n.x), abs(n.y)):
+                v = co.y / depth + 0.5
+            elif cap:
+                v = 0.25 * (co.z - cap_bottom) / cap_height
+            else:
+                v = co.z / body_height
+            u = min(max(along, 0.0), 1.0)
+            uv[li].uv = ((0.5 if cap else 0.0) + 0.004 + 0.492 * u, min(max(v, 0.0), 1.0))
+        poly.use_smooth = True
+
+
 def rock_texture(low, high):
     return colorize(noise(TEX, 4, octaves=5) ** 1.3, low, high)
 
@@ -674,9 +717,10 @@ def rock_slab_texture():
 
 WORLDS = {
     1: dict(name="the_wall",
-            floor=lambda: floor_texture((0.18, 0.5, 0.12), (0.32, 0.7, 0.2)),
-            border=("bricks", lambda: brick_texture((0.45, 0.43, 0.4), (0.45, 0.45, 0.48), (0.7, 0.7, 0.72))),
-            land=lambda: colorize(noise(TEX, 8), (0.12, 0.38, 0.1), (0.22, 0.5, 0.16))),
+            # the meadow's greens (build_surroundings.world_meadow), the field's turf a touch fresher than round it
+            floor=lambda: floor_texture((0.3, 0.46, 0.21), (0.46, 0.6, 0.27)),
+            border=("bricks", lambda: brick_texture((0.45, 0.43, 0.4), (0.5, 0.49, 0.47), (0.72, 0.7, 0.66))),
+            land=lambda: colorize(noise(TEX, 8), (0.22, 0.36, 0.2), (0.4, 0.52, 0.25))),
     2: dict(name="rocky_mountains",
             floor=lambda: cobbles((0.5, 0.5, 0.62), (0.7, 0.7, 0.8), (0.3, 0.3, 0.38)) * tile_edges(TEX, depth=0.2)[..., None],
             # slabs of the ridge's layered rock
@@ -700,7 +744,8 @@ WORLDS = {
     6: dict(name="castle_1",
             # the keep's ground floor: sandstone flags, ashlar walls with a coping
             floor=lambda: flagstones((0.8, 0.7, 0.52), (0.62, 0.5, 0.36), (0.3, 0.24, 0.18)),
-            border=("ashlar", lambda: brick_texture((0.32, 0.29, 0.26), (0.5, 0.47, 0.42), (0.7, 0.66, 0.58), rows=2)),
+            border=("ashlar", lambda: ashlar_texture((0.32, 0.29, 0.26), (0.5, 0.47, 0.42), (0.7, 0.66, 0.58),
+                                                     (0.6, 0.56, 0.49), (0.74, 0.7, 0.62))),
             land=lambda: colorize(noise(TEX, 8), (0.3, 0.24, 0.18), (0.44, 0.36, 0.27))),
     7: dict(name="castle_2",
             # the castle's machine floor: steel deck plate, riveted crates striped black and yellow
@@ -719,6 +764,7 @@ def build_world(index, spec):
     # every world draws its own noise, building one doesn't change the others
     global RNG
     RNG = np.random.default_rng(7 + index)
+    PALETTE[0] = index
 
     clear()
     floor = box("floor", (1.0, 1.0, 0.12), 0.03, 2)
@@ -747,7 +793,7 @@ def build_world(index, spec):
         bpy.ops.object.join()
         border = bpy.context.object
         border.name = "border"
-        project_uv(border, "cube")
+        ashlar_uv(border, 0.8, 0.9, 0.79, 0.17, 1.04)
     elif kind == "crate":
         # rounded off, the stripes run on over the bevel
         border = box("border", (0.98, 0.98, 0.95), 0.035, 2)
