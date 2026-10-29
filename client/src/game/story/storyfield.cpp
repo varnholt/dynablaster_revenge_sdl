@@ -250,11 +250,14 @@ void StoryField::render()
    // the water's mirror image: the scenery and the border standing around it
    if (water)
    {
-      if (!_water)
+      if (!_water || _water->isLava() != scenery.isLava())
       {
-         _water = std::make_unique<WaterSurface>();
+         _water = std::make_unique<WaterSurface>(scenery.isLava());
       }
+   }
 
+   if (water && !scenery.isLava())
+   {
       _water->renderReflection(
          scenery.getWaterLevel(),
          [&](const Matrix& mirror)
@@ -310,7 +313,10 @@ void StoryField::render()
       const Matrix inverse = static_cast<GLDevice&>(activeDevice()).getProjectionMatrix().invert4x4();
       const Vector eye(inverse.xz / inverse.wz, inverse.yz / inverse.wz, inverse.zz / inverse.wz);
 
-      _water->captureRefraction();
+      if (!scenery.isLava())
+      {
+         _water->captureRefraction();
+      }
       _water->setWaders(std::move(_waders));
       _water->render(scenery, eye);
    }

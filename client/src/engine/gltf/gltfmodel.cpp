@@ -419,7 +419,14 @@ void GltfModel::load(const std::string& filename)
          primitive._node = static_cast<int32_t>(n);
          primitive._skinned = node.skin != nullptr && !_joints.empty();
 
-         if (const auto water = readExtras<3>(node.extras.data, "water"))
+         // lava is drawn like the water, from the same kind of data, molten (WaterSurface's lava mode)
+         if (const auto lava = readExtras<3>(node.extras.data, "lava"))
+         {
+            primitive._water = true;
+            _lava = true;
+            _water_color = Vector((*lava)[0], (*lava)[1], (*lava)[2]);
+         }
+         else if (const auto water = readExtras<3>(node.extras.data, "water"))
          {
             primitive._water = true;
             _water_color = Vector((*water)[0], (*water)[1], (*water)[2]);
@@ -1251,6 +1258,11 @@ float GltfModel::getWaterLevel() const
 const Vector& GltfModel::getWaterColor() const
 {
    return _water_color;
+}
+
+bool GltfModel::isLava() const
+{
+   return _lava;
 }
 
 float GltfModel::getWaterFlow() const

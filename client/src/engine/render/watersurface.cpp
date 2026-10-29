@@ -16,9 +16,9 @@ constexpr float SKY_G = 0.68f;
 constexpr float SKY_B = 0.92f;
 }  // namespace
 
-WaterSurface::WaterSurface()
+WaterSurface::WaterSurface(bool lava) : _lava(lava)
 {
-   _shader = activeDevice().loadShader("water-vert.glsl", "water-frag.glsl");
+   _shader = activeDevice().loadShader("water-vert.glsl", lava ? "lava-frag.glsl" : "water-frag.glsl");
    _data_param = activeDevice().getParameterIndex("u_data");
    _reflection_param = activeDevice().getParameterIndex("u_reflection");
    _refraction_param = activeDevice().getParameterIndex("u_refraction");
@@ -86,6 +86,11 @@ void WaterSurface::captureRefraction()
    glBindTexture(GL_TEXTURE_2D, 0);
 }
 
+bool WaterSurface::isLava() const
+{
+   return _lava;
+}
+
 void WaterSurface::setWaders(std::vector<Wader> waders)
 {
    _waders = std::move(waders);
@@ -94,7 +99,7 @@ void WaterSurface::setWaders(std::vector<Wader> waders)
 
 void WaterSurface::render(GltfModel& model, const Vector& eye)
 {
-   if (!_reflection)
+   if (!_reflection && !_lava)
    {
       return;
    }
@@ -138,7 +143,7 @@ void WaterSurface::render(GltfModel& model, const Vector& eye)
    activeDevice().setParameter(_wader_count_param, static_cast<float>(_waders.size()));
 
    glActiveTexture(GL_TEXTURE1);
-   glBindTexture(GL_TEXTURE_2D, _reflection->texture());
+   glBindTexture(GL_TEXTURE_2D, _reflection ? _reflection->texture() : 0);
    glActiveTexture(GL_TEXTURE2);
    glBindTexture(GL_TEXTURE_2D, _refraction);
    glActiveTexture(GL_TEXTURE0);
