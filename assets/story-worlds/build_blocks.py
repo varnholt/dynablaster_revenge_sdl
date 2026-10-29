@@ -491,10 +491,11 @@ def log_block(rng, h, w, top):
         rgb = groove(rgb, check * 0.8, 0.6, 0.0)
         d = np.minimum(np.minimum(u, 1 - u) * w, np.minimum(v, 1 - v) * h) / FACE
         bark = smooth(0.07, 0.05, d)
-        rgb = mix(rgb, tone(rng, h, w, p(3, 0.45), p(3, 0.75), 30, 2), bark)
+        rgb = mix(rgb, tone(rng, h, w, p(3, 0.7), p(3, 1.05), 30, 2), bark)
     else:
         ridges = noise(rng, h, w, 9, 4, stretch=(9.0, 1.0))
-        rgb = mix(p(3, 0.4), p(3, 0.85), smooth(0.35, 0.7, ridges))
+        # furrowed bark, kept light enough that it reads in the game's light, not as a black box
+        rgb = mix(p(3, 0.75), p(3, 1.3), smooth(0.35, 0.7, ridges))
         rgb = rgb * (0.85 + 0.3 * noise(rng, h, w, 40, 2, stretch=(4.0, 1.0)))[..., None]
         moss = smooth(0.6, 0.8, noise(rng, h, w, 6)) * smooth(0.3, 1.0, v)
         rgb = mix(rgb, p(1, 1.0), moss * 0.6)
@@ -521,7 +522,8 @@ def basalt(rng, h, w, top):
     else:
         x = u * w / FACE + (noise(rng, h, w, 4, 2) - 0.5) * 0.04
         joint = lines(x, 0.24, 0.008)
-    rgb = tone(rng, h, w, p(0, 1.0), p(1, 0.85), 6)
+    # ash grey rock rather than the palette's near black: in the cave's light that read as holes in the field
+    rgb = tone(rng, h, w, p(1, 0.95), p(1, 1.4), 6)
     rgb = rgb * (0.85 + 0.3 * noise(rng, h, w, 60, 2))[..., None]
     hot = joint * smooth(0.45, 0.7, noise(rng, h, w, 5, 3))
     glow = np.clip(hot * 1.4, 0, 1)
@@ -661,7 +663,8 @@ SKINS = {
 
 # worlds whose destructible blocks are glass (the game's block shader draws them, see BlockMaterial::setGlass): the
 # palette colours the blocks take, one each, picked by where a block stands
-GLASS = {2: (4, 1, 3)}
+# world 2: ruby, amber, dust (slate went colourless on the grey cobbles); world 8: teal, mostly, and the alarm red
+GLASS = {2: (4, 1, 2), 8: (2, 2, 4)}
 
 
 def write_glass(world):
