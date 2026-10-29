@@ -772,7 +772,7 @@ def lossless(img):
     return glb.png(np.ascontiguousarray(np.round(pixels.reshape(h, w, 4)[::-1] * 255).astype(np.uint8)))
 
 
-def water_surface(st, height_fn, level, deep_color, field_depth=None):
+def water_surface(st, height_fn, level, deep_color, field_depth=None, lava=False):
     """The water as its own mesh for the game's water shader ("water": [deep r, g, b] in its extras); its texture
     is data: red the depth (0..0.8 tiles), green the foam along the shores and the island's wall, blue the
     distance to them (0.02..1 = 0..SHORE_REACH tiles) for the foam to lap against them."""
@@ -819,7 +819,8 @@ def water_surface(st, height_fn, level, deep_color, field_depth=None):
     tex.image = img
     mat.node_tree.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
     mesh.materials.append(mat)
-    obj["water"] = [float(c) for c in tint(deep_color)]
+    # lava: the game draws it molten, with its own shader, from the same data (lava-frag.glsl)
+    obj["lava" if lava else "water"] = [float(c) for c in tint(deep_color)]
     WATER.append((obj, img))
     return obj
 
@@ -1235,15 +1236,27 @@ def cream_rock(st, x, y, z, s, rock_mat, cream_mat):
 
 
 def world_lava_cave(st):
-    """5: the cold cave of volcanic rock under the cream capped mountain: brown earth, cream topped pillars, moss."""
+    """5: the cave of volcanic rock under the cream capped mountain: a moat of molten lava round the field, pools of
+    it further out, glowing and throwing embers; brown earth, cream topped pillars, moss away from the heat."""
     mx, my = st.cx, 11.0
+    lava_z = FLOOR_Z - 0.1
+
+    def moat(x, y):
+        """1 in the lava: a ring round the walkway, wobbling, and pools beyond."""
+        d = st.outside(x, y)
+        edge = 2.0 + fbm(x, y, 0.4, 3, 140) * 0.6
+        ring = smooth(edge - 0.2, edge + 0.2, d) * smooth(edge + 2.4, edge + 1.9, d)
+        pools = smooth(0.62, 0.68, fbm(x, y, 0.18, 3, 141)) * smooth(5.0, 6.0, d) * smooth(12.0, 10.0, d)
+        return np.maximum(ring, pools)
 
     def height(x, y):
         d = st.outside(x, y)
         walls = smooth(5, 9, d) * (2.0 + fbm(x, y, 0.2, 4, 41) * 2.5)
         r = np.hypot((x - mx) * 0.8, y - my)
         mountain = np.clip(7.0 - r * 1.1, 0, None)
-        return FLOOR_Z + smooth(0.6, 4, d) * fbm(x, y, 0.25, 3, 42) * 0.6 + walls + mountain
+        land = FLOOR_Z + smooth(0.6, 4, d) * fbm(x, y, 0.25, 3, 42) * 0.6 + walls + mountain
+        # the lava's bed well under its surface, banks rising out of it
+        return land + (lava_z - 0.35 - land) * moat(x, y)
 
     def color(TX, TY, TZ, slope):
         earth = mix((0.42, 0.26, 0.12), (0.58, 0.38, 0.18), fbm(TX, TY, 0.6, 4, 44))
@@ -1256,21 +1269,36 @@ def world_lava_cave(st):
         # cream crust on the heights and the mountain's top
         cream = mix((0.92, 0.84, 0.62), (1.0, 0.96, 0.84), fbm(TX, TY, 1.0, 3, 48))
         rgb = mix(rgb, cream, smooth(3.2, 3.8, TZ + fbm(TX, TY, 0.5, 3, 49) * 1.2))
+        # the banks scorched black by the heat, glowing orange right at the lava's edge
+        heat = moat(TX, TY)
+        near = smooth(0.0, 0.5, heat)
+        rgb = mix(rgb, mix((0.12, 0.08, 0.07), (0.2, 0.13, 0.1), fbm(TX, TY, 2.0, 3, 142)), near * 0.9)
+        rgb = mix(rgb, (0.9, 0.38, 0.1), smooth(0.25, 0.55, heat) * smooth(0.95, 0.6, heat) * 0.6)
         trodden = pebbles(TX, TY, earth * 0.85, (0.5, 0.36, 0.22), 3.0)
         return apron_mix(st, TX, TY, rgb, trodden)
 
     ground, img = terrain(st, height, color, "ground")
+    water_surface(st, height, lava_z, (1.0, 0.4, 0.08), lava=True)
     rock_mat = material("cave_rock", (0.46, 0.28, 0.14), 0.25, 2.5)
     cream = material("cream", (0.96, 0.9, 0.72), 0.06, 4.0)
     moss = material("moss", (0.3, 0.52, 0.2), 0.2, 4.0)
     taken = [(mx, my, 6.5)]
-    for (x, y) in st.scatter(36, lambda x, y: float(st.outside(x, y) < 7), 1.3, taken):
+    # nothing stands in the lava: the scatter keeps out of it
+    dry = lambda x, y: float(moat(x, y) < 0.05)  # noqa: E731
+    # the lava's glow: halos breathing over it, embers drifting up and winking out
+    for (x, y) in st.scatter(40, lambda x, y: float(moat(x, y) > 0.8), 1.3, [], margin=0.5, tries=200):
+        glow((x, y, lava_z + 0.15), (1.0, 0.45, 0.12), st.rng.uniform(1.2, 2.0), GLOW_PULSE)
+    for (x, y) in st.scatter(50, lambda x, y: float(moat(x, y) > 0.5), 0.6, [], margin=0.3, tries=200):
+        glow((x, y, lava_z + st.rng.uniform(0.3, 1.2)), (1.0, 0.6, 0.2), 0.14, GLOW_FIREFLY)
+    for (x, y) in st.scatter(36, lambda x, y: float(st.outside(x, y) < 7) * dry(x, y), 1.3, taken):
         cream_rock(st, x, y, ground_height(st, x, y, height), st.rng.uniform(0.7, 1.3), rock_mat, cream)
-    for (x, y) in st.scatter(30, lambda x, y: 1.0, 0.7, taken, margin=0.4):
+    for (x, y) in st.scatter(30, dry, 0.7, taken, margin=0.4):
         rock(st, x, y, ground_height(st, x, y, height), st.rng.uniform(0.3, 0.8), rock_mat)
-    for (x, y) in st.scatter(30, lambda x, y: 1.0, 0.5, taken, margin=0.3):
+    for (x, y) in st.scatter(30, dry, 0.5, taken, margin=0.3):
         bush(st, x, y, ground_height(st, x, y, height), st.rng.uniform(0.5, 0.9), moss)
     for (x, y) in st.near_border(40, 0.4, taken):
+        if not dry(np.array(x), np.array(y)):
+            continue
         z = ground_height(st, x, y, height)
         if st.rng.random() < 0.5:
             rock(st, x, y, z - 0.05, st.rng.uniform(0.15, 0.3), rock_mat)

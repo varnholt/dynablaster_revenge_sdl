@@ -17,7 +17,10 @@ class GltfModel;
 class WaterSurface
 {
 public:
-   WaterSurface();
+   //! lava: molten rock instead of water (lava-frag.glsl), lit by itself, no mirror image or refraction needed
+   explicit WaterSurface(bool lava = false);
+
+   [[nodiscard]] bool isLava() const;
    ~WaterSurface();
 
    WaterSurface(const WaterSurface&) = delete;
@@ -67,4 +70,6 @@ private:
 
    std::unique_ptr<FrameBuffer> _reflection;
    uint32_t _refraction = 0;
+
+   bool _lava = false;
 };
