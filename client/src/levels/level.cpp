@@ -1,12 +1,17 @@
 #include "level.h"
 #include "framework/gldevice.h"
+#include "materials/blockmaterial.h"
 #include "materials/destructionmaterial.h"
 #include "nodes/dummy.h"
 #include "nodes/mesh.h"
 #include "nodes/scenegraph.h"
+#include "log.h"
+#include "settings.h"
 #include "tools/datapaths.h"
 
 #include <array>
+#include <format>
+#include <sstream>
 #include <numbers>
 #include <string>
 #include <string_view>
@@ -86,6 +91,57 @@ void Level::animate(float /*dt*/)
 
 void Level::reset()
 {
+}
+
+void Level::setBlockSkins(const std::string& folder)
+{
+   if (folder == _block_skins)
+   {
+      return;
+   }
+
+   _block_skins = folder;
+
+   const auto skin = [this, &folder](const std::string& name)
+   {
+      const std::string own = std::format("{}/{}", folder, name);
+      return DataPaths::resolve(own + ".tga") ? own : std::format("data/{}/{}", path(), name);
+   };
+
+   const std::string stone = skin("stone-unwrap");
+   Log::info(std::format("Level::setBlockSkins: {} {}", stone, skin("block-unwrap")));
+
+   // glass= in the folder's world.ini: the stones are glass in those colours (#rrggbb, comma separated)
+   std::vector<Vector> tints;
+   const Settings settings(std::format("{}/world.ini", folder));
+   std::istringstream colors(settings.value("world/glass", std::string()).toString());
+   for (std::string hex; std::getline(colors, hex, ',');)
+   {
+      if (hex.size() == 7 && hex[0] == '#')
+      {
+         const auto channel = [&hex](size_t at) { return static_cast<float>(std::stoi(hex.substr(at, 2), nullptr, 16)) / 255.0f; };
+         tints.emplace_back(channel(1), channel(3), channel(5));
+      }
+   }
+
+   if (auto* stones = dynamic_cast<BlockMaterial*>(&getStoneMaterial()))
+   {
+      stones->setColorMap(stone);
+      stones->setVaried(true);
+      stones->setGlass(tints);
+   }
+
+   if (auto* debris = dynamic_cast<DestructionMaterial*>(&getDestructionMaterial()))
+   {
+      debris->setColorMap(stone);
+      debris->setGlass(tints);
+   }
+
+   if (auto* blocks = dynamic_cast<BlockMaterial*>(&getBlockMaterial()))
+   {
+      blocks->setColorMap(skin("block-unwrap"));
+      blocks->setVaried(true);
+   }
 }
 
 std::string Level::path() const

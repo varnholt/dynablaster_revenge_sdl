@@ -304,6 +304,12 @@ void GameDrawable::loadLevel(const std::string& level_path)
 
    _level = std::move(level);
 
+   if (BombermanClient::getInstance().isStory())
+   {
+      // the stage may have been set before its level was there
+      _level->setBlockSkins(std::format("data/game/story/world{}", _story_stage / 8 + 1));
+   }
+
    _invisible_player_effect->setPlayerScene(_level->getPlayers());
    _lens_flare_factory->activate(_level->getLensFlareKey());
 
@@ -1325,6 +1331,7 @@ void GameDrawable::setStoryStage(int stage)
 
    if (_level)
    {
+      _level->setBlockSkins(std::format("data/game/story/world{}", stage / 8 + 1));
       _level->setWeather(_story_field->getWeather());
    }
 }
@@ -1515,6 +1522,8 @@ void GameDrawable::paintGL()
          _level->getScene().setupCamera(shake);
          updateWaders();
          _story_field->render();
+         // the ground as glass blocks show it through them
+         BlockMaterial::captureBehind();
       }
       else
       {

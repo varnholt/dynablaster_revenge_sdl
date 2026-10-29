@@ -19,6 +19,8 @@ uniform mat4 shadowCamera;
 uniform mat4 u_modelView;
 uniform mat4 u_projection;
 uniform mat4 u_normalMatrix;
+// 1: every block shows its colour turned its own way (the story's worlds), 0: all alike (the original levels)
+uniform float variation;
 
 out vec3 eye;
 out vec3 nrm;
@@ -26,6 +28,12 @@ out vec2 uv1;
 out vec2 uv2;
 out vec2 uv3;
 out float faceShadow;
+out vec3 world;
+flat out float turns;
+flat out float story;
+// glass: the block's own space, where the view ray is followed through it
+out vec3 objectPos;
+flat out vec3 objectCamera;
 
 const float texWidth = 192.0;
 const float texHeight = 256.0;
@@ -52,5 +60,12 @@ void main()
    );
 
    uv3 = vec2(shadowPos.x, -shadowPos.y) * 0.5 + 0.5;
+   world = pos.xyz;
+   story = variation;
+   objectPos = a_position;
+   objectCamera = camera;
+   // quarter turns 0..3 picked by where the block stands, steady from frame to frame
+   vec2 centre = floor((u_modelView * vec4(0.0, 0.0, 0.0, 1.0)).xy * 2.0 + 0.5);
+   turns = floor(fract(sin(dot(centre, vec2(12.9898, 78.233))) * 43758.5453) * 4.0) * variation;
    gl_Position = u_projection * pos;
 }
