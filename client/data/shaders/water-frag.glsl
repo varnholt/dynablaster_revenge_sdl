@@ -136,8 +136,8 @@ float wading(vec2 p, inout vec2 slope)
       // a little wider than the feet, the body hides the inner part
       float radius = 0.36 + 0.03 * sin(u_time * 3.0 + seed) + 0.08 * bow;
       float churn = noise(offset * 9.0 + vec2(u_time * 0.8, seed)) * 0.6 + noise(offset * 17.0 - u_time * 1.1) * 0.4;
-      float ring = exp(-pow((d - radius) / (0.06 + 0.03 * walking), 2.0)) * (0.7 + 0.6 * churn);
-      ring += smoothstep(radius, radius - 0.08, d) * 0.6 * churn;
+      float ring = exp(-pow((d - radius) / (0.04 + 0.02 * walking), 2.0)) * (0.3 + 0.35 * churn);
+      ring += smoothstep(radius, radius - 0.08, d) * 0.2 * churn;
 
       // ripples, one going out every second or so, thinning as they spread
       for (int k = 0; k < 2; ++k)
@@ -147,7 +147,7 @@ float wading(vec2 p, inout vec2 slope)
          float across = (d - at) / 0.04;
          float wave = exp(-across * across) * (1.0 - age) * (1.0 - age);
          slope += offset / max(d, 0.001) * wave * -across * 0.05;
-         ring += wave * 0.25 * smoothstep(0.35, 0.7, churn);
+         ring += wave * 0.12 * smoothstep(0.35, 0.7, churn);
       }
 
       // the wake: two arms trailing behind at about twenty degrees, lumpy foam along them
@@ -158,9 +158,9 @@ float wading(vec2 p, inout vec2 slope)
          float arm = (side - behind * 0.36) / (0.05 + behind * 0.06);
          float trail = exp(-arm * arm) * smoothstep(0.1, 0.35, behind) * smoothstep(1.8, 0.5, behind);
          float lumps = noise(vec2(behind * 6.0 - u_time * speed * 1.5, side * 8.0 + seed));
-         ring += trail * walking * (0.4 + 0.7 * lumps);
+         ring += trail * walking * (0.2 + 0.35 * lumps);
          // churned water straight behind
-         ring += exp(-side * side / 0.02) * smoothstep(0.2, 0.3, behind) * smoothstep(1.0, 0.3, behind) * walking * churn * 0.5;
+         ring += exp(-side * side / 0.02) * smoothstep(0.2, 0.3, behind) * smoothstep(1.0, 0.3, behind) * walking * churn * 0.2;
       }
 
       foam = max(foam, ring);
@@ -232,7 +232,7 @@ void main()
    // the inside of the band isn't one sheet of white, it thins out here and there and fills in again
    float thin = noise(TURN * q * 3.0 + vec2(u_time * 0.15, u_time * 0.1)) * 0.6 + noise(TURN * TURN * q * 6.5 - u_time * 0.2) * 0.4;
    foam *= 1.0 - alive * 0.2 * smoothstep(0.4, 0.8, thin);
-   foam = max(foam, waded * 0.9);
+   foam = max(foam, waded * 0.5);
    color = mix(color, vec3(0.92, 0.96, 1.0), foam * 0.85);
 
    if (u_haze.a > 0.0)
