@@ -1002,7 +1002,67 @@ def lab(st, x, front, height_fn, taken, s=1.0):
         cylinder((x, y - depth * 0.5 - 0.2 * s, z - 0.4), 2.3 * s + grow, 0.4 + top, concrete, vertices=48)
     dome((x, y - depth * 0.5 - 0.2 * s, dz), 2.3 * s, glass)
     box((x, y - depth * 0.5 - 0.2 * s, dz + 0.9 * s), (3.4 * s, 0.4 * s, 0.22 * s), blue, bevel=0.05)
+    lab_greebles(st, x, y, z, width, depth, s, grey, dark)
     taken.append((x, y, width * 0.55))
+
+
+def lab_greebles(st, x, y, z, width, depth, s, grey, dark):
+    """The lab's machinery outside, what makes it a working building rather than a box: on the upper roof block air
+    conditioning units with their fans, vent hoods, a dish and antennas with blinking lamps; on the lower roof to the
+    right a parapet, units in a row and a cable duct; pipes and hatches on the back wall. None on the front, where
+    the dome and the door are, and none near the dome (the intro breaks it, build_lab.cut_dome cuts its shell)."""
+    metal = material("lab_metal", (0.74, 0.75, 0.78), 0.06, 6.0)
+    red = material("lab_lamp", (0.95, 0.25, 0.2), 0.05)
+    top_upper = z + 2.5 * s
+    top_lower = z + 1.9 * s
+    # the upper block: x - 5 s .. x + 2.6 s, y - 0.7 s .. y + 1.3 s
+    for k in range(3):
+        ux = x - 4.3 * s + k * 1.15 * s
+        box((ux, y + 0.55 * s, top_upper), (0.8 * s, 0.6 * s, 0.32 * s), metal, bevel=0.02)
+        cylinder((ux, y + 0.55 * s, top_upper + 0.32 * s), 0.22 * s, 0.03 * s, dark, vertices=12)
+        # the fan's guard: two bars across it
+        for turn in (0.6, 2.2):
+            box((ux, y + 0.55 * s, top_upper + 0.35 * s), (0.44 * s, 0.03 * s, 0.02 * s), grey, rotation=turn, bevel=0,
+                panel=False)
+    for k in range(2):
+        hx = x - 0.6 * s + k * 0.9 * s
+        box((hx, y + 0.9 * s, top_upper), (0.36 * s, 0.36 * s, 0.28 * s), grey, bevel=0.015)
+        box((hx, y + 0.84 * s, top_upper + 0.28 * s), (0.46 * s, 0.5 * s, 0.05 * s), metal, bevel=0)
+    # a cable duct along the block's back edge
+    box((x - 1.2 * s, y + 1.18 * s, top_upper), (7.0 * s, 0.14 * s, 0.1 * s), dark, bevel=0.01)
+    # the dish and the antennas towards the block's left end, away from the dome
+    dx, dy = x - 4.4 * s, y - 0.3 * s
+    cylinder((dx, dy, top_upper), 0.05 * s, 0.4 * s, grey, vertices=8)
+    dish = cone((dx, dy, top_upper + 0.32 * s), 0.38 * s, 0.14 * s, metal, vertices=16, radius2=0.05 * s)
+    dish.rotation_euler = (math.radians(-35), 0.0, math.radians(20))
+    for k, (ax, ay, h) in enumerate(((x - 3.2 * s, y - 0.4 * s, 1.1), (x + 1.9 * s, y + 0.9 * s, 0.8))):
+        cylinder((ax, ay, top_upper), 0.025 * s, h * s, grey, vertices=6)
+        box((ax, ay, top_upper + h * 0.7 * s), (0.3 * s, 0.02 * s, 0.02 * s), grey, bevel=0, panel=False)
+        uv_sphere((ax, ay, top_upper + h * s), 0.04 * s, red, segments=8, rings=5)
+        glow((ax, ay, top_upper + h * s + 0.02), (1.0, 0.3, 0.22), 0.3 * s, GLOW_BLINK)
+    # the lower roof to the right: x + 2.6 s .. x + 5.5 s, a parapet round it, units in a row, a duct to the block
+    rx0, rx1 = x + 2.6 * s, x + width * 0.5
+    ry0, ry1 = y - depth * 0.5, y + depth * 0.5
+    for (px, py, sx, sy) in (((rx0 + rx1) * 0.5, ry0 + 0.05 * s, rx1 - rx0, 0.1 * s),
+                             ((rx0 + rx1) * 0.5, ry1 - 0.05 * s, rx1 - rx0, 0.1 * s),
+                             (rx1 - 0.05 * s, y, 0.1 * s, depth)):
+        box((px, py, top_lower), (sx, sy, 0.16 * s), grey, bevel=0.01, panel=False)
+    for k in range(2):
+        ux = rx0 + 0.75 * s + k * 1.15 * s
+        box((ux, y + 0.25 * s, top_lower), (0.75 * s, 0.9 * s, 0.4 * s), metal, bevel=0.02)
+        for g in range(4):
+            box((ux - 0.38 * s, y + 0.25 * s, top_lower + 0.08 * s + g * 0.08 * s), (0.02 * s, 0.8 * s, 0.03 * s), dark,
+                bevel=0, panel=False)
+    box(((rx0 + rx1) * 0.5, y + 0.95 * s, top_lower), (rx1 - rx0 - 0.3 * s, 0.14 * s, 0.1 * s), dark, bevel=0.01)
+    # the back wall: pipes up to the roof with brackets, two service hatches
+    back = y + depth * 0.5
+    for k, px in enumerate((x - 4.6 * s, x - 1.5 * s, x + 3.8 * s)):
+        cylinder((px, back + 0.09 * s, z - 0.3), 0.06 * s, 2.3 * s, metal, vertices=8)
+        for h in (0.5, 1.3):
+            box((px, back + 0.05 * s, z + h * s), (0.18 * s, 0.1 * s, 0.05 * s), dark, bevel=0, panel=False)
+    for hx in (x - 3.0 * s, x + 1.0 * s):
+        box((hx, back + 0.02 * s, z + 0.2 * s), (0.7 * s, 0.05 * s, 0.9 * s), grey, bevel=0.01)
+        box((hx + 0.25 * s, back + 0.06 * s, z + 0.6 * s), (0.06 * s, 0.04 * s, 0.12 * s), dark, bevel=0, panel=False)
 
 
 def world_rocky(st):
