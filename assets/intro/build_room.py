@@ -365,9 +365,19 @@ def panel(b):
         x = -6.4 + k * 0.72
         b.add(bevelled((x - 0.05, face - 0.02, 0.75), (x + 0.65, face, 1.5), 0.015), "panel_edge")
         b.add(box((x, face - 0.04, 0.8), (x + 0.6, face - 0.01, 1.45)), "screen")
-        for z0, z1 in ((0.95, 1.0), (1.1, 1.15), (1.25, 1.3)):
-            b.add(box((x + 0.2, face - 0.06, z0), (x + 0.42, face - 0.04, z1)), "glyph")
-        b.add(box((x + 0.18, face - 0.06, 0.95), (x + 0.23, face - 0.04, 1.3)), "glyph")
+        # readouts: a bar graph, a trace, lines of text (three bars and a stroke read as a letter E)
+        if k == 0:
+            for i, h in enumerate((0.18, 0.34, 0.26, 0.46, 0.3)):
+                b.add(box((x + 0.07 + i * 0.1, face - 0.06, 0.9), (x + 0.13 + i * 0.1, face - 0.04, 0.9 + h)), "glyph")
+        elif k == 1:
+            for i in range(14):
+                z = 1.12 + 0.17 * math.sin(i * 0.9) * math.exp(-i * 0.06)
+                b.add(box((x + 0.05 + i * 0.036, face - 0.06, z - 0.018), (x + 0.085 + i * 0.036, face - 0.04, z + 0.018)),
+                      "glyph")
+        else:
+            for i, w in enumerate((0.42, 0.3, 0.46, 0.22, 0.36)):
+                z = 1.33 - i * 0.1
+                b.add(box((x + 0.07, face - 0.06, z - 0.02), (x + 0.07 + w, face - 0.04, z + 0.02)), "glyph")
         GLOWS.append((Vector((x + 0.3, face - 0.08, 1.12)), [0.55, 0.7, 1.0, 0.35, 3]))
     for z in (1.55, 1.05):
         b.add(bevelled((-4.05, face - 0.04, z), (-2.55, face, z + 0.18), 0.015), "panel_dark")

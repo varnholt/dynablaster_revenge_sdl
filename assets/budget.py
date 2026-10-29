@@ -10,6 +10,9 @@ PROPS = 40
 GROUND = 3
 # a mesh keeps at least this many
 MINIMUM = 24
+# objects with this custom property are left as they are: round primitives (a drum's hoop, a pipe's joint, a torus)
+# are lean already and crumple when collapsed to a share of their area; a bevelled box collapsed stays a box
+LEAN = "lean"
 
 
 def triangles(obj):
@@ -24,12 +27,13 @@ def area(obj):
 
 
 def reduce(obj, per_area=PROPS, minimum=MINIMUM, keep=("spin",), protect=None):
-    """Collapses obj to per_area triangles per square unit of its surface, at least minimum. Meshes with a face
+    """Collapses obj to per_area triangles per square unit of its surface, at least minimum; lean objects (their
+    LEAN property set) stay as they are. Meshes with a face
     attribute named in keep (the scenery's spinning parts) stay as they are: collapsing mixes faces across them.
     protect names a vertex group whose vertices the collapse leaves where they are. Returns the triangles before
     and after."""
     before = triangles(obj)
-    if any(name in obj.data.attributes for name in keep):
+    if obj.get(LEAN) or any(name in obj.data.attributes for name in keep):
         return before, before
     target = max(minimum, int(area(obj) * per_area))
     if before <= target * 1.15:
