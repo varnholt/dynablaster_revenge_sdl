@@ -26,6 +26,9 @@ ONLY = [int(a) for a in ARGS[1:]]
 SIZES = {None: (13, 11), "H": (29, 11), "V": (13, 23)}
 GROUND_TEX = 3072  # with the near strip getting most of it, some 90 texels a tile there
 PROP_TEX = 2048
+# Dr's lab bakes into textures of its own: its mouldings, window reveals and the seams between the dome's plates
+# are finer than the props' shared texels
+LAB_TEX = 2048
 PROP_MARGIN = 4  # texels between the props' uv islands
 AO_TEX = 2048
 FLOOR_Z = -0.14
@@ -247,6 +250,7 @@ def material(name, color, variation=0.12, scale=3.0, kind="noise", color2=None, 
 # --- primitive props ------------------------------------------------------------------------------
 
 PROPS = []
+LAB_PROPS = []  # the lab's parts, moved here from PROPS by lab()
 
 
 def _finish(obj, mat, smooth_shade=True, lean=False):
@@ -904,11 +908,11 @@ def world_meadow(st):
     cap = material("wall_cap", (0.9, 0.87, 0.8), 0.04)
 
     taken = []
-    # Dr's lab behind the field, its dome just behind the border
-    lab(st, st.cx, APRON + 0.5, height, taken, 1.6)
+    # Dr's lab behind the field, the foot of the rotunda's steps just behind the border
+    lab(st, st.cx, APRON + 1.5, height, taken, 2.0)
     if st.w > 20:
-        lab(st, st.cx + 15.5, APRON + 1.5, height, taken, 1.0)
-        lab(st, st.cx - 15.5, APRON + 1.5, height, taken, 1.0)
+        lab(st, st.cx + 15.5, APRON + 1.5, height, taken, 1.0, wings=False)
+        lab(st, st.cx - 15.5, APRON + 1.5, height, taken, 1.0, wings=False)
     taken.append((st.cx, 3.5, 1.2))  # the path
     # the intro's camera (assets/intro/build_intro.py) starts south of the field, behind a big broadleaf it pushes
     # through, then looks across the field at the lab: that tree, and nothing else in the way
@@ -970,99 +974,453 @@ def world_meadow(st):
     return ground, img
 
 
-def lab(st, x, front, height_fn, taken, s=1.0):
-    """Dr's lab from the intro: a long white building with a glass dome in front, the dome's front edge at y = front."""
-    y = front + 3.8 * s
-    z = ground_height(st, x, y, height_fn)
-    white = material("lab_white", (0.82, 0.83, 0.85), 0.04, 6.0)
-    grey = material("lab_grey", (0.6, 0.62, 0.66), 0.05, 6.0)
-    blue = material("lab_blue", (0.1, 0.3, 0.85), 0.1, 4.0)
-    red = material("lab_red", (0.92, 0.36, 0.28), 0.05)
-    glass = material("lab_glass", (0.72, 0.9, 0.95), 0.05, 2.0)
-    dark = material("lab_dark", (0.15, 0.16, 0.2), 0.05)
-    width, depth = 11.0 * s, 2.6 * s
-    concrete = material("lab_concrete", (0.58, 0.58, 0.56), 0.1, 5.0)
-    box((x, y, z - 0.3), (width, depth, 1.9 * s + 0.3), white, bevel=0.05)
-    # a plinth course along the building's foot, so it stands on a foundation rather than out of the grass
-    box((x, y - 0.06, z - 0.4), (width + 0.16, depth + 0.12, 0.52), concrete, bevel=0.03)
-    box((x - 1.2 * s, y + 0.3 * s, z + 1.9 * s), (7.6 * s, 2.0 * s, 0.6 * s), grey, bevel=0.05)
-    # vents and panels on the front
-    for i in range(6):
-        px = x - width * 0.42 + i * width * 0.168
-        box((px, y - depth * 0.5, z + 1.25 * s), (1.1 * s, 0.08, 0.16 * s), blue)
-        box((px, y - depth * 0.5, z + 0.35 * s), (0.5 * s, 0.08, 0.5 * s), dark if i % 2 else grey)
-        uv_sphere((px + 0.45 * s, y - depth * 0.5, z + 0.85 * s), 0.1 * s, red, segments=10, rings=6)
-        glow((px + 0.45 * s, y - depth * 0.5 - 0.05, z + 0.85 * s), (1.0, 0.5, 0.36), 0.35 * s, GLOW_PULSE)
-    for i in range(5):
-        box((x - 3.8 * s + i * 1.1 * s, y - 0.7 * s, z + 2.5 * s), (0.7 * s, 0.08, 0.06 * s), dark)
-    # the dome with the capsule, on a ring foundation of two steps (the intro's lab keeps them: build_lab.py cuts
-    # the glass only, from 0.45 up and within its shell)
-    dz = z - 0.1
-    for grow, top in ((0.5 * s, 0.06), (0.22 * s, 0.17)):
-        cylinder((x, y - depth * 0.5 - 0.2 * s, z - 0.4), 2.3 * s + grow, 0.4 + top, concrete, vertices=48)
-    dome((x, y - depth * 0.5 - 0.2 * s, dz), 2.3 * s, glass)
-    box((x, y - depth * 0.5 - 0.2 * s, dz + 0.9 * s), (3.4 * s, 0.4 * s, 0.22 * s), blue, bevel=0.05)
-    lab_greebles(st, x, y, z, width, depth, s, grey, dark)
-    taken.append((x, y, width * 0.55))
+def solid(verts, faces, mat, smooth_shade=False):
+    """A mesh of its own from vertices and faces, the faces turned outwards."""
+    import bmesh
+    mesh = bpy.data.meshes.new("solid")
+    mesh.from_pydata([tuple(v) for v in verts], [], faces)
+    bm = bmesh.new()
+    bm.from_mesh(mesh)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.to_mesh(mesh)
+    bm.free()
+    obj = bpy.data.objects.new("solid", mesh)
+    bpy.context.scene.collection.objects.link(obj)
+    return _finish(obj, mat, smooth_shade, lean=True)
 
 
-def lab_greebles(st, x, y, z, width, depth, s, grey, dark):
-    """The lab's machinery outside, what makes it a working building rather than a box: on the upper roof block air
-    conditioning units with their fans, vent hoods, a dish and antennas with blinking lamps; on the lower roof to the
-    right a parapet, units in a row and a cable duct; pipes and hatches on the back wall. None on the front, where
-    the dome and the door are, and none near the dome (the intro breaks it, build_lab.cut_dome cuts its shell)."""
-    metal = material("lab_metal", (0.74, 0.75, 0.78), 0.06, 6.0)
-    red = material("lab_lamp", (0.95, 0.25, 0.2), 0.05)
-    top_upper = z + 2.5 * s
-    top_lower = z + 1.9 * s
-    # the upper block: x - 5 s .. x + 2.6 s, y - 0.7 s .. y + 1.3 s
-    for k in range(3):
-        ux = x - 4.3 * s + k * 1.15 * s
-        box((ux, y + 0.55 * s, top_upper), (0.8 * s, 0.6 * s, 0.32 * s), metal, bevel=0.02)
-        cylinder((ux, y + 0.55 * s, top_upper + 0.32 * s), 0.22 * s, 0.03 * s, dark, vertices=12)
-        # the fan's guard: two bars across it
-        for turn in (0.6, 2.2):
-            box((ux, y + 0.55 * s, top_upper + 0.35 * s), (0.44 * s, 0.03 * s, 0.02 * s), grey, rotation=turn, bevel=0,
-                panel=False)
-    for k in range(2):
-        hx = x - 0.6 * s + k * 0.9 * s
-        box((hx, y + 0.9 * s, top_upper), (0.36 * s, 0.36 * s, 0.28 * s), grey, bevel=0.015)
-        box((hx, y + 0.84 * s, top_upper + 0.28 * s), (0.46 * s, 0.5 * s, 0.05 * s), metal, bevel=0)
-    # a cable duct along the block's back edge
-    box((x - 1.2 * s, y + 1.18 * s, top_upper), (7.0 * s, 0.14 * s, 0.1 * s), dark, bevel=0.01)
-    # the dish and the antennas towards the block's left end, away from the dome
-    dx, dy = x - 4.4 * s, y - 0.3 * s
-    cylinder((dx, dy, top_upper), 0.05 * s, 0.4 * s, grey, vertices=8)
-    dish = cone((dx, dy, top_upper + 0.32 * s), 0.38 * s, 0.14 * s, metal, vertices=16, radius2=0.05 * s)
-    dish.rotation_euler = (math.radians(-35), 0.0, math.radians(20))
-    for k, (ax, ay, h) in enumerate(((x - 3.2 * s, y - 0.4 * s, 1.1), (x + 1.9 * s, y + 0.9 * s, 0.8))):
-        cylinder((ax, ay, top_upper), 0.025 * s, h * s, grey, vertices=6)
-        box((ax, ay, top_upper + h * 0.7 * s), (0.3 * s, 0.02 * s, 0.02 * s), grey, bevel=0, panel=False)
-        uv_sphere((ax, ay, top_upper + h * s), 0.04 * s, red, segments=8, rings=5)
-        glow((ax, ay, top_upper + h * s + 0.02), (1.0, 0.3, 0.22), 0.3 * s, GLOW_BLINK)
-    # the lower roof to the right: x + 2.6 s .. x + 5.5 s, a parapet round it, units in a row, a duct to the block
-    rx0, rx1 = x + 2.6 * s, x + width * 0.5
-    ry0, ry1 = y - depth * 0.5, y + depth * 0.5
-    for (px, py, sx, sy) in (((rx0 + rx1) * 0.5, ry0 + 0.05 * s, rx1 - rx0, 0.1 * s),
-                             ((rx0 + rx1) * 0.5, ry1 - 0.05 * s, rx1 - rx0, 0.1 * s),
-                             (rx1 - 0.05 * s, y, 0.1 * s, depth)):
-        box((px, py, top_lower), (sx, sy, 0.16 * s), grey, bevel=0.01, panel=False)
-    for k in range(2):
-        ux = rx0 + 0.75 * s + k * 1.15 * s
-        box((ux, y + 0.25 * s, top_lower), (0.75 * s, 0.9 * s, 0.4 * s), metal, bevel=0.02)
-        for g in range(4):
-            box((ux - 0.38 * s, y + 0.25 * s, top_lower + 0.08 * s + g * 0.08 * s), (0.02 * s, 0.8 * s, 0.03 * s), dark,
-                bevel=0, panel=False)
-    box(((rx0 + rx1) * 0.5, y + 0.95 * s, top_lower), (rx1 - rx0 - 0.3 * s, 0.14 * s, 0.1 * s), dark, bevel=0.01)
-    # the back wall: pipes up to the roof with brackets, two service hatches
-    back = y + depth * 0.5
-    for k, px in enumerate((x - 4.6 * s, x - 1.5 * s, x + 3.8 * s)):
-        cylinder((px, back + 0.09 * s, z - 0.3), 0.06 * s, 2.3 * s, metal, vertices=8)
-        for h in (0.5, 1.3):
-            box((px, back + 0.05 * s, z + h * s), (0.18 * s, 0.1 * s, 0.05 * s), dark, bevel=0, panel=False)
-    for hx in (x - 3.0 * s, x + 1.0 * s):
-        box((hx, back + 0.02 * s, z + 0.2 * s), (0.7 * s, 0.05 * s, 0.9 * s), grey, bevel=0.01)
-        box((hx + 0.25 * s, back + 0.06 * s, z + 0.6 * s), (0.06 * s, 0.04 * s, 0.12 * s), dark, bevel=0, panel=False)
+BOX_FACES = [(0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1), (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3)]
+
+
+def beam_verts(p0, p1, width, height, up=(0.0, 0.0, 1.0)):
+    """The eight corners of a bar from p0 to p1, width across and height along up (as far as up is square to it)."""
+    p0, p1 = Vector(p0), Vector(p1)
+    along = (p1 - p0).normalized()
+    side = along.cross(Vector(up))
+    if side.length < 1e-6:
+        side = along.cross(Vector((1.0, 0.0, 0.0)))
+    side.normalize()
+    lift = side.cross(along).normalized()
+    return [p + side * (a * width * 0.5) + lift * (b * height * 0.5) for p in (p0, p1) for a in (-1, 1) for b in (-1, 1)]
+
+
+def beams(bars, mat):
+    """Bars (p0, p1, width, height[, up]) as one mesh."""
+    verts, faces = [], []
+    for bar in bars:
+        faces += [tuple(len(verts) + i for i in f) for f in BOX_FACES]
+        verts += beam_verts(*bar)
+    return solid(verts, faces, mat)
+
+
+def gable(x, y, z, width, rise, depth, rotation, mat):
+    """A triangle standing on (x, y, z), width along the wall, rise high, depth through it, turned by rotation like
+    box(): a pediment."""
+    c, s_ = math.cos(rotation), math.sin(rotation)
+
+    def at(u, v, h):
+        return (x + u * c - v * s_, y + u * s_ + v * c, z + h)
+
+    tri = ((-width * 0.5, 0.0), (width * 0.5, 0.0), (0.0, rise))
+    verts = [at(u, v, h) for v in (-depth * 0.5, depth * 0.5) for u, h in tri]
+    return solid(verts, [(0, 1, 2), (3, 5, 4), (0, 3, 4, 1), (1, 4, 5, 2), (2, 5, 3, 0)], mat)
+
+
+def geodesic(frequency):
+    """A unit geodesic sphere, an icosahedron with every face cut into frequency^2 triangles, a vertex on top:
+    (vertices, triangles)."""
+    phi = (1 + 5 ** 0.5) / 2
+    ico = [(-1, phi, 0), (1, phi, 0), (-1, -phi, 0), (1, -phi, 0), (0, -1, phi), (0, 1, phi), (0, -1, -phi),
+           (0, 1, -phi), (phi, 0, -1), (phi, 0, 1), (-phi, 0, -1), (-phi, 0, 1)]
+    tris = [(0, 11, 5), (0, 5, 1), (0, 1, 7), (0, 7, 10), (0, 10, 11), (1, 5, 9), (5, 11, 4), (11, 10, 2),
+            (10, 7, 6), (7, 1, 8), (3, 9, 4), (3, 4, 2), (3, 2, 6), (3, 6, 8), (3, 8, 9), (4, 9, 5), (2, 4, 11),
+            (6, 2, 10), (8, 6, 7), (9, 8, 1)]
+    # vertex 5 (0, 1, phi) turned up onto the z axis
+    up = Matrix.Rotation(-math.atan2(1, phi), 3, "X")
+    ico = [up @ Vector(v).normalized() for v in ico]
+    verts, index, faces = [], {}, []
+
+    def vert(p):
+        p = p.normalized()
+        key = tuple(round(c, 5) for c in p)
+        if key not in index:
+            index[key] = len(verts)
+            verts.append(p)
+        return index[key]
+
+    n = frequency
+    for a, b, c in tris:
+        A, B, C = ico[a], ico[b], ico[c]
+        grid = {(i, j): vert(A + (B - A) * (i / n) + (C - A) * (j / n)) for i in range(n + 1) for j in range(n + 1 - i)}
+        for i in range(n):
+            for j in range(n - i):
+                faces.append((grid[i, j], grid[i + 1, j], grid[i, j + 1]))
+                if i + j < n - 1:
+                    faces.append((grid[i + 1, j], grid[i + 1, j + 1], grid[i, j + 1]))
+    return verts, faces
+
+
+def lab_dome_pieces(centre, radius, lift, slit_turn, s, rng):
+    """The observatory's dome in pieces: a geodesic shell of triangular metal plates, a little more than a half
+    sphere (centre lift above its base), a shutter slit over its top in the vertical plane turned slit_turn from the
+    front, ribs along the slit's edges and a ladder beside it. Each plate is a slab of its own, bevelled towards its
+    face, so the seams between them are grooves; the shutter, its ribs and the ladder come in short lengths. The
+    intro (assets/intro/build_lab.py) blows these same pieces out of the dome. Returns (kind, centre, verts, faces)
+    per piece, kind "plate", "plate2" (the odd plate a shade off), "shutter" or "iron"."""
+    import bmesh
+    centre = Vector(centre)
+    # the slit's plane holds the up axis and along, across is square to it
+    along = Vector((math.sin(slit_turn), -math.cos(slit_turn), 0.0))
+    across = Vector((math.cos(slit_turn), math.sin(slit_turn), 0.0))
+    half = 0.13 * radius
+    unit, tris = geodesic(6)
+    bm = bmesh.new()
+    vs = []
+    for p in unit:
+        q = p * radius
+        # below the base the shell is pulled in onto it, the ring hides the ragged foot
+        if q.z < -lift:
+            q.z = -lift
+        vs.append(bm.verts.new(centre + q))
+    for f in tris:
+        if min(unit[i].z * radius for i in f) < -lift - 0.3 * radius:
+            continue
+        try:
+            bm.faces.new([vs[i] for i in f])
+        except ValueError:
+            pass
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-4)
+    bmesh.ops.dissolve_degenerate(bm, edges=bm.edges, dist=1e-4)
+    # the slit cut out cleanly along its two planes
+    for side in (-1, 1):
+        geom = bm.verts[:] + bm.edges[:] + bm.faces[:]
+        bmesh.ops.bisect_plane(bm, geom=geom, dist=1e-5, plane_co=centre + across * (side * half), plane_no=across)
+    bmesh.ops.delete(bm, geom=[f for f in bm.faces if abs((f.calc_center_median() - centre).dot(across)) < half],
+                     context="FACES")
+    pieces = []
+    seam, proud = 0.024 * s, 0.012 * s
+    for f in bm.faces:
+        if f.calc_area() < 1e-4:
+            continue
+        rim = [v.co.copy() for v in f.verts]
+        mid = sum(rim, Vector()) / len(rim)
+        out = (mid - centre).normalized()
+        if (rim[1] - rim[0]).cross(rim[2] - rim[0]).dot(out) < 0:
+            rim.reverse()
+        face = [p + (mid - p).normalized() * min(seam, (mid - p).length * 0.4) + out * proud for p in rim]
+        n = len(rim)
+        faces = [tuple(range(n, 2 * n)), tuple(reversed(range(n)))]
+        faces += [(i, (i + 1) % n, n + (i + 1) % n, n + i) for i in range(n)]
+        kind = "plate2" if rng.random() < 0.25 else "plate"
+        pieces.append((kind, mid, rim + face, faces))
+    bm.free()
+
+    # the shutter: a curved lid over the slit, a little proud of the shell, from the ring up over the top and down
+    # the far side; ribs along its edges and, beside it, the ladder the shutter runs on; in lengths of a few steps
+    start = -math.asin(min(lift / radius, 0.9))
+    steps, length = 40, 4
+
+    def arc(t, r):
+        a = start + (math.pi - 2 * start) * t
+        return centre + (along * math.cos(a) + Vector((0, 0, 1)) * math.sin(a)) * r
+
+    rails = (half + 0.08 * s, half + 0.2 * s)
+    rung = 0.13 * s / (math.pi * radius)
+    for k0 in range(0, steps, length):
+        verts, faces = [], []
+        for k in range(k0, k0 + length + 1):
+            p = arc(k / steps, radius * 1.015)
+            out = (p - centre).normalized()
+            for side in (-1, 1):
+                verts.append(p + across * (side * (half + 0.01 * s)))
+                verts.append(p + across * (side * (half + 0.01 * s)) - out * 0.04 * s)
+        for k in range(length):
+            a, b = k * 4, (k + 1) * 4
+            faces += [(a, a + 2, b + 2, b), (a + 1, b + 1, b + 3, a + 3), (a, b, b + 1, a + 1),
+                      (a + 2, a + 3, b + 3, b + 2)]
+        faces += [(0, 1, 3, 2), (length * 4, length * 4 + 2, length * 4 + 3, length * 4 + 1)]
+        mid = arc((k0 + length * 0.5) / steps, radius)
+        pieces.append(("shutter", mid, verts, faces))
+        bars = []
+        for k in range(k0, k0 + length):
+            p0, p1 = arc(k / steps, radius * 1.03), arc((k + 1) / steps, radius * 1.03)
+            for t in (-half - 0.02 * s, half + 0.02 * s):
+                bars.append((p0 + across * t, p1 + across * t, 0.035 * s, 0.05 * s, p0 - centre))
+            p0, p1 = arc(k / steps, radius * 1.06), arc((k + 1) / steps, radius * 1.06)
+            for t in rails:
+                bars.append((p0 + across * t, p1 + across * t, 0.018 * s, 0.018 * s, p0 - centre))
+        t = k0 / steps + rung
+        while t < (k0 + length) / steps - 1e-6:
+            p = arc(t, radius * 1.06)
+            bars.append((p + across * rails[0], p + across * rails[1], 0.014 * s, 0.014 * s, p - centre))
+            t += rung
+        verts, faces = [], []
+        for bar in bars:
+            faces += [tuple(len(verts) + i for i in f) for f in BOX_FACES]
+            verts += beam_verts(*bar)
+        pieces.append(("iron", mid, verts, faces))
+    return pieces
+
+
+def lab_dome(centre, radius, lift, slit_turn, mats, s, rng):
+    """The dome's pieces (lab_dome_pieces()) as one mesh per kind, mats by kind; an empty "lab_dome" tells the intro
+    where it is ([x, y, z of its centre, radius, lift, slit_turn, s])."""
+    joined = {}
+    for kind, _, verts, faces in lab_dome_pieces(centre, radius, lift, slit_turn, s, rng):
+        v, f = joined.setdefault(kind, ([], []))
+        f += [tuple(len(v) + i for i in face) for face in faces]
+        v += verts
+    for kind, (verts, faces) in joined.items():
+        solid(verts, faces, mats[kind])
+    marker = bpy.data.objects.new("lab_dome", None)
+    marker["lab_dome"] = [float(c) for c in centre] + [float(radius), float(lift), float(slit_turn), float(s)]
+    bpy.context.scene.collection.objects.link(marker)
+
+
+def lab_window(x, y, rotation, z, width, height, frame, pane, s, cap=True, lit=True):
+    """A framed window on the wall at (x, y) facing out (box() turned by rotation faces -y turned that way): a
+    moulded surround, the dark pane set back in it with a cross of glazing bars, a sill below and a cornice over it.
+    Lit, an empty "lab_pane" ([width, height], turned with it) in front of the pane marks it for the intro, which
+    lights the lab's windows at night."""
+    c, s_ = math.cos(rotation), math.sin(rotation)
+    out = (s_, -c)
+
+    def at(u, depth):
+        return (x + u * c + out[0] * depth, y + u * s_ + out[1] * depth)
+
+    trim = 0.05 * s
+    box((*at(0, 0.004 * s), z), (width, 0.02 * s, height), pane, rotation, bevel=0)
+    if lit:
+        marker = bpy.data.objects.new("lab_pane", None)
+        marker.location = (*at(0, 0.016 * s), z + height * 0.5)
+        marker.rotation_euler.z = rotation
+        marker["lab_pane"] = [float(width), float(height)]
+        bpy.context.scene.collection.objects.link(marker)
+    for u in (-(width + trim) * 0.5, (width + trim) * 0.5):
+        box((*at(u, 0.0), z - trim), (trim, 0.08 * s, height + 2 * trim), frame, rotation, bevel=0)
+    for h in (z - trim, z + height):
+        box((*at(0, 0.0), h), (width, 0.08 * s, trim), frame, rotation, bevel=0)
+    box((*at(0, 0.01 * s), z), (0.022 * s, 0.03 * s, height), frame, rotation, bevel=0)
+    box((*at(0, 0.01 * s), z + height * 0.62), (width, 0.03 * s, 0.022 * s), frame, rotation, bevel=0)
+    # sill and cornice as wide as the surround and a little more, clear of the pilasters beside the window
+    box((*at(0, 0.03 * s), z - trim - 0.035 * s), (width + 2 * trim + 0.02 * s, 0.1 * s, 0.035 * s), frame, rotation,
+        bevel=0)
+    if cap:
+        box((*at(0, 0.03 * s), z + height + trim), (width + 2 * trim + 0.03 * s, 0.1 * s, 0.045 * s), frame, rotation,
+            bevel=0)
+
+
+def lab_door(x, y, rotation, z, width, height, frame, leaf, s, hood=None):
+    """A double door on the wall at (x, y), in a surround under a pediment."""
+    c, s_ = math.cos(rotation), math.sin(rotation)
+    out = (s_, -c)
+
+    def at(u, depth):
+        return (x + u * c + out[0] * depth, y + u * s_ + out[1] * depth)
+
+    trim = 0.07 * s
+    box((*at(0, 0.0), z), (width, 0.04 * s, height), leaf, rotation, bevel=0)
+    for u in (-width * 0.25, width * 0.25):
+        for h, tall in ((0.08, 0.36), (0.52, 0.4)):
+            box((*at(u, 0.02 * s), z + h * height), (width * 0.36, 0.02 * s, tall * height), leaf, rotation, bevel=0)
+    for u in (-(width + trim) * 0.5, (width + trim) * 0.5):
+        box((*at(u, 0.0), z), (trim, 0.1 * s, height + trim), frame, rotation, bevel=0)
+    box((*at(0, 0.0), z + height), (width + 2 * trim, 0.1 * s, trim), frame, rotation, bevel=0)
+    box((*at(0, 0.02 * s), z + height + trim), (width + 2 * trim + 0.04 * s, 0.14 * s, 0.05 * s), frame, rotation,
+        bevel=0)
+    gable(*at(0, 0.05 * s), z + height + trim + 0.05 * s, width + 2 * trim + 0.02 * s, hood or 0.2 * s, 0.1 * s,
+          rotation, frame)
+
+
+def lab_stairs(x, y, rotation, z, top, width, steps, stone, iron, s):
+    """Steps up to a door at (x, y) on the wall facing out, from the ground at z to top; iron railings both sides.
+    Returns how far out from the wall they reach."""
+    c, s_ = math.cos(rotation), math.sin(rotation)
+    out = (s_, -c)
+    rise = (top - z) / steps
+    tread = 0.17 * s
+
+    def at(u, depth):
+        return (x + u * c + out[0] * depth, y + u * s_ + out[1] * depth)
+
+    # the landing before the door, then the steps down from it
+    landing = 0.24 * s
+    box((*at(0, landing * 0.5), z - 0.3), (width, landing, top - z + 0.3), stone, rotation, bevel=0.01)
+    for k in range(steps - 1):
+        depth = landing + (k + 0.5) * tread
+        box((*at(0, depth), z - 0.3), (width, tread, top - z + 0.3 - (k + 1) * rise), stone, rotation, bevel=0.01)
+    bars = []
+    end = landing + (steps - 1) * tread
+    rail = 0.36 * s
+    for u in (-width * 0.5 + 0.03 * s, width * 0.5 - 0.03 * s):
+        p_top = Vector((*at(u, 0.02 * s), top + rail))
+        p_bend = Vector((*at(u, landing), top + rail))
+        p_low = Vector((*at(u, end), z + rise + rail))
+        bars += [(p_top, p_bend, 0.02 * s, 0.02 * s), (p_bend, p_low, 0.02 * s, 0.02 * s)]
+        for depth, h, thick in ((landing, top, 0.022), (end, z + rise, 0.022), (landing + tread, top - rise, 0.012)):
+            p = Vector((*at(u, depth), h))
+            bars.append((p, p + Vector((0, 0, rail)), thick * s, thick * s, (1.0, 0.0, 0.0)))
+    beams(bars, iron)
+    return end
+
+
+def lab(st, x, front, height_fn, taken, s=1.0, wings=True):
+    """Dr's lab, an observatory after the original's domed lab: a round rotunda under a dome of triangular metal
+    plates with a shutter slit over its top, with wings a wing to either side with a pediment at its end; warm
+    plaster on a stone plinth, pilasters in pairs between framed windows, doors under pediments up a few steps. Kept
+    plain otherwise. The rotunda's front at y = front. An empty "lab_door" tells the intro where the rotunda's door
+    is ([x, y of its face, bottom, top, width, the ground, how far its steps reach out])."""
+    start = len(PROPS)
+    radius = 1.6 * s
+    cy = front + radius
+    z = ground_height(st, x, cy, height_fn)
+    plaster = material("lab_plaster", (0.8, 0.72, 0.56), 0.04, 2.0)
+    trim = material("lab_trim", (0.94, 0.91, 0.83), 0.03, 4.0)
+    stone = material("lab_stone", (0.66, 0.63, 0.56), 0.08, 3.0)
+    roof = material("lab_roof", (0.28, 0.3, 0.33), 0.04, 4.0)
+    iron = material("lab_iron", (0.2, 0.21, 0.23), 0.04)
+    pane = material("lab_pane", (0.13, 0.15, 0.19), 0.05)
+    leaf = material("lab_door", (0.62, 0.33, 0.22), 0.06)
+    plate = material("lab_plate", (0.66, 0.72, 0.78), 0.04, 3.0)
+    plate2 = material("lab_plate2", (0.61, 0.67, 0.74), 0.04, 3.0)
+    plinth = 0.32 * s  # the plinth's top, the main floor's
+    wall_top = 1.3 * s  # the rotunda's
+    ring_top = 1.74 * s
+    wing_top = 1.12 * s
+    wing_ridge = 1.55 * s
+
+    # the rotunda: plinth, a band at the floor, the wall, cornice, attic and the dark ring the dome turns on
+    for r, z0, z1, mat in ((radius + 0.05 * s, -0.4, plinth, stone),
+                           (radius + 0.07 * s, plinth, plinth + 0.05 * s, trim),
+                           (radius, plinth, wall_top, plaster),
+                           (radius + 0.08 * s, wall_top, wall_top + 0.08 * s, trim),
+                           (radius - 0.02 * s, wall_top + 0.08 * s, 1.56 * s, plaster),
+                           (radius + 0.03 * s, 1.56 * s, 1.6 * s, trim),
+                           (radius * 1.04, 1.6 * s, ring_top, iron)):
+        cylinder((x, cy, z + z0), r, z1 - z0, mat, vertices=48)
+    lift = 0.12 * s
+    lab_dome((x, cy, z + ring_top - 0.03 * s + lift), radius * 0.93, lift, math.radians(-35),
+             {"plate": plate, "plate2": plate2, "shutter": roof, "iron": iron}, s, st.rng)
+
+    def drum(phi, r):
+        return x + r * math.sin(phi), cy - r * math.cos(phi)
+
+    # its front: a portal with a flat face for the door, up its steps; windows in the bays between pilaster pairs,
+    # small square ones in the attic and cellar windows in the plinth under them; with no wings round to the sides
+    face = front - 0.06 * s
+    box((x, front + 0.22 * s, z - 0.4), (0.94 * s, 0.6 * s, plinth + 0.4), stone, bevel=0.01)
+    # its band at the floor in front of the door's foot and its frame (level with the leaf's face it flickered)
+    box((x, front + 0.195 * s, z + plinth), (0.96 * s, 0.65 * s, 0.05 * s), trim, bevel=0)
+    box((x, front + 0.22 * s, z + plinth), (0.9 * s, 0.56 * s, wall_top - plinth), plaster, bevel=0)
+    for px in (x - 0.39 * s, x + 0.39 * s):
+        box((px, face, z + plinth + 0.05 * s), (0.07 * s, 0.07 * s, wall_top - plinth - 0.05 * s), trim, bevel=0)
+    # its cornice in front of the rotunda's, which it would cut otherwise
+    box((x, front + 0.21 * s, z + wall_top), (0.98 * s, 0.6 * s, 0.08 * s), trim, bevel=0)
+    width, height = 0.5 * s, 0.74 * s
+    lab_door(x, face, 0.0, z + plinth, width, height, trim, leaf, s, hood=0.1 * s)
+    steps = lab_stairs(x, face - 0.07 * s, 0.0, z, z + plinth, 0.8 * s, 3, stone, iron, s) + 0.05 * s
+    marker = bpy.data.objects.new("lab_door", None)
+    marker["lab_door"] = [float(x), float(face), float(z + plinth), float(z + plinth + height), float(width), float(z),
+                          float(steps)]
+    bpy.context.scene.collection.objects.link(marker)
+    # the bays between portal, pilaster pairs and wings, the windows' surrounds clear of the pilasters (and the
+    # outer pair of the wings' cornice, at some 59 degrees)
+    windows, pilasters = (25, 46), (36, 56)
+    if not wings:
+        windows, pilasters = (25, 46, 67, 88), (36, 56, 77, 98)
+    for deg in windows:
+        for phi in (math.radians(deg), -math.radians(deg)):
+            lab_window(*drum(phi, radius), phi, z + plinth + 0.22 * s, 0.28 * s, 0.5 * s, trim, pane, s)
+            lab_window(*drum(phi, radius - 0.02 * s), phi, z + 1.42 * s, 0.13 * s, 0.09 * s, trim, pane, s, cap=False)
+            lab_window(*drum(phi, radius + 0.05 * s), phi, z + 0.1 * s, 0.17 * s, 0.1 * s, trim, iron, s, cap=False,
+                       lit=False)
+    for deg in pilasters:
+        for phi0 in (math.radians(deg), -math.radians(deg)):
+            for off in (-0.036 * s, 0.036 * s):
+                phi = phi0 + off / radius
+                box((*drum(phi, radius), z + plinth + 0.05 * s), (0.07 * s, 0.07 * s, wall_top - plinth - 0.05 * s),
+                    trim, phi, bevel=0)
+                box((*drum(phi, radius + 0.01 * s), z + wall_top - 0.08 * s), (0.09 * s, 0.09 * s, 0.08 * s), trim,
+                    phi, bevel=0)
+    outer = radius
+    if wings:
+        outer = lab_wings(x, cy, z, s, plinth, wing_top, wing_ridge, plaster, trim, stone, roof, iron, pane, leaf)
+    taken.append((x, cy, outer * 1.02))
+    LAB_PROPS.extend(PROPS[start:])
+    del PROPS[start:]
+
+
+def lab_wings(x, cy, z, s, plinth, wing_top, wing_ridge, plaster, trim, stone, roof, iron, pane, leaf):
+    """The lab's wings, set back from the rotunda's front: plinth, wall, cornice and a metal roof with standing
+    seams, a pediment at the end, a door up its steps on the front. Returns how far they reach from x."""
+    depth = 2.2 * s
+    wy = cy + 0.35 * s
+    wf = wy - depth * 0.5
+    # their inner ends well inside the rotunda, the roof's back corner too
+    inner, outer = 0.2 * s, 4.5 * s
+    over = 0.12 * s
+    for side in (-1, 1):
+        mid = x + side * (inner + outer) * 0.5
+        length = outer - inner
+        box((mid, wy, z - 0.4), (length + 0.1 * s, depth + 0.1 * s, plinth + 0.4), stone, bevel=0.01)
+        # the band at the floor clear in front of the doors' frames
+        box((mid, wy, z + plinth), (length + 0.16 * s, depth + 0.16 * s, 0.05 * s), trim, bevel=0.006)
+        box((mid, wy, z + plinth), (length, depth, wing_top - plinth), plaster, bevel=0.01)
+        # the cornice under the eaves: the roof's underside clears its top all round
+        box((mid, wy, z + wing_top - 0.06 * s), (length + 0.14 * s, depth + 0.14 * s, 0.08 * s), trim, bevel=0.008)
+        end = x + side * outer
+        # the roof, a gable over the length of the wing, its end over the pediment
+        eave, ridge = z + wing_top + 0.08 * s, z + wing_ridge
+        reach = depth * 0.5 + over
+        x0, x1 = sorted((x + side * inner, end + side * 0.1 * s))
+        t = 0.05 * s
+        prof = [(-reach, eave), (0.0, ridge), (reach, eave), (reach, eave - t), (0.0, ridge - t), (-reach, eave - t)]
+        verts = [(xx, wy + v, h) for xx in (x0, x1) for v, h in prof]
+        faces = [tuple(range(6))[::-1], tuple(range(6, 12))] + [(i, (i + 1) % 6, 6 + (i + 1) % 6, 6 + i)
+                                                                 for i in range(6)]
+        solid(verts, faces, roof)
+        bars = []
+        rib = 0.022 * s
+        for k in range(int((x1 - x0) / (0.2 * s)) + 1):
+            xx = x0 + 0.08 * s + k * 0.2 * s
+            if xx > x1 - 0.05 * s:
+                break
+            for sign in (-1, 1):
+                p0 = Vector((xx, wy + sign * (reach - 0.03 * s), eave + (ridge - eave) * 0.03 * s / reach + rib * 0.4))
+                p1 = Vector((xx, wy, ridge + rib * 0.4))
+                bars.append((p0, p1, rib, rib, (0.0, sign * (ridge - eave), reach)))
+        bars.append((Vector((x0, wy, ridge + rib)), Vector((x1, wy, ridge + rib)), 0.05 * s, 0.04 * s))
+        beams(bars, roof)
+        # the pediment at the wing's end, a triangle of plaster in a frame of trim
+        # on the cornice and under the roof, whose underside runs from eave - t at the edges up to ridge - t
+        base = z + wing_top + 0.02 * s
+        gable(end + side * 0.02 * s, wy, base, depth, ridge - t - 0.01 * s - base, 0.04 * s, side * math.pi * 0.5,
+              plaster)
+        # the raking cornice a fascia over the roof's end, a little deeper than the roof
+        fx = end + side * 0.115 * s
+        left, right = Vector((fx, wy - reach, eave - t * 0.5)), Vector((fx, wy + reach, eave - t * 0.5))
+        top = Vector((fx, wy, ridge - t * 0.5))
+        beams([(left, top, 0.1 * s, 0.03 * s, (side, 0.0, 0.0)), (top, right, 0.1 * s, 0.03 * s, (side, 0.0, 0.0))],
+              trim)
+        # its end: two windows between pilasters, cellar windows below
+        for v in (-0.5 * s, 0.5 * s):
+            lab_window(end, wy + v, side * math.pi * 0.5, z + plinth + 0.2 * s, 0.28 * s, 0.42 * s, trim, pane, s)
+            lab_window(end + side * 0.05 * s, wy + v, side * math.pi * 0.5, z + 0.1 * s, 0.17 * s, 0.1 * s, trim,
+                       iron, s, cap=False, lit=False)
+        for v in (-depth * 0.5 + 0.06 * s, 0.0, depth * 0.5 - 0.06 * s):
+            box((end, wy + v, z + plinth + 0.05 * s), (0.08 * s, 0.1 * s, wing_top - plinth - 0.05 * s), trim,
+                side * math.pi * 0.5, bevel=0)
+        # the long front: the door in the middle up its steps, a window either side, pilasters in pairs at the ends
+        door_x = x + side * 2.95 * s
+        lab_door(door_x, wf, 0.0, z + plinth, 0.38 * s, 0.5 * s, trim, leaf, s, hood=0.11 * s)
+        lab_stairs(door_x, wf - 0.085 * s, 0.0, z, z + plinth, 0.62 * s, 3, stone, iron, s)
+        for u in (-0.8 * s, 0.8 * s):
+            lab_window(door_x + u, wf, 0.0, z + plinth + 0.18 * s, 0.28 * s, 0.42 * s, trim, pane, s)
+            lab_window(door_x + u, wf - 0.05 * s, 0.0, z + 0.1 * s, 0.17 * s, 0.1 * s, trim, iron, s, cap=False,
+                       lit=False)
+        for px in (door_x - 0.45 * s, door_x + 0.45 * s, end - side * 0.1 * s, end - side * 0.24 * s):
+            box((px, wf, z + plinth + 0.05 * s), (0.08 * s, 0.07 * s, wing_top - plinth - 0.05 * s), trim, bevel=0)
+    return outer
 
 
 def world_rocky(st):
@@ -2626,7 +2984,7 @@ def bake_target(obj, img):
         nodes.active = node
 
 
-def bake(obj, kind, img):
+def bake(obj, kind, img, samples=48):
     bpy.ops.object.select_all(action="DESELECT")
     obj.select_set(True)
     bpy.context.view_layer.objects.active = obj
@@ -2638,8 +2996,49 @@ def bake(obj, kind, img):
         bpy.context.scene.cycles.samples = 1
         bpy.ops.object.bake(type="EMIT", margin=4)
     else:
-        bpy.context.scene.cycles.samples = 48
+        bpy.context.scene.cycles.samples = samples
         bpy.ops.object.bake(type="AO", margin=24)
+
+
+def bake_lab():
+    """Dr's lab as a mesh of its own with its own colour and occlusion (LAB_TEX): the occlusion baked twice, once
+    reaching as far as the props' does for the shade under the eaves, the cornices and round the wings, once close
+    for the seams between the dome's plates, the window reveals and the pilasters' edges, and the two multiplied.
+    Returns (the mesh, its colour, its occlusion)."""
+    lab = join_props("lab", LAB_PROPS, LAB_TEX)
+    color = bpy.data.images.new("lab_color", LAB_TEX, LAB_TEX)
+    color.pixels.foreach_set(np.tile(np.array([1.0, 0.0, 1.0, 1.0], np.float32), LAB_TEX * LAB_TEX))
+    bake(lab, "COLOR", color)
+    texels = np.empty(LAB_TEX * LAB_TEX * 4, np.float32)
+    color.pixels.foreach_get(texels)
+    texels = texels.reshape(-1, 4)
+    unbaked = (texels[:, 0] > 0.99) & (texels[:, 1] < 0.01) & (texels[:, 2] > 0.99)
+    texels[unbaked, :3] = texels[~unbaked, :3].mean(axis=0)
+    color.pixels.foreach_set(texels.ravel())
+    passes = []
+    light = bpy.context.scene.world.light_settings
+    far = light.distance
+    for name, reach in (("lab_ao_far", far), ("lab_ao_near", 0.12)):
+        img = bpy.data.images.new(name, LAB_TEX, LAB_TEX)
+        img.colorspace_settings.name = "Non-Color"
+        img.generated_color = (1, 1, 1, 1)
+        img.pixels.foreach_set(np.tile(np.array([1.0, 0.0, 1.0, 1.0], np.float32), LAB_TEX * LAB_TEX))
+        light.distance = reach
+        bake(lab, "AO", img, samples=256)
+        values = np.empty(LAB_TEX * LAB_TEX * 4, np.float32)
+        img.pixels.foreach_get(values)
+        values = values.reshape(-1, 4)
+        values[(values[:, 0] > 0.99) & (values[:, 1] < 0.01) & (values[:, 2] > 0.99), :3] = 1.0
+        passes.append(values[:, 0].copy())
+    light.distance = far
+    ao = bpy.data.images.new("lab_ao", LAB_TEX, LAB_TEX)
+    ao.colorspace_settings.name = "Non-Color"
+    value = (0.3 + 0.7 * passes[0]) * (0.45 + 0.55 * passes[1])
+    out = np.ones((LAB_TEX * LAB_TEX, 4), np.float32)
+    out[:, :3] = value[:, None]
+    ao.pixels.foreach_set(out.ravel())
+    print("RESULT lab baked", sum(len(p.vertices) - 2 for p in lab.data.polygons), "tris", flush=True)
+    return lab, color, ao
 
 
 def gltf_output_group():
@@ -2670,8 +3069,9 @@ def export_material(name, color_img, ao_img):
     return mat
 
 
-def join_props(name):
-    objs = [o for o in PROPS if o.name in bpy.data.objects]
+def join_props(name, parts=None, tex=PROP_TEX):
+    """The parts (default: PROPS) as one mesh, unwrapped for a texture of tex texels."""
+    objs = [o for o in (PROPS if parts is None else parts) if o.name in bpy.data.objects]
     # every prop down to the triangles its shape needs
     before = after = 0
     for o in objs:
@@ -2690,7 +3090,7 @@ def join_props(name):
     bpy.ops.mesh.select_all(action="SELECT")
     # the margin a fixed few texels: scaled with the islands (the default), thousands of them leave next to no room
     # for the islands themselves, a crown's face gets less than a texel and shows a neighbour's colour
-    bpy.ops.uv.smart_project(angle_limit=1.15, margin_method="FRACTION", island_margin=PROP_MARGIN / PROP_TEX,
+    bpy.ops.uv.smart_project(angle_limit=1.15, margin_method="FRACTION", island_margin=PROP_MARGIN / tex,
                              scale_to_bounds=True)
     bpy.ops.object.mode_set(mode="OBJECT")
     return obj
@@ -2718,6 +3118,7 @@ def build(world, size_key):
     _MATERIALS.clear()
     PALETTE[0] = world
     PROPS.clear()
+    LAB_PROPS.clear()
     WATER.clear()
     SPINNERS.clear()
     CRYSTALS.clear()
@@ -2786,6 +3187,7 @@ def build(world, size_key):
     soft[:, :3] = 0.4 + 0.6 * soft[:, :3]
     soft[glowing, :3] = 1.0
     props_ao.pixels.foreach_set(soft.ravel())
+    lab = bake_lab() if LAB_PROPS else None
     for obj in occluders:
         bpy.data.objects.remove(obj, do_unlink=True)
     for water, _ in WATER:
@@ -2799,13 +3201,13 @@ def build(world, size_key):
     ao[..., :3] = value[..., None]
     ground_ao.pixels.foreach_set(ao.ravel())
 
-    for obj, color_img, ao_img in ((ground, ground_color, ground_ao), (props, props_color, props_ao)):
+    for obj, color_img, ao_img in ((ground, ground_color, ground_ao), (props, props_color, props_ao), *([lab] if lab else [])):
         obj.data.materials.clear()
         obj.data.materials.append(export_material(f"{obj.name}_export", color_img, ao_img))
     blades = grass_meadow(st, props) if world in GRASS_WORLDS else None
     separate_spinners(props)
 
-    tris = sum(len(p.vertices) - 2 for o in (ground, props) for p in o.data.polygons)
+    tris = sum(len(p.vertices) - 2 for o in (ground, props, *([lab[0]] if lab else [])) for p in o.data.polygons)
     folder = os.path.join(OUT, f"world{world}")
     os.makedirs(folder, exist_ok=True)
     path = os.path.join(folder, f"surroundings_{w}x{h}.glb")
@@ -2831,13 +3233,17 @@ def build(world, size_key):
         grass.embed(path, "grass_export", blades)
     for _, img in WATER:
         glb.replace_image(path, img.name, lossless(img))
-    for img in (ground_color, props_color, props_ao, ground_ao, *(img for _, img in WATER)):
+    if lab:
+        glb.replace_image(path, lab[2].name, lossless(lab[2]))
+    for img in (ground_color, props_color, props_ao, ground_ao, *(img for _, img in WATER), *(lab[1:] if lab else ())):
         img.pack()
     bpy.context.scene.name = f"world{world}_{title}_{w}x{h}"
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(folder, f"surroundings_{w}x{h}.blend"), compress=True)
     print("RESULT", path, "tris", tris, "kb", os.path.getsize(path) // 1024, flush=True)
 
 
-for world in (ONLY or sorted(WORLDS)):
-    for size_key in [k for k in SIZES if not os.environ.get("SURR_SIZES") or str(k) in os.environ["SURR_SIZES"].split(",")]:
-        build(world, size_key)
+# the intro's build_lab.py imports this for the lab's dome
+if __name__ == "__main__":
+    for world in (ONLY or sorted(WORLDS)):
+        for size_key in [k for k in SIZES if not os.environ.get("SURR_SIZES") or str(k) in os.environ["SURR_SIZES"].split(",")]:
+            build(world, size_key)

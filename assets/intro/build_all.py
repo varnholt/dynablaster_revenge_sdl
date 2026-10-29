@@ -4,8 +4,8 @@
 #   build_dragon.py    the dragon
 #   build_princess.py  the princess
 #   build_doctor.py    the doctor
-#   build_lab.py       the lab from the first world's scenery with a door and its lit windows, its dome in voronoi
-#                      cells that burst
+#   build_lab.py       the lab from the first world's scenery with its door open and its lit windows, its dome
+#                      in the plates and pieces that burst (lab.json: where it all is, for build_intro.py)
 #   build_backdrop.py  the mountains with the castle
 #   build_room.py      the ending's machine room in the castle
 #   build_tears.py     the black bomberman's tears in the ending
