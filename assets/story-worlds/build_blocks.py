@@ -514,23 +514,39 @@ def hedge(rng, h, w, top):
 
 
 def basalt(rng, h, w, top):
-    """World 5's fixed block: black basalt in columns, embers glowing in its cracks."""
+    """World 5's fixed block: dark basalt in columns, matte and calm, the anchor between the floor and the glowing
+    magma blocks; on top the columns' polygonal ends."""
     v, u = coords(h, w)
     if top:
-        f1, f2, index = voronoi(rng, h, w, 9)
-        joint = smooth(0.012, 0.004, f2 - f1)
+        f1, f2, index = voronoi(rng, h, w, 7)
+        joint = smooth(0.01, 0.003, f2 - f1)
     else:
         x = u * w / FACE + (noise(rng, h, w, 4, 2) - 0.5) * 0.04
-        joint = lines(x, 0.24, 0.008)
-    # ash grey rock rather than the palette's near black: in the cave's light that read as holes in the field
-    rgb = tone(rng, h, w, p(1, 0.95), p(1, 1.4), 6)
-    rgb = rgb * (0.85 + 0.3 * noise(rng, h, w, 60, 2))[..., None]
-    hot = joint * smooth(0.45, 0.7, noise(rng, h, w, 5, 3))
-    glow = np.clip(hot * 1.4, 0, 1)
-    rgb = groove(rgb, joint, 0.6, 0.1)
-    rgb = mix(rgb, p(3), glow)
-    rgb = mix(rgb, p(4, 1.1), np.clip(hot - 0.6, 0, 1))
-    return bevel(rgb, 0.035, 1.3, 0.7)
+        joint = lines(x, 0.24, 0.007)
+    rgb = tone(rng, h, w, p(1, 0.78), p(1, 1.12), 6)
+    rgb = rgb * (0.88 + 0.24 * noise(rng, h, w, 60, 2))[..., None]
+    rgb = groove(rgb, joint, 0.55, 0.25)
+    return bevel(rgb, 0.035, 1.35, 0.7)
+
+
+def magma_block(rng, h, w, top):
+    """World 5's destructible block: a lump of cooled magma, black crust split into a few large plates, the lava
+    glowing in the cracks between them, hotter and wider towards the middle; it lights itself."""
+    v, u = coords(h, w)
+    f1, f2, index = voronoi(rng, h, w, 6 if top else 5)
+    # the cracks wobble, wider where the lump is hottest (its middle)
+    centre = smooth(0.75, 0.0, np.hypot(u - 0.5, (v - 0.5) * h / w) * 2)
+    width = 0.016 + 0.026 * centre
+    crack = smooth(width, width * 0.3, f2 - f1 + (noise(rng, h, w, 18, 2) - 0.5) * 0.01)
+    crust = mix(p(0, 1.0), p(1, 0.75), 0.6 * noise(rng, h, w, 8, 4) + 0.4 * rng.random(index.max() + 1)[index])
+    crust = crust * (0.85 + 0.3 * noise(rng, h, w, 50, 2))[..., None]
+    # each plate's edge lit a little by the lava beside it
+    rim = smooth(0.05, 0.0, f2 - f1) * (1 - crack)
+    crust = mix(crust, p(2, 0.9), rim * 0.5)
+    lava = mix(p(3, 0.95), p(4, 1.1), centre * 0.8 + 0.2 * noise(rng, h, w, 10, 2))
+    rgb = mix(crust, lava, crack)
+    rgb = bevel(rgb, 0.04, 1.2, 0.7)
+    return rgb, crack * (0.55 + 0.4 * centre)
 
 
 def terracotta(rng, h, w, top):
@@ -654,7 +670,7 @@ SKINS = {
     2: (dressed_sandstone, glass_block),
     3: (granite, mossy_crate),
     4: (log_block, hedge),
-    5: (basalt, terracotta),
+    5: (basalt, magma_block),
     6: (ashlar_gold, iron_chest),
     7: (steel_grille, hazard_crate),
     8: (alloy_seams, light_panel),

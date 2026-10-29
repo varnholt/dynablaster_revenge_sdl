@@ -596,6 +596,14 @@ def metal_panels(base):
     return rgb
 
 
+def volcanic_flags():
+    """World 5's floor: one slab of volcanic stone a tile, its gas bubbles left as small pits."""
+    rgb = flagstones((0.5, 0.42, 0.38), (0.4, 0.33, 0.3), (0.12, 0.09, 0.08), slabs=1)
+    pits = noise(TEX, 40, octaves=2) > 0.68
+    rgb[pits] *= 0.72
+    return rgb
+
+
 def flagstones(light, dark, joint, slabs=2):
     """Cut stone slabs, slabs x slabs per tile, every other one a shade off, worn at the corners."""
     t = np.linspace(0, slabs, TEX, endpoint=False)
@@ -737,7 +745,8 @@ WORLDS = {
             border=("hedge", hedge_texture),
             land=lambda: colorize(noise(TEX, 10), (0.05, 0.2, 0.05), (0.14, 0.34, 0.1))),
     5: dict(name="lava_cave",
-            floor=lambda: trodden_earth() * tile_edges(TEX, depth=0.1)[..., None],
+            # volcanic stone: a basalt slab a tile, warm ash grey, pitted, dark joints; the calm layer under the blocks
+            floor=lambda: volcanic_flags(),
             # a built wall of packed earth and fieldstones between stakes, turf on top
             border=("earthwork", earthwork_texture),
             land=lava),

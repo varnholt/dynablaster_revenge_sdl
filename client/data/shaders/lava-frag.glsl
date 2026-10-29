@@ -87,33 +87,51 @@ vec3 molten(float heat)
    return mix(color, yellow, smoothstep(0.65, 1.0, heat));
 }
 
+// the melt's heat at p (0 crust .. 1 white hot), its floes and seams carried along by flow
+float lavaHeat(highp vec2 p, highp vec2 flow, float shore)
+{
+   highp vec2 drift = vec2(fbm(p * 0.25 + u_time * 0.03), fbm(p * 0.25 - u_time * 0.025 + 5.0)) * 2.0;
+   highp vec2 q = (p - flow) * 0.9 + drift;
+
+   // crust floes: dark plates, the melt glowing in the seams between them, the seams wider where it's hotter
+   highp vec2 c = cells(q);
+   float seam = c.y - c.x;
+   float hot = fbm((p - flow) * 0.4);
+   float open = 0.14 + 0.3 * smoothstep(0.3, 0.7, hot);
+   float crust = smoothstep(open * 0.6, open, seam);
+   // whole stretches of open magma between the floes
+   crust *= smoothstep(0.42, 0.58, fbm(q * 0.35 + 3.0));
+   // the floes cool towards the shore: wider plates, thinner seams
+   crust = mix(crust, 1.0, smoothstep(1.6, 0.4, shore) * 0.55);
+
+   // the heat breathes, hot spots welling up and fading
+   float pulse = 0.5 + 0.5 * sin(u_time * 1.1 + fbm(p * 0.7) * 9.0);
+   float melt = 0.55 + 0.35 * hot + 0.15 * pulse;
+   float plate = 0.08 + 0.12 * fbm(q * 3.0) + 0.1 * (1.0 - smoothstep(0.0, 0.5, c.x));
+   return mix(melt, plate, crust);
+}
+
 void main()
 {
    vec4 data = texture(u_data, uv);
    float shore = step(0.01, data.b) * max(data.b - 0.02, 0.0) / 0.98 * SHORE_REACH + (1.0 - step(0.01, data.b)) * SHORE_REACH;
 
    highp vec2 p = world.xy;
-   // the melt creeps along, slowly turning on itself
-   highp vec2 drift = vec2(fbm(p * 0.25 + u_time * 0.03), fbm(p * 0.25 - u_time * 0.025 + 5.0)) * 2.0;
-   highp vec2 q = p * 0.9 + drift + vec2(u_time * 0.05, u_time * 0.02);
-
-   // crust floes: dark plates, the melt glowing in the seams between them, the seams wider where it's hotter
-   highp vec2 c = cells(q);
-   float seam = c.y - c.x;
-   float hot = fbm(p * 0.4 + vec2(-u_time * 0.04, u_time * 0.03));
-   float open = 0.14 + 0.3 * smoothstep(0.3, 0.7, hot);
-   float crust = smoothstep(open * 0.6, open, seam);
-   // whole stretches of open magma between the floes, drifting and changing
-   crust *= smoothstep(0.42, 0.58, fbm(q * 0.35 + 3.0));
-   // the floes cool towards the shore: wider plates, thinner seams; right at the edge a bright seam on the rock
-   crust = mix(crust, 1.0, smoothstep(1.6, 0.4, shore) * 0.55);
-
-   // the heat breathes, hot spots welling up and fading
-   float pulse = 0.5 + 0.5 * sin(u_time * 1.1 + fbm(p * 0.7) * 9.0);
-   float melt = 0.55 + 0.35 * hot + 0.15 * pulse;
-   // the crust's own faint glow from beneath, a cracked surface texture on it
-   float plate = 0.08 + 0.12 * fbm(q * 3.0) + 0.1 * (1.0 - smoothstep(0.0, 0.5, c.x));
-   float heat = mix(melt, plate, crust);
+   // the lava streams round the field (u_haze_box, the field's extent): along the moat, faster in its middle.
+   // Carried along forever the pattern would smear, so two copies, half a cycle apart, each pushed along for a
+   // cycle and reset, cross-fade: the one shown is never far from where it started
+   highp vec2 around = world.xy - clamp(world.xy, u_haze_box.xy, u_haze_box.zw);
+   highp vec2 along = length(around) > 0.001 ? normalize(vec2(-around.y, around.x)) : vec2(1.0, 0.0);
+   float speed = 0.35 * (0.6 + 0.4 * smoothstep(0.2, 1.2, shore));
+   float cycle = 4.0;
+   float phase = fract(u_time * speed / cycle);
+   float other = fract(phase + 0.5);
+   float a = lavaHeat(p, along * phase * cycle, shore);
+   float b = lavaHeat(p, along * other * cycle, shore);
+   float heat = mix(a, b, abs(phase - 0.5) * 2.0);
+   // the cross-fade averages the two and washes the floes out: stretched back to dark crust and bright melt
+   heat = smoothstep(0.18, 0.85, heat);
+   // right at the edge a bright seam where it meets the rock
    heat = max(heat, smoothstep(0.25, 0.0, shore) * 0.95);
 
    vec3 color = molten(clamp(heat, 0.0, 1.0)) * 1.15;
