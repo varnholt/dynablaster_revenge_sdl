@@ -2006,8 +2006,11 @@ def floor_fan(x, y, z, frame_mat, blade_mat, pit, turns):
     cylinder((0, 0, 0.04), 0.1, 0.07, blade_mat, vertices=10)
     for i in range(5):
         a = 2 * math.pi * i / 5
-        blade = box((math.cos(a) * 0.27, math.sin(a) * 0.27, 0.06), (0.34, 0.13, 0.02), blade_mat)
+        # made at the origin and moved out after turning it: box() applies its location to the mesh, turning it
+        # where it stands would swing it round the hub, tilted down into the pit and pointing every which way
+        blade = box((0.0, 0.0, -0.01), (0.34, 0.13, 0.02), blade_mat)
         blade.rotation_euler = (0.45, 0.0, a)
+        blade.location = (math.cos(a) * 0.27, math.sin(a) * 0.27, 0.07)
     place = Matrix.Translation((x, y, z))
     place_parts(start, place)
     spinner(start, place, turns)
