@@ -1274,8 +1274,9 @@ def world_lava_cave(st):
         near = smooth(0.0, 0.5, heat)
         rgb = mix(rgb, mix((0.12, 0.08, 0.07), (0.2, 0.13, 0.1), fbm(TX, TY, 2.0, 3, 142)), near * 0.9)
         rgb = mix(rgb, (0.9, 0.38, 0.1), smooth(0.25, 0.55, heat) * smooth(0.95, 0.6, heat) * 0.6)
-        trodden = pebbles(TX, TY, earth * 0.85, (0.5, 0.36, 0.22), 3.0)
-        return apron_mix(st, TX, TY, rgb, trodden)
+        # the walkway round the field volcanic gravel like the floor's stone
+        gravel = pebbles(TX, TY, mix((0.36, 0.3, 0.27), (0.46, 0.39, 0.35), fbm(TX, TY, 2.0, 3, 143)), (0.55, 0.47, 0.42), 3.0)
+        return apron_mix(st, TX, TY, rgb, gravel)
 
     ground, img = terrain(st, height, color, "ground")
     water_surface(st, height, lava_z, (1.0, 0.4, 0.08), lava=True)
