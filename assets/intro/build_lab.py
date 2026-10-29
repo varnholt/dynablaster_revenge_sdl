@@ -1,199 +1,166 @@
-# The intro's set: Dr's lab from the first world's scenery, its glass dome rebuilt so the dragon can break out
+# The intro's set: Dr's lab from the first world's scenery, its dome rebuilt so the dragon can break out
 #   blender --background --factory-startup --python build_lab.py -- <out dir>
 # writes
-#   lab.glb          world1/surroundings_13x11.glb with the dome cut out of its props and a doorway right of it
+#   lab.glb          world1/surroundings_13x11.glb with the dome cut out of its lab mesh and the rotunda's doorway open
 #   door.glb         that doorway's door, hinged on its origin
-#   lights.glb       the lab's lit windows and strips at night
-#   dome.glb         the dome broken into voronoi cells, whole in its rest pose; "burst" blows the cells round the
-#                    top out along their normals, then they tumble down
-# all in the scenery's own coordinates (field coordinates, z up).
+#   lights.glb       the lab's lit windows at night
+#   dome.glb         the dome in its pieces, the geodesic plates, the shutter and its ladder, whole in its rest
+#                    pose; "burst" blows the pieces round the top out along their normals, then they tumble down
+#   lab.json         where the door, its hinge, its steps and the dome are, for build_intro.py
+# all in the scenery's own coordinates (field coordinates, z up). The scenery's lab (lab() in
+# assets/story-worlds/build_surroundings.py) marks its dome, its door and its windows with empties, read here.
+import json
 import math
 import os
 import random
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+sys.path.insert(0, os.path.join(HERE, "..", "story-worlds"))
 import bmesh  # noqa: E402
 import bpy  # noqa: E402
+import numpy as np  # noqa: E402
 from mathutils import Vector  # noqa: E402
 
+import build_surroundings as surroundings  # noqa: E402
+import palettes  # noqa: E402
 import toy  # noqa: E402
 from toy import turn  # noqa: E402
 
-HERE = os.path.dirname(os.path.abspath(__file__))
 SCENERY = os.path.join(HERE, "..", "..", "client", "data", "game", "story", "world1", "surroundings_13x11.glb")
 
-# the dome: the front half of an ellipsoid against the lab's facade
-CENTRE = Vector((6.5, 5.6, 0.3))
-RADIUS = 3.7
-HEIGHT = 3.84
-FACADE_Y = 5.62
-THICKNESS = 0.08
 
+def shade(rgb):
+    """A colour as world 1's scenery has it."""
+    return palettes.snap(1, rgb)
+
+
+# the scenery's (lab() in build_surroundings.py)
 COLORS = {
-    "glass": (0.74, 0.90, 0.96),
-    "glass_edge": (0.90, 0.97, 1.0),
-    "band": (0.10, 0.25, 0.80),
-    "frame": (0.80, 0.82, 0.86),
+    "plate": shade((0.66, 0.72, 0.78)),
+    "plate2": shade((0.61, 0.67, 0.74)),
+    "shutter": shade((0.28, 0.3, 0.33)),
+    "iron": shade((0.2, 0.21, 0.23)),
 }
-
-# the door the doctor runs out of: in the facade right of the dome, where the scenery has a grey panel, wide and
-# high enough for him to pass with his arms swinging; a short hall behind it
-FRONT_Y = 5.90
-DOOR_X = 10.88
-DOOR_WIDTH = 1.04
-DOOR_BOTTOM = 0.27
-DOOR_TOP = 1.92
-DOOR_DEPTH = 1.5
-FRAME_Y = FRONT_Y - 0.05  # the frame's front
-DOOR_LEAF = 0.04
-# the leaf's hinge, right of the opening, in front of the frame: the leaf opens outwards
-DOOR_HINGE = Vector((DOOR_X + DOOR_WIDTH / 2 + 0.04, FRAME_Y - DOOR_LEAF / 2 - 0.005, DOOR_BOTTOM + 0.01))
-
 DOOR_COLORS = {
     "hall": (0.78, 0.70, 0.52),
     "ceiling": (0.90, 0.84, 0.66),
     "floor": (0.42, 0.42, 0.44),
-    "frame": (0.60, 0.62, 0.66),
-    "door": (0.10, 0.30, 0.85),
+    "frame": shade((0.94, 0.91, 0.83)),
+    "door": shade((0.62, 0.33, 0.22)),
     "handle": (0.80, 0.82, 0.86),
 }
+DOOR_DEPTH = 1.0  # the hall behind the door, within the rotunda's portal
+DOOR_LEAF = 0.04
 
 random.seed(5)
 
 
-def cut_dome(props):
-    """Removes the baked dome's faces from the scenery's props."""
+class Dome:
+    """The scenery's dome, from its empty "lab_dome"."""
+
+    def __init__(self, values):
+        self.centre = Vector(values[:3])
+        self.radius, self.lift, self.slit_turn, self.s = values[3:7]
+        # the ring it turns on: its top and its outer radius (lab() in build_surroundings.py)
+        self.ring_top = self.centre.z - self.lift + 0.03 * self.s
+        self.ring = self.radius / 0.93 * 1.04
+
+
+class Door:
+    """The rotunda's door, from its empty "lab_door"."""
+
+    def __init__(self, values):
+        self.x, self.face, self.bottom, self.top, self.width, self.ground, self.steps = values
+        self.left, self.right = self.x - self.width / 2, self.x + self.width / 2
+        # the leaf's hinge: at the opening's right edge, the leaf within the opening, opening outwards
+        self.hinge = Vector((self.right, self.face - DOOR_LEAF / 2 - 0.005, self.bottom + 0.005))
+
+
+def markers():
+    """The scenery's empties: the dome, the door and the windows' panes ((centre, turn, width, height) each)."""
+    dome = door = None
+    panes = []
+    for obj in bpy.data.objects:
+        if "lab_dome" in obj:
+            dome = Dome(list(obj["lab_dome"]))
+        elif "lab_door" in obj:
+            door = Door(list(obj["lab_door"]))
+        elif "lab_pane" in obj:
+            width, height = obj["lab_pane"]
+            panes.append((obj.matrix_world.translation.copy(), obj.matrix_world.to_euler().z, width, height))
+    print("RESULT lab markers: dome", dome is not None, "door", door is not None, "panes", len(panes))
+    return dome, door, panes
+
+
+def cut_dome(props, dome):
+    """Removes the dome's pieces from the scenery's props: the faces near its shell reaching above the ring."""
     bm = bmesh.new()
     bm.from_mesh(props.data)
     world = props.matrix_world
 
-    def on_dome(v):
-        p = world @ v.co
-        if p.z < 0.45 or p.y > FACADE_Y:
-            return False
-        d = ((p.x - CENTRE.x) ** 2 + (p.y - CENTRE.y) ** 2) / RADIUS ** 2 + ((p.z - CENTRE.z) / HEIGHT) ** 2
-        # tight enough that the scenery's ring foundation round the dome's foot (d 1.19 and up) stays
-        return 0.8 < d < 1.12
+    def near(p):
+        return 0.95 < (p - dome.centre).length / dome.radius < 1.1
 
-    doomed = [f for f in bm.faces if all(on_dome(v) for v in f.verts)]
+    doomed = []
+    for f in bm.faces:
+        points = [world @ v.co for v in f.verts]
+        if all(near(p) for p in points) and any(p.z > dome.ring_top + 0.002 for p in points):
+            doomed.append(f)
     bmesh.ops.delete(bm, geom=doomed, context="FACES")
     bm.to_mesh(props.data)
     bm.free()
     print("RESULT removed", len(doomed), "dome faces")
 
 
-def cut_door(props):
-    """A doorway into the facade right of the dome, where its grey panel was: the panel's faces and the facade's
-    within the opening go."""
+def cut_door(props, door):
+    """Opens the rotunda's doorway: everything within the opening, from just in front of the portal's face to the
+    hall's back, cut along the opening's sides and top and taken out (the closed door, the portal's face, the
+    rotunda's wall behind it)."""
     bm = bmesh.new()
     bm.from_mesh(props.data)
     bm.transform(props.matrix_world)
-    left, right = DOOR_X - DOOR_WIDTH / 2, DOOR_X + DOOR_WIDTH / 2
+    y0, y1 = door.face - 0.15, door.face + DOOR_DEPTH
 
-    def facade(f):
-        return f.normal.y < -0.99 and all(abs(v.co.y - FRONT_Y) < 1e-3 for v in f.verts)
+    def around(f):
+        return any(door.left - 0.5 < v.co.x < door.right + 0.5 and y0 - 0.2 < v.co.y < y1 + 0.2
+                   and door.bottom - 0.1 < v.co.z < door.top + 0.5 for v in f.verts)
 
-    def panel(f):
-        return all(left - 0.1 < v.co.x < right + 0.1 and FRONT_Y - 0.1 < v.co.y < FRONT_Y + 0.1
-                   and DOOR_BOTTOM < v.co.z < DOOR_TOP + 0.1 for v in f.verts)
-
-    doomed = [f for f in bm.faces if panel(f) and not facade(f)]
-    bmesh.ops.delete(bm, geom=doomed, context="FACES")
-    # the facade cut along the opening's sides and its top, the pieces inside it removed
-    for co, no in (((left, 0, 0), (1, 0, 0)), ((right, 0, 0), (1, 0, 0)), ((0, 0, DOOR_TOP), (0, 0, 1))):
-        faces = [f for f in bm.faces if facade(f)]
+    for co, no in (((door.left, 0, 0), (1, 0, 0)), ((door.right, 0, 0), (1, 0, 0)), ((0, 0, door.top), (0, 0, 1))):
+        faces = [f for f in bm.faces if around(f)]
         geom = list({v for f in faces for v in f.verts}) + list({e for f in faces for e in f.edges}) + faces
         bmesh.ops.bisect_plane(bm, geom=geom, dist=1e-5, plane_co=co, plane_no=no)
-    opening = [f for f in bm.faces if facade(f) and left < f.calc_center_median().x < right
-               and f.calc_center_median().z < DOOR_TOP]
+
+    def inside(f):
+        c = f.calc_center_median()
+        return (door.left + 1e-3 < c.x < door.right - 1e-3 and y0 < c.y < y1
+                and door.bottom + 0.005 < c.z < door.top - 1e-3)
+
+    opening = [f for f in bm.faces if inside(f)]
     bmesh.ops.delete(bm, geom=opening, context="FACES")
     bm.transform(props.matrix_world.inverted())
     bm.to_mesh(props.data)
     bm.free()
-    print("RESULT door: removed", len(doomed), "panel faces,", len(opening), "facade faces")
+    print("RESULT door: removed", len(opening), "faces")
 
 
-LIGHT_COLORS = {
-    "lamp": (1.0, 0.80, 0.48),
-    "strip": (0.50, 0.70, 1.0),
-}
-
-
-def find_lights(props):
-    """The lab's dark window panes and the blue strips over them, from the facade's colours: (kind, lo, hi) of
-    each, lo and hi the corners of its rectangle on the facade."""
-    image = next(i for i in bpy.data.images if i.name.startswith("props_color"))
-    w, h = image.size
-    pixels = image.pixels[:]
-    bm = bmesh.new()
-    bm.from_mesh(props.data)
-    bm.transform(props.matrix_world)
-    uvs = bm.loops.layers.uv.active
-    found = {}
-    for f in bm.faces:
-        centre = f.calc_center_median()
-        if f.normal.y > -0.99 or abs(centre.y - (FRONT_Y - 0.04)) > 0.02:
-            continue
-        u = sum(loop[uvs].uv.x for loop in f.loops) / len(f.loops)
-        v = sum(loop[uvs].uv.y for loop in f.loops) / len(f.loops)
-        i = ((int(v * h) % h) * w + int(u * w) % w) * 4
-        r, g, b = pixels[i:i + 3]
-        kind = "lamp" if max(r, g, b) < 0.25 else "strip" if b > 0.6 and r < 0.2 else None
-        if kind:
-            # each pane or strip is two triangles, keyed by the bay they're in
-            found.setdefault((kind, round(centre.x)), []).extend(v.co.copy() for v in f.verts)
-    bm.free()
-    lights = []
-    for (kind, _), corners in sorted(found.items()):
-        lo = Vector((min(c.x for c in corners), min(c.y for c in corners), min(c.z for c in corners)))
-        hi = Vector((max(c.x for c in corners), max(c.y for c in corners), max(c.z for c in corners)))
-        lights.append((kind, lo, hi))
-    print("RESULT lab lights", sum(k == "lamp" for k, _, _ in lights), "panes",
-          sum(k == "strip" for k, _, _ in lights), "strips")
-    return lights
-
-
-def lights(out, found):
-    """lights.glb: the lab at night, lamplight behind its window panes and the blue strips over them glowing
-    like the machines inside; quads just in front of the facade the intro draws at full brightness, the panes
-    with a soft halo ([r, g, b, size, mode], as the backdrop's windows)."""
-    toy.reset()
-    palette = toy.Palette("lights_palette", LIGHT_COLORS)
-    b = toy.Builder("lights", palette)
-    for i, (kind, lo, hi) in enumerate(found):
-        y = lo.y - 0.01
-        bm = bmesh.new()
-        bm.faces.new([bm.verts.new(c) for c in ((lo.x, y, lo.z), (hi.x, y, lo.z), (hi.x, y, hi.z), (lo.x, y, hi.z))])
-        b.add(bm, kind)
-        if kind == "lamp":
-            node = bpy.data.objects.new(f"glow.{i:03d}", None)
-            node.location = ((lo.x + hi.x) / 2, y - 0.05, (lo.z + hi.z) / 2)
-            node["glow"] = [1.0, 0.72, 0.38, 1.1, 0]
-            bpy.context.scene.collection.objects.link(node)
-    b.build_static()
-    bpy.ops.object.select_all(action="SELECT")
-    bpy.ops.export_scene.gltf(filepath=os.path.join(out, "lights.glb"), export_format="GLB", use_selection=True,
-                              export_extras=True)
-    print("RESULT exported lights.glb")
-
-
-def block(builder, color, lo, hi):
+def block(builder, color, lo, hi, bone=None):
     """A box from corner lo to corner hi."""
     bm = bmesh.new()
     bmesh.ops.create_cube(bm, size=1.0)
-    builder.add(bm, color, matrix=toy.trs(tuple((a + c) / 2 for a, c in zip(lo, hi)), (0, 0, 0),
-                                          tuple(c - a for a, c in zip(lo, hi))))
+    builder.add(bm, color, bone, matrix=toy.trs(tuple((a + c) / 2 for a, c in zip(lo, hi)), (0, 0, 0),
+                                                tuple(c - a for a, c in zip(lo, hi))))
 
 
-def doorway():
+def doorway(door):
     """Behind the opening a short hall in warm light, a frame round the opening."""
     palette = toy.Palette("doorway_palette", DOOR_COLORS)
     b = toy.Builder("doorway", palette)
-    x0, x1 = DOOR_X - DOOR_WIDTH / 2, DOOR_X + DOOR_WIDTH / 2
-    y0, y1 = FRONT_Y, FRONT_Y + DOOR_DEPTH
-    z0, z1 = DOOR_BOTTOM, DOOR_TOP
-    # the hall's walls, facing in
+    x0, x1 = door.left, door.right
+    y0, y1 = door.face, door.face + DOOR_DEPTH
+    # its floor just over the rotunda's floor, which runs on under it
+    z0, z1 = door.bottom + 0.01, door.top
     for part, corners in (
             ("hall", ((x0, y1, z0), (x1, y1, z0), (x1, y1, z1), (x0, y1, z1))),
             ("hall", ((x0, y0, z0), (x0, y1, z0), (x0, y1, z1), (x0, y0, z1))),
@@ -203,239 +170,148 @@ def doorway():
         bm = bmesh.new()
         bm.faces.new([bm.verts.new(c) for c in corners])
         b.add(bm, part)
-    trim = 0.06
-    block(b, "frame", (x0 - trim, FRAME_Y, z0), (x0, y0 + 0.02, z1 + trim))
-    block(b, "frame", (x1, FRAME_Y, z0), (x1 + trim, y0 + 0.02, z1 + trim))
-    block(b, "frame", (x0 - trim, FRAME_Y, z1), (x1 + trim, y0 + 0.02, z1 + trim))
     return b.build_static()
 
 
-def door(out):
-    """door.glb, the door's leaf on its own so the intro can swing it open: hinged on the origin (DOOR_HINGE in
-    the scenery), closed it runs along -x over the opening and its frame, a handle on either side."""
+def door_leaf(out, door):
+    """door.glb, the door's leaf on its own so the intro can swing it open: hinged on the origin (door.hinge in the
+    scenery), closed it runs along -x across the opening, panels and a handle on either side."""
     toy.reset()
     palette = toy.Palette("door_palette", DOOR_COLORS)
     b = toy.Builder("door", palette)
-    width = DOOR_WIDTH + 0.1
+    width = door.width - 0.01
+    height = door.top - door.bottom - 0.01
     half = DOOR_LEAF / 2
-    block(b, "door", (-width, -half, 0.0), (0.0, half, DOOR_TOP - DOOR_BOTTOM + 0.03))
+    block(b, "door", (-width, -half, 0.0), (0.0, half, height))
     for side in (-1, 1):
-        y = side * (half + 0.015)
-        block(b, "handle", (-width + 0.08, y - 0.015, 0.8), (-width + 0.2, y + 0.015, 0.86))
+        y = side * (half + 0.01)
+        for z0, z1 in ((0.08, 0.44), (0.52, 0.92)):
+            block(b, "door", (-width + 0.08, y - 0.01, z0 * height), (-0.08, y + 0.01, z1 * height))
+        block(b, "handle", (-width + 0.08, y - 0.02, 0.48 * height), (-width + 0.2, y + 0.02, 0.51 * height))
     b.build_static()
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.export_scene.gltf(filepath=os.path.join(out, "door.glb"), export_format="GLB", use_selection=True)
     print("RESULT exported door.glb")
 
 
+LIGHT_COLORS = {
+    "lamp": (1.0, 0.80, 0.48),
+}
+
+
+def lights(out, panes):
+    """lights.glb: the lab at night, lamplight behind its window panes; quads just in front of them the intro
+    draws at full brightness, the bigger ones with a soft halo ([r, g, b, size, mode], as the backdrop's windows)."""
+    toy.reset()
+    palette = toy.Palette("lights_palette", LIGHT_COLORS)
+    b = toy.Builder("lights", palette)
+    for i, (centre, angle, width, height) in enumerate(panes):
+        along = Vector((math.cos(angle), math.sin(angle), 0.0))
+        out_dir = Vector((math.sin(angle), -math.cos(angle), 0.0))
+        c = centre + out_dir * 0.005
+        bm = bmesh.new()
+        corners = [c + along * (u * width / 2) + Vector((0, 0, v * height / 2)) for u, v in
+                   ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+        face = bm.faces.new([bm.verts.new(p) for p in corners])
+        if face.normal.dot(out_dir) < 0:
+            face.normal_flip()
+        b.add(bm, "lamp")
+        if height > 0.4:
+            node = bpy.data.objects.new(f"glow.{i:03d}", None)
+            node.location = c + out_dir * 0.05
+            node["glow"] = [1.0, 0.72, 0.38, 1.1, 0]
+            bpy.context.scene.collection.objects.link(node)
+    b.build_static()
+    bpy.ops.object.select_all(action="SELECT")
+    bpy.ops.export_scene.gltf(filepath=os.path.join(out, "lights.glb"), export_format="GLB", use_selection=True,
+                              export_extras=True)
+    print("RESULT exported lights.glb", len(panes), "panes")
+
+
 def lab(out):
     toy.reset()
     bpy.ops.import_scene.gltf(filepath=SCENERY)
-    cut_dome(bpy.data.objects["props"])
-    cut_door(bpy.data.objects["props"])
-    found = find_lights(bpy.data.objects["props"])
-    doorway()
+    dome, door, panes = markers()
+    cut_dome(bpy.data.objects["lab"], dome)
+    cut_door(bpy.data.objects["lab"], door)
+    doorway(door)
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.export_scene.gltf(filepath=os.path.join(out, "lab.glb"), export_format="GLB", use_selection=True,
                               export_extras=True)
     print("RESULT exported lab.glb")
-    return found
+    return dome, door, panes
 
 
-def point(phi, theta, inset=0.0):
-    """On the ellipsoid; phi from 0 (+x) round the front (-y) to pi (-x), theta from the top."""
-    r = RADIUS - inset
-    h = HEIGHT - inset
-    return CENTRE + Vector((r * math.sin(theta) * math.cos(phi), -r * math.sin(theta) * math.sin(phi),
-                            h * math.cos(theta)))
-
-
-def normal_at(p):
-    """The ellipsoid's outward normal at p."""
-    d = p - CENTRE
-    return Vector((d.x / RADIUS ** 2, d.y / RADIUS ** 2, d.z / HEIGHT ** 2)).normalized()
-
-
-def dome_shell():
-    """The half dome as a closed shell of glass."""
+def piece_mesh(verts, faces):
     bm = bmesh.new()
-    # smooth shaded a coarse grid is round enough, the cells are cut by planes and keep their sharp edges
-    columns, rows = 60, 22
-    layers = []
-    for inset in (0.0, THICKNESS):
-        grid = []
-        for i in range(columns + 1):
-            phi = math.pi * i / columns
-            grid.append([bm.verts.new(point(phi, (math.pi / 2) * j / rows, inset)) for j in range(rows + 1)])
-        layers.append(grid)
-    outer, inner = layers
-    for i in range(columns):
-        for j in range(rows):
-            bm.faces.new((outer[i][j], outer[i + 1][j], outer[i + 1][j + 1], outer[i][j + 1]))
-            bm.faces.new((inner[i][j + 1], inner[i + 1][j + 1], inner[i + 1][j], inner[i][j]))
-        # along the ground
-        bm.faces.new((outer[i][rows], outer[i + 1][rows], inner[i + 1][rows], inner[i][rows]))
-    for j in range(rows):
-        # the cut edges against the facade
-        for i, flip in ((0, False), (columns, True)):
-            quad = (outer[i][j], outer[i][j + 1], inner[i][j + 1], inner[i][j])
-            bm.faces.new(tuple(reversed(quad)) if flip else quad)
-    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
-    # the poles' degenerate quads collapsed into triangles
-    bmesh.ops.dissolve_degenerate(bm, edges=bm.edges, dist=1e-6)
-    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-    for f in bm.faces:
-        f.smooth = True
-    return bm
-
-
-def band():
-    """The blue strip round the dome, a ribbon just above the glass between two heights."""
-    bm = bmesh.new()
-    columns = 96
-    rows = []
-    for z in (0.36, 0.43):
-        theta = math.acos(z)
-        rows.append([bm.verts.new(point(math.pi * i / columns, theta, -0.012)) for i in range(columns + 1)])
-    for i in range(columns):
-        bm.faces.new((rows[0][i], rows[0][i + 1], rows[1][i + 1], rows[1][i])).smooth = True
+    vs = [bm.verts.new(v) for v in verts]
+    for f in faces:
+        try:
+            bm.faces.new([vs[i] for i in f])
+        except ValueError:
+            pass
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     return bm
 
 
-IMPACT = point(math.pi / 2, 0.12)  # where the dragon hits the glass, just in front of the top
-FLY_ANGLE = 0.46  # cells whose seed is within this angle of the impact, seen from the centre, fly
-
-
-def angle_from_impact(p):
-    return (p - CENTRE).angle(IMPACT - CENTRE)
-
-
-def seeds():
-    """Voronoi seeds on the dome, small cells round the impact, larger ones further down."""
-    found = []
-    for _ in range(3000):
-        p = point(random.uniform(0.02, math.pi - 0.02), math.acos(1.0 - random.random() * 0.75))
-        a = angle_from_impact(p)
-        spacing = 0.3 + 0.95 * a
-        if all((p - q).length > spacing for q in found):
-            found.append(p)
-    return sorted(found, key=angle_from_impact)
-
-
-def loops(edges):
-    """The edges grouped into the loops they form."""
-    left, groups = set(edges), []
-    while left:
-        stack = [left.pop()]
-        group = set(stack)
-        while stack:
-            for v in stack.pop().verts:
-                for e in v.link_edges:
-                    if e in left:
-                        left.discard(e)
-                        group.add(e)
-                        stack.append(e)
-        groups.append(group)
-    return groups
-
-
-def cell(shell, seed, others):
-    """The part of the shell nearer to seed than to any other: cut by the planes halfway, each cut closed flat in
-    its own plane right away. Closing a cell's whole rim at the end instead filled rims running over several
-    planes (the cells at the dome's foot and at the facade) with triangles cutting out through the glass.
-    Returns the glass and the cut faces as two bmeshes, None if nothing is left."""
-    bm = shell.copy()
-    cut_layer = bm.faces.layers.int.new("cut")
-    for other in others:
-        normal = (other - seed).normalized()
-        middle = (other + seed) / 2
-        geom = bm.verts[:] + bm.edges[:] + bm.faces[:]
-        result = bmesh.ops.bisect_plane(bm, geom=geom, dist=1e-6, plane_co=middle, plane_no=normal,
-                                        clear_outer=True)
-        if not bm.faces:
-            bm.free()
-            return None
-        rim = [e for e in result["geom_cut"] if isinstance(e, bmesh.types.BMEdge) and e.is_valid and e.is_boundary]
-        if rim:
-            for f in bmesh.ops.holes_fill(bm, edges=rim, sides=0)["faces"]:
-                f[cut_layer] = 1
-    # the cuts leave vertices a hair apart where planes meet, welded they don't split the cell open later
-    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-4)
-    bmesh.ops.dissolve_degenerate(bm, edges=bm.edges, dist=1e-4)
-    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-    # the caps are flat but often concave, triangulated within their plane
-    bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if f[cut_layer]])
-    glass, edge = bmesh.new(), bmesh.new()
-    for target, keep in ((glass, False), (edge, True)):
-        mapping = {}
-        for f in bm.faces:
-            if bool(f[cut_layer]) != keep:
-                continue
-            verts = []
-            for v in f.verts:
-                if v not in mapping:
-                    mapping[v] = target.verts.new(v.co)
-                verts.append(mapping[v])
-            target.faces.new(verts).smooth = not keep
-    bm.free()
-    return glass, edge
-
-
-def dome(out):
+def dome_model(out, dome, door):
+    """dome.glb: the dome's pieces as the scenery builds them, the plates and the lengths of shutter and ladder
+    round the impact each on a bone of its own."""
     toy.reset()
     palette = toy.Palette("dome_palette", COLORS)
     b = toy.Builder("dome", palette)
-    b.bone("dome", CENTRE, CENTRE + Vector((0, 0, 1)))
-    shell = dome_shell()
-    points = seeds()
+    b.bone("dome", dome.centre, dome.centre + Vector((0, 0, 1)))
+    impact = dome.centre + Vector((0.0, -math.sin(0.12), math.cos(0.12))) * dome.radius
     pieces = []
-    for seed in points:
-        parts = cell(shell, seed, [q for q in points if q is not seed])
-        if parts is None:
-            continue
-        glass, edge = parts
+    for kind, mid, verts, faces in surroundings.lab_dome_pieces(dome.centre, dome.radius, dome.lift, dome.slit_turn,
+                                                                dome.s, np.random.default_rng(3)):
         bone = "dome"
-        if angle_from_impact(seed) < FLY_ANGLE:
-            centre = sum((v.co for v in glass.verts), Vector()) / max(len(glass.verts), 1)
-            bone = f"cell{len(pieces)}"
-            b.bone(bone, centre, centre + normal_at(centre) * 0.3, "dome")
-            pieces.append((bone, centre, normal_at(centre), angle_from_impact(seed)))
-        b.add(glass, "glass", bone)
-        b.add(edge, "glass_edge", bone)
-    shell.free()
-    b.add(band(), "band", "dome")
+        angle = (mid - dome.centre).angle(impact - dome.centre)
+        if angle < FLY_ANGLE:
+            bone = f"piece{len(pieces)}"
+            normal = (mid - dome.centre).normalized()
+            b.bone(bone, mid, mid + normal * 0.3, "dome")
+            pieces.append((bone, mid, normal, angle))
+        b.add(piece_mesh(verts, faces), kind, bone)
     rig, mesh = b.build()
-    burst(rig, pieces)
+    burst(rig, pieces, dome, door)
     toy.export(rig, mesh, os.path.join(out, "dome.glb"))
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(out, "dome.blend"))
-    print("RESULT dome", len(points), "cells", len(pieces), "fly")
+    print("RESULT dome", len(pieces), "pieces fly")
 
 
-# the scenery's ring foundation round the dome (world 1's lab()): its steps' radii and tops
-STEPS = ((4.03, 0.59), (4.48, 0.48))
+FLY_ANGLE = 0.5  # pieces within this angle of the impact, seen from the centre, fly
 
 
-def ground_at(p):
-    """Where a falling cell comes to rest at p: on a step of the foundation or on the ground."""
-    r = math.hypot(p.x - CENTRE.x, p.y - CENTRE.y)
-    return next((top for radius, top in STEPS if r < radius), 0.32)
+def ground_at(p, dome, door):
+    """Where a falling piece comes to rest at p: on the ring round the dome, on a wing's roof or on the ground."""
+    s = dome.s
+    x, y = p.x - dome.centre.x, p.y - dome.centre.y
+    if math.hypot(x, y) < dome.ring:
+        return dome.ring_top
+    # the wings (lab_wings() in build_surroundings.py): x 0.5 s..4.6 s out, their roofs sloping from the ridge
+    wy = 0.35 * s
+    reach = 1.22 * s
+    if 0.5 * s < abs(x) < 4.6 * s and abs(y - wy) < reach:
+        eave, ridge = door.ground + 1.18 * s, door.ground + 1.55 * s
+        return ridge - (ridge - eave) * abs(y - wy) / reach
+    return door.ground + 0.02
 
 
-def burst(rig, pieces):
-    """The cells round the impact pushed out along their normals, those nearest first and furthest, then they
-    tumble down to the ground around the dome: 2.5 s at 24 fps."""
+def burst(rig, pieces, dome, door):
+    """The pieces round the impact pushed out along their normals, those nearest first and furthest, then they
+    tumble down onto the ring, the wings' roofs and the ground: 2.5 s at 24 fps."""
     keys = {}
     gravity = 12.0
     push = 0.22  # seconds the push out takes
     for name, centre, normal, angle in pieces:
         delay = angle * 0.18
-        reach = 1.1 - angle * 0.9
+        reach = 1.2 - angle * 0.9
         spin_axis = normal.cross(Vector((random.uniform(-1, 1), random.uniform(-1, 1), 0.3))).normalized()
         spin = random.uniform(300, 600)
-        # off to the sides and to the front, clear of the dome, never back into the lab's wall
-        away = Vector((centre.x - CENTRE.x, min(centre.y - CENTRE.y, 0.0) - 0.8, 0.0)).normalized()
-        velocity = normal * reach / push * 0.4 + away * random.uniform(3.6, 4.6) + Vector((0, 0, random.uniform(1.0, 2.0)))
+        # off to the sides and to the front, clear of the dome
+        away = Vector((centre.x - dome.centre.x, min(centre.y - dome.centre.y, 0.0) - 0.8, 0.0)).normalized()
+        velocity = normal * reach / push * 0.4 + away * random.uniform(4.2, 5.4) + Vector((0, 0, random.uniform(1.0, 2.0)))
         track = []
         landed = None
         for frame in range(1, 62, 2):
@@ -453,8 +329,8 @@ def burst(rig, pieces):
                 f = t - push
                 offset = normal * reach + velocity * f + Vector((0, 0, -0.5 * gravity * f * f))
                 angle_now = spin * (0.1 + f)
-            floor = ground_at(centre + offset)
-            if centre.z + offset.z < floor:
+            floor = ground_at(centre + offset, dome, door)
+            if centre.z + offset.z < floor and (landed or offset.z < 0):
                 landed = landed or (offset.copy(), angle_now)
                 offset = Vector((landed[0].x, landed[0].y, floor - centre.z))
                 angle_now = landed[1]
@@ -463,7 +339,22 @@ def burst(rig, pieces):
     toy.action(rig, "burst", 61, keys, cyclic=False)
 
 
+def staging(out, dome, door):
+    """lab.json: what build_intro.py stages round."""
+    data = {
+        "dome_centre": list(dome.centre), "dome_radius": dome.radius,
+        "dome_top": dome.centre.z + dome.radius,
+        "door": {"x": door.x, "face": door.face, "bottom": door.bottom, "top": door.top, "ground": door.ground,
+                 "steps": door.steps, "hinge": list(door.hinge)},
+    }
+    with open(os.path.join(out, "lab.json"), "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=1)
+    print("RESULT lab.json", json.dumps(data))
+
+
 out = toy.out_dir()
-lights(out, lab(out))
-door(out)
-dome(out)
+dome, door, panes = lab(out)
+lights(out, panes)
+door_leaf(out, door)
+dome_model(out, dome, door)
+staging(out, dome, door)

@@ -4,6 +4,7 @@
 # Assembles the models the build_*.py scripts wrote to <out dir>, stages them and writes intro.txt, the timeline
 # the game plays: per actor its model, the actions it plays from when, its transform sampled every frame; the
 # camera's; the events. With "render" it also renders those frames through the camera to <out dir>/frames.
+import json
 import math
 import os
 import sys
@@ -18,8 +19,12 @@ from cutscene import FPS, key, s  # noqa: E402
 
 LENGTH = 15 * FPS
 BURST = 3 * FPS + 1  # the frame the dome breaks
-DOME_CENTRE = Vector((6.5, 5.6, 0.3))
-DOOR_HINGE = (11.44, 5.825, 0.28)  # build_lab.py's, the door right of the dome
+# where build_lab.py found the lab's dome and the rotunda's door in world 1's scenery
+with open(os.path.join(toy.out_dir(), "lab.json"), encoding="utf-8") as _f:
+    LAB = json.load(_f)
+DOME_CENTRE = Vector(LAB["dome_centre"])
+DOME_TOP = LAB["dome_top"]
+DOOR = LAB["door"]
 
 # who's in it: the model, its size, the frames it's seen from and until and the actions it plays from which frame
 # on, no earlier than it's seen ("hold" stops at the end)
@@ -48,15 +53,16 @@ ACTORS = {
 def stage(actors):
     """Where everyone is when."""
     dragon = actors["dragon"]["holder"]
-    # up through the hole in the dome, a hover, then off over the lab towards the castle on the mountain
+    # up through the hole in the dome, a hover over it, then off over the lab towards the castle on the mountain
+    cx, cy, top = DOME_CENTRE.x, DOME_CENTRE.y, DOME_TOP
     path = [
-        (BURST, (6.5, 5.0, 0.5), (0, 0, 0)),
-        (BURST + 6, (6.5, 4.4, 4.6), (-10, 0, 0)),
-        (s(4.4), (6.4, 4.0, 6.6), (0, 0, 0)),
-        (s(5.6), (6.8, 4.0, 7.1), (0, 4, -6)),
-        (s(6.8), (6.2, 4.4, 7.4), (0, -4, 6)),
-        (s(8.0), (6.5, 6.0, 9.0), (8, 0, 180)),
-        (s(10.0), (6.5, 30.0, 18.0), (12, 0, 180)),
+        (BURST, (cx, cy - 0.6, DOME_CENTRE.z - 0.4), (0, 0, 0)),
+        (BURST + 6, (cx, cy - 1.2, top + 0.5), (-10, 0, 0)),
+        (s(4.4), (cx - 0.1, cy - 1.6, top + 1.1), (0, 0, 0)),
+        (s(5.6), (cx + 0.3, cy - 1.6, top + 1.4), (0, 4, -6)),
+        (s(6.8), (cx - 0.3, cy - 1.2, top + 1.7), (0, -4, 6)),
+        (s(8.0), (cx, cy + 0.4, top + 4.9), (8, 0, 180)),
+        (s(10.0), (cx, 30.0, top + 15.0), (12, 0, 180)),
         (s(12.5), (6.5, 86.0, 36.0), (6, 0, 180)),
         (s(13.6), (6.5, 100.8, 37.5), (0, 0, 180)),
     ]
@@ -85,21 +91,30 @@ def stage(actors):
     key(player, s(5.0), (3.6, 0.8, 0.27), (0, 0, -90))
     key(player, s(5.3), (3.7, 0.8, 0.27), (0, 0, 180))
 
-    # the doctor runs out of the door right of the dome (build_lab.py), from the back of the hall behind it,
-    # hidden by the door until he flings it open; out and away to the right, then he stops, shuffles round to the
-    # dome, sees the dragon above it and falls back onto his bottom, facing it, where he stays. The door swings out
-    # to the right, clear of his path and of the red lamp beside it.
+    # the doctor runs out of the rotunda's door under the dome (build_lab.py), from the back of the hall behind it,
+    # hidden by the door until he flings it open; down the steps and away to the right, then he stops, shuffles
+    # round to the dome, sees the dragon above it and falls back onto his bottom, facing it, where he stays. The
+    # door swings out to the right, clear of his path.
     door = actors["door"]["holder"]
-    key(door, 1, DOOR_HINGE, (0, 0, 0))
-    key(door, s(3.1) + 4, DOOR_HINGE, (0, 0, 0))
+    hinge = tuple(DOOR["hinge"])
+    key(door, 1, hinge, (0, 0, 0))
+    key(door, s(3.1) + 4, hinge, (0, 0, 0))
     key(door, s(3.1) + 8, rotation=(0, 0, 88))
     key(door, s(3.1) + 13, rotation=(0, 0, 100))
     doctor = actors["doctor"]["holder"]
-    # rotation 0 faces -y, out of the door; he faces the way he runs, and the dome where he turns to
-    key(doctor, s(3.1), (10.88, 6.95, 0.27), (0, 0, 0))
-    key(doctor, s(3.75), (10.88, 5.05, 0.27), (0, 0, 0))
-    key(doctor, s(4.2), (11.6, 3.2, 0.27), (0, 0, 21))
-    key(doctor, s(4.6), (11.6, 3.2, 0.27), (0, 0, -103))
+    x, face, floor, ground = DOOR["x"], DOOR["face"], DOOR["bottom"], DOOR["ground"]
+    foot = face - DOOR["steps"] - 0.3
+    stop = (x + 2.3, foot - 1.0)
+
+    def facing(dx, dy):
+        # rotation 0 faces -y, out of the door
+        return math.degrees(math.atan2(dx, -dy))
+
+    key(doctor, s(3.1), (x, face + 0.75, floor), (0, 0, 0))
+    key(doctor, s(3.35), (x, face - 0.3, floor), (0, 0, 0))
+    key(doctor, s(3.65), (x + 0.3, foot, ground), (0, 0, 10))
+    key(doctor, s(4.2), (*stop, ground), (0, 0, facing(stop[0] - x - 0.3, stop[1] - foot)))
+    key(doctor, s(4.6), (*stop, ground), (0, 0, facing(DOME_CENTRE.x - stop[0], DOME_CENTRE.y - stop[1])))
 
 
 def camera():
@@ -108,8 +123,6 @@ def camera():
     bpy.context.scene.camera = cam
     cam.data.lens_unit = "FOV"
     cam.data.clip_end = 400
-    look = Vector((6.5, 5.0, 2.2))
-
     def aim(frame, eye, target, fov=50):
         cam.location = eye
         cam.rotation_euler = (Vector(target) - Vector(eye)).to_track_quat("-Z", "Y").to_euler()
@@ -118,14 +131,19 @@ def camera():
         cam.keyframe_insert("rotation_euler", frame=frame)
         cam.data.keyframe_insert("lens", frame=frame)
 
-    # through the crown of the big tree south of the field (world 1 plants it for this, see world_meadow(): on
-    # ground levelled to 0.16, its crown about 2.3 to 4.2 high round x 5.6, y -19.6) out into the view: wide on the
-    # lab, pushing in; tilting up after the dragon; craning up and over to the castle
-    aim(1, (6.5, -23.0, 3.0), (6.5, 5.0, 3.6), 50)
-    aim(s(1.6), (6.5, -18.6, 2.2), (6.5, 5.0, 3.6), 50)
-    aim(BURST, (6.5, -17.0, 1.8), (6.5, 5.0, 3.8), 50)
-    aim(s(6.0), (6.5, -17.0, 1.9), (6.5, 5.0, 5.2), 50)
-    aim(s(8.0), (6.5, -17.0, 2.2), (6.5, 6.0, 7.5), 50)
+    # from well behind the big tree south of the field, the tree seen whole against the lit lab first, then through
+    # its crown (world 1 plants it for this, see world_meadow(): on ground levelled to 0.16, its crown about 2.3 to
+    # 4.2 high round x 5.6, y -19.6) out into the view: wide on the lab, pushing in; tilting up after the dragon;
+    # craning up and over to the castle
+    # the lab's dome stands up to DOME_TOP, some 3 higher than the old lab's glass dome these heights were set for;
+    # out of the tree the camera rises a little, so the dome's top stays below the castle on the mountain behind
+    lift = DOME_TOP - 4.14
+    aim(1, (6.5, -30.0, 3.3), (6.5, 5.0, 3.6 + lift * 0.3), 50)
+    aim(s(1.6), (6.5, -18.6, 2.6), (6.5, 5.0, 3.6 + lift * 0.4), 50)
+    # wide enough for the player and the doctor down on the ground and the dragon hovering over the dome at once
+    aim(BURST, (6.5, -17.0, 3.4), (6.5, 5.0, 5.4), 58)
+    aim(s(6.0), (6.5, -17.0, 3.6), (6.5, 5.0, 5.8), 58)
+    aim(s(8.0), (6.5, -17.0, 4.2), (6.5, 6.0, 7.5 + lift), 50)
     aim(s(11.0), (6.5, -15.0, 6.0), (6.5, 70.0, 30.0), 46)
     aim(s(15.0), (6.5, -13.0, 7.0), (6.5, 100.0, 34.0), 38)
     return cam
