@@ -100,7 +100,7 @@ float lavaHeat(highp vec2 p, highp vec2 flow, float shore)
    float open = 0.14 + 0.3 * smoothstep(0.3, 0.7, hot);
    float crust = smoothstep(open * 0.6, open, seam);
    // whole stretches of open magma between the floes
-   crust *= smoothstep(0.42, 0.58, fbm(q * 0.35 + 3.0));
+   crust *= smoothstep(0.3, 0.45, fbm(q * 0.35 + 3.0));
    // the floes cool towards the shore: wider plates, thinner seams
    crust = mix(crust, 1.0, smoothstep(1.6, 0.4, shore) * 0.55);
 
@@ -116,21 +116,43 @@ void main()
    vec4 data = texture(u_data, uv);
    float shore = step(0.01, data.b) * max(data.b - 0.02, 0.0) / 0.98 * SHORE_REACH + (1.0 - step(0.01, data.b)) * SHORE_REACH;
 
-   highp vec2 p = world.xy;
-   // the lava streams round the field (u_haze_box, the field's extent): along the moat, faster in its middle.
-   // Carried along forever the pattern would smear, so two copies, half a cycle apart, each pushed along for a
-   // cycle and reset, cross-fade: the one shown is never far from where it started
-   highp vec2 around = world.xy - clamp(world.xy, u_haze_box.xy, u_haze_box.zw);
-   highp vec2 along = length(around) > 0.001 ? normalize(vec2(-around.y, around.x)) : vec2(1.0, 0.0);
+   // the lava streams round the field (u_haze_box, the field's extent): its pattern is laid out in the moat's own
+   // coordinates, the way along the ring round the field and the distance out from it, and slides along the ring;
+   // nothing is pushed about per pixel, so nothing smears and the floes keep their shape
+   highp vec2 lo = u_haze_box.xy;
+   highp vec2 hi = u_haze_box.zw;
+   highp vec2 size = hi - lo;
+   highp vec2 nearest = clamp(world.xy, lo, hi);
+   highp vec2 out_of = world.xy - nearest;
+   highp float r = length(out_of);
+   // the way along the box's outline to the nearest point, anticlockwise from the bottom left corner, and round each
+   // corner the arc at this distance
+   highp float quarter = 1.5707963 * r;
+   // edges where the point lies straight out from one (clamp leaves the other axis exactly 0), corners in between
+   highp float way;
+   if (out_of.x == 0.0 && out_of.y <= 0.0)
+      way = nearest.x - lo.x;  // bottom
+   else if (out_of.x > 0.0 && out_of.y < 0.0)
+      way = size.x + atan(out_of.x, -out_of.y) * r;  // bottom right
+   else if (out_of.x > 0.0 && out_of.y == 0.0)
+      way = size.x + quarter + nearest.y - lo.y;  // right
+   else if (out_of.x > 0.0 && out_of.y > 0.0)
+      way = size.x + quarter + size.y + atan(out_of.y, out_of.x) * r;  // top right
+   else if (out_of.x == 0.0 && out_of.y > 0.0)
+      way = size.x + 2.0 * quarter + size.y + hi.x - nearest.x;  // top
+   else if (out_of.x < 0.0 && out_of.y > 0.0)
+      way = 2.0 * size.x + 2.0 * quarter + size.y + atan(-out_of.x, out_of.y) * r;  // top left
+   else if (out_of.x < 0.0 && out_of.y == 0.0)
+      way = 2.0 * size.x + 3.0 * quarter + size.y + hi.y - nearest.y;  // left
+   else
+      way = 2.0 * size.x + 3.0 * quarter + 2.0 * size.y + atan(-out_of.y, -out_of.x) * r;  // bottom left
+   highp float ring = 2.0 * (size.x + size.y) + 4.0 * quarter;
+
    float speed = 0.35 * (0.6 + 0.4 * smoothstep(0.2, 1.2, shore));
-   float cycle = 4.0;
-   float phase = fract(u_time * speed / cycle);
-   float other = fract(phase + 0.5);
-   float a = lavaHeat(p, along * phase * cycle, shore);
-   float b = lavaHeat(p, along * other * cycle, shore);
-   float heat = mix(a, b, abs(phase - 0.5) * 2.0);
-   // the cross-fade averages the two and washes the floes out: stretched back to dark crust and bright melt
-   heat = smoothstep(0.18, 0.85, heat);
+   highp float u = mod(way - u_time * speed, ring);
+   // where the ring closes the pattern runs into its own start: the last stretch fades over into it
+   float close = smoothstep(ring - 2.0, ring, u);
+   float heat = mix(lavaHeat(vec2(u, r), vec2(0.0), shore), lavaHeat(vec2(u - ring, r), vec2(0.0), shore), close);
    // right at the edge a bright seam where it meets the rock
    heat = max(heat, smoothstep(0.25, 0.0, shore) * 0.95);
 
