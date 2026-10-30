@@ -111,6 +111,15 @@ public:
 protected:
    using MaterialRef = std::optional<std::reference_wrapper<Material>>;
 
+   //! the light probes (sphere maps, see Material::setLightProbes()) the blocks and the debris, the players and the
+   //! bombs are lit by
+   void setLightProbes(
+      const std::string& diffuse,
+      const std::string& specular,
+      const std::string& player_specular,
+      const std::string& bomb_specular
+   );
+
    //! creates _destruction and fills _destruct_anim
    void loadDestructions(Camera& shadow_camera);
 

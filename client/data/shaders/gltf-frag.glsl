@@ -73,6 +73,10 @@ uniform vec3 u_lava_light;
 uniform sampler2D u_lightmap;
 uniform float u_lightmap_scale;
 
+// the light by night (1 where there's one): blended with the lightmap's by u_daylight
+uniform sampler2D u_lightmap_night;
+uniform float u_has_lightmap_night;
+
 in vec2 uv;
 in vec3 nrm;
 in highp float height;
@@ -291,7 +295,12 @@ void main()
    vec3 color = albedo * occlusion * (0.45 * u_ambient + diffuse * u_sun) + rim * u_rim;
    if (u_lightmap_scale > 0.0)
    {
-      color = albedo * texture(u_lightmap, uv).rgb * u_lightmap_scale + rim * u_rim;
+      vec3 baked = texture(u_lightmap, uv).rgb;
+      if (u_has_lightmap_night > 0.5)
+      {
+         baked = mix(texture(u_lightmap_night, uv).rgb, baked, u_daylight);
+      }
+      color = albedo * baked * u_lightmap_scale + rim * u_rim;
    }
    color += albedo * u_caustic_color * caustics(world, n);
    color *= lavaLight(world, u_haze_box);

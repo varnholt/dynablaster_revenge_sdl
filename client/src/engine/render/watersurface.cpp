@@ -99,7 +99,7 @@ void WaterSurface::setWaders(std::vector<Wader> waders)
    _waders.resize(std::min(_waders.size(), MAX_WADERS));
 }
 
-void WaterSurface::render(GltfModel& model, const Vector& eye)
+void WaterSurface::render(GltfModel& model, const Vector& eye, const Matrix& transform)
 {
    if (!_reflection && !_lava)
    {
@@ -157,7 +157,7 @@ void WaterSurface::render(GltfModel& model, const Vector& eye)
       glEnableVertexAttribArray(attribute);
    }
 
-   model.drawWater(Matrix());
+   model.drawWater(transform);
 
    for (GLuint attribute = 0; attribute < 3; attribute++)
    {

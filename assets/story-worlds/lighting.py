@@ -141,20 +141,28 @@ def to_png(img, png):
 
 
 def embed(path, maps, gltf_io):
-    """Adds the lightmaps ({material name: PNG bytes}) to the glb at path, each material's extras "lightmap":
-    [image, SCALE] pointing at its own (GltfModel)."""
+    """Adds the lightmaps ({material name: PNG bytes, or (by day, by night)}) to the glb at path, each material's
+    extras "lightmap": [image, SCALE(, image by night)] pointing at its own (GltfModel)."""
     gltf, binary = gltf_io.read(path)
-    for name, content in maps.items():
-        material = next((m for m in gltf.get("materials", []) if m.get("name") == name), None)
-        if material is None:
-            continue
+
+    def add(content, name):
         while len(binary) % 4:
             binary.append(0)
         gltf.setdefault("bufferViews", []).append({"buffer": 0, "byteOffset": len(binary), "byteLength": len(content)})
         binary.extend(content)
         gltf.setdefault("images", []).append({"bufferView": len(gltf["bufferViews"]) - 1, "mimeType": "image/png",
-                                              "name": f"{name}_lightmap"})
-        material.setdefault("extras", {})["lightmap"] = [len(gltf["images"]) - 1, SCALE]
+                                              "name": name})
+        return len(gltf["images"]) - 1
+
+    for name, content in maps.items():
+        material = next((m for m in gltf.get("materials", []) if m.get("name") == name), None)
+        if material is None:
+            continue
+        day, night = content if isinstance(content, tuple) else (content, None)
+        extras = [add(day, f"{name}_lightmap"), SCALE]
+        if night is not None:
+            extras.append(add(night, f"{name}_lightmap_night"))
+        material.setdefault("extras", {})["lightmap"] = extras
     gltf_io.write(path, gltf, binary)
 
 
@@ -167,13 +175,14 @@ FACES = {
 CUBE = 64
 
 
-def cube(world, position, folder):
+def cube(world, position, folder, light=None):
     """Renders the light all round position into six faces, CUBE square, 90 degrees each: <folder>/probe_<face>.npy
     (rgb, linear, rows bottom up) and probe_<face>_basis.npy (right, up, forward as rows); the sun, which the views
-    don't see, in sun.npy (towards it, its colour times its strength)."""
+    don't see, in sun.npy (towards it, its colour times its strength); light in place of the world's (LIGHTING's
+    keys)."""
     scene = bpy.context.scene
     os.makedirs(folder, exist_ok=True)
-    light = LIGHTING[world]
+    light = light or LIGHTING[world]
     np.save(os.path.join(folder, "sun.npy"), np.array([Vector(light["sun"]).normalized()[:],
                                                        [c * light["sun_strength"] for c in light["sun_color"]]]))
     cam = bpy.data.objects.new("probe", bpy.data.cameras.new("probe"))

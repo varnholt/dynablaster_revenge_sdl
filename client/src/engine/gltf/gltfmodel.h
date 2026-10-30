@@ -136,6 +136,10 @@ public:
    static void setDaylight(float daylight);
    [[nodiscard]] static float getDaylight();
 
+   //! the sea's swell: draw() moves the primitives whose node's extras hold "swell" by it (applied before draw()'s
+   //! transform), what floats on the sea rolls and heaves with it; identity for none
+   static void setSwell(const Matrix& swell);
+
    //! the atmosphere draw() and the water draw in, until set otherwise; a default one is neutral
    static void setAtmosphere(const Atmosphere& atmosphere);
 
@@ -205,6 +209,12 @@ private:
       //! ambient light, the occlusion texture stays for those who light it themselves (the intro's night)
       int32_t _lightmap_image = -1;
       float _lightmap_scale = 0.0f;
+
+      //! its third number: the light by night, blended with the lightmap by setDaylight() (-1 for none)
+      int32_t _lightmap_night_image = -1;
+
+      //! the node's extras "swell": drawn with setSwell()'s transform, it moves with the sea
+      bool _swell = false;
 
       //! cutouts (grass, leaves) from the material's alphaMode "MASK": fragments whose colour's alpha is below
       //! this are dropped, 0 for opaque materials
