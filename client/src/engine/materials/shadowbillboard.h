@@ -30,6 +30,9 @@ public:
    void removeMesh(const Mesh& mesh) override;
    void setOffset(float x, float y);
 
+   //! how dark the shadows fall: 1 as painted, 0 none (a soft misty light casts paler ones)
+   void setStrength(float strength);
+
 private:
    static constexpr int32_t max_billboards = 1000;
 
@@ -44,6 +47,8 @@ private:
    uint32_t _indices = 0;
 
    int32_t _param_texture = 0;
+   int32_t _param_strength = 0;
+   float _strength = 1.0f;
    struct Instance
    {
       std::reference_wrapper<Geometry> geometry;

@@ -24,6 +24,10 @@ uniform vec4 u_haze;
 uniform highp vec4 u_haze_box;
 uniform vec2 u_haze_range;
 
+// the world's sun, as for the glTF scenery: towards it (z-up) and its colour
+uniform vec3 u_sun_direction;
+uniform vec3 u_sun;
+
 // who stands in the water: xy where, zw how fast they walk (tiles a second), u_wader_count of them
 const int MAX_WADERS = 16;
 uniform vec4 u_waders[MAX_WADERS];
@@ -38,7 +42,6 @@ in vec2 uv;
 
 out vec4 o_color;
 
-const vec3 LIGHT = normalize(vec3(-0.35, -0.55, 0.75));
 const float SHORE_REACH = 3.0;
 
 // turns each octave of noise against the last so the cells of the value noise don't line up into a grid
@@ -196,9 +199,23 @@ void main()
    float fresnel = 0.2 + 0.8 * pow(1.0 - facing, 4.0);
    vec3 color = mix(refraction, reflection, clamp(fresnel * 1.6, 0.0, 0.85));
 
-   // the sun on the waves
-   vec3 half_vector = normalize(LIGHT + view);
-   color += vec3(1.0, 0.97, 0.9) * pow(max(dot(n, half_vector), 0.0), 160.0) * 0.9;
+   // the sun on the waves: a narrow path of glints where the waves turn its light towards the eye, broken by the
+   // ripples into short streaks across it, and around it glitter: a tiny facet of the ripples here and there
+   // catches the light and flashes for a moment, each in a beat of its own, drifting with the stream; too small to
+   // resolve far away they would only flicker, so they fade out there
+   vec3 half_vector = normalize(normalize(u_sun_direction) + view);
+   float towards = max(dot(n, half_vector), 0.0);
+   vec2 crest = vec2(p.x * 2.5, p.y * 13.0) + vec2(u_time * 0.4, -u_time * 1.3);
+   float streaks = smoothstep(0.5, 0.85, noise(crest) * 0.65 + noise(TURN * crest * 2.1) * 0.35) * resolved(13.0, pixel);
+   color += u_sun * pow(towards, 600.0) * (0.25 + 1.6 * streaks);
+   vec2 sparkles = (p - vec2(u_flow * u_time, 0.0)) * 11.0;
+   vec2 cell = floor(sparkles);
+   float seed = fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453);
+   vec2 spot = vec2(fract(seed * 7.13), fract(seed * 13.7)) * 0.6 + 0.2;
+   float flash = pow(max(sin(u_time * (1.5 + 2.5 * seed) + seed * 40.0), 0.0), 40.0);
+   float glitter = flash * smoothstep(0.22, 0.05, length(fract(sparkles) - spot)) * step(0.8, fract(seed * 3.3));
+   glitter *= pow(towards, 8.0) * resolved(11.0, pixel);
+   color += mix(u_sun, vec3(1.0), 0.5) * glitter * 1.8;
 
    // foam, broken up and drifting
    // flowing water carries the churn along, stretched into streaks, and swells the foam in passing waves

@@ -5,18 +5,23 @@
 # purple stone blocks; a doorway at the right end where the princess comes in; a crate, a barrel and cables about.
 #   blender --background --factory-startup --python build_room.py -- <out dir>
 # writes room.glb (and room_mask.npy for room_detail.py: brushed steel on the metal). The wall, the floor and the
-# front have their own painted textures (bricks with their mortar, grime, damp and moss; slabs; blocks), the props
-# their palette. Faces -y, z up, the walkway's floor at z 0 from x -7.5 to 7.5.
+# front have their own painted textures (bricks with their mortar, grime, damp and moss; slabs; blocks) and the
+# room's light baked into lightmaps (lighting.py's): the caged lamps, the panel's lights, the moon through the
+# windows; the props their palette, lit by the game. Faces -y, z up, the walkway's floor at z 0 from x -7.5 to 7.5.
 import math
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "story-worlds"))
 import bmesh  # noqa: E402
 import bpy  # noqa: E402
 import numpy as np  # noqa: E402
 from mathutils import Vector  # noqa: E402
 
+import build_surroundings as surroundings  # noqa: E402
+import glb  # noqa: E402
+import lighting  # noqa: E402
 import toy  # noqa: E402
 from toy import cone, sphere, trs, tube  # noqa: E402
 
@@ -55,6 +60,9 @@ WINDOWS = [(-3.25, 2.75), (2.3, 2.75)]  # bottom centre of each arched opening
 WINDOW_WIDTH = 1.3
 WINDOW_HEIGHT = 1.0  # up to where the arch begins
 PILLARS = [-0.55, 4.6]
+PILLAR_RADIUS = 0.5
+# off the wall far enough for the base to stand clear of it, clear of the bombermen running past in front
+PILLAR_Y = WALL_Y - 0.68
 PIPE_DOWN = [-1.45, -1.8]  # where the two pipes turn down to the floor
 LAMPS = [-5.0, 0.95, 3.4]
 
@@ -415,20 +423,21 @@ def pipes(b):
 def pillars(b):
     """Steel pillars with ribs up their length, riveted bands, a stepped base and a capital under the beam."""
     for x in PILLARS:
-        centre = Vector((x, WALL_Y - 0.75, 0.0))
-        b.add(cone(0.6, 0.6, TOP, 40), "steel", matrix=trs(centre))
+        r = PILLAR_RADIUS
+        centre = Vector((x, PILLAR_Y, 0.0))
+        b.add(cone(r, r, TOP, 40), "steel", matrix=trs(centre))
         for k in range(16):
             a = 2 * math.pi * k / 16
-            at = centre + Vector((0.6 * math.cos(a), 0.6 * math.sin(a), 0))
+            at = centre + Vector((r * math.cos(a), r * math.sin(a), 0))
             b.add(box((at.x - 0.025, at.y - 0.025, 0.35), (at.x + 0.025, at.y + 0.025, TOP - 0.5)), "steel_dark")
         for z0 in (0.0, 0.18):
-            b.add(cone(0.76 - z0 * 0.4, 0.76 - z0 * 0.4, 0.18, 40), "steel_dark", matrix=trs(centre + Vector((0, 0, z0))))
-        b.add(cone(0.66, 0.78, 0.25, 40), "steel_dark", matrix=trs(centre + Vector((0, 0, TOP - 0.55))))
+            b.add(cone(r + 0.16 - z0 * 0.4, r + 0.16 - z0 * 0.4, 0.18, 40), "steel_dark", matrix=trs(centre + Vector((0, 0, z0))))
+        b.add(cone(r + 0.06, r + 0.16, 0.25, 40), "steel_dark", matrix=trs(centre + Vector((0, 0, TOP - 0.55))))
         for band in (1.4, 3.6):
-            b.add(cone(0.65, 0.65, 0.12, 40), "steel_dark", matrix=trs(centre + Vector((0, 0, band))))
+            b.add(cone(r + 0.05, r + 0.05, 0.12, 40), "steel_dark", matrix=trs(centre + Vector((0, 0, band))))
             for k in range(10):
                 a = math.pi + math.pi * (k + 0.5) / 10
-                rivet(b, centre + Vector((0.66 * math.cos(a), 0.66 * math.sin(a), band + 0.06)), 0.022, "steel")
+                rivet(b, centre + Vector(((r + 0.06) * math.cos(a), (r + 0.06) * math.sin(a), band + 0.06)), 0.022, "steel")
 
 
 def plates(b):
@@ -477,14 +486,14 @@ def doorway(b):
 
 
 def clutter(b):
-    """A crate and a barrel by the panel, cables snaking over the floor from it."""
-    b.add(bevelled((-7.3, 0.7, 0.0), (-6.5, 1.5, 0.75), 0.03), "wood")
+    """A crate and a barrel by the panel, clear of its foot, cables snaking over the floor from it."""
+    b.add(bevelled((-7.3, 0.6, 0.0), (-6.5, 1.4, 0.75), 0.03), "wood")
     for z in (0.12, 0.62):
-        b.add(box((-7.32, 0.68, z - 0.04), (-6.48, 1.52, z + 0.04)), "wood_dark")
-    b.add(box((-7.32, 0.68, 0.0), (-7.24, 0.76, 0.75)), "wood_dark")
-    b.add(cone(0.3, 0.3, 0.8, 24), "steel_dark", matrix=trs((-6.1, 1.15, 0.0)))
+        b.add(box((-7.32, 0.58, z - 0.04), (-6.48, 1.42, z + 0.04)), "wood_dark")
+    b.add(box((-7.32, 0.58, 0.0), (-7.24, 0.66, 0.75)), "wood_dark")
+    b.add(cone(0.3, 0.3, 0.8, 24), "steel_dark", matrix=trs((-6.1, 1.08, 0.0)))
     for z in (0.12, 0.68):
-        b.add(cone(0.32, 0.32, 0.05, 24), "steel", matrix=trs((-6.1, 1.15, z)))
+        b.add(cone(0.32, 0.32, 0.05, 24), "steel", matrix=trs((-6.1, 1.08, z)))
     for start, end, sway in (((-4.5, WALL_Y - 0.15, 0.6), (-3.2, 0.6, 0.02), 0.4),
                              ((-3.5, WALL_Y - 0.15, 0.6), (-2.6, 0.9, 0.02), -0.3)):
         s, e = Vector(start), Vector(end)
@@ -495,6 +504,30 @@ def clutter(b):
             p.x += sway * math.sin(t * math.pi)
             points.append(p)
         b.add(tube(points, [0.025] * len(points), 6), "cable")
+
+
+# the room by night, as lighting.py's worlds have their light: a faint moon behind the wall shining in through the
+# windows; the lamps and the panel's lights its glows, the lamps bright enough to light the whole wall; the room's
+# own dim fill light in the shadows (the set has no ceiling and no front wall for the lamps' light to bounce off)
+lighting.LIGHTING["room"] = {"sun": (0.25, 1.0, 0.9), "sun_color": (0.6, 0.7, 1.0), "sun_strength": 0.6,
+                             "sky": (0.26, 0.25, 0.28), "sky_strength": 1.0, "glows": 2.5}
+ROOM_SAMPLES = 256
+
+
+def bake_light():
+    """The room's light baked into the wall, the floor and the front, on their own uvs; {material name: PNG bytes}
+    for lighting.embed()."""
+    surroundings.setup_cycles()
+    # the glows' empties where they were put (lighting.setup() reads their world matrices)
+    bpy.context.view_layer.update()
+    state = lighting.setup("room")
+    maps = {}
+    for name in ("room_wall", "room_floor", "room_front"):
+        obj = bpy.data.objects[name]
+        img = lighting.bake(obj, f"{name}_light", lambda o, i: surroundings.bake(o, "LIGHT", i, samples=ROOM_SAMPLES))
+        maps[obj.material_slots[0].material.name] = lighting.to_png(img, glb.png)
+    lighting.teardown(state)
+    return maps
 
 
 def build(out):
@@ -529,9 +562,11 @@ def build(out):
         row, col = divmod(palette.index[key], toy.GRID)
         mask[row * toy.CELL:(row + 1) * toy.CELL, col * toy.CELL:(col + 1) * toy.CELL, layer] = 1.0
     np.save(os.path.join(out, "room_mask.npy"), mask)
+    maps = bake_light()
+    path = os.path.join(out, "room.glb")
     bpy.ops.object.select_all(action="SELECT")
-    bpy.ops.export_scene.gltf(filepath=os.path.join(out, "room.glb"), export_format="GLB", use_selection=True,
-                              export_extras=True)
+    bpy.ops.export_scene.gltf(filepath=path, export_format="GLB", use_selection=True, export_extras=True)
+    lighting.embed(path, maps, glb)
     print("RESULT room", tuple(round(d, 1) for d in mesh.dimensions), "faces", len(mesh.data.polygons),
           "glows", len(GLOWS))
 

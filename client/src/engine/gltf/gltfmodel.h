@@ -33,7 +33,13 @@ public:
    //! the air and light a scene sits in, from its extras: "atmosphere": [haze r, g, b, strength, near, far,
    //! ambient r, g, b, rim r, g, b(, sun x, y, z, sun r, g, b)]; the land fades into the haze from near to far units
    //! outside the box (usually the field), the ambient light and the rim light at the silhouettes take their
-   //! colours, the sun (towards it, z-up) lights everything not lit by a lightmap of its own
+   //! colours, the sun (towards it, z-up) lights everything not lit by a lightmap of its own;
+   //! "caustics": [strength, scale, speed, fade, r, g, b] the light its water throws onto everything near it, a web
+   //! of bright filaments drifting over the ground, walls and blocks, strongest at the water's surface and fading
+   //! out over fade units above and below it; scale its cells per unit, speed how fast it moves;
+   //! "lava_light": [amount, speed, reach] the light its lava casts (baked into the lightmaps) breathing with the
+   //! lava, swelling and dimming unevenly in waves that flow round the field with it, by up to amount; strongest at
+   //! the lava, fading out over reach units up from it and in over the field
    struct Atmosphere
    {
       Vector _haze = Vector(0.0f, 0.0f, 0.0f);
@@ -49,6 +55,16 @@ public:
       Vector _rim = Vector(1.0f, 1.0f, 1.0f);
       Vector _sun_direction = Vector(-0.35f, -0.55f, 0.75f);
       Vector _sun = Vector(0.75f, 0.75f, 0.75f);
+
+      //! strength (0 for none), scale, speed, fade
+      Vector4 _caustics = Vector4(0.0f, 1.0f, 1.0f, 1.0f);
+      Vector _caustic_color = Vector(1.0f, 1.0f, 1.0f);
+
+      //! amount (0 for none), speed, reach
+      Vector _lava_light = Vector(0.0f, 1.0f, 1.0f);
+
+      //! the height (world z) of the water throwing them, or of the lava
+      float _water_level = 0.0f;
    };
 
    //! a light's glow, from a node's extras: "glow": [r, g, b, size, mode]

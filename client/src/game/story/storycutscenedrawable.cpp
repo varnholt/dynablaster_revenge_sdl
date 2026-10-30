@@ -32,8 +32,10 @@ constexpr float CAPTION_FADE = 0.6f;
 // moonlight on the figures and the mountains
 const Vector NIGHT(0.72f, 0.78f, 0.98f);
 
-// the lab and its door are the first world's scenery, painted for the day: moonlit they sink deeper and bluer
-// into the night than the figures, who'd get lost against them otherwise
+// the lab carries the night baked into its lightmaps (build_lab.py): the moon, its lit windows and its doorway
+const Vector BAKED(1.0f, 1.0f, 1.0f);
+
+// the door has no lightmap of its own: as dim and blue as the lab's moonlit front round it
 const Vector NIGHT_SET(0.25f, 0.28f, 0.42f);
 
 // the lab's lit windows shine at their own colour, whatever the moon does
@@ -48,7 +50,12 @@ const Vector INDOORS(0.92f, 0.9f, 0.86f);
 // how the night lights an actor
 Vector lightOn(const std::string& actor)
 {
-   if (actor == "lab" || actor == "door")
+   if (actor == "lab")
+   {
+      return BAKED;
+   }
+
+   if (actor == "door")
    {
       return NIGHT_SET;
    }
@@ -347,9 +354,8 @@ void StoryCutsceneDrawable::paintGL()
    _sky->render();
 
    GltfModel::setDaylight(1.0f);
+   // the scenery lit by its baked lightmaps (the lab's night, the room's lamps), the figures by the atmosphere
    GltfModel::setAtmosphere(_indoors ? roomAir(fade) : nightAir(fade));
-   // the scenery's baked daylight doesn't belong in the night
-   GltfModel::setLightmaps(false);
    GltfModel::begin();
 
    const auto draw = [this, fade](const Actor& actor)
@@ -390,7 +396,6 @@ void StoryCutsceneDrawable::paintGL()
    }
 
    GltfModel::end();
-   GltfModel::setLightmaps(true);
 
    if (_glows)
    {

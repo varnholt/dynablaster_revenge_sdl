@@ -11,6 +11,9 @@ import sys
 import numpy as np
 from PIL import Image
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from atmosphere import LIGHTING  # noqa: E402
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "out", "surroundings")
 STORY = os.path.join(HERE, "..", "..", "client", "data", "game", "story")
@@ -68,7 +71,7 @@ def sphere_directions():
     return world / np.linalg.norm(world, axis=-1, keepdims=True), inside
 
 
-def maps(folder):
+def maps(folder, mean=DIFFUSE_MEAN, saturation=1.0, tint=(1.0, 1.0, 1.0)):
     directions, weighted = load(folder)
     colors, weights = weighted[:, :3], weighted[:, 3]
     total = weights.sum()
@@ -86,7 +89,9 @@ def maps(folder):
     # original levels' (the normals the shaders look up by face the camera, the inner part of the map)
     diffuse = np.clip(irradiance / np.pi, 0, None)
     looked_up = inside & (world @ -LOOK > 0)
-    diffuse *= DIFFUSE_MEAN / diffuse[looked_up].mean()
+    diffuse *= mean / diffuse[looked_up].mean()
+    grey = diffuse.mean(axis=-1, keepdims=True)
+    diffuse = (grey + (diffuse - grey) * saturation) * np.array(tint)
     # the mirror image: the radiance seen that way, softened a little, from the cube texels nearest each direction
     flat = world.reshape(-1, 3)
     radiance = colors / weights[:, None]
@@ -95,11 +100,16 @@ def maps(folder):
         chunk = flat[start:start + 4096]
         nearest[start:start + 4096] = np.argmax(chunk @ directions.T, axis=1)
     specular = radiance[nearest].reshape(SIZE, SIZE, 3)
+    # the brightest things round (the lava, the glows) a sheen, not a coat of their colour over the blocks' sides
+    specular = np.minimum(specular, np.percentile(specular[inside], 90))
     specular *= SPECULAR_MEAN / specular[inside].mean()
+    grey = specular.mean(axis=-1, keepdims=True)
+    specular = (grey + (specular - grey) * saturation) * np.array(tint)
     # and the sun's disk in it, with a soft glow round
-    glint = sun / sun.max()
-    specular += (np.exp(-((1 - facing) / 0.0015)) * 0.9 + np.exp(-((1 - facing) / 0.03)) * 0.12)[..., None] * glint
-    return diffuse, specular, inside, world, toward
+    if sun.max() > 0:
+        glint = sun / sun.max()
+        specular += (np.exp(-((1 - facing) / 0.0015)) * 0.9 + np.exp(-((1 - facing) / 0.03)) * 0.12)[..., None] * glint
+    return diffuse, specular, inside, world, toward, sun
 
 
 def save(rgb, inside, path):
@@ -111,7 +121,9 @@ def apply(world):
     folder = os.path.join(OUT, f"world{world}", "probe")
     if not os.path.exists(os.path.join(folder, "probe_px.npy")):
         return False
-    diffuse, specular, inside, directions, toward = maps(folder)
+    light = LIGHTING.get(world, {})
+    diffuse, specular, inside, directions, toward, sun = maps(folder, *light.get("probe", (DIFFUSE_MEAN, 1.0)),
+                                                              tint=light.get("probe_tint", (1.0, 1.0, 1.0)))
     target = os.path.join(STORY, f"world{world}")
     save(diffuse, inside, os.path.join(target, "diffuse_level.tga"))
     save(specular, inside, os.path.join(target, "specular_level.tga"))
@@ -122,9 +134,13 @@ def apply(world):
     # of the probe's light as the side away from the sun gets
     cookie = os.path.join(folder, "cookie.npy")
     if os.path.exists(cookie):
-        lit = np.load(cookie)[..., None]
+        lit = np.load(cookie)
+        # lit along its edge: the game clamps lookups beyond the shadow camera's view (the tall and wide fields
+        # reach past it) to the edge, which would shade every block out there
+        lit[:2, :] = lit[-2:, :] = lit[:, :2] = lit[:, -2:] = 1.0
+        lit = lit[..., None]
         away = directions @ toward < -0.2
-        shade = np.clip(diffuse[inside & away].mean(axis=0) / diffuse[inside].max(axis=0).clip(1e-3), 0.35, 0.9)
+        shade = np.clip(diffuse[inside & away].mean(axis=0) / diffuse[inside].max(axis=0).clip(1e-3), 0.35, 0.9)             if sun.max() > 0 else np.ones(3)
         Image.fromarray(np.round(np.clip(shade + (1 - shade) * lit, 0, 1) * 255).astype(np.uint8)).save(
             os.path.join(target, "shadow-cookie.tga"), compression="tga_rle")
     return True

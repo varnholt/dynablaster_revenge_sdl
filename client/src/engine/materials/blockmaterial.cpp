@@ -5,6 +5,8 @@
 #include <functional>
 #include <memory>
 #include "animation/motionmixer.h"
+#include "engine/gltf/gltfmodel.h"
+#include "framework/globaltime.h"
 #include "framework/framebuffer.h"
 #include "gldevice.h"
 #include "math/vector2.h"
@@ -78,6 +80,11 @@ void BlockMaterial::setGlass(std::vector<Vector> tints)
 {
    _glass_tints = std::move(tints);
    glass_in_use = !_glass_tints.empty();
+}
+
+bool BlockMaterial::isGlass() const
+{
+   return !_glass_tints.empty();
 }
 
 int32_t BlockMaterial::glassTint(const Matrix& transform)
@@ -306,6 +313,12 @@ void BlockMaterial::init()
    _param_box_max = activeDevice().getParameterIndex("boxMax");
    _param_refraction = activeDevice().getParameterIndex("refraction");
    _param_tint_choice = activeDevice().getParameterIndex("tintChoice");
+   _param_caustics = activeDevice().getParameterIndex("u_caustics");
+   _param_caustic_color = activeDevice().getParameterIndex("u_caustic_color");
+   _param_water_level = activeDevice().getParameterIndex("u_water_level");
+   _param_clock = activeDevice().getParameterIndex("u_clock");
+   _param_lava_light = activeDevice().getParameterIndex("u_lava_light");
+   _param_field_box = activeDevice().getParameterIndex("u_field_box");
 }
 
 void BlockMaterial::addGeometry(Geometry& geometry)
@@ -376,6 +389,15 @@ void BlockMaterial::begin()
    activeDevice().bindSampler(_param_specular, 4);
    activeDevice().setParameter(_param_variation, _varied ? 1.0f : 0.0f);
    activeDevice().setParameter(_param_glass, glass ? 1.0f : 0.0f);
+
+   // the light the story's water throws and its lava's breathing light, as on the scenery around
+   const GltfModel::Atmosphere& air = GltfModel::getCurrentAtmosphere();
+   activeDevice().setParameter(_param_caustics, air._caustics);
+   activeDevice().setParameter(_param_caustic_color, air._caustic_color);
+   activeDevice().setParameter(_param_water_level, air._water_level);
+   activeDevice().setParameter(_param_clock, GlobalTime::Instance().getTime());
+   activeDevice().setParameter(_param_lava_light, air._lava_light);
+   activeDevice().setParameter(_param_field_box, air._box);
    if (glass)
    {
       glActiveTexture(GL_TEXTURE5);

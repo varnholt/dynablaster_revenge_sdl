@@ -47,6 +47,9 @@ public:
    //! their far edges inside, every block in one of tints (rgb 0..1, chosen by where it stands); empty: opaque
    void setGlass(std::vector<Vector> tints);
 
+   //! whether the blocks are glass lit from inside (setGlass()): they light the floor round them, cast no shadow
+   [[nodiscard]] bool isGlass() const;
+
    //! copies the frame drawn so far: what shows through glass blocks; call it once the ground is drawn and before
    //! the scene (anything drawn between would show at the blocks' own places)
    static void captureBehind();
@@ -97,6 +100,12 @@ private:
    int32_t _param_box_max = 0;
    int32_t _param_refraction = 0;
    int32_t _param_tint_choice = 0;
+   int32_t _param_caustics = 0;
+   int32_t _param_caustic_color = 0;
+   int32_t _param_water_level = 0;
+   int32_t _param_clock = 0;
+   int32_t _param_lava_light = 0;
+   int32_t _param_field_box = 0;
 
    // the glass blocks' light on the floor round their feet, drawn after them
    void drawLightPools();

@@ -31,6 +31,7 @@ void ShadowBillboard::init()
 {
    _shader = activeDevice().loadShader("shadowbillboard-vert.glsl", "shadowbillboard-frag.glsl");
    _param_texture = activeDevice().getParameterIndex("texturemap");
+   _param_strength = activeDevice().getParameterIndex("strength");
 
    _vertices = activeDevice().createVertexBuffer(sizeof(Vector) * 4 * max_billboards, true);
    _texcoords = activeDevice().createVertexBuffer(sizeof(float) * 2 * 4 * max_billboards);
@@ -88,6 +89,11 @@ void ShadowBillboard::addGeometry(Geometry& geometry)
    }
 }
 
+void ShadowBillboard::setStrength(float strength)
+{
+   _strength = strength;
+}
+
 void ShadowBillboard::begin()
 {
    Material::begin();
@@ -101,6 +107,7 @@ void ShadowBillboard::begin()
 
    activeDevice().setShader(_shader);
    activeDevice().bindSampler(_param_texture, 0);
+   activeDevice().setParameter(_param_strength, _strength);
 
    // enable required vertex arrays
    glEnableVertexAttribArray(0);  // vertex data
