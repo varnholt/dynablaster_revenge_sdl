@@ -513,6 +513,83 @@ def hedge(rng, h, w, top):
     return bevel(rgb, 0.06, 1.12, 0.72)
 
 
+def oak_stone(rng, h, w, top):
+    """World 4's fixed block: an old forest stone, dressed and framed like world 1's limestone but grey brown and
+    mossed; on top an oak leaf carved in it, moss creeping up its foot and into the carving."""
+    v, u = coords(h, w)
+    rgb = tone(rng, h, w, p(3, 1.35), p(3, 1.62), 5)
+    rgb = rgb * (0.93 + 0.14 * noise(rng, h, w, 60, 2))[..., None]
+    frame = box_frame(h, w, 0.11, 0.013)
+    carving = frame
+    if top:
+        # the leaf along the diagonal: lobed on both sides, a midrib and veins off it
+        angle = math.radians(-40)
+        du, dv = (u - 0.5) * w / FACE, (v - 0.5) * h / FACE
+        x = (du * math.cos(angle) - dv * math.sin(angle)) / 0.37
+        y = (du * math.sin(angle) + dv * math.cos(angle)) / 0.37
+        half = 0.42 * np.sqrt(np.clip(1 - x * x, 0, 1)) * (0.72 + 0.28 * np.abs(np.sin((x + 1) * math.pi * 2.5)))
+        outline = smooth(0.05, 0.015, np.abs(np.abs(y) - half)) * (np.abs(x) < 1.0)
+        inside = (np.abs(y) < half) & (np.abs(x) < 1.0)
+        midrib = smooth(0.035, 0.012, np.abs(y)) * (x > -1.25) * (x < 0.95)
+        veins = smooth(0.03, 0.01, np.abs(((x - np.abs(y) * 0.9) * 2.5) % 1.0 - 0.5) * 0.4) * inside * (np.abs(y) > 0.05)
+        carving = np.clip(frame + outline + midrib + veins * 0.7, 0, 1)
+        # the leaf itself a shade deeper, worn smooth
+        rgb = mix(rgb, rgb * 0.9, inside * 1.0)
+    # moss: up from the foot on the sides, from the corners on top, and in the carving's hollows
+    blotch = noise(rng, h, w, 9, 4)
+    reach = smooth(0.6, 1.0, v) if not top else smooth(0.16, 0.0, np.minimum(np.minimum(u, 1 - u), np.minimum(v, 1 - v)))
+    moss = np.clip(smooth(0.72, 0.84, blotch + reach * 0.4) + carving * smooth(0.45, 0.6, blotch) * 0.7, 0, 1)
+    moss_color = mix(p(1, 0.85), p(2, 0.95), noise(rng, h, w, 40, 2))
+    rgb = groove(rgb, carving, 0.42, 0.3)
+    rgb = mix(rgb, moss_color, moss * 0.8)
+    return bevel(rgb, 0.04, 1.2, 0.62)
+
+
+def leafy_hedge(rng, h, w, top):
+    """World 4's destructible block: a clipped box hedge of small leaves, each its own shape, shade and tilt, lit
+    on one side, a midrib down it, the gaps between them deep green; lighter and sunnier on top, darker down the
+    sides, its edges clipped round."""
+    v, u = coords(h, w)
+    cell = 0.075
+    gy, gx = v * h / FACE / cell, u * w / FACE / cell
+    iy, ix = np.floor(gy).astype(int), np.floor(gx).astype(int)
+    best_depth = np.full((h, w), -1.0)
+    shade = np.zeros((h, w))
+    tint = np.zeros((h, w))
+    rib = np.zeros((h, w))
+    table = rng.random((64, 64, 6))
+    for oy in (-1, 0, 1):
+        for ox in (-1, 0, 1):
+            cy, cx = iy + oy, ix + ox
+            r = table[cy % 64, cx % 64]
+            sy, sx = cy + 0.2 + 0.6 * r[..., 0], cx + 0.2 + 0.6 * r[..., 1]
+            a = r[..., 2] * math.pi * 2
+            dy, dx = gy - sy, gx - sx
+            lx = (dx * np.cos(a) + dy * np.sin(a)) / 0.95
+            ly = (-dx * np.sin(a) + dy * np.cos(a)) / 0.5
+            # a leaf: pointed at both ends, a little fuller towards its stalk
+            half = np.clip(1 - lx * lx, 0, 1) ** 0.75 * (1 - 0.15 * lx)
+            covered = (np.abs(lx) < 1) & (np.abs(ly) < half)
+            depth = r[..., 3] + 0.3 * (1 - np.abs(ly))
+            take = covered & (depth > best_depth)
+            best_depth = np.where(take, depth, best_depth)
+            # lit on the side facing the top left, darker towards its rim
+            side = np.clip(0.5 + 0.5 * (ly * np.sign(np.sin(a) + 0.01)), 0, 1)
+            shade = np.where(take, 0.65 + 0.35 * side - 0.25 * smooth(0.6, 1.0, np.abs(ly) / np.maximum(half, 1e-3)), shade)
+            tint = np.where(take, r[..., 4], tint)
+            rib = np.where(take, smooth(0.12, 0.03, np.abs(ly)) * (np.abs(lx) < 0.85), rib)
+    leaf = best_depth >= 0
+    low, high = (p(1, 1.0), p(2, 1.05)) if top else (p(1, 0.85), p(2, 0.85))
+    color = mix(low, high, tint * 0.7 + 0.3 * noise(rng, h, w, 6, 2))
+    color = color * shade[..., None] * (1 - 0.25 * rib)[..., None]
+    gap = mix(p(0, 0.45), p(0, 0.7), noise(rng, h, w, 20, 2))
+    rgb = np.where(leaf[..., None], color, gap)
+    if not top:
+        # the hedge's sides darker towards the ground, under its own overhang
+        rgb = rgb * (1.05 - 0.35 * smooth(0.2, 1.0, v))[..., None]
+    return bevel(rgb, 0.08, 1.12, 0.6)
+
+
 def basalt(rng, h, w, top):
     """World 5's fixed block: dark basalt in columns, matte and calm, the anchor between the floor and the glowing
     magma blocks; on top the columns' polygonal ends."""
@@ -669,7 +746,7 @@ SKINS = {
     1: (limestone, timber_crate),
     2: (dressed_sandstone, glass_block),
     3: (granite, mossy_crate),
-    4: (log_block, hedge),
+    4: (oak_stone, leafy_hedge),
     5: (basalt, magma_block),
     6: (ashlar_gold, iron_chest),
     7: (steel_grille, hazard_crate),

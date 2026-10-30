@@ -65,6 +65,8 @@ private:
    int32_t _haze_range_param = -1;
    int32_t _waders_param = -1;
    int32_t _wader_count_param = -1;
+   int32_t _sun_direction_param = -1;
+   int32_t _sun_param = -1;
 
    std::vector<Wader> _waders;
 

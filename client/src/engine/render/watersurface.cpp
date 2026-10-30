@@ -33,6 +33,8 @@ WaterSurface::WaterSurface(bool lava) : _lava(lava)
    _haze_range_param = activeDevice().getParameterIndex("u_haze_range");
    _waders_param = activeDevice().getParameterIndex("u_waders");
    _wader_count_param = activeDevice().getParameterIndex("u_wader_count");
+   _sun_direction_param = activeDevice().getParameterIndex("u_sun_direction");
+   _sun_param = activeDevice().getParameterIndex("u_sun");
 
    glGenTextures(1, &_refraction);
 }
@@ -127,6 +129,8 @@ void WaterSurface::render(GltfModel& model, const Vector& eye)
    activeDevice().setParameter(_haze_param, Vector4(air._haze.x, air._haze.y, air._haze.z, air._strength));
    activeDevice().setParameter(_haze_box_param, air._box);
    activeDevice().setParameter(_haze_range_param, Vector2(air._near, std::max(air._far, air._near + 0.001f)));
+   activeDevice().setParameter(_sun_direction_param, air._sun_direction);
+   activeDevice().setParameter(_sun_param, air._sun);
 
    std::vector<float> waders;
    waders.reserve(_waders.size() * 4);

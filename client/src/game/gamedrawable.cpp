@@ -467,7 +467,13 @@ Mesh& GameDrawable::createBlock(SceneGraph& scene, Material& mat, float x, float
    Mesh& mesh = _level->getScene().addNode(std::make_unique<Mesh>(ref));
    mesh.setTransform(scale * pos);
    mat.addMesh(mesh);
-   _level->getShadowBlockBillboard().addMesh(mesh);
+
+   // glass blocks glow from inside, they light the floor round them rather than shade it
+   const auto* block = dynamic_cast<const BlockMaterial*>(&mat);
+   if (!block || !block->isGlass())
+   {
+      _level->getShadowBlockBillboard().addMesh(mesh);
+   }
 
    return mesh;
 }

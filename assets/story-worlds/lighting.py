@@ -16,29 +16,77 @@ SCALE = 2.0
 LIGHTMAP_TEX = 2048
 
 
+# a glow's light: this many watts times its size squared (a torch's glow, 0.9, lights a white wall a unit off about
+# fully), times the world's "glows"; fireflies (mode 6) only glow
+GLOW_POWER = 120.0
+GLOW_FIREFLY = 6
+
+
 def setup(world):
-    """The world's sun and sky in the scene; returns what to remove afterwards."""
+    """The world's sun and sky in the scene, its props' glows as lights and, in a lava world, the lava glowing;
+    returns what teardown() undoes."""
     light = LIGHTING[world]
     scene = bpy.context.scene
-    sun_data = bpy.data.lights.new("sun", "SUN")
-    sun_data.energy = light["sun_strength"]
-    sun_data.color = light["sun_color"]
-    # a little soft, the sun's disk
-    sun_data.angle = math.radians(2.5)
-    sun = bpy.data.objects.new("sun", sun_data)
-    sun.rotation_euler = Vector(light["sun"]).normalized().to_track_quat("Z", "Y").to_euler()
-    scene.collection.objects.link(sun)
+    added, restore = [], []
+    if light["sun_strength"] > 0:
+        sun_data = bpy.data.lights.new("sun", "SUN")
+        sun_data.energy = light["sun_strength"]
+        sun_data.color = light["sun_color"]
+        # a little soft, the sun's disk
+        sun_data.angle = math.radians(2.5)
+        sun = bpy.data.objects.new("sun", sun_data)
+        sun.rotation_euler = Vector(light["sun"]).normalized().to_track_quat("Z", "Y").to_euler()
+        scene.collection.objects.link(sun)
+        added.append(sun)
     world_data = scene.world
     world_data.use_nodes = True
     background = next(n for n in world_data.node_tree.nodes if n.type == "BACKGROUND")
     background.inputs[0].default_value = (*light["sky"], 1.0)
     background.inputs[1].default_value = light["sky_strength"]
-    return [sun]
+    strength = light.get("glows", 1.0)
+    for marker in [o for o in scene.objects if "glow" in o]:
+        r, g, b, size, mode = list(marker["glow"])
+        if mode == GLOW_FIREFLY or strength <= 0:
+            continue
+        data = bpy.data.lights.new("glow_light", "POINT")
+        data.energy = GLOW_POWER * size * size * strength
+        data.color = (r, g, b)
+        data.shadow_soft_size = 0.05 + 0.1 * size
+        lamp = bpy.data.objects.new("glow_light", data)
+        lamp.location = marker.matrix_world.translation
+        scene.collection.objects.link(lamp)
+        added.append(lamp)
+    # the lava lights the cave from below: its surface glowing while the light bakes (it's hidden for the bakes,
+    # the game draws it with its own shader)
+    if light.get("lava"):
+        glowing = bpy.data.materials.new("lava_glow")
+        glowing.use_nodes = True
+        nodes = glowing.node_tree.nodes
+        for node in list(nodes):
+            nodes.remove(node)
+        emission = nodes.new("ShaderNodeEmission")
+        emission.inputs["Color"].default_value = (*light["lava_color"], 1.0)
+        emission.inputs["Strength"].default_value = light["lava"]
+        output = nodes.new("ShaderNodeOutputMaterial")
+        glowing.node_tree.links.new(emission.outputs[0], output.inputs["Surface"])
+        for obj in [o for o in scene.objects if "lava" in o]:
+            restore.append((obj, obj.hide_render, [slot.material for slot in obj.material_slots]))
+            obj.hide_render = False
+            for slot in obj.material_slots:
+                slot.material = glowing
+    return added, restore
 
 
-def teardown(objects):
-    for obj in objects:
+def teardown(state):
+    added, restore = state
+    for obj in added:
+        light = obj.data
         bpy.data.objects.remove(obj, do_unlink=True)
+        bpy.data.lights.remove(light)
+    for obj, hidden, materials in restore:
+        obj.hide_render = hidden
+        for slot, material in zip(obj.material_slots, materials):
+            slot.material = material
     background = next(n for n in bpy.context.scene.world.node_tree.nodes if n.type == "BACKGROUND")
     background.inputs[1].default_value = 0.0
 
@@ -159,6 +207,11 @@ def cookie(world, folder, height=0.5):
     shadows on them, in place of the castle's towers. <folder>/cookie.npy, rows top down, 0 shadow to 1 sun."""
     scene = bpy.context.scene
     depsgraph = bpy.context.evaluated_depsgraph_get()
+    os.makedirs(folder, exist_ok=True)
+    if LIGHTING[world]["sun_strength"] <= 0:
+        # no sun, no shadows from it: nothing of the castle's towers either
+        np.save(os.path.join(folder, "cookie.npy"), np.ones((COOKIE, COOKIE), np.float32))
+        return
     toward = Vector(LIGHTING[world]["sun"]).normalized()
     # a few rays across the sun's disk soften the edges
     side = toward.orthogonal().normalized()

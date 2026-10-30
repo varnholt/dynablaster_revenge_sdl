@@ -1,6 +1,7 @@
 #include "gltfmodel.h"
 
 #include "framework/gldevice.h"
+#include "framework/globaltime.h"
 #include "math/vector2.h"
 #include "tools/datapaths.h"
 
@@ -59,6 +60,10 @@ struct Shader
    int32_t _rim = -1;
    int32_t _sun_direction = -1;
    int32_t _sun = -1;
+   int32_t _caustics = -1;
+   int32_t _caustic_color = -1;
+   int32_t _water_level = -1;
+   int32_t _clock = -1;
    int32_t _lightmap = -1;
    int32_t _lightmap_scale = -1;
    int32_t _alpha_cutoff = -1;
@@ -676,6 +681,13 @@ void GltfModel::load(const std::string& filename)
          _atmosphere._sun_direction = Vector(values[12], values[13], values[14]);
          _atmosphere._sun = Vector(values[15], values[16], values[17]);
       }
+
+      if (const auto caustics = readExtras<7>(data->scene->extras.data, "caustics"))
+      {
+         const auto& values = *caustics;
+         _atmosphere._caustics = Vector4(values[0], values[1], values[2], values[3]);
+         _atmosphere._caustic_color = Vector(values[4], values[5], values[6]);
+      }
    }
 
    // lights, placed in the bind pose
@@ -707,6 +719,13 @@ void GltfModel::load(const std::string& filename)
          _water_level = _has_water ? std::max(_water_level, z) : z;
          _has_water = true;
       }
+   }
+
+   // caustics need water to throw them
+   _atmosphere._water_level = _water_level;
+   if (!_has_water)
+   {
+      _atmosphere._caustics.x = 0.0f;
    }
 
    cgltf_free(data);
@@ -1057,6 +1076,10 @@ void GltfModel::begin()
       shader._rim = activeDevice().getParameterIndex("u_rim");
       shader._sun_direction = activeDevice().getParameterIndex("u_sun_direction");
       shader._sun = activeDevice().getParameterIndex("u_sun");
+      shader._caustics = activeDevice().getParameterIndex("u_caustics");
+      shader._caustic_color = activeDevice().getParameterIndex("u_caustic_color");
+      shader._water_level = activeDevice().getParameterIndex("u_water_level");
+      shader._clock = activeDevice().getParameterIndex("u_clock");
       shader._lightmap = activeDevice().getParameterIndex("u_lightmap");
       shader._lightmap_scale = activeDevice().getParameterIndex("u_lightmap_scale");
       shader._alpha_cutoff = activeDevice().getParameterIndex("u_alpha_cutoff");
@@ -1088,6 +1111,10 @@ void GltfModel::begin()
    activeDevice().setParameter(shader._rim, atmosphere._rim);
    activeDevice().setParameter(shader._sun_direction, atmosphere._sun_direction);
    activeDevice().setParameter(shader._sun, atmosphere._sun);
+   activeDevice().setParameter(shader._caustics, atmosphere._caustics);
+   activeDevice().setParameter(shader._caustic_color, atmosphere._caustic_color);
+   activeDevice().setParameter(shader._water_level, atmosphere._water_level);
+   activeDevice().setParameter(shader._clock, GlobalTime::Instance().getTime());
 
    for (GLuint attribute = 0; attribute < 6; attribute++)
    {

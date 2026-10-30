@@ -24,13 +24,54 @@ ATMOSPHERE = {
     8: [(0.03, 0.07, 0.11), 0.65, 2.0, 10.0, (0.84, 0.92, 1.08), (0.55, 0.95, 1.30)],  # the final hall, deep teal, dark past its lights
 }
 
-# per world: towards the sun (z-up), its colour and strength, the sky's colour and strength; strengths so a white
-# surface in full sun comes out about 1 (the bake's light is the light falling on a white surface)
+# per world: towards the sun (z-up), its colour and strength (0: none, a cave or a hall), the sky's colour and
+# strength, how bright its props' glows light their surroundings ("glows", lighting.GLOW_POWER) and in the lava
+# cave how bright the lava glows ("lava", "lava_color"), and how the blocks and players take its light ("probe": the
+# light probes' brightness and how much of the light's colour, probes.py; one coloured light all round would dye
+# every block alike; "probe_tint" tints them, for a light the bake doesn't see, as the water's), and where its
+# lamps light it more than its sun ("field": the ambient light's and the sun's colours) how the field's floor and
+# border are lit, which the game lights live; strengths so a white surface in full sun comes out about 1 (the bake's light is the light
+# falling on a white surface)
 LIGHTING = {
     # a sunny morning: the sun low from the front left, its light warm, long shadows falling away back right; the
     # sky a pale blue all round
     1: {"sun": (-0.62, -0.48, 0.62), "sun_color": (1.0, 0.9, 0.74), "sun_strength": 3.4,
         "sky": (0.62, 0.74, 0.95), "sky_strength": 0.58},
+    # a hot dusty afternoon in the mountains: the sun high from the right, hard and golden, short dark shadows; the
+    # sky hazy with dust, warm; the crystals glow purple in the rocks' shade
+    2: {"sun": (0.55, -0.4, 0.73), "sun_color": (1.0, 0.85, 0.62), "sun_strength": 3.8,
+        "sky": (0.82, 0.74, 0.62), "sky_strength": 0.5, "glows": 1.2, "probe": (0.56, 0.85)},
+    # dawn over the misty river: the sun just up behind the field, low and peach gold, long shadows running towards
+    # the camera and the edges catching its light, the shade cool blue in the mist
+    3: {"sun": (0.3, 0.88, 0.36), "sun_color": (1.0, 0.72, 0.5), "sun_strength": 3.4,
+        "sky": (0.58, 0.72, 0.88), "sky_strength": 0.62, "probe_tint": (0.92, 0.98, 1.1)},
+    # the forest's gloom: a low evening sun slanting in from the back left through the trunks, shafts of gold in
+    # deep green shade, the gloom kept
+    4: {"sun": (-0.55, 0.6, 0.58), "sun_color": (1.0, 0.82, 0.5), "sun_strength": 2.4,
+        "sky": (0.4, 0.58, 0.42), "sky_strength": 0.36, "probe": (0.5, 0.85)},
+    # the lava cave: no sky to speak of, the lava's red glow from below and the embers'
+    5: {"sun": (0.0, 0.0, 1.0), "sun_color": (1.0, 1.0, 1.0), "sun_strength": 0.0,
+        "sky": (0.36, 0.14, 0.08), "sky_strength": 0.22, "glows": 1.6,
+        "lava": 3.5, "lava_color": (1.0, 0.36, 0.08), "probe": (0.38, 0.3)},
+    # the keep by torchlight: the torches' and braziers' warm pools on the sandstone, the hall's warm dusk round
+    # them, a little cold moonlight falling in from high on the left for the shade to be blue in
+    6: {"sun": (-0.35, 0.45, 0.82), "sun_color": (0.55, 0.66, 1.0), "sun_strength": 0.7,
+        "sky": (0.42, 0.3, 0.2), "sky_strength": 0.3, "glows": 2.2, "probe": (0.5, 0.9),
+        "field": {"ambient": (1.08, 0.9, 0.7), "sun": (0.42, 0.46, 0.6)}},
+    # the machine hall: grey daylight down through its skylights, the furnaces and lamps glowing orange
+    7: {"sun": (0.15, 0.25, 0.96), "sun_color": (0.9, 0.93, 1.0), "sun_strength": 1.6,
+        "sky": (0.36, 0.34, 0.31), "sky_strength": 0.3, "glows": 1.6, "probe": (0.48, 0.85)},
+    # the final hall: dark, its teal panels and the red alarm lights all the light there is
+    8: {"sun": (0.0, 0.0, 1.0), "sun_color": (1.0, 1.0, 1.0), "sun_strength": 0.0,
+        "sky": (0.06, 0.13, 0.18), "sky_strength": 0.25, "glows": 2.2, "probe": (0.52, 0.5)},
+}
+
+# per world with water: the light it throws, a web of bright filaments drifting over everything near it (the game's
+# "caustics"): strength, cells per unit, speed, the units above and below the water they fade out over, colour
+CAUSTICS = {
+    # the river at dawn: the low sun's light thrown up off the stream onto the banks, the floor and the blocks, warm
+    # white, slow
+    3: [0.5, 1.4, 0.6, 0.8, (1.0, 0.9, 0.76)],
 }
 
 
@@ -39,18 +80,24 @@ def values(world):
     as it lights the baked dioramas (lighting.py, the bake's strengths: a white surface's light is the strength over
     pi), the game's shader takes 0.45 of the ambient light."""
     haze, strength, near, far, ambient, rim = ATMOSPHERE[world]
-    if world not in LIGHTING:
+    # without a sun (a cave, a hall) the field keeps the light it had, the play needs seeing
+    if world not in LIGHTING or LIGHTING[world]["sun_strength"] <= 0:
         return [*haze, strength, near, far, *ambient, *rim]
     light = LIGHTING[world]
     ambient = [c * light["sky_strength"] / 0.45 for c in light["sky"]]
     norm = sum(c * c for c in light["sun"]) ** 0.5
     sun = [c * light["sun_strength"] / 3.14159 for c in light["sun_color"]]
+    if "field" in light:
+        ambient, sun = light["field"]["ambient"], light["field"]["sun"]
     return [*haze, strength, near, far, *ambient, *rim, *(c / norm for c in light["sun"]), *sun]
 
 
 def apply(world, folder=STORY):
     for path in sorted(glob.glob(os.path.join(folder, f"world{world}", "surroundings_*x*.glb"))):
         glb.set_scene_extras(path, "atmosphere", values(world))
+        if world in CAUSTICS:
+            strength, scale, speed, fade, color = CAUSTICS[world]
+            glb.set_scene_extras(path, "caustics", [strength, scale, speed, fade, *color])
 
 
 if __name__ == "__main__":

@@ -33,6 +33,15 @@ uniform vec4 viewport;
 uniform highp vec3 boxMin;
 uniform highp vec3 boxMax;
 uniform sampler2D refraction;
+
+// the light the water throws (GltfModel's "caustics"): x strength (0 for none), y cells per unit, z speed, w the
+// units above and below the water level they fade out over; their colour, the water's height (world z) and the
+// game's clock in seconds
+uniform vec4 u_caustics;
+uniform vec3 u_caustic_color;
+uniform highp float u_water_level;
+uniform highp float u_clock;
+
 out vec4 o_color;
 
 vec4 textureSphere(sampler2D map, vec3 dir)
@@ -203,6 +212,36 @@ vec3 glassBlock(vec3 face, vec3 e)
    return color;
 }
 
+// one layer of the caustics' web: the thin lines where a wavy field crosses zero, the field warped as it drifts
+highp float causticLayer(highp vec2 p, highp float t)
+{
+   p += 0.5 * vec2(sin(p.y * 1.3 + t * 1.1), sin(p.x * 1.2 - t * 0.9));
+   highp float field = sin(p.x * 2.1 + t) + sin(p.y * 1.9 - t * 0.8) + sin((p.x - p.y) * 1.3 + t * 0.6);
+   return exp(-abs(field) * 3.5);
+}
+
+// how much of the water's light falls on a point (world space): two layers drifting their own ways, brightest where
+// their lines cross; walls catch it too, their height shifts the pattern
+float caustics(highp vec3 at)
+{
+   if (u_caustics.x <= 0.0)
+   {
+      return 0.0;
+   }
+
+   highp vec2 p = (at.xy + vec2(0.6, -0.6) * at.z) * u_caustics.y * 3.1416;
+   highp float t = u_clock * u_caustics.z;
+   float web = causticLayer(p, t) + causticLayer(mat2(0.8, -0.6, 0.6, 0.8) * p * 1.37 + 3.1, t * 1.23);
+   web = web * (0.6 + 0.4 * web);
+
+   // too fine to resolve far away it would only flicker, it evens out to a faint glow
+   highp vec2 footprint = fwidth(p);
+   web = mix(web, 0.15, smoothstep(0.4, 1.2, max(footprint.x, footprint.y)));
+
+   float near = exp(-abs(at.z - u_water_level) / max(u_caustics.w, 0.001));
+   return web * near * u_caustics.x;
+}
+
 void main()
 {
    vec3 n = normalize(nrm);
@@ -232,6 +271,7 @@ void main()
    // top of the light it gets, so it glows in the shade too; the original levels' skins are opaque, stay as they were
    float glow = story * (1.0 - tex.a);
    final.rgb += tex.rgb * glow * 1.6;
+   final.rgb += tex.rgb * u_caustic_color * caustics(world);
 
    o_color = vec4(final.rgb, 1.0);
 }
