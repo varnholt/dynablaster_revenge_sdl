@@ -71,7 +71,15 @@ LIGHTING = {
 CAUSTICS = {
     # the river at dawn: the low sun's light thrown up off the stream onto the banks, the floor and the blocks, warm
     # white, slow
-    3: [0.5, 1.4, 0.6, 0.8, (1.0, 0.9, 0.76)],
+    3: [0.7, 1.4, 0.6, 0.8, (1.0, 0.9, 0.76)],
+}
+
+# per world with lava: its light (baked into the lightmaps) breathing with it, uneven waves of brighter and dimmer
+# light flowing round the field with the lava (the game's "lava_light"): by how much at most, how fast, the units it
+# reaches up from the lava and in over the field
+LAVA_LIGHT = {
+    # the lava cave: a warm swell, never a flicker, its waves running round about as fast as the lava (lava-frag.glsl)
+    5: [0.3, 0.65, 2.5],
 }
 
 
@@ -98,6 +106,8 @@ def apply(world, folder=STORY):
         if world in CAUSTICS:
             strength, scale, speed, fade, color = CAUSTICS[world]
             glb.set_scene_extras(path, "caustics", [strength, scale, speed, fade, *color])
+        if world in LAVA_LIGHT:
+            glb.set_scene_extras(path, "lava_light", LAVA_LIGHT[world])
 
 
 if __name__ == "__main__":

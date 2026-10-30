@@ -1,7 +1,8 @@
 # The intro's set: Dr's lab from the first world's scenery, its dome rebuilt so the dragon can break out
 #   blender --background --factory-startup --python build_lab.py -- <out dir>
 # writes
-#   lab.glb          world1/surroundings_13x11.glb with the dome cut out of its lab mesh and the rotunda's doorway open
+#   lab.glb          world1/surroundings_13x11.glb with the dome cut out of its lab mesh and the rotunda's doorway open,
+#                    the night baked into it as lightmaps (lighting.py's): the moon, the lit windows, the doorway's hall
 #   door.glb         that doorway's door, hinged on its origin
 #   lights.glb       the lab's lit windows at night
 #   dome.glb         the dome in its pieces, the geodesic plates, the shutter and its ladder, whole in its rest
@@ -26,6 +27,8 @@ from mathutils import Vector  # noqa: E402
 from mathutils.bvhtree import BVHTree  # noqa: E402
 
 import build_surroundings as surroundings  # noqa: E402
+import glb  # noqa: E402
+import lighting  # noqa: E402
 import palettes  # noqa: E402
 import toy  # noqa: E402
 from toy import turn  # noqa: E402
@@ -230,22 +233,104 @@ def lights(out, panes):
     print("RESULT exported lights.glb", len(panes), "panes")
 
 
+# the intro's night, as lighting.py's worlds have their light: a pale cool moon from the front left, high over
+# the castle's mountain, soft; the sky's deep blue
+lighting.LIGHTING["night"] = {"sun": (-0.45, -0.9, 0.75), "sun_color": (0.6, 0.7, 1.0), "sun_strength": 0.4,
+                              "sky": (0.03, 0.045, 0.12), "sky_strength": 1.0}
+NIGHT_SAMPLES = 256
+# the lamplight behind the windows: watts per square unit of pane, its colour (LIGHT_COLORS' lamp)
+PANE_POWER = 90.0
+LAMP = (1.0, 0.72, 0.42)
+# the doorway's hall lit warm, its light spilling out down the steps
+HALL_POWER = 45.0
+# the grass and the doorway's hall have no room of their own in a lightmap: a light all over them each, the grass
+# the moonlit ground's (its median), the hall its lamp's
+HALL_LIGHT = (1.0, 0.78, 0.5)
+
+
+def lamplight(door, panes):
+    """The lab's own lights for the bake: an area light behind each pane shining out of it, one in the doorway's
+    hall; returns them."""
+    lamps = []
+    for centre, angle, width, height in panes:
+        out_dir = Vector((math.sin(angle), -math.cos(angle), 0.0))
+        data = bpy.data.lights.new("pane_light", "AREA")
+        data.shape = "RECTANGLE"
+        data.size, data.size_y = width, height
+        data.energy = PANE_POWER * width * height
+        data.color = LAMP
+        lamp = bpy.data.objects.new("pane_light", data)
+        lamp.location = centre + out_dir * 0.03
+        lamp.rotation_euler = out_dir.to_track_quat("-Z", "Y").to_euler()
+        lamps.append(lamp)
+    data = bpy.data.lights.new("hall_light", "POINT")
+    data.energy = HALL_POWER
+    data.color = LAMP
+    data.shadow_soft_size = 0.2
+    lamp = bpy.data.objects.new("hall_light", data)
+    lamp.location = (door.x, door.face + DOOR_DEPTH * 0.6, door.top - 0.25)
+    lamps.append(lamp)
+    for lamp in lamps:
+        bpy.context.scene.collection.objects.link(lamp)
+    return lamps
+
+
+def flat(rgb):
+    """A lightmap of one light all over, a SCALE-th of it, as PNG bytes."""
+    texels = np.empty((4, 4, 4), np.uint8)
+    texels[..., :3] = np.round(np.clip(np.array(rgb) / lighting.SCALE, 0, 1) * 255)
+    texels[..., 3] = 255
+    return glb.png(texels)
+
+
+def night(door, panes):
+    """The night baked into the scenery: the ground's, the lab's and the props' lightmaps (on their own uvs, as the
+    day's are), the grass's and the hall's flat; {material name: PNG bytes} for lighting.embed()."""
+    surroundings.setup_cycles()
+    state = lighting.setup("night")
+    lamps = lamplight(door, panes)
+    maps = {}
+    ground_light = None
+    for name in ("ground", "lab", "props"):
+        obj = bpy.data.objects[name]
+        img = lighting.bake(obj, f"{name}_night",
+                            lambda o, i: surroundings.bake(o, "LIGHT", i, samples=NIGHT_SAMPLES))
+        maps[obj.material_slots[0].material.name] = lighting.to_png(img, glb.png)
+        if name == "ground":
+            texels = np.empty(img.size[0] * img.size[1] * 4, np.float32)
+            img.pixels.foreach_get(texels)
+            ground_light = np.median(texels.reshape(-1, 4)[:, :3], axis=0) * lighting.SCALE
+        print("RESULT baked", name)
+    maps[bpy.data.objects["grass"].material_slots[0].material.name] = flat(ground_light)
+    maps["doorway_palette"] = flat(HALL_LIGHT)
+    for lamp in lamps:
+        data = lamp.data
+        bpy.data.objects.remove(lamp, do_unlink=True)
+        bpy.data.lights.remove(data)
+    lighting.teardown(state)
+    return maps
+
+
 def lab(out):
     toy.reset()
     bpy.ops.import_scene.gltf(filepath=SCENERY)
-    # the intro lights the scenery as night itself, the day's lightmaps (and their image numbers) stay behind
+    # the day's lightmaps stay behind, the night's are baked in their place; so do the detail images, which the
+    # export leaves out (their image numbers would point at the night's lightmaps)
     for material in bpy.data.materials:
-        if "lightmap" in material:
-            del material["lightmap"]
+        for key in ("lightmap", "detail"):
+            if key in material:
+                del material[key]
     dome, door, panes = markers()
     cut_dome(bpy.data.objects["lab"], dome)
     cut_door(bpy.data.objects["lab"], door)
     doorway(door)
     heights = ground_grid()
+    maps = night(door, panes)
+    path = os.path.join(out, "lab.glb")
     bpy.ops.object.select_all(action="SELECT")
-    bpy.ops.export_scene.gltf(filepath=os.path.join(out, "lab.glb"), export_format="GLB", use_selection=True,
-                              export_extras=True)
-    print("RESULT exported lab.glb")
+    bpy.ops.export_scene.gltf(filepath=path, export_format="GLB", use_selection=True, export_extras=True)
+    lighting.embed(path, maps, glb)
+    print("RESULT exported lab.glb, lightmaps", sorted(maps))
     return dome, door, panes, heights
 
 

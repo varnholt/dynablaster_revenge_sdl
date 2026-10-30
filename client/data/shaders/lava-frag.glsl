@@ -7,21 +7,30 @@ precision mediump float;
 // red the depth (0..1 = 0..0.8 tiles), blue the distance to the shore (0.02..1 = 0..SHORE_REACH tiles).
 
 uniform sampler2D u_data;
-uniform float u_time;
+uniform highp float u_time;
 uniform vec3 u_deep;
 uniform vec4 u_haze;
 uniform highp vec4 u_haze_box;
 uniform vec2 u_haze_range;
 
-in vec3 world;
+in highp vec3 world;
 in vec2 uv;
 out vec4 o_color;
 
 const float SHORE_REACH = 3.0;
 
+// the radius the way round the field's corners is measured at, the same for the whole width of the stream: measured
+// at each point's own distance, the corners before it would add more way the further out it lies, and along the
+// edges the pattern would be sheared across the stream into stripes
+const float BEND = 2.5;
+
+// without sin(): along the ring the noise's coordinates grow into the hundreds, where a sin() hash runs out of
+// precision and its values line up into stripes
 highp float hash(highp vec2 p)
 {
-   return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+   highp vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+   p3 += dot(p3, p3.yzx + 33.33);
+   return fract((p3.x + p3.y) * p3.z);
 }
 
 highp float valueNoise(highp vec2 p)
@@ -126,33 +135,37 @@ void main()
    highp vec2 out_of = world.xy - nearest;
    highp float r = length(out_of);
    // the way along the box's outline to the nearest point, anticlockwise from the bottom left corner, and round each
-   // corner the arc at this distance
-   highp float quarter = 1.5707963 * r;
+   // corner the arc at BEND
+   highp float quarter = 1.5707963 * BEND;
    // edges where the point lies straight out from one (clamp leaves the other axis exactly 0), corners in between
    highp float way;
    if (out_of.x == 0.0 && out_of.y <= 0.0)
       way = nearest.x - lo.x;  // bottom
    else if (out_of.x > 0.0 && out_of.y < 0.0)
-      way = size.x + atan(out_of.x, -out_of.y) * r;  // bottom right
+      way = size.x + atan(out_of.x, -out_of.y) * BEND;  // bottom right
    else if (out_of.x > 0.0 && out_of.y == 0.0)
       way = size.x + quarter + nearest.y - lo.y;  // right
    else if (out_of.x > 0.0 && out_of.y > 0.0)
-      way = size.x + quarter + size.y + atan(out_of.y, out_of.x) * r;  // top right
+      way = size.x + quarter + size.y + atan(out_of.y, out_of.x) * BEND;  // top right
    else if (out_of.x == 0.0 && out_of.y > 0.0)
       way = size.x + 2.0 * quarter + size.y + hi.x - nearest.x;  // top
    else if (out_of.x < 0.0 && out_of.y > 0.0)
-      way = 2.0 * size.x + 2.0 * quarter + size.y + atan(-out_of.x, out_of.y) * r;  // top left
+      way = 2.0 * size.x + 2.0 * quarter + size.y + atan(-out_of.x, out_of.y) * BEND;  // top left
    else if (out_of.x < 0.0 && out_of.y == 0.0)
       way = 2.0 * size.x + 3.0 * quarter + size.y + hi.y - nearest.y;  // left
    else
-      way = 2.0 * size.x + 3.0 * quarter + 2.0 * size.y + atan(-out_of.y, -out_of.x) * r;  // bottom left
+      way = 2.0 * size.x + 3.0 * quarter + 2.0 * size.y + atan(-out_of.y, -out_of.x) * BEND;  // bottom left
    highp float ring = 2.0 * (size.x + size.y) + 4.0 * quarter;
 
-   float speed = 0.35 * (0.6 + 0.4 * smoothstep(0.2, 1.2, shore));
-   highp float u = mod(way - u_time * speed, ring);
+   // the whole stream at one speed: slower by the shores, the stream would shear its pattern further with every
+   // second, drawing the floes out into stripes along the ring (and the shore distance, 8 bits, into steps); the
+   // drag only sways it a little, back and forth, out of step from the inner shore out
+   highp float u = mod(way - u_time * 1.1 + 0.6 * sin(u_time * 0.35 + r * 1.3), ring);
    // where the ring closes the pattern runs into its own start: the last stretch fades over into it
    float close = smoothstep(ring - 2.0, ring, u);
    float heat = mix(lavaHeat(vec2(u, r), vec2(0.0), shore), lavaHeat(vec2(u - ring, r), vec2(0.0), shore), close);
+   // and a slow churning where it is, not carried along with the stream, so it doesn't slide past like a belt
+   heat += (fbm(world.xy * 0.3 + vec2(u_time * 0.05, -u_time * 0.04)) - 0.5) * 0.3;
    // right at the edge a bright seam where it meets the rock
    heat = max(heat, smoothstep(0.25, 0.0, shore) * 0.95);
 

@@ -3211,8 +3211,10 @@ def build(world, size_key):
     if world in lighting.LIGHTING:
         lights = lighting.setup(world)
         for obj in (ground, props, *([lab[0]] if lab else [])):
+            # lamp-lit worlds need more rays for their small lights to settle
+            samples = 512 if lighting.LIGHTING[world].get("glows") else 128
             lightmaps[f"{obj.name}_export"] = lighting.bake(obj, f"{obj.name}_light",
-                                                            lambda o, img: bake(o, "LIGHT", img, samples=128))
+                                                            lambda o, img: bake(o, "LIGHT", img, samples=samples))
         if size_key is None:
             lighting.cube(world, (st.cx, -st.h * 0.5, 0.6), os.path.join(OUT, f"world{world}", "probe"))
             lighting.cookie(world, os.path.join(OUT, f"world{world}", "probe"))

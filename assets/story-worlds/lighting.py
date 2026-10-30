@@ -91,6 +91,26 @@ def teardown(state):
     background.inputs[1].default_value = 0.0
 
 
+def denoise(rgb, baked, radius=3, sigma=1.6, edge=0.08):
+    """The bake's speckle smoothed out (a few small lamps leave it grainy): each texel the weighted mean of the
+    baked texels round it, the weights falling with distance and with how far their light is from its own, so
+    shadow edges stay sharp and no light crosses into unbaked texels between the islands."""
+    total = np.zeros_like(rgb)
+    weights = np.zeros(rgb.shape[:2], np.float32)
+    level = rgb.mean(axis=-1)
+    for dy in range(-radius, radius + 1):
+        for dx in range(-radius, radius + 1):
+            near = np.exp(-(dx * dx + dy * dy) / (2 * sigma * sigma))
+            shifted = np.roll(np.roll(rgb, dy, axis=0), dx, axis=1)
+            other = np.roll(np.roll(level, dy, axis=0), dx, axis=1)
+            mask = np.roll(np.roll(baked, dy, axis=0), dx, axis=1)
+            w = near * np.exp(-((other - level) / edge) ** 2) * mask
+            total += shifted * w[..., None]
+            weights += w
+    smoothed = total / np.maximum(weights, 1e-6)[..., None]
+    return np.where(baked[..., None], smoothed, rgb)
+
+
 def bake(obj, name, bake_fn):
     """The light falling on obj (direct and bounced, no colour of its own), a SCALE-th of it, as an image."""
     img = bpy.data.images.new(name, LIGHTMAP_TEX, LIGHTMAP_TEX, float_buffer=True)
@@ -103,6 +123,7 @@ def bake(obj, name, bake_fn):
     texels = texels.reshape(-1, 4)
     unbaked = (texels[:, 0] > 0.99) & (texels[:, 1] < 0.01) & (texels[:, 2] > 0.99)
     texels[unbaked, :3] = np.median(texels[~unbaked, :3], axis=0)
+    texels[:, :3] = denoise(texels[:, :3].reshape(LIGHTMAP_TEX, LIGHTMAP_TEX, 3), ~unbaked.reshape(LIGHTMAP_TEX, LIGHTMAP_TEX)).reshape(-1, 3)
     texels[:, :3] = np.clip(texels[:, :3] / SCALE, 0.0, 1.0)
     texels[:, 3] = 1.0
     img.pixels.foreach_set(texels.ravel())

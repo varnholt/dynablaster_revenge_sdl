@@ -104,6 +104,8 @@ private:
    int32_t _param_caustic_color = 0;
    int32_t _param_water_level = 0;
    int32_t _param_clock = 0;
+   int32_t _param_lava_light = 0;
+   int32_t _param_field_box = 0;
 
    // the glass blocks' light on the floor round their feet, drawn after them
    void drawLightPools();

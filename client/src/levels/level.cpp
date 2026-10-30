@@ -2,6 +2,7 @@
 #include "framework/gldevice.h"
 #include "materials/blockmaterial.h"
 #include "materials/destructionmaterial.h"
+#include "materials/shadowbillboard.h"
 #include "nodes/dummy.h"
 #include "nodes/mesh.h"
 #include "nodes/scenegraph.h"
@@ -141,6 +142,19 @@ void Level::setBlockSkins(const std::string& folder)
    {
       blocks->setColorMap(skin("block-unwrap"));
       blocks->setVaried(true);
+   }
+
+   // shadow= in the world.ini: how dark the drop shadows under the players and the blocks fall, 1 as painted
+   const float shadow = settings.value("world/shadow", 1.0f).toFloat();
+   for (const MaterialRef& material : {_shadow_billboards, _shadow_blocks})
+   {
+      if (material)
+      {
+         if (auto* billboard = dynamic_cast<ShadowBillboard*>(&material->get()))
+         {
+            billboard->setStrength(shadow);
+         }
+      }
    }
 
    // the folder's light probes, so the blocks, bombs and players are lit like the world round them

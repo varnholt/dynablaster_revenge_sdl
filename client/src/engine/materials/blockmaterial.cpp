@@ -317,6 +317,8 @@ void BlockMaterial::init()
    _param_caustic_color = activeDevice().getParameterIndex("u_caustic_color");
    _param_water_level = activeDevice().getParameterIndex("u_water_level");
    _param_clock = activeDevice().getParameterIndex("u_clock");
+   _param_lava_light = activeDevice().getParameterIndex("u_lava_light");
+   _param_field_box = activeDevice().getParameterIndex("u_field_box");
 }
 
 void BlockMaterial::addGeometry(Geometry& geometry)
@@ -388,12 +390,14 @@ void BlockMaterial::begin()
    activeDevice().setParameter(_param_variation, _varied ? 1.0f : 0.0f);
    activeDevice().setParameter(_param_glass, glass ? 1.0f : 0.0f);
 
-   // the light the story's water throws, as on the scenery around
+   // the light the story's water throws and its lava's breathing light, as on the scenery around
    const GltfModel::Atmosphere& air = GltfModel::getCurrentAtmosphere();
    activeDevice().setParameter(_param_caustics, air._caustics);
    activeDevice().setParameter(_param_caustic_color, air._caustic_color);
    activeDevice().setParameter(_param_water_level, air._water_level);
    activeDevice().setParameter(_param_clock, GlobalTime::Instance().getTime());
+   activeDevice().setParameter(_param_lava_light, air._lava_light);
+   activeDevice().setParameter(_param_field_box, air._box);
    if (glass)
    {
       glActiveTexture(GL_TEXTURE5);

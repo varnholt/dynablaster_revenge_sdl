@@ -134,7 +134,11 @@ def apply(world):
     # of the probe's light as the side away from the sun gets
     cookie = os.path.join(folder, "cookie.npy")
     if os.path.exists(cookie):
-        lit = np.load(cookie)[..., None]
+        lit = np.load(cookie)
+        # lit along its edge: the game clamps lookups beyond the shadow camera's view (the tall and wide fields
+        # reach past it) to the edge, which would shade every block out there
+        lit[:2, :] = lit[-2:, :] = lit[:, :2] = lit[:, -2:] = 1.0
+        lit = lit[..., None]
         away = directions @ toward < -0.2
         shade = np.clip(diffuse[inside & away].mean(axis=0) / diffuse[inside].max(axis=0).clip(1e-3), 0.35, 0.9)             if sun.max() > 0 else np.ones(3)
         Image.fromarray(np.round(np.clip(shade + (1 - shade) * lit, 0, 1) * 255).astype(np.uint8)).save(

@@ -64,6 +64,10 @@ uniform vec3 u_caustic_color;
 uniform highp float u_water_level;
 uniform highp float u_clock;
 
+// the lava's light breathing (GltfModel's "lava_light"): x how much the lit colour swells and dims with it (0 for
+// none), y how fast, z the units it reaches up from the lava level (u_water_level) and in over the field
+uniform vec3 u_lava_light;
+
 // the light baked into the scenery in colour, a scale-th of it (GltfModel's "lightmap"); 0 scale for none, the
 // sun and the ambient light over the occlusion then
 uniform sampler2D u_lightmap;
@@ -146,9 +150,11 @@ highp float causticLayer(highp vec2 p, highp float t)
    return exp(-abs(field) * 3.5);
 }
 
-// how much of the water's light falls on a point (world space): two layers drifting their own ways, brightest where
-// their lines cross; walls catch it too, their height shifts the pattern
-float caustics(highp vec3 at)
+// how much of the water's light falls on a point (world space) facing normal: two layers drifting their own ways,
+// brightest where their lines cross but never washing out; above the water the light thrown up off its surface only
+// reaches what faces it, the sides and undersides, below it the light let through falls on what faces up; walls
+// catch it too, their height shifts the pattern
+float caustics(highp vec3 at, vec3 normal)
 {
    if (u_caustics.x <= 0.0)
    {
@@ -158,14 +164,40 @@ float caustics(highp vec3 at)
    highp vec2 p = (at.xy + vec2(0.6, -0.6) * at.z) * u_caustics.y * 3.1416;
    highp float t = u_clock * u_caustics.z;
    float web = causticLayer(p, t) + causticLayer(mat2(0.8, -0.6, 0.6, 0.8) * p * 1.37 + 3.1, t * 1.23);
-   web = web * (0.6 + 0.4 * web);
+   web = 1.0 - exp(-web * web * 0.9);
 
    // too fine to resolve far away it would only flicker, it evens out to a faint glow
    highp vec2 footprint = fwidth(p);
    web = mix(web, 0.15, smoothstep(0.4, 1.2, max(footprint.x, footprint.y)));
 
    float near = exp(-abs(at.z - u_water_level) / max(u_caustics.w, 0.001));
-   return web * near * u_caustics.x;
+   float above = smoothstep(-0.03, 0.03, at.z - u_water_level);
+   float facing = mix(max(normal.z, 0.0), 1.0 - max(normal.z, 0.0), above);
+   return web * near * facing * u_caustics.x;
+}
+
+// how the lava's light falls on a point (world space) right now, a warm factor on its lit colour: uneven waves of
+// brighter and dimmer light running round the field (box: x0, y0, x1, y1) the way the lava flows, anticlockwise
+vec3 lavaLight(highp vec3 at, highp vec4 box)
+{
+   if (u_lava_light.x <= 0.0)
+   {
+      return vec3(1.0);
+   }
+
+   // whole numbers of waves round the field, so they meet up where the angle wraps
+   highp vec2 offset = at.xy - (box.xy + box.zw) * 0.5;
+   highp float a = atan(offset.y, offset.x);
+   highp float t = u_clock * u_lava_light.y;
+   float swell = sin(7.0 * a - t * 0.9 + 1.7 * sin(3.0 * a + t * 0.31)) +
+                 0.6 * sin(11.0 * a - t * 1.6 + 2.0 * sin(5.0 * a - t * 0.23)) + 0.4 * sin(4.0 * a + t * 0.7);
+   swell *= 0.5;
+
+   // strongest at the lava, fading out up from it and in over the field
+   highp vec2 inside = min(at.xy - box.xy, box.zw - at.xy);
+   float into = max(min(inside.x, inside.y), 0.0);
+   float near = exp(-(max(at.z - u_water_level, 0.0) + into) / max(u_lava_light.z, 0.001));
+   return vec3(1.0) + u_lava_light.x * swell * near * vec3(1.0, 0.7, 0.45);
 }
 
 void main()
@@ -261,7 +293,8 @@ void main()
    {
       color = albedo * texture(u_lightmap, uv).rgb * u_lightmap_scale + rim * u_rim;
    }
-   color += albedo * u_caustic_color * caustics(world);
+   color += albedo * u_caustic_color * caustics(world, n);
+   color *= lavaLight(world, u_haze_box);
 
    if (u_haze.a > 0.0)
    {

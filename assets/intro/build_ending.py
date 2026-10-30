@@ -44,22 +44,22 @@ CAPTIONS = [(s(12.5), LENGTH + 1, "THE END")]
 def stage(actors):
     """Where everyone is when."""
     rival = actors["rival"]["holder"]
-    key(rival, 1, (-8.0, 0.25, 0.0), (0, 0, 90))
-    key(rival, s(3.4), (3.55, 0.25, 0.0), (0, 0, 90))
+    key(rival, 1, (-8.0, -0.15, 0.0), (0, 0, 90))
+    key(rival, s(3.4), (3.55, -0.15, 0.0), (0, 0, 90))
     key(rival, s(3.8), rotation=(0, 0, -90))
     key(rival, s(SIT - 0.3), rotation=(0, 0, -90))
-    key(rival, s(SIT), (3.55, 0.25, 0.0), (0, 0, -25))
+    key(rival, s(SIT), (3.55, -0.15, 0.0), (0, 0, -25))
     actors["tears"]["holder"].parent = rival
 
     player = actors["player"]["holder"]
-    key(player, s(0.6), (-8.5, 0.35, 0.0), (0, 0, 90))
-    key(player, s(3.6), (0.6, 0.35, 0.0), (0, 0, 90))
+    key(player, s(0.6), (-8.5, -0.05, 0.0), (0, 0, 90))
+    key(player, s(3.6), (0.6, -0.05, 0.0), (0, 0, 90))
     key(player, s(9.0), rotation=(0, 0, 90))
     key(player, s(10.0), rotation=(0, 0, 55))
 
     princess = actors["princess"]["holder"]
-    key(princess, s(3.6), (7.8, 0.1, 0.0), (0, 0, -90))
-    key(princess, s(5.6), (1.6, 0.1, 0.0), (0, 0, -90))
+    key(princess, s(3.6), (7.8, -0.25, 0.0), (0, 0, -90))
+    key(princess, s(5.6), (1.6, -0.25, 0.0), (0, 0, -90))
     key(princess, s(9.0), rotation=(0, 0, -90))
     key(princess, s(10.0), rotation=(0, 0, -55))
 

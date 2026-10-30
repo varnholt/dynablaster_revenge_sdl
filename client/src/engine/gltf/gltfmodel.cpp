@@ -63,6 +63,7 @@ struct Shader
    int32_t _caustics = -1;
    int32_t _caustic_color = -1;
    int32_t _water_level = -1;
+   int32_t _lava_light = -1;
    int32_t _clock = -1;
    int32_t _lightmap = -1;
    int32_t _lightmap_scale = -1;
@@ -688,6 +689,12 @@ void GltfModel::load(const std::string& filename)
          _atmosphere._caustics = Vector4(values[0], values[1], values[2], values[3]);
          _atmosphere._caustic_color = Vector(values[4], values[5], values[6]);
       }
+
+      if (const auto lava_light = readExtras<3>(data->scene->extras.data, "lava_light"))
+      {
+         const auto& values = *lava_light;
+         _atmosphere._lava_light = Vector(values[0], values[1], values[2]);
+      }
    }
 
    // lights, placed in the bind pose
@@ -726,6 +733,11 @@ void GltfModel::load(const std::string& filename)
    if (!_has_water)
    {
       _atmosphere._caustics.x = 0.0f;
+   }
+
+   if (!_lava)
+   {
+      _atmosphere._lava_light.x = 0.0f;
    }
 
    cgltf_free(data);
@@ -1079,6 +1091,7 @@ void GltfModel::begin()
       shader._caustics = activeDevice().getParameterIndex("u_caustics");
       shader._caustic_color = activeDevice().getParameterIndex("u_caustic_color");
       shader._water_level = activeDevice().getParameterIndex("u_water_level");
+      shader._lava_light = activeDevice().getParameterIndex("u_lava_light");
       shader._clock = activeDevice().getParameterIndex("u_clock");
       shader._lightmap = activeDevice().getParameterIndex("u_lightmap");
       shader._lightmap_scale = activeDevice().getParameterIndex("u_lightmap_scale");
@@ -1114,6 +1127,7 @@ void GltfModel::begin()
    activeDevice().setParameter(shader._caustics, atmosphere._caustics);
    activeDevice().setParameter(shader._caustic_color, atmosphere._caustic_color);
    activeDevice().setParameter(shader._water_level, atmosphere._water_level);
+   activeDevice().setParameter(shader._lava_light, atmosphere._lava_light);
    activeDevice().setParameter(shader._clock, GlobalTime::Instance().getTime());
 
    for (GLuint attribute = 0; attribute < 6; attribute++)
