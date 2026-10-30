@@ -6,7 +6,8 @@
 #   lights.glb       the lab's lit windows at night
 #   dome.glb         the dome in its pieces, the geodesic plates, the shutter and its ladder, whole in its rest
 #                    pose; "burst" blows the pieces round the top out along their normals, then they tumble down
-#   lab.json         where the door, its hinge, its steps and the dome are, for build_intro.py
+#   lab.json         where the door, its hinge, its steps and the dome are and the ground's heights in front of
+#                    the lab, for build_intro.py
 # all in the scenery's own coordinates (field coordinates, z up). The scenery's lab (lab() in
 # assets/story-worlds/build_surroundings.py) marks its dome, its door and its windows with empties, read here.
 import json
@@ -22,6 +23,7 @@ import bmesh  # noqa: E402
 import bpy  # noqa: E402
 import numpy as np  # noqa: E402
 from mathutils import Vector  # noqa: E402
+from mathutils.bvhtree import BVHTree  # noqa: E402
 
 import build_surroundings as surroundings  # noqa: E402
 import palettes  # noqa: E402
@@ -235,11 +237,12 @@ def lab(out):
     cut_dome(bpy.data.objects["lab"], dome)
     cut_door(bpy.data.objects["lab"], door)
     doorway(door)
+    heights = ground_grid()
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.export_scene.gltf(filepath=os.path.join(out, "lab.glb"), export_format="GLB", use_selection=True,
                               export_extras=True)
     print("RESULT exported lab.glb")
-    return dome, door, panes
+    return dome, door, panes, heights
 
 
 def piece_mesh(verts, faces):
@@ -339,9 +342,30 @@ def burst(rig, pieces, dome, door):
     toy.action(rig, "burst", 61, keys, cyclic=False)
 
 
-def staging(out, dome, door):
+# where the intro's actors walk, sampled from the scenery's ground for build_intro.py: x0, y0, step, columns, rows
+GROUND_GRID = (-6.0, -4.0, 0.25, 105, 33)
+
+
+def ground_grid():
+    """The scenery's ground heights over GROUND_GRID, row by row from y0."""
+    ground = bpy.data.objects["ground"]
+    bvh = BVHTree.FromObject(ground, bpy.context.evaluated_depsgraph_get())
+    local = ground.matrix_world.inverted()
+    x0, y0, step, nx, ny = GROUND_GRID
+    heights = []
+    for j in range(ny):
+        for i in range(nx):
+            origin = local @ Vector((x0 + i * step, y0 + j * step, 50.0))
+            hit, _, _, _ = bvh.ray_cast(origin, (local.to_3x3() @ Vector((0, 0, -1))).normalized())
+            heights.append(round((ground.matrix_world @ hit).z, 4) if hit else 0.0)
+    return heights
+
+
+def staging(out, dome, door, heights):
     """lab.json: what build_intro.py stages round."""
+    x0, y0, step, nx, ny = GROUND_GRID
     data = {
+        "ground": {"x0": x0, "y0": y0, "step": step, "columns": nx, "rows": ny, "heights": heights},
         "dome_centre": list(dome.centre), "dome_radius": dome.radius,
         "dome_top": dome.centre.z + dome.radius,
         "door": {"x": door.x, "face": door.face, "bottom": door.bottom, "top": door.top, "ground": door.ground,
@@ -349,12 +373,12 @@ def staging(out, dome, door):
     }
     with open(os.path.join(out, "lab.json"), "w", encoding="utf-8") as f:
         json.dump(data, f, indent=1)
-    print("RESULT lab.json", json.dumps(data))
+    print("RESULT lab.json", json.dumps({k: v for k, v in data.items() if k != "ground"}))
 
 
 out = toy.out_dir()
-dome, door, panes = lab(out)
+dome, door, panes, heights = lab(out)
 lights(out, panes)
 door_leaf(out, door)
 dome_model(out, dome, door)
-staging(out, dome, door)
+staging(out, dome, door, heights)
