@@ -165,6 +165,17 @@ void SkullMaterial::end()
    activeDevice().setShader(0);
 }
 
+void SkullMaterial::setLightProbes(const std::string& diffuse_map, const std::string& specular_map)
+{
+   replaceTexture(_diffuse_map, diffuse_map);
+   replaceTexture(_specular_map, specular_map);
+}
+
+void SkullMaterial::setShadowCookie(const std::string& shadow_map)
+{
+   replaceTexture(_shadow_map, shadow_map);
+}
+
 void SkullMaterial::renderDiffuse()
 {
    begin();

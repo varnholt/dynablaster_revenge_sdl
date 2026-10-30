@@ -142,6 +142,30 @@ void Level::setBlockSkins(const std::string& folder)
       blocks->setColorMap(skin("block-unwrap"));
       blocks->setVaried(true);
    }
+
+   // the folder's light probes, so the blocks, bombs and players are lit like the world round them
+   const std::string diffuse = skin("diffuse_level");
+   const std::string specular = skin("specular_level");
+   const std::string cookie = skin("shadow-cookie");
+   for (const MaterialRef& material : {_stones, _blocks, _skulls, _destruction})
+   {
+      if (material)
+      {
+         material->get().setLightProbes(diffuse, specular);
+         material->get().setShadowCookie(cookie);
+      }
+   }
+
+   if (_bombs)
+   {
+      _bombs->get().setLightProbes(diffuse, skin("diffuse_bomb"));
+   }
+
+   const std::string player_specular = skin("specular_level2");
+   for (int32_t i = 0; i < _players->getMaterialCount(); i++)
+   {
+      _players->getMaterial(i).setLightProbes(diffuse, player_specular);
+   }
 }
 
 std::string Level::path() const

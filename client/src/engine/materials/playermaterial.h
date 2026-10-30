@@ -20,6 +20,7 @@ public:
 
    void load(Stream& stream) override;
    void renderDiffuse() override;
+   void setLightProbes(const std::string& diffuse_map, const std::string& specular_map) override;
 
    void setColorMap(const Texture& color_map);
 

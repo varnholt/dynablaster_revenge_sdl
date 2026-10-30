@@ -233,6 +233,10 @@ def lights(out, panes):
 def lab(out):
     toy.reset()
     bpy.ops.import_scene.gltf(filepath=SCENERY)
+    # the intro lights the scenery as night itself, the day's lightmaps (and their image numbers) stay behind
+    for material in bpy.data.materials:
+        if "lightmap" in material:
+            del material["lightmap"]
     dome, door, panes = markers()
     cut_dome(bpy.data.objects["lab"], dome)
     cut_door(bpy.data.objects["lab"], door)

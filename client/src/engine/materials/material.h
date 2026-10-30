@@ -96,6 +96,14 @@ public:
 
    virtual void update(float frame, const Matrix& camera);
    virtual void renderDiffuse();
+
+   //! swaps the light probes the material is lit by (sphere maps of the light all round, as the level's
+   //! "diffuse_level" and "specular_level"), uploaded on the next render; materials lit otherwise ignore them
+   virtual void setLightProbes(const std::string& diffuse_map, const std::string& specular_map);
+
+   //! swaps the shadow projected onto the material from the level's shadow camera (the level's "shadow-cookie"),
+   //! uploaded on the next render; materials without one ignore it
+   virtual void setShadowCookie(const std::string& shadow_map);
    virtual void addMesh(Mesh& mesh);
    virtual void removeMesh(const Mesh& mesh);
 
