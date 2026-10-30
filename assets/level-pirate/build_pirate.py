@@ -1668,8 +1668,9 @@ def sea():
         mat.node_tree.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
     mesh.materials.append(mat)
     # a caribbean deep, blue going green
-    # streaming past from the bow (-x) to the stern as she sails, units a second
-    obj["water"] = [0.0, 0.30, 0.36, 2.2]
+    # streaming past from the bow (-x) to the stern as she sails, units a second; its glitter soft, the open sea
+    # behind her catches it all the way to the horizon
+    obj["water"] = [0.0, 0.30, 0.36, 2.2, 0.35]
     WATER.append((obj, img))
     return obj
 

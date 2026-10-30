@@ -29,6 +29,7 @@ WaterSurface::WaterSurface(bool lava) : _lava(lava)
    _size_param = activeDevice().getParameterIndex("u_size");
    _haze_param = activeDevice().getParameterIndex("u_haze");
    _flow_param = activeDevice().getParameterIndex("u_flow");
+   _glitter_param = activeDevice().getParameterIndex("u_glitter");
    _haze_box_param = activeDevice().getParameterIndex("u_haze_box");
    _haze_range_param = activeDevice().getParameterIndex("u_haze_range");
    _waders_param = activeDevice().getParameterIndex("u_waders");
@@ -120,6 +121,7 @@ void WaterSurface::render(GltfModel& model, const Vector& eye, const Matrix& tra
    activeDevice().setParameter(_eye_param, eye);
    // the deep colour is the daytime one, the night darkens it
    activeDevice().setParameter(_flow_param, model.getWaterFlow());
+   activeDevice().setParameter(_glitter_param, model.getWaterGlitter());
    activeDevice().setParameter(_deep_param, model.getWaterColor() * (0.15f + 0.85f * GltfModel::getDaylight()));
    activeDevice().setParameter(_origin_param, Vector2(static_cast<float>(viewport.x), static_cast<float>(viewport.y)));
    activeDevice().setParameter(_size_param, Vector2(static_cast<float>(viewport.width), static_cast<float>(viewport.height)));

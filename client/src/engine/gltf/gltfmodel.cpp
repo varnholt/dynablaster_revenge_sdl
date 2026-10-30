@@ -456,6 +456,12 @@ void GltfModel::load(const std::string& filename)
             {
                _water_flow = (*flowing)[3];
             }
+
+            // a fifth how bright its glitter is
+            if (const auto glittering = readExtras<5>(node.extras.data, "water"))
+            {
+               _water_glitter = (*glittering)[4];
+            }
          }
 
          const auto wave = readExtras<1>(node.extras.data, "wave");
@@ -1377,6 +1383,11 @@ bool GltfModel::isLava() const
 float GltfModel::getWaterFlow() const
 {
    return _water_flow;
+}
+
+float GltfModel::getWaterGlitter() const
+{
+   return _water_glitter;
 }
 
 void GltfModel::setDaylight(float value)

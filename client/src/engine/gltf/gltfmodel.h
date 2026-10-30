@@ -157,6 +157,9 @@ public:
 
    //! units a second the water streams past along x (a ship under way), 0 for still water: "water": [r, g, b, flow]
    [[nodiscard]] float getWaterFlow() const;
+
+   //! how bright the glitter on its ripples is, 1 as it comes: "water": [r, g, b, flow, glitter]
+   [[nodiscard]] float getWaterGlitter() const;
    //! its water is lava (extras "lava" instead of "water")
    [[nodiscard]] bool isLava() const;
    void drawWater(const Matrix& transform);
@@ -287,6 +290,7 @@ private:
    float _water_level = 0.0f;
    Vector _water_color;
    float _water_flow = 0.0f;
+   float _water_glitter = 1.0f;
    bool _lava = false;
    Vector _minimum;
    Vector _maximum;
