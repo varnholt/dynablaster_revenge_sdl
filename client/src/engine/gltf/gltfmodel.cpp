@@ -67,6 +67,8 @@ struct Shader
    int32_t _clock = -1;
    int32_t _lightmap = -1;
    int32_t _lightmap_scale = -1;
+   int32_t _lightmap_night = -1;
+   int32_t _has_lightmap_night = -1;
    int32_t _alpha_cutoff = -1;
    int32_t _double_sided = -1;
    int32_t _screen = -1;
@@ -78,10 +80,11 @@ struct Shader
 // the most layers a fur is drawn in on top of the bare skin
 constexpr int32_t MAX_FUR_SHELLS = 12;
 
-// texture units: colour, occlusion, night, then the detail mask and the detail images, then the lightmap
+// texture units: colour, occlusion, night, then the detail mask and the detail images, then the lightmaps
 constexpr int32_t DETAIL_MASK_UNIT = 3;
 constexpr int32_t DETAIL_UNIT = 4;
 constexpr int32_t LIGHTMAP_UNIT = 8;
+constexpr int32_t LIGHTMAP_NIGHT_UNIT = 9;
 
 Shader shader;
 
@@ -95,6 +98,9 @@ GltfModel::Atmosphere atmosphere;
 
 // the scenery lit by its lightmaps, the cutscenes light it themselves
 bool lightmaps = true;
+
+// what floats on the sea moved by its swell
+Matrix swell_transform;
 
 // column-major, a * b applies b first
 Matrix4 multiply(const Matrix4& a, const Matrix4& b)
@@ -450,9 +456,16 @@ void GltfModel::load(const std::string& filename)
             {
                _water_flow = (*flowing)[3];
             }
+
+            // a fifth how bright its glitter is
+            if (const auto glittering = readExtras<5>(node.extras.data, "water"))
+            {
+               _water_glitter = (*glittering)[4];
+            }
          }
 
          const auto wave = readExtras<1>(node.extras.data, "wave");
+         primitive._swell = readExtras<1>(node.extras.data, "swell").has_value();
 
          std::vector<float> positions;
          std::vector<float> normals;
@@ -592,6 +605,15 @@ void GltfModel::load(const std::string& filename)
                {
                   primitive._lightmap_image = static_cast<int32_t>(index);
                   primitive._lightmap_scale = (*lightmap)[1];
+               }
+            }
+
+            if (const auto lightmap = readExtras<3>(source.material->extras.data, "lightmap"))
+            {
+               const float index = (*lightmap)[2];
+               if (index >= 0.0f && index < static_cast<float>(data->images_count))
+               {
+                  primitive._lightmap_night_image = static_cast<int32_t>(index);
                }
             }
 
@@ -1095,6 +1117,8 @@ void GltfModel::begin()
       shader._clock = activeDevice().getParameterIndex("u_clock");
       shader._lightmap = activeDevice().getParameterIndex("u_lightmap");
       shader._lightmap_scale = activeDevice().getParameterIndex("u_lightmap_scale");
+      shader._lightmap_night = activeDevice().getParameterIndex("u_lightmap_night");
+      shader._has_lightmap_night = activeDevice().getParameterIndex("u_has_lightmap_night");
       shader._alpha_cutoff = activeDevice().getParameterIndex("u_alpha_cutoff");
       shader._double_sided = activeDevice().getParameterIndex("u_double_sided");
       shader._screen = activeDevice().getParameterIndex("u_screen");
@@ -1110,6 +1134,7 @@ void GltfModel::begin()
    activeDevice().bindSampler(shader._night, 2);
    activeDevice().bindSampler(shader._detail_mask, DETAIL_MASK_UNIT);
    activeDevice().bindSampler(shader._lightmap, LIGHTMAP_UNIT);
+   activeDevice().bindSampler(shader._lightmap_night, LIGHTMAP_NIGHT_UNIT);
    for (size_t i = 0; i < shader._detail.size(); i++)
    {
       activeDevice().bindSampler(shader._detail[i], DETAIL_UNIT + static_cast<int32_t>(i));
@@ -1192,7 +1217,7 @@ void GltfModel::draw(const Matrix& transform, int32_t animation, float time, con
 
       // skinned vertices are posed by their joints, static ones by their node
       const Matrix4 local = primitive._skinned ? Y_UP_TO_Z_UP : multiply(Y_UP_TO_Z_UP, globals[static_cast<size_t>(primitive._node)]);
-      const Matrix world = toEngine(local) * transform;
+      const Matrix world = primitive._swell ? toEngine(local) * swell_transform * transform : toEngine(local) * transform;
 
       activeDevice().push(world);
       activeDevice().setParameter(shader._model, world);
@@ -1240,10 +1265,17 @@ void GltfModel::draw(const Matrix& transform, int32_t animation, float time, con
       // the cutscenes light the scenery themselves (GltfModel::setLightmaps())
       const bool lit = primitive._lightmap_image >= 0 && lightmaps;
       activeDevice().setParameter(shader._lightmap_scale, lit ? primitive._lightmap_scale : 0.0f);
+      const bool night = lit && primitive._lightmap_night_image >= 0;
+      activeDevice().setParameter(shader._has_lightmap_night, night ? 1.0f : 0.0f);
       if (lit)
       {
          glActiveTexture(GL_TEXTURE0 + LIGHTMAP_UNIT);
          glBindTexture(GL_TEXTURE_2D, texture_of(primitive._lightmap_image));
+      }
+      if (night)
+      {
+         glActiveTexture(GL_TEXTURE0 + LIGHTMAP_NIGHT_UNIT);
+         glBindTexture(GL_TEXTURE_2D, texture_of(primitive._lightmap_night_image));
       }
 
       glActiveTexture(GL_TEXTURE2);
@@ -1353,6 +1385,11 @@ float GltfModel::getWaterFlow() const
    return _water_flow;
 }
 
+float GltfModel::getWaterGlitter() const
+{
+   return _water_glitter;
+}
+
 void GltfModel::setDaylight(float value)
 {
    day_share = value;
@@ -1366,6 +1403,11 @@ float GltfModel::getDaylight()
 void GltfModel::setLightmaps(bool enabled)
 {
    lightmaps = enabled;
+}
+
+void GltfModel::setSwell(const Matrix& swell)
+{
+   swell_transform = swell;
 }
 
 void GltfModel::setAtmosphere(const Atmosphere& value)

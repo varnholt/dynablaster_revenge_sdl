@@ -46,8 +46,8 @@ public:
    //! the foam ring round their feet, the ripples running off them and their wake on the next render()
    void setWaders(std::vector<Wader> waders);
 
-   //! draws the model's water surfaces seen from eye
-   void render(GltfModel& model, const Vector& eye);
+   //! draws the model's water surfaces seen from eye, moved by transform (a sea's swell)
+   void render(GltfModel& model, const Vector& eye, const Matrix& transform = Matrix());
 
 private:
    uint32_t _shader = 0;
@@ -61,6 +61,7 @@ private:
    int32_t _size_param = -1;
    int32_t _haze_param = -1;
    int32_t _flow_param = -1;
+   int32_t _glitter_param = -1;
    int32_t _haze_box_param = -1;
    int32_t _haze_range_param = -1;
    int32_t _waders_param = -1;

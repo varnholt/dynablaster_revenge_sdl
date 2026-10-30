@@ -1,7 +1,7 @@
 # The pirate ship's lighting for the blocks, bombs and players, rendered from the unbaked scene (build_pirate.py):
-#   diffuse_level.tga  - a white ball lit by the moon and the lanterns (the materials' sphere map by normal)
-#   specular_level.tga - a mirror ball showing the ship around it (sphere map by reflection, seen from the game)
-#   shadow-cookie.tga  - the mast, its sail and the rigging seen from the moon, the blocks' and players' shadows
+#   probe_day/, probe_night/ - the light all round the middle of the field by day and by night (lighting.cube()),
+#                              which build_all.py turns into the light probes (probes.py)
+#   shadow-cookie.tga  - the mast, its sail and the rigging seen from the sun, the blocks' and players' shadows
 #   cameras.json       - the "Shadow Cam" that projects the cookie, for make_level_hjb.py
 # Run headless: blender --background --factory-startup --python render_lighting.py -- <out dir>
 import json
@@ -23,7 +23,6 @@ exec(compile(open(build["__file__"]).read(), build["__file__"], "exec"), build)
 
 FIELD_CENTER = Vector((6.5, -5.5, 0.6))
 MOON = build["MOON"]
-GAME_VIEW = Vector((0.004, 0.64, -0.765)).normalized()
 SHADOW = (0.50, 0.56, 0.72)
 
 
@@ -85,46 +84,11 @@ def blur(mask, radius):
     return np.apply_along_axis(lambda col: np.convolve(col, kernel, mode="same"), 0, mask)
 
 
-def ball(name, material, radius=0.5):
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=64, ring_count=32, radius=radius, location=FIELD_CENTER)
-    obj = bpy.context.object
-    obj.name = name
-    for p in obj.data.polygons:
-        p.use_smooth = True
-    obj.data.materials.append(material)
-    return obj
-
-
-def lighting_balls():
-    mirror = bpy.data.materials.new("mirror")
-    mirror.use_nodes = True
-    bsdf = next(n for n in mirror.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
-    bsdf.inputs["Base Color"].default_value = (1, 1, 1, 1)
-    bsdf.inputs["Metallic"].default_value = 1.0
-    bsdf.inputs["Roughness"].default_value = 0.08
-    white = bpy.data.materials.new("white")
-    white.use_nodes = True
-    bsdf = next(n for n in white.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
-    bsdf.inputs["Base Color"].default_value = (0.8, 0.8, 0.8, 1)
-    bsdf.inputs["Roughness"].default_value = 1.0
-
-    tmp = os.path.join(OUT, "tmp_ball.png")
-    camera = ortho_camera("ball_view", GAME_VIEW, FIELD_CENTER, 1.0, 256, 256)
-    obj = ball("mirror", mirror)
-    # the sphere map adds the reflection on top of the lit colour, keep it subtle
-    spec = render(tmp).reshape(-1, 4)
-    spec[:, :3] *= 0.45
-    to_tga(spec, (256, 256), os.path.join(OUT, "specular_level.tga"))
-    bpy.data.objects.remove(obj, do_unlink=True)
-
-    obj = ball("white", white)
-    diffuse = render(tmp).reshape(-1, 4)
-    # brighter: the map multiplies the players' colours, they must stay readable at night
-    diffuse[:, :3] = np.clip(diffuse[:, :3] * 1.1 + 0.04, 0, 1)
-    to_tga(diffuse, (256, 256), os.path.join(OUT, "diffuse_level.tga"))
-    bpy.data.objects.remove(obj, do_unlink=True)
-    bpy.data.objects.remove(camera, do_unlink=True)
-    os.remove(tmp)
+def light_probes():
+    """The cube of the light round the field's middle, by day (the sun) and by night (the moon and the lanterns)."""
+    for name, day in (("day", True), ("night", False)):
+        build["light_rig"](day=day)
+        build["lighting"].cube(None, FIELD_CENTER, os.path.join(OUT, f"probe_{name}"), build["DAY" if day else "NIGHT"])
 
 
 def shadow_camera():
@@ -195,6 +159,6 @@ def shadow_cookie():
 os.makedirs(OUT, exist_ok=True)
 
 setup()
-lighting_balls()
+light_probes()
 shadow_cookie()
 print("RESULT", OUT)

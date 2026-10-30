@@ -17,6 +17,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 import budget  # noqa: E402
 import glb  # noqa: E402
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "story-worlds"))
+import lighting  # noqa: E402
+
 ARGS = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 OUT = ARGS[0] if ARGS else os.path.join(os.path.dirname(os.path.abspath(__file__)), "out")
 PREVIEW = globals().get("PIRATE_PREVIEW", False) or bool(os.environ.get("PIRATE_PREVIEW"))
@@ -39,7 +42,11 @@ DECK_TEX = (4096, 2048)
 EXTERIOR_TEX = 2048
 CLOTH_TEX = 2048
 # from the field towards the moon, high in the north west: the mast's shadow falls across the field
-MOON = Vector((-0.42, 0.5, 0.76)).normalized()
+# towards the sun: a tropical afternoon's, from the back left over the far bulwark, high enough to light the deck
+# and low enough for its path of glints on the sea above the far bulwark; the moon stands there at night, so the
+# blocks' shadow cookie fits both
+SUN = Vector((-0.38, 0.62, 0.69)).normalized()
+MOON = SUN
 PROP_TEX = 4096
 AO_TEX = 2048
 
@@ -1592,6 +1599,7 @@ SEA = (-300.0, 300.0, -300.0, 300.0)
 SHORE_REACH = 3.0  # units, the water shader's scale of the distance to the shore
 SKY_RADIUS = 380.0
 MOON_SKY = (math.radians(58.0), math.radians(9.0))  # azimuth and elevation of the moon in the sky dome
+SUN_SKY = (math.atan2(SUN.y, SUN.x), math.asin(SUN.z))  # the sun's, where the light comes from
 WATER = []
 
 
@@ -1660,8 +1668,9 @@ def sea():
         mat.node_tree.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
     mesh.materials.append(mat)
     # a caribbean deep, blue going green
-    # streaming past from the bow (-x) to the stern as she sails, units a second
-    obj["water"] = [0.0, 0.30, 0.36, 2.2]
+    # streaming past from the bow (-x) to the stern as she sails, units a second; its glitter soft, the open sea
+    # behind her catches it all the way to the horizon
+    obj["water"] = [0.0, 0.30, 0.36, 2.2, 0.35]
     WATER.append((obj, img))
     return obj
 
@@ -1701,11 +1710,11 @@ def sky():
     U, V = np.meshgrid(u, v)
     elevation = V * math.pi / 2
     azimuth = U * 2 * math.pi
-    moon_azimuth, moon_elevation = MOON_SKY
-    cos_angle = (np.cos(elevation) * math.cos(moon_elevation) * np.cos(azimuth - moon_azimuth)
-                 + np.sin(elevation) * math.sin(moon_elevation))
+    sun_azimuth, sun_elevation = SUN_SKY
+    cos_angle = (np.cos(elevation) * math.cos(sun_elevation) * np.cos(azimuth - sun_azimuth)
+                 + np.sin(elevation) * math.sin(sun_elevation))
     angle = np.degrees(np.arccos(np.clip(cos_angle, -1, 1)))
-    # by day: a pale horizon, deep blue overhead, the sun where the moon stands at night, its warm glow
+    # by day: a pale horizon, deep blue overhead, the sun where its light comes from, its warm glow
     t = np.clip(elevation / math.radians(50), 0, 1) ** 0.7
     day = np.array(_linear((0.72, 0.86, 0.96))) * (1 - t[..., None]) + np.array(_linear((0.22, 0.50, 0.90))) * t[..., None]
     day += np.array(_linear((1.0, 0.86, 0.6)))[None, None, :] * (np.exp(-angle / 9.0) * 0.55)[..., None]
@@ -2308,9 +2317,18 @@ def setup_cycles():
     scene.world.light_settings.distance = 1.5
 
 
+# the sun and the sky by day, the moon and the night sky (lighting.py's keys): the tropical sun warm and strong,
+# the sky's light a clear blue; the moon pale, the night sky's dusk blue
+DAY = {"sun": SUN[:], "sun_color": (1.0, 0.9, 0.74), "sun_strength": 4.6, "sun_angle": 1.0,
+       "sky": (0.52, 0.72, 0.96), "sky_strength": 1.05}
+NIGHT = {"sun": MOON[:], "sun_color": (0.6, 0.72, 1.0), "sun_strength": 2.6, "sun_angle": 2.5,
+         "sky": (0.36, 0.42, 0.62), "sky_strength": 1.0}
+
+
 def light_rig(day=False):
-    """By night the moon (casting the mast's shadow, the same light as the blocks' shadow cookie), the lanterns and
-    a bluish night sky all around; by day the sun from the same direction and a bright sky."""
+    """By day the sun and a bright sky; by night the moon from the same direction (casting the mast's shadow, the
+    same light as the blocks' shadow cookie), the lanterns and a bluish night sky all around."""
+    rig = DAY if day else NIGHT
     scene = bpy.context.scene
     for obj in [o for o in scene.objects if o.type == "LIGHT"]:
         bpy.data.objects.remove(obj, do_unlink=True)
@@ -2318,15 +2336,15 @@ def light_rig(day=False):
     world = scene.world
     world.use_nodes = True
     background = next(n for n in world.node_tree.nodes if n.type == "BACKGROUND")
-    background.inputs["Color"].default_value = (0.62, 0.72, 0.92, 1) if day else (0.36, 0.42, 0.62, 1)
-    background.inputs["Strength"].default_value = 1.3 if day else 1.0
+    background.inputs["Color"].default_value = (*rig["sky"], 1)
+    background.inputs["Strength"].default_value = rig["sky_strength"]
     sun = bpy.data.lights.new("sun" if day else "moon", "SUN")
-    sun.energy = 4.2 if day else 2.6
-    sun.color = (1.0, 0.95, 0.86) if day else (0.86, 0.9, 1.0)
-    sun.angle = math.radians(1.0 if day else 2.5)
+    sun.energy = rig["sun_strength"]
+    sun.color = rig["sun_color"]
+    sun.angle = math.radians(rig["sun_angle"])
     obj = bpy.data.objects.new(sun.name, sun)
     scene.collection.objects.link(obj)
-    obj.rotation_euler = (-MOON).to_track_quat("-Z", "Y").to_euler()
+    obj.rotation_euler = (-Vector(rig["sun"])).to_track_quat("-Z", "Y").to_euler()
     if day:
         return
     for glow_obj in GLOWS:
@@ -2455,19 +2473,35 @@ def pixels(img):
     return texels.reshape(-1, 4)
 
 
-def light(obj, albedo, size, field=None, exposure=None, gain=1.0):
-    """Bakes the colour lit by light_rig() into a new image, exposed so that the field keeps the albedo's
-    brightness (the game lights it once more by its normals), or by the given exposure."""
-    lit = new_image(f"{obj.name}_lit", *size)
-    bake(obj, "LIT", lit)
-    fill_unbaked(lit)
-    a, b = pixels(albedo), pixels(lit)
+LIGHTMAP_TEX = 2048
+# per exported material its lightmaps' PNGs, by day and by night
+LIGHTMAPS = {}
+
+
+def lightmap(obj, samples, field=None, level=1.0, exposure=None):
+    """The light falling on obj under light_rig() (direct and bounced, not its colour) as a lightmap
+    (lighting.py's: a lighting.SCALE-th of it), denoised; exposed so that the field's light comes out at level (the
+    game multiplies the colours by it), or by the given exposure. Returns the image and the exposure."""
+    img = bpy.data.images.new(f"{obj.name}_light", LIGHTMAP_TEX, LIGHTMAP_TEX, float_buffer=True)
+    img.colorspace_settings.name = "Non-Color"
+    img.pixels.foreach_set(np.tile(np.array([1.0, 0.0, 1.0, 1.0], np.float32), LIGHTMAP_TEX * LIGHTMAP_TEX))
+    bpy.ops.object.select_all(action="DESELECT")
+    obj.select_set(True)
+    bpy.context.view_layer.objects.active = obj
+    bake_target(obj, img)
+    bpy.context.scene.cycles.samples = samples
+    bpy.ops.object.bake(type="DIFFUSE", pass_filter={"DIRECT", "INDIRECT"}, margin=16)
+    texels = pixels(img)
+    unbaked = (texels[:, 0] > 0.99) & (texels[:, 1] < 0.01) & (texels[:, 2] > 0.99)
+    texels[unbaked, :3] = np.median(texels[~unbaked, :3], axis=0)
+    shape = (LIGHTMAP_TEX, LIGHTMAP_TEX)
+    texels[:, :3] = lighting.denoise(texels[:, :3].reshape(*shape, 3), ~unbaked.reshape(shape)).reshape(-1, 3)
     if exposure is None:
-        mask = slice(None) if field is None else field
-        exposure = float(np.median(a[mask, :3].mean(axis=1)) / max(np.median(b[mask, :3].mean(axis=1)), 1e-4)) * gain
-    b[:, :3] = np.clip(b[:, :3] * exposure, 0, 1)
-    lit.pixels.foreach_set(b.ravel())
-    return lit, exposure
+        exposure = level / max(float(np.median(texels[field, :3].mean(axis=1))), 1e-4)
+    texels[:, :3] = np.clip(texels[:, :3] * exposure / lighting.SCALE, 0.0, 1.0)
+    texels[:, 3] = 1.0
+    img.pixels.foreach_set(texels.ravel())
+    return img, exposure
 
 
 def field_texels(img):
@@ -2587,50 +2621,51 @@ def build():
     fill_unbaked(deck_ao, 1.0)
     shade_deck(deck_ao)
 
-    # moon, lanterns and sky: the lit bake holds the sky's occlusion already, the ambient occlusion only deepens it
-    light_rig()
-    outside.visible_shadow = sails.visible_shadow = False
-    deck_lit, exposure = light(deck_obj, deck_color, DECK_TEX, field_texels(deck_color), gain=0.88)
-    props_lit, _ = light(props, props_color, (PROP_TEX, PROP_TEX), exposure=exposure)
-    outside.visible_shadow = sails.visible_shadow = True
     cloth_color = new_image("cloth_color", CLOTH_TEX, CLOTH_TEX)
     cloth_ao = new_image("cloth_ao", CLOTH_TEX // 2, CLOTH_TEX // 2, data=True)
     bake(sails, "COLOR", cloth_color)
     fill_unbaked(cloth_color)
     bake(sails, "AO", cloth_ao)
     fill_unbaked(cloth_ao, 1.0)
-    cloth_lit, _ = light(sails, cloth_color, (CLOTH_TEX, CLOTH_TEX), exposure=exposure)
     outside_color = new_image("exterior_color", EXTERIOR_TEX, EXTERIOR_TEX)
     outside_ao = new_image("exterior_ao", AO_TEX, AO_TEX, data=True)
     bake(outside, "COLOR", outside_color)
     fill_unbaked(outside_color)
     bake(outside, "AO", outside_ao)
     fill_unbaked(outside_ao, 1.0)
-    outside_lit, _ = light(outside, outside_color, (EXTERIOR_TEX, EXTERIOR_TEX), exposure=exposure)
-    # by day: the sun from the same direction, no lanterns
-    light_rig(day=True)
-    outside.visible_shadow = sails.visible_shadow = False
-    deck_day, day_exposure = light(deck_obj, deck_color, DECK_TEX, field_texels(deck_color), gain=1.1)
-    props_day, _ = light(props, props_color, (PROP_TEX, PROP_TEX), exposure=day_exposure)
-    outside.visible_shadow = sails.visible_shadow = True
-    cloth_day, _ = light(sails, cloth_color, (CLOTH_TEX, CLOTH_TEX), exposure=day_exposure)
-    outside_day, _ = light(outside, outside_color, (EXTERIOR_TEX, EXTERIOR_TEX), exposure=day_exposure)
-    deck_color, props_color = deck_lit, props_lit
     for img, floor in ((props_ao, 0.55), (deck_ao, 0.6), (outside_ao, 0.55), (cloth_ao, 0.7)):
         ao = pixels(img)
         ao[:, :3] = floor + (1 - floor) * ao[:, :3]
         img.pixels.foreach_set(ao.ravel())
+
+    # the light by day and by night as lightmaps (the game blends them with the daylight): the field as bright
+    # as the albedo by day, darker and blue in the moonlight, the lanterns' warm pools round it; the hull and the sails
+    # keep their shadows off the deck (the mast's, in the shadow cookie, falls on the blocks as well)
+    LIGHTMAPS.clear()
+    field = field_texels(new_image("field", LIGHTMAP_TEX, LIGHTMAP_TEX))
+    for day, level, samples in ((True, 1.05, 160), (False, 0.62, 384)):
+        light_rig(day=day)
+        outside.visible_shadow = sails.visible_shadow = False
+        deck_light, exposure = lightmap(deck_obj, samples, field, level)
+        props_light, _ = lightmap(props, samples, exposure=exposure)
+        outside.visible_shadow = sails.visible_shadow = True
+        cloth_light, _ = lightmap(sails, samples, exposure=exposure)
+        outside_light, _ = lightmap(outside, samples, exposure=exposure)
+        print("RESULT", "day" if day else "night", "exposure", round(exposure, 3), flush=True)
+        for obj, img in ((deck_obj, deck_light), (props, props_light), (sails, cloth_light), (outside, outside_light)):
+            LIGHTMAPS.setdefault(f"{obj.name}_export", []).append(lighting.to_png(img, glb.png))
     water.hide_render = False
     sky_obj.hide_render = False
     for obj in shore:
         obj.hide_render = False
 
-    for obj, day_img, night_img, ao_img in ((deck_obj, deck_day, deck_lit, deck_ao),
-                                            (props, props_day, props_lit, props_ao),
-                                            (outside, outside_day, outside_lit, outside_ao),
-                                            (sails, cloth_day, cloth_lit, cloth_ao)):
+    for obj, color_img, ao_img in ((deck_obj, deck_color, deck_ao), (props, props_color, props_ao),
+                                   (outside, outside_color, outside_ao), (sails, cloth_color, cloth_ao)):
         obj.data.materials.clear()
-        obj.data.materials.append(export_material(f"{obj.name}_export", day_img, ao_img, night_img))
+        obj.data.materials.append(export_material(f"{obj.name}_export", color_img, ao_img))
+    # what stays with the sea when the ship rolls in the swell (the game's "swell")
+    for obj in [sky_obj, *shore, *flock]:
+        obj["swell"] = [1.0]
 
     tris = sum(len(p.vertices) - 2 for o in (deck_obj, props, outside, sails) for p in o.data.polygons)
     os.makedirs(OUT, exist_ok=True)
@@ -2660,8 +2695,9 @@ def build():
         glb.write(path, gltf, binary)
     for _, img in WATER:
         glb.replace_image(path, img.name, lossless(img))
-    for img in (props_color, props_ao, deck_color, deck_ao, outside_lit, outside_ao, cloth_lit, cloth_ao, *sky_img,
-                deck_day, props_day, outside_day, cloth_day, white_image(), *shore_images,
+    lighting.embed(path, {name: tuple(maps) for name, maps in LIGHTMAPS.items()}, glb)
+    for img in (props_color, props_ao, deck_color, deck_ao, outside_color, outside_ao, cloth_color, cloth_ao, *sky_img,
+                white_image(), *shore_images,
                 *(img for _, img in WATER)):
         img.pack()
     preview_camera()

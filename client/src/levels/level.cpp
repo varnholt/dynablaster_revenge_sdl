@@ -158,24 +158,38 @@ void Level::setBlockSkins(const std::string& folder)
    }
 
    // the folder's light probes, so the blocks, bombs and players are lit like the world round them
-   const std::string diffuse = skin("diffuse_level");
-   const std::string specular = skin("specular_level");
+   setLightProbes(skin("diffuse_level"), skin("specular_level"), skin("specular_level2"), skin("diffuse_bomb"));
+
    const std::string cookie = skin("shadow-cookie");
    for (const MaterialRef& material : {_stones, _blocks, _skulls, _destruction})
    {
       if (material)
       {
-         material->get().setLightProbes(diffuse, specular);
          material->get().setShadowCookie(cookie);
+      }
+   }
+}
+
+void Level::setLightProbes(
+   const std::string& diffuse,
+   const std::string& specular,
+   const std::string& player_specular,
+   const std::string& bomb_specular
+)
+{
+   for (const MaterialRef& material : {_stones, _blocks, _skulls, _destruction})
+   {
+      if (material)
+      {
+         material->get().setLightProbes(diffuse, specular);
       }
    }
 
    if (_bombs)
    {
-      _bombs->get().setLightProbes(diffuse, skin("diffuse_bomb"));
+      _bombs->get().setLightProbes(diffuse, bomb_specular);
    }
 
-   const std::string player_specular = skin("specular_level2");
    for (int32_t i = 0; i < _players->getMaterialCount(); i++)
    {
       _players->getMaterial(i).setLightProbes(diffuse, player_specular);

@@ -136,6 +136,10 @@ public:
    static void setDaylight(float daylight);
    [[nodiscard]] static float getDaylight();
 
+   //! the sea's swell: draw() moves the primitives whose node's extras hold "swell" by it (applied before draw()'s
+   //! transform), what floats on the sea rolls and heaves with it; identity for none
+   static void setSwell(const Matrix& swell);
+
    //! the atmosphere draw() and the water draw in, until set otherwise; a default one is neutral
    static void setAtmosphere(const Atmosphere& atmosphere);
 
@@ -153,6 +157,9 @@ public:
 
    //! units a second the water streams past along x (a ship under way), 0 for still water: "water": [r, g, b, flow]
    [[nodiscard]] float getWaterFlow() const;
+
+   //! how bright the glitter on its ripples is, 1 as it comes: "water": [r, g, b, flow, glitter]
+   [[nodiscard]] float getWaterGlitter() const;
    //! its water is lava (extras "lava" instead of "water")
    [[nodiscard]] bool isLava() const;
    void drawWater(const Matrix& transform);
@@ -205,6 +212,12 @@ private:
       //! ambient light, the occlusion texture stays for those who light it themselves (the intro's night)
       int32_t _lightmap_image = -1;
       float _lightmap_scale = 0.0f;
+
+      //! its third number: the light by night, blended with the lightmap by setDaylight() (-1 for none)
+      int32_t _lightmap_night_image = -1;
+
+      //! the node's extras "swell": drawn with setSwell()'s transform, it moves with the sea
+      bool _swell = false;
 
       //! cutouts (grass, leaves) from the material's alphaMode "MASK": fragments whose colour's alpha is below
       //! this are dropped, 0 for opaque materials
@@ -277,6 +290,7 @@ private:
    float _water_level = 0.0f;
    Vector _water_color;
    float _water_flow = 0.0f;
+   float _water_glitter = 1.0f;
    bool _lava = false;
    Vector _minimum;
    Vector _maximum;

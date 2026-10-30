@@ -19,6 +19,9 @@ uniform vec3 u_deep;
 // units a second the water streams past along x, 0 for still water
 uniform float u_flow;
 
+// how bright the glitter on the ripples is, 1 as it comes
+uniform float u_glitter;
+
 // the air, as for the glTF scenery: the haze's rgb and strength, the box it's measured from, near and far
 uniform vec4 u_haze;
 uniform highp vec4 u_haze_box;
@@ -215,7 +218,7 @@ void main()
    float flash = pow(max(sin(u_time * (1.5 + 2.5 * seed) + seed * 40.0), 0.0), 40.0);
    float glitter = flash * smoothstep(0.22, 0.05, length(fract(sparkles) - spot)) * step(0.8, fract(seed * 3.3));
    glitter *= pow(towards, 8.0) * resolved(11.0, pixel);
-   color += mix(u_sun, vec3(1.0), 0.5) * glitter * 1.8;
+   color += mix(u_sun, vec3(1.0), 0.5) * glitter * 1.8 * u_glitter;
 
    // foam, broken up and drifting
    // flowing water carries the churn along, stretched into streaks, and swells the foam in passing waves
