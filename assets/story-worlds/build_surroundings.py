@@ -873,10 +873,22 @@ def world_meadow(st):
     pads.append((st.cx - 0.9, -st.h - 8.6))
     levels.append(FLOOR_Z + 0.3)
 
+    # Dr's lab on a terrace levelled to the ground at the foot of its steps (the meadow climbs away from the field,
+    # and the lab's front steps would end high above it), easing back into the hills round it: per lab its x, the
+    # rotunda's front, its size (lab()) and how far it reaches either side and back
+    labs = [(st.cx, APRON + 1.5, 2.0, 9.2)]
+    if st.w > 20:
+        labs += [(st.cx + side * 15.5, APRON + 1.5, 1.0, 1.8) for side in (-1, 1)]
+    terraces = [(lx, front - 1.4 * s, front + 3.1 * s, reach, float(rolling(np.array(lx), np.array(front - 1.4 * s))))
+                for lx, front, s, reach in labs]
+
     def height(x, y):
         z = rolling(x, y)
         for (px, py), level in zip(pads, levels):
             z = z + (level - z) * smooth(3.6, 2.6, np.hypot(x - px, y - py))
+        for lx, y0, y1, reach, level in terraces:
+            out = np.hypot(np.maximum(np.abs(x - lx) - reach, 0), np.maximum(np.maximum(y0 - y, y - y1), 0))
+            z = z + (level - z) * smooth(2.4, 0.4, out)
         return z
 
     path_y = APRON + 0.3
@@ -909,10 +921,8 @@ def world_meadow(st):
 
     taken = []
     # Dr's lab behind the field, the foot of the rotunda's steps just behind the border
-    lab(st, st.cx, APRON + 1.5, height, taken, 2.0)
-    if st.w > 20:
-        lab(st, st.cx + 15.5, APRON + 1.5, height, taken, 1.0, wings=False)
-        lab(st, st.cx - 15.5, APRON + 1.5, height, taken, 1.0, wings=False)
+    for lx, front, s, _ in labs:
+        lab(st, lx, front, height, taken, s, wings=s > 1.5)
     taken.append((st.cx, 3.5, 1.2))  # the path
     # the intro's camera (assets/intro/build_intro.py) starts south of the field, behind a big broadleaf it pushes
     # through, then looks across the field at the lab: that tree, and nothing else in the way

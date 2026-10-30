@@ -26,6 +26,21 @@ DOME_CENTRE = Vector(LAB["dome_centre"])
 DOME_TOP = LAB["dome_top"]
 DOOR = LAB["door"]
 
+
+def ground(x, y):
+    """The scenery's ground height at x, y (build_lab.py samples it in front of the lab)."""
+    grid = LAB["ground"]
+    u = min(max((x - grid["x0"]) / grid["step"], 0.0), grid["columns"] - 1.001)
+    v = min(max((y - grid["y0"]) / grid["step"], 0.0), grid["rows"] - 1.001)
+    i, j = int(u), int(v)
+    fu, fv = u - i, v - j
+
+    def at(a, b):
+        return grid["heights"][b * grid["columns"] + a]
+
+    return ((at(i, j) * (1 - fu) + at(i + 1, j) * fu) * (1 - fv)
+            + (at(i, j + 1) * (1 - fu) + at(i + 1, j + 1) * fu) * fv)
+
 # who's in it: the model, its size, the frames it's seen from and until and the actions it plays from which frame
 # on, no earlier than it's seen ("hold" stops at the end)
 ACTORS = {
@@ -87,9 +102,9 @@ def stage(actors):
 
     # the player runs in from the left, stops in front of the dome and turns to it
     player = actors["player"]["holder"]
-    key(player, s(4.0), (-4.0, 0.6, 0.27), (0, 0, -90))
-    key(player, s(5.0), (3.6, 0.8, 0.27), (0, 0, -90))
-    key(player, s(5.3), (3.7, 0.8, 0.27), (0, 0, 180))
+    key(player, s(4.0), (-4.0, 0.6, ground(-4.0, 0.6)), (0, 0, -90))
+    key(player, s(5.0), (3.6, 0.8, ground(3.6, 0.8)), (0, 0, -90))
+    key(player, s(5.3), (3.7, 0.8, ground(3.7, 0.8)), (0, 0, 180))
 
     # the doctor runs out of the rotunda's door under the dome (build_lab.py), from the back of the hall behind it,
     # hidden by the door until he flings it open; down the steps and away to the right, then he stops, shuffles
@@ -102,7 +117,7 @@ def stage(actors):
     key(door, s(3.1) + 8, rotation=(0, 0, 88))
     key(door, s(3.1) + 13, rotation=(0, 0, 100))
     doctor = actors["doctor"]["holder"]
-    x, face, floor, ground = DOOR["x"], DOOR["face"], DOOR["bottom"], DOOR["ground"]
+    x, face, floor = DOOR["x"], DOOR["face"], DOOR["bottom"]
     foot = face - DOOR["steps"] - 0.3
     stop = (x + 2.3, foot - 1.0)
 
@@ -112,9 +127,9 @@ def stage(actors):
 
     key(doctor, s(3.1), (x, face + 0.75, floor), (0, 0, 0))
     key(doctor, s(3.35), (x, face - 0.3, floor), (0, 0, 0))
-    key(doctor, s(3.65), (x + 0.3, foot, ground), (0, 0, 10))
-    key(doctor, s(4.2), (*stop, ground), (0, 0, facing(stop[0] - x - 0.3, stop[1] - foot)))
-    key(doctor, s(4.6), (*stop, ground), (0, 0, facing(DOME_CENTRE.x - stop[0], DOME_CENTRE.y - stop[1])))
+    key(doctor, s(3.65), (x + 0.3, foot, ground(x + 0.3, foot)), (0, 0, 10))
+    key(doctor, s(4.2), (*stop, ground(*stop)), (0, 0, facing(stop[0] - x - 0.3, stop[1] - foot)))
+    key(doctor, s(4.6), (*stop, ground(*stop)), (0, 0, facing(DOME_CENTRE.x - stop[0], DOME_CENTRE.y - stop[1])))
 
 
 def camera():
@@ -141,8 +156,8 @@ def camera():
     aim(1, (6.5, -30.0, 3.3), (6.5, 5.0, 3.6 + lift * 0.3), 50)
     aim(s(1.6), (6.5, -18.6, 2.6), (6.5, 5.0, 3.6 + lift * 0.4), 50)
     # wide enough for the player and the doctor down on the ground and the dragon hovering over the dome at once
-    aim(BURST, (6.5, -17.0, 3.4), (6.5, 5.0, 5.4), 58)
-    aim(s(6.0), (6.5, -17.0, 3.6), (6.5, 5.0, 5.8), 58)
+    aim(BURST, (6.5, -17.0, 3.0), (6.5, 5.0, 4.8), 58)
+    aim(s(6.0), (6.5, -17.0, 3.2), (6.5, 5.0, 5.2), 58)
     aim(s(8.0), (6.5, -17.0, 4.2), (6.5, 6.0, 7.5 + lift), 50)
     aim(s(11.0), (6.5, -15.0, 6.0), (6.5, 70.0, 30.0), 46)
     aim(s(15.0), (6.5, -13.0, 7.0), (6.5, 100.0, 34.0), 38)
