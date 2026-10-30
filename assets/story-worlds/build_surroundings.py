@@ -18,6 +18,9 @@ import glb  # noqa: E402
 import grass  # noqa: E402
 import palettes  # noqa: E402
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import lighting  # noqa: E402
+
 ARGS = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 OUT = ARGS[0] if ARGS else os.path.join(os.path.dirname(__file__), "surroundings")
 ONLY = [int(a) for a in ARGS[1:]]
@@ -3005,6 +3008,10 @@ def bake(obj, kind, img, samples=48):
     elif kind == "EMIT":
         bpy.context.scene.cycles.samples = 1
         bpy.ops.object.bake(type="EMIT", margin=4)
+    elif kind == "LIGHT":
+        # the light falling on it, straight from the sun and the sky and bounced, without its own colour
+        bpy.context.scene.cycles.samples = samples
+        bpy.ops.object.bake(type="DIFFUSE", pass_filter={"DIRECT", "INDIRECT"}, margin=24)
     else:
         bpy.context.scene.cycles.samples = samples
         bpy.ops.object.bake(type="AO", margin=24)
@@ -3198,6 +3205,18 @@ def build(world, size_key):
     soft[glowing, :3] = 1.0
     props_ao.pixels.foreach_set(soft.ravel())
     lab = bake_lab() if LAB_PROPS else None
+    # the world's own light baked in, as the original levels have theirs, and the cube of it round the middle of
+    # the field the light probes are made from (probes.py)
+    lightmaps = {}
+    if world in lighting.LIGHTING:
+        lights = lighting.setup(world)
+        for obj in (ground, props, *([lab[0]] if lab else [])):
+            lightmaps[f"{obj.name}_export"] = lighting.bake(obj, f"{obj.name}_light",
+                                                            lambda o, img: bake(o, "LIGHT", img, samples=128))
+        if size_key is None:
+            lighting.cube(world, (st.cx, -st.h * 0.5, 0.6), os.path.join(OUT, f"world{world}", "probe"))
+            lighting.cookie(world, os.path.join(OUT, f"world{world}", "probe"))
+        lighting.teardown(lights)
     for obj in occluders:
         bpy.data.objects.remove(obj, do_unlink=True)
     for water, _ in WATER:
@@ -3245,6 +3264,7 @@ def build(world, size_key):
         glb.replace_image(path, img.name, lossless(img))
     if lab:
         glb.replace_image(path, lab[2].name, lossless(lab[2]))
+    lighting.embed(path, {name: lighting.to_png(img, glb.png) for name, img in lightmaps.items()}, glb)
     for img in (ground_color, props_color, props_ao, ground_ao, *(img for _, img in WATER), *(lab[1:] if lab else ())):
         img.pack()
     bpy.context.scene.name = f"world{world}_{title}_{w}x{h}"

@@ -57,6 +57,10 @@ struct Shader
    int32_t _haze_range = -1;
    int32_t _ambient = -1;
    int32_t _rim = -1;
+   int32_t _sun_direction = -1;
+   int32_t _sun = -1;
+   int32_t _lightmap = -1;
+   int32_t _lightmap_scale = -1;
    int32_t _alpha_cutoff = -1;
    int32_t _double_sided = -1;
    int32_t _screen = -1;
@@ -68,9 +72,10 @@ struct Shader
 // the most layers a fur is drawn in on top of the bare skin
 constexpr int32_t MAX_FUR_SHELLS = 12;
 
-// texture units: colour, occlusion, night, then the detail mask and the detail images
+// texture units: colour, occlusion, night, then the detail mask and the detail images, then the lightmap
 constexpr int32_t DETAIL_MASK_UNIT = 3;
 constexpr int32_t DETAIL_UNIT = 4;
+constexpr int32_t LIGHTMAP_UNIT = 8;
 
 Shader shader;
 
@@ -81,6 +86,9 @@ float clip_height = 1e9f;
 float day_share = 1.0f;
 
 GltfModel::Atmosphere atmosphere;
+
+// the scenery lit by its lightmaps, the cutscenes light it themselves
+bool lightmaps = true;
 
 // column-major, a * b applies b first
 Matrix4 multiply(const Matrix4& a, const Matrix4& b)
@@ -571,6 +579,16 @@ void GltfModel::load(const std::string& filename)
                primitive._detail_strength = primitive._detail_mask_image >= 0 ? (*detail)[9] : 0.0f;
             }
 
+            if (const auto lightmap = readExtras<2>(source.material->extras.data, "lightmap"))
+            {
+               const float index = (*lightmap)[0];
+               if (index >= 0.0f && index < static_cast<float>(data->images_count))
+               {
+                  primitive._lightmap_image = static_cast<int32_t>(index);
+                  primitive._lightmap_scale = (*lightmap)[1];
+               }
+            }
+
             if (const auto fur = readExtras<2>(source.material->extras.data, "fur"))
             {
                primitive._fur = Vector2((*fur)[0], (*fur)[1]);
@@ -649,6 +667,14 @@ void GltfModel::load(const std::string& filename)
          _atmosphere._far = values[5];
          _atmosphere._ambient = Vector(values[6], values[7], values[8]);
          _atmosphere._rim = Vector(values[9], values[10], values[11]);
+      }
+
+      // the world's sun, where the atmosphere names one
+      if (const auto air = readExtras<18>(data->scene->extras.data, "atmosphere"))
+      {
+         const auto& values = *air;
+         _atmosphere._sun_direction = Vector(values[12], values[13], values[14]);
+         _atmosphere._sun = Vector(values[15], values[16], values[17]);
       }
    }
 
@@ -1029,6 +1055,10 @@ void GltfModel::begin()
       shader._haze_range = activeDevice().getParameterIndex("u_haze_range");
       shader._ambient = activeDevice().getParameterIndex("u_ambient");
       shader._rim = activeDevice().getParameterIndex("u_rim");
+      shader._sun_direction = activeDevice().getParameterIndex("u_sun_direction");
+      shader._sun = activeDevice().getParameterIndex("u_sun");
+      shader._lightmap = activeDevice().getParameterIndex("u_lightmap");
+      shader._lightmap_scale = activeDevice().getParameterIndex("u_lightmap_scale");
       shader._alpha_cutoff = activeDevice().getParameterIndex("u_alpha_cutoff");
       shader._double_sided = activeDevice().getParameterIndex("u_double_sided");
       shader._screen = activeDevice().getParameterIndex("u_screen");
@@ -1043,6 +1073,7 @@ void GltfModel::begin()
    activeDevice().setParameter(shader._clip, clip_height);
    activeDevice().bindSampler(shader._night, 2);
    activeDevice().bindSampler(shader._detail_mask, DETAIL_MASK_UNIT);
+   activeDevice().bindSampler(shader._lightmap, LIGHTMAP_UNIT);
    for (size_t i = 0; i < shader._detail.size(); i++)
    {
       activeDevice().bindSampler(shader._detail[i], DETAIL_UNIT + static_cast<int32_t>(i));
@@ -1055,6 +1086,8 @@ void GltfModel::begin()
    activeDevice().setParameter(shader._haze_range, Vector2(atmosphere._near, std::max(atmosphere._far, atmosphere._near + 0.001f)));
    activeDevice().setParameter(shader._ambient, atmosphere._ambient);
    activeDevice().setParameter(shader._rim, atmosphere._rim);
+   activeDevice().setParameter(shader._sun_direction, atmosphere._sun_direction);
+   activeDevice().setParameter(shader._sun, atmosphere._sun);
 
    for (GLuint attribute = 0; attribute < 6; attribute++)
    {
@@ -1161,6 +1194,15 @@ void GltfModel::draw(const Matrix& transform, int32_t animation, float time, con
       if (primitive._double_sided)
       {
          glDisable(GL_CULL_FACE);
+      }
+
+      // the cutscenes light the scenery themselves (GltfModel::setLightmaps())
+      const bool lit = primitive._lightmap_image >= 0 && lightmaps;
+      activeDevice().setParameter(shader._lightmap_scale, lit ? primitive._lightmap_scale : 0.0f);
+      if (lit)
+      {
+         glActiveTexture(GL_TEXTURE0 + LIGHTMAP_UNIT);
+         glBindTexture(GL_TEXTURE_2D, texture_of(primitive._lightmap_image));
       }
 
       glActiveTexture(GL_TEXTURE2);
@@ -1278,6 +1320,11 @@ void GltfModel::setDaylight(float value)
 float GltfModel::getDaylight()
 {
    return day_share;
+}
+
+void GltfModel::setLightmaps(bool enabled)
+{
+   lightmaps = enabled;
 }
 
 void GltfModel::setAtmosphere(const Atmosphere& value)

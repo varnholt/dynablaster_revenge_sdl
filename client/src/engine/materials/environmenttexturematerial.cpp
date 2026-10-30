@@ -123,6 +123,12 @@ void EnvironmentTextureMaterial::end()
    activeDevice().setShader(0);
 }
 
+void EnvironmentTextureMaterial::setLightProbes(const std::string& diffuse_map, const std::string& specular_map)
+{
+   replaceTexture(_diffuse_map, diffuse_map);
+   replaceTexture(_specular_map, specular_map);
+}
+
 void EnvironmentTextureMaterial::renderDiffuse()
 {
    begin();

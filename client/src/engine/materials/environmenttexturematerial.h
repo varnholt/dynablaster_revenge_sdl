@@ -23,6 +23,7 @@ public:
    void load(Stream& stream) override;
    void addGeometry(Geometry& geometry) override;
    void renderDiffuse() override;
+   void setLightProbes(const std::string& diffuse_map, const std::string& specular_map) override;
 
 private:
    void init() override;

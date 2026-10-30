@@ -161,6 +161,17 @@ void DestructionMaterial::end()
    activeDevice().setShader(0);
 }
 
+void DestructionMaterial::setLightProbes(const std::string& diffuse_map, const std::string& specular_map)
+{
+   replaceTexture(_diffuse_map, diffuse_map);
+   replaceTexture(_specular_map, specular_map);
+}
+
+void DestructionMaterial::setShadowCookie(const std::string& shadow_map)
+{
+   replaceTexture(_shadow_map, shadow_map);
+}
+
 void DestructionMaterial::renderDiffuse()
 {
    begin();

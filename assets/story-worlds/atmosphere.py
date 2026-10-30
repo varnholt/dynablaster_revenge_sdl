@@ -24,10 +24,28 @@ ATMOSPHERE = {
     8: [(0.03, 0.07, 0.11), 0.65, 2.0, 10.0, (0.84, 0.92, 1.08), (0.55, 0.95, 1.30)],  # the final hall, deep teal, dark past its lights
 }
 
+# per world: towards the sun (z-up), its colour and strength, the sky's colour and strength; strengths so a white
+# surface in full sun comes out about 1 (the bake's light is the light falling on a white surface)
+LIGHTING = {
+    # a sunny morning: the sun low from the front left, its light warm, long shadows falling away back right; the
+    # sky a pale blue all round
+    1: {"sun": (-0.62, -0.48, 0.62), "sun_color": (1.0, 0.9, 0.74), "sun_strength": 3.4,
+        "sky": (0.62, 0.74, 0.95), "sky_strength": 0.58},
+}
+
 
 def values(world):
+    """The atmosphere's values; with a light of its own the ambient light is its sky's and its sun lights the field
+    as it lights the baked dioramas (lighting.py, the bake's strengths: a white surface's light is the strength over
+    pi), the game's shader takes 0.45 of the ambient light."""
     haze, strength, near, far, ambient, rim = ATMOSPHERE[world]
-    return [*haze, strength, near, far, *ambient, *rim]
+    if world not in LIGHTING:
+        return [*haze, strength, near, far, *ambient, *rim]
+    light = LIGHTING[world]
+    ambient = [c * light["sky_strength"] / 0.45 for c in light["sky"]]
+    norm = sum(c * c for c in light["sun"]) ** 0.5
+    sun = [c * light["sun_strength"] / 3.14159 for c in light["sun_color"]]
+    return [*haze, strength, near, far, *ambient, *rim, *(c / norm for c in light["sun"]), *sun]
 
 
 def apply(world, folder=STORY):

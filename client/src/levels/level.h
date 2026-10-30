@@ -71,8 +71,11 @@ public:
    //! levels with a time of day go through one day and night in it
    virtual void setDayTime(float phase);
 
-   //! the blocks' and the stones' (and their debris') skins from folder's block-unwrap.tga and stone-unwrap.tga, the
-   //! level's own where the folder has none; the story mode's worlds bring their own (data/game/story/world<n>)
+   //! the blocks' and the stones' (and their debris') skins from folder's block-unwrap.tga and stone-unwrap.tga, and
+   //! the light probes the blocks, the skull, the bombs and the players are lit by from its diffuse_level.tga,
+   //! specular_level.tga, specular_level2.tga (the players') and diffuse_bomb.tga, and the shadow cast onto the
+   //! blocks from its shadow-cookie.tga, the level's own where the folder has none; the story mode's worlds bring
+   //! their own (data/game/story/world<n>)
    void setBlockSkins(const std::string& folder);
 
    std::string path() const;

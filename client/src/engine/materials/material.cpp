@@ -110,6 +110,14 @@ void Material::addTexture(Texture& texture, const std::string& filename, int32_t
    _texture_queue.push_back({std::move(image), flags, texture});
 }
 
+void Material::setLightProbes(const std::string& /*diffuse_map*/, const std::string& /*specular_map*/)
+{
+}
+
+void Material::setShadowCookie(const std::string& /*shadow_map*/)
+{
+}
+
 void Material::replaceTexture(Texture& texture, const std::string& filename, int32_t flags)
 {
    std::erase_if(_texture_queue, [&texture](const PendingTexture& pending) { return &pending.texture.get() == &texture; });

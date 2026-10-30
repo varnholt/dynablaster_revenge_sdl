@@ -31,8 +31,9 @@ public:
    };
 
    //! the air and light a scene sits in, from its extras: "atmosphere": [haze r, g, b, strength, near, far,
-   //! ambient r, g, b, rim r, g, b]; the land fades into the haze from near to far units outside the box
-   //! (usually the field), the ambient light and the rim light at the silhouettes take their colours
+   //! ambient r, g, b, rim r, g, b(, sun x, y, z, sun r, g, b)]; the land fades into the haze from near to far units
+   //! outside the box (usually the field), the ambient light and the rim light at the silhouettes take their
+   //! colours, the sun (towards it, z-up) lights everything not lit by a lightmap of its own
    struct Atmosphere
    {
       Vector _haze = Vector(0.0f, 0.0f, 0.0f);
@@ -46,6 +47,8 @@ public:
       Vector4 _box = Vector4(0.0f, 0.0f, 0.0f, 0.0f);
       Vector _ambient = Vector(1.0f, 1.0f, 1.0f);
       Vector _rim = Vector(1.0f, 1.0f, 1.0f);
+      Vector _sun_direction = Vector(-0.35f, -0.55f, 0.75f);
+      Vector _sun = Vector(0.75f, 0.75f, 0.75f);
    };
 
    //! a light's glow, from a node's extras: "glow": [r, g, b, size, mode]
@@ -119,6 +122,10 @@ public:
 
    //! the atmosphere draw() and the water draw in, until set otherwise; a default one is neutral
    static void setAtmosphere(const Atmosphere& atmosphere);
+
+   //! whether the scenery is lit by its baked lightmaps (on) or by the atmosphere's sun and ambient light over its
+   //! occlusion (the cutscenes, which light the world 1 scenery as night)
+   static void setLightmaps(bool enabled);
    [[nodiscard]] static const Atmosphere& getCurrentAtmosphere();
 
    //! the water surfaces, primitives of nodes with "water": [r, g, b] (the deep colour) in their extras;
@@ -176,6 +183,12 @@ private:
       std::array<int32_t, 4> _detail_images{-1, -1, -1, -1};
       Vector4 _detail_scales;
       float _detail_strength = 0.0f;
+
+      //! from the material's extras "lightmap": [image, scale]: the light that falls on it baked in colour, a
+      //! scale-th of it (the light gets brighter than white); it lights the colour in place of the sun and the
+      //! ambient light, the occlusion texture stays for those who light it themselves (the intro's night)
+      int32_t _lightmap_image = -1;
+      float _lightmap_scale = 0.0f;
 
       //! cutouts (grass, leaves) from the material's alphaMode "MASK": fragments whose colour's alpha is below
       //! this are dropped, 0 for opaque materials

@@ -1,7 +1,8 @@
 #version 300 es
 precision mediump float;
 
-// painted colour times baked ambient occlusion, lit by one soft key light from the camera side
+// painted colour lit by the light baked into the scenery, or by the world's sun and ambient light over the baked
+// ambient occlusion
 
 uniform sampler2D u_color;
 uniform sampler2D u_occlusion;
@@ -50,6 +51,15 @@ uniform highp vec4 u_haze_box;
 uniform vec2 u_haze_range;
 uniform vec3 u_ambient;
 uniform vec3 u_rim;
+
+// the world's sun: towards it (z-up) and its colour
+uniform vec3 u_sun_direction;
+uniform vec3 u_sun;
+
+// the light baked into the scenery in colour, a scale-th of it (GltfModel's "lightmap"); 0 scale for none, the
+// sun and the ambient light over the occlusion then
+uniform sampler2D u_lightmap;
+uniform float u_lightmap_scale;
 
 in vec2 uv;
 in vec3 nrm;
@@ -166,7 +176,7 @@ void main()
       discard;
    }
 
-   vec3 light = normalize(vec3(-0.35, -0.55, 0.75));
+   vec3 light = normalize(u_sun_direction);
    vec3 n = normalize(nrm);
    if (u_double_sided > 0.5 && !gl_FrontFacing)
    {
@@ -208,7 +218,11 @@ void main()
    albedo *= u_tint;
    float occlusion = texture(u_occlusion, uv).r;
 
-   vec3 color = albedo * occlusion * (0.45 * u_ambient + 0.75 * diffuse) + rim * u_rim;
+   vec3 color = albedo * occlusion * (0.45 * u_ambient + diffuse * u_sun) + rim * u_rim;
+   if (u_lightmap_scale > 0.0)
+   {
+      color = albedo * texture(u_lightmap, uv).rgb * u_lightmap_scale + rim * u_rim;
+   }
 
    if (u_haze.a > 0.0)
    {

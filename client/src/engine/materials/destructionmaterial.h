@@ -31,6 +31,8 @@ public:
    void load(Stream& stream) override;
    void addGeometry(Geometry& geometry) override;
    void renderDiffuse() override;
+   void setLightProbes(const std::string& diffuse_map, const std::string& specular_map) override;
+   void setShadowCookie(const std::string& shadow_map) override;
 
    //! swaps the debris' colour image (the stones' unwrapped cube), uploaded on the next render
    void setColorMap(const std::string& color_map);

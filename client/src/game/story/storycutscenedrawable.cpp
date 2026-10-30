@@ -348,6 +348,8 @@ void StoryCutsceneDrawable::paintGL()
 
    GltfModel::setDaylight(1.0f);
    GltfModel::setAtmosphere(_indoors ? roomAir(fade) : nightAir(fade));
+   // the scenery's baked daylight doesn't belong in the night
+   GltfModel::setLightmaps(false);
    GltfModel::begin();
 
    const auto draw = [this, fade](const Actor& actor)
@@ -388,6 +390,7 @@ void StoryCutsceneDrawable::paintGL()
    }
 
    GltfModel::end();
+   GltfModel::setLightmaps(true);
 
    if (_glows)
    {
