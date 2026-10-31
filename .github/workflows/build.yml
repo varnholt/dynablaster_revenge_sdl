@@ -38,7 +38,13 @@ jobs:
           path: artifact/dynablaster
 
   linux:
-    runs-on: ubuntu-latest
+    # Pinned so the binary runs on SteamOS: ubuntu-latest links against a
+    # newer glibc than the Steam Deck ships. g++-14 for <print>; its
+    # libstdc++ matches what SteamOS has.
+    runs-on: ubuntu-24.04
+    env:
+      CC: gcc-14
+      CXX: g++-14
     steps:
       - uses: actions/checkout@v4
 
