@@ -1,0 +1,25 @@
+# bot level 5: dynablaster_sim --train run 3 (kicking, traps, scored against ProtoBot), generation 80
+# measured: 0.54 points per bot and round against ProtoBots at about 0.5 (1000+ sim rounds)
+goal.distance -0.44842
+goal.extra 4.84869
+goal.stones 1.54948
+goal.enemy_in_line 0.76678
+goal.enemy_distance -1.63938
+goal.open_neighbors 0.40445
+goal.hazard_nearby -0.22815
+goal.previous_goal 3.17966
+goal.current_field -1.93342
+goal.enemy_trapped 2.97597
+bomb.bias -0.55518
+bomb.stones 1.24584
+bomb.enemy_in_line 0.63843
+bomb.enemy_distance -1.97569
+bomb.bombs_left -1.29608
+bomb.at_goal 5.34550
+bomb.enemy_trapped 3.27464
+bomb.flames 0.77566
+kick.bias -1.98580
+kick.enemy_in_line 1.67362
+kick.enemy_trapped -0.50368
+kick.slide 0.37843
+kick.fuse_left -0.11874
