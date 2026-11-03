@@ -5,6 +5,7 @@
 #include "protobot.h"
 
 #include <memory>
+#include <optional>
 
 //! ProtoBot with its goal choice replaced by LearnedBotWeights: every field that can be reached
 //! without crossing a hazard gets scored, the bot walks to the best one and drops a bomb when
@@ -17,6 +18,9 @@ public:
 
 protected:
    void scoreGoals() override;
+
+   //! ProtoBot's thinking, then a kick replaces whatever it chose
+   void think() override;
 
    void reset() override;
 
@@ -31,11 +35,16 @@ private:
    //! a bomb at the given field would reach an enemy who has no safe field left to run to
    bool isEnemyTrapped(const Point& bomb, int flames) const;
 
+   //! the bomb next to the bot that is worth kicking now, if any: it has to slide further than
+   //! its flames reach, so the bot is out of the blast, and arrive before it explodes
+   std::optional<Point> chooseKick();
+
    std::shared_ptr<const LearnedBotWeights> _weights;
 
    std::vector<int> _distances;
    std::vector<int> _parents;
    Point _previous_goal{-1, -1};
+   std::optional<Point> _kick_target;
 };
 
 #endif  // LEARNEDBOT_H

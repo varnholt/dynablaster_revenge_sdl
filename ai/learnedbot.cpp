@@ -2,6 +2,8 @@
 
 // ai
 #include "botbombaction.h"
+#include "botbombmapitem.h"
+#include "botwalkaction.h"
 #include "botmap.h"
 #include "botoption.h"
 #include "botplayerinfo.h"
@@ -193,8 +195,117 @@ bool LearnedBot::isEnemyTrapped(const Point& bomb, int flames) const
    return false;
 }
 
+std::optional<Point> LearnedBot::chooseKick()
+{
+   if (!getPlayerInfo().isKickEnabled())
+   {
+      return std::nullopt;
+   }
+
+   const int width = _bot_map->getWidth();
+   const int height = _bot_map->getHeight();
+   const Point current(getXField(), getYField());
+   const auto inside = [width, height](const Point& p) { return p.x() >= 0 && p.y() >= 0 && p.x() < width && p.y() < height; };
+
+   std::optional<Point> best;
+   float best_score = 0.0f;
+
+   for (const Point& direction : directions)
+   {
+      const Point bomb_field(current.x() + direction.x(), current.y() + direction.y());
+
+      if (!inside(bomb_field))
+      {
+         continue;
+      }
+
+      const auto& item = _bot_map->getItem(bomb_field.x(), bomb_field.y());
+
+      if (!item || item->getType() != MapItem::Bomb)
+      {
+         continue;
+      }
+
+      const int flames = static_cast<const BombMapItem&>(*item).getFlames();
+
+      // slide until something solid or a player is in the way, like BombKickAnimation
+      Point stop = bomb_field;
+
+      while (true)
+      {
+         const Point next(stop.x() + direction.x(), stop.y() + direction.y());
+
+         if (!inside(next))
+         {
+            break;
+         }
+
+         const auto& blocking = _bot_map->getItem(next.x(), next.y());
+
+         if ((blocking && blocking->getType() != MapItem::Extra) || std::ranges::find(_enemy_positions, next) != _enemy_positions.end())
+         {
+            break;
+         }
+
+         stop = next;
+      }
+
+      const int slide = std::abs(stop.x() - bomb_field.x()) + std::abs(stop.y() - bomb_field.y());
+      const int fuse_left = getRemainingBombTime(bomb_field.x(), bomb_field.y());
+
+      // out of the blast where the bot will stand, and there before it goes off (7.5 fields/s)
+      if (slide <= flames || fuse_left < slide * 140 + 200)
+      {
+         continue;
+      }
+
+      std::array<float, LearnedBotWeights::KickFeatureCount> features{};
+      features[LearnedBotWeights::KickBias] = 1.0f;
+      features[LearnedBotWeights::KickEnemyInLine] = _bot_map->isBombDropDeadly(stop.x(), stop.y(), flames, _enemy_positions) ? 1.0f : 0.0f;
+      features[LearnedBotWeights::KickEnemyTrapped] =
+         (features[LearnedBotWeights::KickEnemyInLine] > 0.0f && isEnemyTrapped(stop, flames)) ? 1.0f : 0.0f;
+      features[LearnedBotWeights::KickSlide] = static_cast<float>(slide) / 10.0f;
+      features[LearnedBotWeights::KickFuseLeft] = std::min(1.0f, static_cast<float>(fuse_left) / 3000.0f);
+
+      const float score = dot(_weights->_kick, features);
+
+      if (score > best_score)
+      {
+         best_score = score;
+         best = bomb_field;
+      }
+   }
+
+   return best;
+}
+
+void LearnedBot::think()
+{
+   _kick_target.reset();
+
+   ProtoBot::think();
+
+   if (!_kick_target)
+   {
+      return;
+   }
+
+   // walking into the bomb kicks it
+   _options.clear();
+   _transiterate_target_x = _kick_target->x();
+   _transiterate_target_y = _kick_target->y();
+
+   auto option = std::make_unique<BotOption>();
+   option->setScore(3);
+   option->setAction(getWalkActionInstance());
+   _options.push_back(std::move(option));
+}
+
 void LearnedBot::scoreGoals()
 {
+   _enemy_positions = getLivingEnemyPositions();
+   _kick_target = chooseKick();
+
    // ProtoBot already marked the way out if the current field must be left
    if (_scoring_current_hazardous)
    {

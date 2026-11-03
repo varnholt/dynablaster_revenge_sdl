@@ -43,15 +43,27 @@ struct LearnedBotWeights
       BombFeatureCount
    };
 
-   static constexpr int ParameterCount = GoalFeatureCount + BombFeatureCount;
+   //! features of kicking a bomb next to the bot, by walking into it
+   enum KickFeature
+   {
+      KickBias,           //!< always 1
+      KickEnemyInLine,    //!< where the bomb stops, its blast would reach an enemy
+      KickEnemyTrapped,   //!< ... and that enemy couldn't get out of its way
+      KickSlide,          //!< fields the bomb would slide / 10
+      KickFuseLeft,       //!< milliseconds until it explodes / 3000
+      KickFeatureCount
+   };
+
+   static constexpr int ParameterCount = GoalFeatureCount + BombFeatureCount + KickFeatureCount;
 
    std::array<float, GoalFeatureCount> _goal{};
    std::array<float, BombFeatureCount> _bomb{};
+   std::array<float, KickFeatureCount> _kick{};
 
    //! hand-set start values that roughly follow ProtoBot's priorities
    static LearnedBotWeights defaults();
 
-   //! all parameters in one row, goal first, for training
+   //! all parameters in one row, goal, bomb, then kick, for training
    std::array<float, ParameterCount> toParameters() const;
 
    //! inverse of toParameters()

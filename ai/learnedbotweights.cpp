@@ -26,6 +26,11 @@ constexpr std::array<std::string_view, LearnedBotWeights::ParameterCount> parame
    "bomb.at_goal",
    "bomb.enemy_trapped",
    "bomb.flames",
+   "kick.bias",
+   "kick.enemy_in_line",
+   "kick.enemy_trapped",
+   "kick.slide",
+   "kick.fuse_left",
 };
 }  // namespace
 
@@ -53,6 +58,12 @@ LearnedBotWeights LearnedBotWeights::defaults()
    weights._bomb[BombEnemyTrapped] = 3.0f;
    weights._bomb[BombFlames] = 0.0f;
 
+   weights._kick[KickBias] = -1.0f;
+   weights._kick[KickEnemyInLine] = 2.0f;
+   weights._kick[KickEnemyTrapped] = 1.0f;
+   weights._kick[KickSlide] = 0.0f;
+   weights._kick[KickFuseLeft] = -0.5f;
+
    return weights;
 }
 
@@ -61,6 +72,7 @@ std::array<float, LearnedBotWeights::ParameterCount> LearnedBotWeights::toParame
    std::array<float, ParameterCount> parameters{};
    std::ranges::copy(_goal, parameters.begin());
    std::ranges::copy(_bomb, parameters.begin() + GoalFeatureCount);
+   std::ranges::copy(_kick, parameters.begin() + GoalFeatureCount + BombFeatureCount);
    return parameters;
 }
 
@@ -68,7 +80,8 @@ LearnedBotWeights LearnedBotWeights::fromParameters(std::span<const float, Param
 {
    LearnedBotWeights weights;
    std::ranges::copy(parameters.first<GoalFeatureCount>(), weights._goal.begin());
-   std::ranges::copy(parameters.last<BombFeatureCount>(), weights._bomb.begin());
+   std::ranges::copy(parameters.subspan<GoalFeatureCount, BombFeatureCount>(), weights._bomb.begin());
+   std::ranges::copy(parameters.last<KickFeatureCount>(), weights._kick.begin());
    return weights;
 }
 
