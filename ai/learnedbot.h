@@ -28,6 +28,9 @@ private:
    //! marks the walk from the bot's field to the goal so chooseNextField() follows it
    void markWayTo(const Point& goal);
 
+   //! a bomb at the given field would reach an enemy who has no safe field left to run to
+   bool isEnemyTrapped(const Point& bomb, int flames) const;
+
    std::shared_ptr<const LearnedBotWeights> _weights;
 
    std::vector<int> _distances;

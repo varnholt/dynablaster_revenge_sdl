@@ -36,6 +36,8 @@ struct Options
    uint32_t _seed = 1;
    float _sigma = 0.3f;
    float _rate = 0.5f;
+   double _kill_weight = 3.0;
+   bool _relative = false;
    std::string _start;
    std::string _out = "learnedbot.txt";
    std::string _work = "sim_train";
@@ -103,6 +105,10 @@ std::optional<Options> parseOptions(int argc, char** argv)
          valid = parseNumber(value, options._sigma);
       else if (name == "--rate")
          valid = parseNumber(value, options._rate);
+      else if (name == "--kill-weight")
+         valid = parseNumber(value, options._kill_weight);
+      else if (name == "--relative")
+         options._relative = value == "1" || value == "yes";
       else if (name == "--start")
          options._start = value;
       else if (name == "--out")
@@ -140,7 +146,6 @@ void add(Result& result, std::span<const std::string> fields)
    result._deaths += deaths;
    result._wins += wins;
    result._extras += extras;
-   result._reward += 3.0 * kills - 2.0 * deaths + 2.0 * wins + 0.2 * extras;
    result._rows++;
 }
 
@@ -152,11 +157,22 @@ void average(Result& result)
    }
 
    const double rows = static_cast<double>(result._rows);
-   result._reward /= rows;
    result._kills /= rows;
    result._deaths /= rows;
    result._wins /= rows;
    result._extras /= rows;
+   result._reward = 3.0 * result._kills - 2.0 * result._deaths + 2.0 * result._wins + 0.2 * result._extras;
+}
+
+//! what training maximizes: the learned bots' score with the chosen kill weight, optionally
+//! minus the ProtoBots' score in the same match so luck that hits everyone cancels out
+double fitness(const MatchResult& match, const Options& options)
+{
+   const auto score = [&options](const Result& result)
+   { return options._kill_weight * result._kills - 2.0 * result._deaths + 2.0 * result._wins + 0.2 * result._extras; };
+
+   const bool compare = options._relative && match._proto._rows > 0;
+   return score(match._learned) - (compare ? score(match._proto) : 0.0);
 }
 
 std::optional<MatchResult> readMatch(const std::filesystem::path& csv)
@@ -338,6 +354,11 @@ int Trainer::run(int argc, char** argv)
       std::cout << std::format("gen {:>3}  learned {}\n", generation, describe(results[0]->_learned));
       std::cout << std::format("         proto   {}\n", describe(results[0]->_proto));
       std::cout.flush();
+
+      // keep every evaluated state, e.g. as difficulty levels
+      std::filesystem::path snapshot = options._out;
+      snapshot.replace_extension(std::format(".g{:03}{}", generation, std::filesystem::path(options._out).extension().string()));
+      LearnedBotWeights::fromParameters(center).write(snapshot.string());
    };
 
    evaluate(0);
@@ -372,7 +393,7 @@ int Trainer::run(int argc, char** argv)
 
       for (size_t i = 0; i < results.size(); i++)
       {
-         rewards[i] = results[i] ? results[i]->_learned._reward : -1e9;
+         rewards[i] = results[i] ? fitness(*results[i], options) : -1e9;
       }
 
       std::vector<size_t> order(candidates.size());
@@ -402,7 +423,7 @@ int Trainer::run(int argc, char** argv)
       const double mean = std::accumulate(rewards.begin(), rewards.end(), 0.0) / static_cast<double>(rewards.size());
 
       std::cout << std::format(
-         "gen {:>3}  candidates: mean score {:+.3f}  best {:+.3f}{}\n",
+         "gen {:>3}  candidates: mean fitness {:+.3f}  best {:+.3f}{}\n",
          generation,
          failed > 0 ? 0.0 : mean,
          rewards[order.back()],

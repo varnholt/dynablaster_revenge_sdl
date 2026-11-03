@@ -110,6 +110,89 @@ void LearnedBot::markWayTo(const Point& goal)
    }
 }
 
+bool LearnedBot::isEnemyTrapped(const Point& bomb, int flames) const
+{
+   const int width = _bot_map->getWidth();
+   const int height = _bot_map->getHeight();
+
+   // the new bomb's flames, stopping at the first item like the real explosion
+   std::vector<bool> burning(static_cast<size_t>(width * height), false);
+   burning[static_cast<size_t>(bomb.y() * width + bomb.x())] = true;
+
+   std::vector<Point> hit_enemies;
+
+   for (const Point& direction : directions)
+   {
+      for (int i = 1; i <= flames; i++)
+      {
+         const int x = bomb.x() + i * direction.x();
+         const int y = bomb.y() + i * direction.y();
+
+         if (x < 0 || y < 0 || x >= width || y >= height || _bot_map->getItem(x, y))
+         {
+            break;
+         }
+
+         burning[static_cast<size_t>(y * width + x)] = true;
+
+         if (std::ranges::find(_enemy_positions, Point(x, y)) != _enemy_positions.end())
+         {
+            hit_enemies.push_back(Point(x, y));
+         }
+      }
+   }
+
+   // an enemy is trapped if no field within a few steps is safe from this bomb and all others
+   constexpr int escape_steps = 6;
+
+   for (const Point& enemy : hit_enemies)
+   {
+      std::vector<int> distance(static_cast<size_t>(width * height), -1);
+      std::deque<Point> open{enemy};
+      distance[static_cast<size_t>(enemy.y() * width + enemy.x())] = 0;
+      bool escapes = false;
+
+      while (!open.empty() && !escapes)
+      {
+         const Point p = open.front();
+         open.pop_front();
+         const int d = distance[static_cast<size_t>(p.y() * width + p.x())];
+
+         for (const Point& direction : directions)
+         {
+            const int x = p.x() + direction.x();
+            const int y = p.y() + direction.y();
+            const size_t index = static_cast<size_t>(y * width + x);
+
+            if (x < 0 || y < 0 || x >= width || y >= height || distance[index] >= 0 || (x == bomb.x() && y == bomb.y()) ||
+                _bot_map->isPositionBlocked(x, y))
+            {
+               continue;
+            }
+
+            if (!burning[index] && getScore(x, y) >= 0)
+            {
+               escapes = true;
+               break;
+            }
+
+            if (d + 1 < escape_steps)
+            {
+               distance[index] = d + 1;
+               open.push_back(Point(x, y));
+            }
+         }
+      }
+
+      if (!escapes)
+      {
+         return true;
+      }
+   }
+
+   return false;
+}
+
 void LearnedBot::scoreGoals()
 {
    // ProtoBot already marked the way out if the current field must be left
@@ -201,6 +284,8 @@ void LearnedBot::scoreGoals()
          features[LearnedBotWeights::GoalHazardNearby] = static_cast<float>(hazardous_neighbors) / 4.0f;
          features[LearnedBotWeights::GoalPreviousGoal] = (p == _previous_goal) ? 1.0f : 0.0f;
          features[LearnedBotWeights::GoalCurrentField] = (p == current) ? 1.0f : 0.0f;
+         features[LearnedBotWeights::GoalEnemyTrapped] =
+            (features[LearnedBotWeights::GoalEnemyInLine] > 0.0f && isEnemyTrapped(p, flames)) ? 1.0f : 0.0f;
 
          const float score = dot(_weights->_goal, features);
 
@@ -231,6 +316,9 @@ void LearnedBot::scoreGoals()
    features[LearnedBotWeights::BombEnemyDistance] = nearest_enemy(current);
    features[LearnedBotWeights::BombBombsLeft] = static_cast<float>(info.getBombCount() - placed_bombs) / static_cast<float>(info.getBombCount());
    features[LearnedBotWeights::BombAtGoal] = (goal == current) ? 1.0f : 0.0f;
+   features[LearnedBotWeights::BombEnemyTrapped] =
+      (features[LearnedBotWeights::BombEnemyInLine] > 0.0f && isEnemyTrapped(current, flames)) ? 1.0f : 0.0f;
+   features[LearnedBotWeights::BombFlames] = static_cast<float>(flames) / 8.0f;
 
    if (dot(_weights->_bomb, features) > 0.0f && isSafeEscapePossible())
    {

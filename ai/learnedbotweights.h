@@ -25,6 +25,7 @@ struct LearnedBotWeights
       GoalHazardNearby,   //!< hazardous neighbors / 4
       GoalPreviousGoal,   //!< it was the goal last time, keeps the bot from dithering
       GoalCurrentField,   //!< the bot stands there
+      GoalEnemyTrapped,   //!< a bomb there would reach an enemy who can't get out of its way, 0 without a bomb at hand
       GoalFeatureCount
    };
 
@@ -37,6 +38,8 @@ struct LearnedBotWeights
       BombEnemyDistance,  //!< manhattan distance to the nearest enemy / 10, at most 1
       BombBombsLeft,      //!< share of the bot's bombs not yet placed
       BombAtGoal,         //!< the bot stands on its goal
+      BombEnemyTrapped,   //!< the bomb would reach an enemy who can't get out of its way
+      BombFlames,         //!< the bot's own flame length / 8
       BombFeatureCount
    };
 

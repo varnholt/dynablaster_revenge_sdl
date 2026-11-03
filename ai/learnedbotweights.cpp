@@ -17,12 +17,15 @@ constexpr std::array<std::string_view, LearnedBotWeights::ParameterCount> parame
    "goal.hazard_nearby",
    "goal.previous_goal",
    "goal.current_field",
+   "goal.enemy_trapped",
    "bomb.bias",
    "bomb.stones",
    "bomb.enemy_in_line",
    "bomb.enemy_distance",
    "bomb.bombs_left",
    "bomb.at_goal",
+   "bomb.enemy_trapped",
+   "bomb.flames",
 };
 }  // namespace
 
@@ -39,6 +42,7 @@ LearnedBotWeights LearnedBotWeights::defaults()
    weights._goal[GoalHazardNearby] = -0.5f;
    weights._goal[GoalPreviousGoal] = 0.3f;
    weights._goal[GoalCurrentField] = 0.1f;
+   weights._goal[GoalEnemyTrapped] = 2.0f;
 
    weights._bomb[BombBias] = -0.5f;
    weights._bomb[BombStones] = 2.5f;
@@ -46,6 +50,8 @@ LearnedBotWeights LearnedBotWeights::defaults()
    weights._bomb[BombEnemyDistance] = 0.0f;
    weights._bomb[BombBombsLeft] = 0.3f;
    weights._bomb[BombAtGoal] = 0.5f;
+   weights._bomb[BombEnemyTrapped] = 3.0f;
+   weights._bomb[BombFlames] = 0.0f;
 
    return weights;
 }
