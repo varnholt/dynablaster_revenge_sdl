@@ -41,6 +41,9 @@ public:
    //! bots connect through streams made by this instead of the network, e.g. in a headless simulation
    void setLocalConnector(std::function<std::unique_ptr<ByteStream>()> connector);
 
+   //! learned bots added from now on are called by their level ("level3") instead of a robot name
+   void setNamesShowLevel(bool enabled);
+
    //! weights for learned bots added from now on, whatever their level (the sim's --weights)
    void setLearnedWeights(std::shared_ptr<const LearnedBotWeights> weights);
 
@@ -74,6 +77,12 @@ protected:
 
    //! weights per level, loaded on first use
    std::map<int, std::shared_ptr<const LearnedBotWeights>> _level_weights;
+
+   //! learned bots are called by their level
+   bool _names_show_level = false;
+
+   //! how many bots of each level got a level name so far
+   std::map<int, int> _level_name_counts;
 
    //! list of given names
    std::vector<std::string> _given_names;

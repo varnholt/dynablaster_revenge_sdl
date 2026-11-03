@@ -110,6 +110,14 @@ void BotFactory::createBotClientPair(BotType type, int level)
       nick = nicks[Random::bounded(static_cast<int>(nicks.size()) - 1)];
    }
 
+   if (_names_show_level && type == BotType::Learned)
+   {
+      // repeats get a letter: level5, level5b, level5c
+      const int clamped = std::clamp(level, 1, 5);
+      const int repeat = _level_name_counts[clamped]++;
+      nick = repeat == 0 ? std::format("level{}", clamped) : std::format("level{}{}", clamped, static_cast<char>('a' + repeat));
+   }
+
    client.setBot(std::move(bot_owner));
    client.setGameId(getGameId());
    client.setHost(getHostname());
@@ -177,6 +185,11 @@ void BotFactory::add(int count, BotType type, int level)
 void BotFactory::setLocalConnector(std::function<std::unique_ptr<ByteStream>()> connector)
 {
    _local_connector = std::move(connector);
+}
+
+void BotFactory::setNamesShowLevel(bool enabled)
+{
+   _names_show_level = enabled;
 }
 
 void BotFactory::setLearnedWeights(std::shared_ptr<const LearnedBotWeights> weights)

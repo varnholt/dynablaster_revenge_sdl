@@ -4,6 +4,8 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <cstdlib>
+#include <sstream>
 
 #ifdef __SWITCH__
 #define SETTINGS_FILE "sdmc:/switch/dynablaster_revenge/game.ini"
@@ -299,6 +301,16 @@ void GameSettings::DevelopmentSettings::deserialize()
    _game_recording_enabled = value("development/gamerecording", false).toBool();
    _controllers_enabled = value("development/controllersenabled", true).toBool();
 
+   _bot_levels.clear();
+   std::istringstream levels(value("development/botlevels", "").toString());
+   for (std::string level; std::getline(levels, level, ',');)
+   {
+      if (const int parsed = std::atoi(level.c_str()); parsed >= 1 && parsed <= 5)
+      {
+         _bot_levels.push_back(parsed);
+      }
+   }
+
    setPageFacebook(value("development/page_facebook", "https://www.facebook.com/DynablasterRevenge").toString());
 
    setPagePouet(value("development/page_pouet", "http://www.pouet.net/prod.php?which=62926").toString());
@@ -344,6 +356,11 @@ bool GameSettings::DevelopmentSettings::isGameRecordingEnabled() const
 void GameSettings::DevelopmentSettings::setGameRecordingEnabled(bool value)
 {
    _game_recording_enabled = value;
+}
+
+const std::vector<int>& GameSettings::DevelopmentSettings::getBotLevels() const
+{
+   return _bot_levels;
 }
 
 bool GameSettings::DevelopmentSettings::isControllersEnabled() const
