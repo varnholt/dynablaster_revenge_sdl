@@ -197,8 +197,14 @@ set(DYNABLASTER_AI_SOURCES
     ../ai/botoption.h
     ../ai/botplayerinfo.cpp
     ../ai/botplayerinfo.h
+    ../ai/bottype.cpp
+    ../ai/bottype.h
     ../ai/botwalkaction.cpp
     ../ai/botwalkaction.h
+    ../ai/learnedbot.cpp
+    ../ai/learnedbot.h
+    ../ai/learnedbotweights.cpp
+    ../ai/learnedbotweights.h
     ../ai/path.cpp
     ../ai/path.h
     ../ai/pathfinding.cpp
@@ -591,6 +597,8 @@ if(NOT EMSCRIPTEN AND NOT NINTENDO_SWITCH)
         ../sim/main.cpp
         ../sim/simrecorder.cpp
         ../sim/simrecorder.h
+        ../sim/trainer.cpp
+        ../sim/trainer.h
         ${DYNABLASTER_SHARED_SOURCES}
         ${DYNABLASTER_SERVER_SOURCES}
         ${DYNABLASTER_AI_SOURCES}

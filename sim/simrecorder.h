@@ -1,5 +1,6 @@
 #pragma once
 
+#include "bottype.h"
 #include "playerstats.h"
 
 #include <cstddef>
@@ -19,6 +20,7 @@ public:
       int32_t _round = 0;
       int32_t _player_id = 0;
       std::string _nick;
+      BotType _bot_type = BotType::Proto;
       uint32_t _kills = 0;
       uint32_t _deaths = 0;
       uint32_t _wins = 0;
@@ -32,6 +34,9 @@ public:
 
    SimRecorder(const SimRecorder&) = delete;
    SimRecorder& operator=(const SimRecorder&) = delete;
+
+   //! the player is played by this bot type, players default to ProtoBot
+   void setBotType(int32_t player_id, BotType type);
 
    //! all requested rounds were played
    [[nodiscard]] bool isFinished() const;
@@ -55,5 +60,6 @@ private:
    int32_t _rounds_played = 0;
    std::size_t _state_connection = 0;
    std::map<int32_t, PlayerStats> _previous;
+   std::map<int32_t, BotType> _bot_types;
    std::vector<Row> _rows;
 };

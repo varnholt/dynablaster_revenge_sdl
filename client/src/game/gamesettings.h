@@ -15,6 +15,7 @@
 // shared
 #include <cstdint>
 #include <memory>
+#include "bottype.h"
 #include "constants.h"
 #include "settings.h"
 
@@ -623,6 +624,12 @@ public:
       //! getter for bot count
       int getBotCount() const;
 
+      //! setter for which bot plays the computer players
+      void setBotType(BotType type);
+
+      //! getter for which bot plays the computer players, ini key "bottype": proto or learned
+      BotType getBotType() const;
+
       //! setter for maximum player count
       void setMaxPlayers(int);
 
@@ -692,6 +699,9 @@ public:
 
       //! bot count
       int _bot_count = 0;
+
+      //! bot type
+      BotType _bot_type = BotType::Proto;
 
       //! extra flag: bombs
       bool _extra_bombs = false;

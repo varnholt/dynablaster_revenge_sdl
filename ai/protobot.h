@@ -178,8 +178,14 @@ protected:
    //! clear path when done
    void clearPath();
 
-   //! calculate score for reachable positions
+   //! calculate score for reachable positions: marks reachable and hazardous fields and the
+   //! escape path if the current field must be left, then lets scoreGoals() pick a goal
    void scoreFields();
+
+   //! picks where to go and whether to drop a bomb once scoreFields() marked the hazards: extra,
+   //! then attack, then the best bomb stone position, then a long distance walk. A different
+   //! bot overrides this to choose differently while keeping ProtoBot's safety and walking.
+   virtual void scoreGoals();
 
    //! score for kick
    bool isKickPossible();

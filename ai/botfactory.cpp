@@ -1,5 +1,6 @@
 #include "botfactory.h"
 
+#include "log.h"
 #include "random.h"
 #include "timer.h"
 
@@ -7,6 +8,8 @@
 #include "botclient.h"
 #include "botmap.h"
 #include "bytestream.h"
+#include "learnedbot.h"
+#include "learnedbotweights.h"
 #include "protobot.h"
 #include "protobotinsults.h"
 #include "stringutils.h"
@@ -19,16 +22,37 @@ BotFactory::BotFactory() = default;
 // bots are deleted in client destructor
 BotFactory::~BotFactory() = default;
 
-void BotFactory::createBotClientPair()
+void BotFactory::createBotClientPair(BotType type)
 {
    // todo read data from command line
-   // - bot type
    // - host
    // - game id or command to create game
    // - start game flag or command to wait
    auto client_owner = std::make_unique<BotClient>();
    BotClient& client = *client_owner;
-   auto bot_owner = std::make_unique<ProtoBot>(client.getPlayerInfoMap());
+   std::unique_ptr<ProtoBot> bot_owner;
+
+   if (type == BotType::Learned)
+   {
+      if (!_learned_weights)
+      {
+         auto loaded = LearnedBotWeights::load("data/server/learnedbot.txt");
+
+         if (!loaded)
+         {
+            Log::warning("BotFactory: data/server/learnedbot.txt not found, learned bots use default weights");
+         }
+
+         _learned_weights = std::make_shared<const LearnedBotWeights>(loaded.value_or(LearnedBotWeights::defaults()));
+      }
+
+      bot_owner = std::make_unique<LearnedBot>(client.getPlayerInfoMap(), _learned_weights);
+   }
+   else
+   {
+      bot_owner = std::make_unique<ProtoBot>(client.getPlayerInfoMap());
+   }
+
    ProtoBot& bot = *bot_owner;
 
    std::vector<std::string> nicks;
@@ -128,13 +152,13 @@ void BotFactory::createBotClientPair()
 /*!
    \param count number of bots to add
 */
-void BotFactory::add(int count)
+void BotFactory::add(int count, BotType type)
 {
    _given_names.clear();
 
    for (int i = 0; i < count; i++)
    {
-      createBotClientPair();
+      createBotClientPair(type);
    }
 
    _given_names.clear();
@@ -143,6 +167,11 @@ void BotFactory::add(int count)
 void BotFactory::setLocalConnector(std::function<std::unique_ptr<ByteStream>()> connector)
 {
    _local_connector = std::move(connector);
+}
+
+void BotFactory::setLearnedWeights(std::shared_ptr<const LearnedBotWeights> weights)
+{
+   _learned_weights = std::move(weights);
 }
 
 void BotFactory::setHostname(const std::string& hostname)

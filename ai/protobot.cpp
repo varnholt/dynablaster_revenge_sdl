@@ -749,6 +749,11 @@ void ProtoBot::scoreFields()
       }
    }
 
+   scoreGoals();
+}
+
+void ProtoBot::scoreGoals()
+{
    // increase individual field score by marking extras
    // calculate path to extras, find nearest extras (if max length is not exceeded)
    // then multiply path to extras by 2

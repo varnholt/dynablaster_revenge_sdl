@@ -532,6 +532,7 @@ void GameSettings::CreateGameSettings::serialize()
       setValue("creategamesingle/duration", getDuration());
       setValue("creategamesingle/maxplayers", getMaxPlayers());
       setValue("creategamesingle/botcount", getBotCount());
+      setValue("creategamesingle/bottype", std::string(toString(getBotType())));
       setValue("creategamesingle/extrabombs", isExtraBombsEnabled());
       setValue("creategamesingle/extraflames", isExtraFlamesEnabled());
       setValue("creategamesingle/extrakicks", isExtraKicksEnabled());
@@ -547,6 +548,7 @@ void GameSettings::CreateGameSettings::serialize()
       setValue("creategamemulti/duration", getDuration());
       setValue("creategamemulti/maxplayers", getMaxPlayers());
       setValue("creategamemulti/botcount", getBotCount());
+      setValue("creategamemulti/bottype", std::string(toString(getBotType())));
       setValue("creategamemulti/extrabombs", isExtraBombsEnabled());
       setValue("creategamemulti/extraflames", isExtraFlamesEnabled());
       setValue("creategamemulti/extrakicks", isExtraKicksEnabled());
@@ -566,6 +568,7 @@ void GameSettings::CreateGameSettings::deserialize()
       setDuration(value("creategamesingle/duration", 3).toInt());
       setMaxPlayers(value("creategamesingle/maxplayers", 5).toInt());
       setBotCount(value("creategamesingle/botcount", 4).toInt());
+      setBotType(botTypeFromString(value("creategamesingle/bottype", "proto").toString()).value_or(BotType::Proto));
 
       setExtraBombsEnabled(value("creategamesingle/extrabombs", true).toBool());
       setExtraFlamesEnabled(value("creategamesingle/extraflames", true).toBool());
@@ -585,6 +588,7 @@ void GameSettings::CreateGameSettings::deserialize()
       setDuration(value("creategamemulti/duration", 3).toInt());
       setMaxPlayers(value("creategamemulti/maxplayers", 5).toInt());
       setBotCount(value("creategamemulti/botcount", 0).toInt());
+      setBotType(botTypeFromString(value("creategamemulti/bottype", "proto").toString()).value_or(BotType::Proto));
 
       setExtraBombsEnabled(value("creategamemulti/extrabombs", true).toBool());
       setExtraFlamesEnabled(value("creategamemulti/extraflames", true).toBool());
@@ -646,6 +650,16 @@ void GameSettings::CreateGameSettings::setBotCount(int val)
 int GameSettings::CreateGameSettings::getBotCount() const
 {
    return _bot_count;
+}
+
+void GameSettings::CreateGameSettings::setBotType(BotType type)
+{
+   _bot_type = type;
+}
+
+BotType GameSettings::CreateGameSettings::getBotType() const
+{
+   return _bot_type;
 }
 
 void GameSettings::CreateGameSettings::setMaxPlayers(int val)

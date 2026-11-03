@@ -3,21 +3,27 @@
 // streams, on simulated time that advances as fast as the cpu allows. Writes one csv row per
 // player and round.
 //
-//    dynablaster_sim [--rounds n] [--bots n] [--duration s] [--step ms] [--out file.csv] [--seed n] [--realtime] [--verbose]
+//    dynablaster_sim [--rounds n] [--bots n] [--learned n] [--weights file] [--duration s] [--step ms] [--out file.csv] [--seed n]
+//                    [--realtime] [--verbose]
+//    dynablaster_sim --train [...]   trains the learned bot's weights, see trainer.h
 //
+// --learned n lets n of the bots be learned bots (with --weights, else data/server/learnedbot.txt), the rest are ProtoBots.
 // --seed makes a run repeatable, --realtime plays on the real clock like the game does, to compare against simulated time.
 //
 // run it from the client's build directory, the server reads its settings from data/.
 
 // sim
 #include "simrecorder.h"
+#include "trainer.h"
 
 // server
 #include "game.h"
+#include "player.h"
 #include "server.h"
 
 // ai
 #include "botfactory.h"
+#include "learnedbotweights.h"
 
 // shared
 #include "bytestream.h"
@@ -54,7 +60,9 @@ struct Options
    int32_t _bots = 4;
    int32_t _duration_s = 180;
    int32_t _step_ms = 2;
+   int32_t _learned = 0;
    std::string _out = "sim.csv";
+   std::string _weights;
    bool _verbose = false;
    bool _realtime = false;
    std::optional<uint32_t> _seed;
@@ -106,6 +114,12 @@ std::optional<Options> parseOptions(int argc, char** argv)
          continue;
       }
 
+      if (name == "--weights")
+      {
+         options._weights = value;
+         continue;
+      }
+
       const auto number = parseInt(value);
 
       if (!number || *number < 0)
@@ -116,6 +130,12 @@ std::optional<Options> parseOptions(int argc, char** argv)
       if (name == "--seed")
       {
          options._seed = static_cast<uint32_t>(*number);
+         continue;
+      }
+
+      if (name == "--learned")
+      {
+         options._learned = *number;
          continue;
       }
 
@@ -146,7 +166,7 @@ std::optional<Options> parseOptions(int argc, char** argv)
       }
    }
 
-   if (options._bots < 2)
+   if (options._bots < 2 || options._learned > options._bots)
    {
       return std::nullopt;
    }
@@ -226,7 +246,9 @@ int run(int argc, char** argv)
 
    if (!parsed)
    {
-      std::cerr << "usage: dynablaster_sim [--rounds n] [--bots n>=2] [--duration s] [--step ms] [--out file.csv] [--seed n] [--realtime] [--verbose]\n";
+      std::cerr << "usage: dynablaster_sim [--rounds n] [--bots n>=2] [--learned n<=bots] [--weights file] [--duration s] [--step ms] "
+                   "[--out file.csv] [--seed n] [--realtime] [--verbose]\n"
+                   "       dynablaster_sim --train [options], see trainer.h\n";
       return 2;
    }
 
@@ -319,12 +341,39 @@ int run(int argc, char** argv)
    BotFactory bots;
    bots.setGameId(*game_id);
    bots.setLocalConnector(connect);
-   bots.add(options._bots);
 
-   while (static_cast<int32_t>(game->get().getPlayers().size()) < options._bots && !timed_out())
+   if (!options._weights.empty())
    {
-      step();
+      const auto weights = LearnedBotWeights::load(options._weights);
+
+      if (!weights)
+      {
+         std::cerr << std::format("can't read weights from {}\n", options._weights);
+         return 1;
+      }
+
+      bots.setLearnedWeights(std::make_shared<const LearnedBotWeights>(*weights));
    }
+
+   const auto wait_for_players = [&](int32_t count)
+   {
+      while (static_cast<int32_t>(game->get().getPlayers().size()) < count && !timed_out())
+      {
+         step();
+      }
+   };
+
+   // learned bots join first so the recorder can tell them apart
+   bots.add(options._learned, BotType::Learned);
+   wait_for_players(options._learned);
+
+   for (const Player& player : game->get().getPlayers())
+   {
+      recorder.setBotType(player.getId(), BotType::Learned);
+   }
+
+   bots.add(options._bots - options._learned, BotType::Proto);
+   wait_for_players(options._bots);
 
    StartGameRequestPacket start(*game_id);
    controller.send(start);
@@ -364,6 +413,11 @@ int main(int argc, char** argv)
 {
    try
    {
+      if (argc > 1 && std::string_view(argv[1]) == "--train")
+      {
+         return Trainer::run(argc, argv);
+      }
+
       return run(argc, argv);
    }
    catch (const std::exception& exception)

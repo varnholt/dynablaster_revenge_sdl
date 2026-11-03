@@ -2406,14 +2406,10 @@ void BombermanClient::initializeBots()
       _bot_factory->setHostname(getHost());
       _bot_factory->setGameId(getGameId());
 
-      int bots = 0;
+      const auto& settings = isSinglePlayer() ? GameSettings::getInstance().getCreateGameSettingsSingle()
+                                              : GameSettings::getInstance().getCreateGameSettingsMulti();
 
-      if (isSinglePlayer())
-         bots = GameSettings::getInstance().getCreateGameSettingsSingle().getBotCount();
-      else
-         bots = GameSettings::getInstance().getCreateGameSettingsMulti().getBotCount();
-
-      _bot_factory->add(bots);
+      _bot_factory->add(settings.getBotCount(), settings.getBotType());
    }
 }
 

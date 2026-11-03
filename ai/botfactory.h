@@ -1,6 +1,8 @@
 #ifndef BOTFACTORY_H
 #define BOTFACTORY_H
 
+#include "bottype.h"
+
 #include <functional>
 #include <memory>
 #include <string>
@@ -10,6 +12,7 @@
 class Bot;
 class BotClient;
 class ByteStream;
+struct LearnedBotWeights;
 
 class BotFactory
 {
@@ -18,7 +21,8 @@ public:
 
    virtual ~BotFactory();
 
-   void add(int count = 1);
+   //! adds bots of the given type, they connect and join the game right away
+   void add(int count = 1, BotType type = BotType::Proto);
 
    void setHostname(const std::string& hostname);
 
@@ -35,9 +39,12 @@ public:
    //! bots connect through streams made by this instead of the network, e.g. in a headless simulation
    void setLocalConnector(std::function<std::unique_ptr<ByteStream>()> connector);
 
+   //! weights for learned bots added from now on; without, they load data/server/learnedbot.txt
+   void setLearnedWeights(std::shared_ptr<const LearnedBotWeights> weights);
+
 protected:
    //! create a bot and a client instance
-   void createBotClientPair();
+   void createBotClientPair(BotType type);
 
    //! host to connect to
    std::string _hostname = "127.0.0.1";
@@ -56,6 +63,9 @@ protected:
 
    //! makes local streams to the server, empty to connect over the network
    std::function<std::unique_ptr<ByteStream>()> _local_connector;
+
+   //! weights shared by the learned bots
+   std::shared_ptr<const LearnedBotWeights> _learned_weights;
 
    //! list of given names
    std::vector<std::string> _given_names;
