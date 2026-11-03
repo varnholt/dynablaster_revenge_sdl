@@ -18,6 +18,7 @@
 #include "protobotmemory.h"
 
 // shared
+#include "clock.h"
 #include "log.h"
 #include "mapitem.h"
 #include "playerdisease.h"
@@ -558,7 +559,7 @@ void ProtoBot::markHazardousFields()
 void ProtoBot::updateRemainingBombTimes()
 {
    // init
-   auto current_time = std::chrono::steady_clock::now();
+   auto current_time = Clock::now();
    int tick_time = getServerConfiguration().getBombTickTime();
    int time_diff = 0;
    int time_left = 0;

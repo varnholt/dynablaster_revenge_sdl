@@ -6,6 +6,7 @@
 // bot
 #include "botclient.h"
 #include "botmap.h"
+#include "bytestream.h"
 #include "protobot.h"
 #include "protobotinsults.h"
 #include "stringutils.h"
@@ -82,7 +83,15 @@ void BotFactory::createBotClientPair()
    client.setAutoJoin(true);
    client.setAutoStart(false);
    client.initialize();
-   client.connectToServer();
+
+   if (_local_connector)
+   {
+      client.connectLocal(_local_connector());
+   }
+   else
+   {
+      client.connectToServer();
+   }
 
    bot.startTicking();
 
@@ -129,6 +138,11 @@ void BotFactory::add(int count)
    }
 
    _given_names.clear();
+}
+
+void BotFactory::setLocalConnector(std::function<std::unique_ptr<ByteStream>()> connector)
+{
+   _local_connector = std::move(connector);
 }
 
 void BotFactory::setHostname(const std::string& hostname)

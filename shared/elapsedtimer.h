@@ -1,5 +1,7 @@
 #pragma once
 
+#include "clock.h"
+
 #include <chrono>
 #include <cstdint>
 #include <optional>
@@ -18,6 +20,6 @@ public:
    void setPaused(bool paused);
 
 private:
-   std::chrono::steady_clock::time_point _start_time = std::chrono::steady_clock::now();
+   std::chrono::steady_clock::time_point _start_time = Clock::now();
    std::optional<std::chrono::steady_clock::time_point> _paused_at;
 };

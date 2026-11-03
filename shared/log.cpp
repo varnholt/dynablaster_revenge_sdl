@@ -82,8 +82,32 @@ std::string localTime()
    );
 }
 
+Log::Level _minimum_level = Log::Level::Info;
+
+int severity(Log::Level level)
+{
+   switch (level)
+   {
+      case Log::Level::Info:
+         return 0;
+      case Log::Level::Warning:
+         return 1;
+      case Log::Level::Error:
+         return 2;
+      case Log::Level::Fatal:
+         return 3;
+   }
+
+   return 0;
+}
+
 void log(Log::Level level, std::string_view message, const std::source_location& source)
 {
+   if (severity(level) < severity(_minimum_level))
+   {
+      return;
+   }
+
    const auto color = colorForLevel(level);
    const auto reset = color.empty() ? std::string_view{} : color_reset;
 
@@ -95,6 +119,11 @@ void log(Log::Level level, std::string_view message, const std::source_location&
              << std::endl;
 }
 }  // namespace
+
+void Log::setMinimumLevel(Level level)
+{
+   _minimum_level = level;
+}
 
 void Log::info(std::string_view message, const std::source_location& source)
 {

@@ -584,6 +584,29 @@ add_executable(dynablaster_revenge_harness
 )
 target_link_libraries(dynablaster_revenge_harness PRIVATE dynablaster_core)
 
+# dynablaster_sim - headless bot matches on simulated time for measuring and training bots, a
+# development tool that never ships: the real server and bot clients without the engine.
+if(NOT EMSCRIPTEN AND NOT NINTENDO_SWITCH)
+    add_executable(dynablaster_sim
+        ../sim/main.cpp
+        ../sim/simrecorder.cpp
+        ../sim/simrecorder.h
+        ${DYNABLASTER_SHARED_SOURCES}
+        ${DYNABLASTER_SERVER_SOURCES}
+        ${DYNABLASTER_AI_SOURCES}
+    )
+    target_include_directories(dynablaster_sim PRIVATE ../sim ../shared ../server/src ../ai)
+    target_link_libraries(dynablaster_sim PRIVATE SDL3_net::SDL3_net SDL3::SDL3 lua)
+    add_dependencies(dynablaster_sim dynablaster_data)
+
+    # memory errors in the server and bots show up first in long simulations
+    option(DYNABLASTER_SIM_ASAN "build dynablaster_sim with AddressSanitizer" OFF)
+    if(DYNABLASTER_SIM_ASAN AND MSVC)
+        target_compile_options(dynablaster_sim PRIVATE /fsanitize=address /Zi)
+        target_link_options(dynablaster_sim PRIVATE /DEBUG /INCREMENTAL:NO)
+    endif()
+endif()
+
 # Shaders/textures load through FileStream at runtime (not compiled in), so they need to sit
 # next to the exe. A custom target with no outputs runs on every build, so asset edits reach the
 # exe dir even when nothing relinks (a POST_BUILD step would skip them).

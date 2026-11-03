@@ -1,6 +1,7 @@
 #ifndef BOTFACTORY_H
 #define BOTFACTORY_H
 
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -8,6 +9,7 @@
 // forward declarations
 class Bot;
 class BotClient;
+class ByteStream;
 
 class BotFactory
 {
@@ -30,6 +32,9 @@ public:
 
    void removeBot(BotClient& client);
 
+   //! bots connect through streams made by this instead of the network, e.g. in a headless simulation
+   void setLocalConnector(std::function<std::unique_ptr<ByteStream>()> connector);
+
 protected:
    //! create a bot and a client instance
    void createBotClientPair();
@@ -48,6 +53,9 @@ protected:
 
    //! expires with this factory, deferred cleanups check it
    std::shared_ptr<bool> _lifetime = std::make_shared<bool>(true);
+
+   //! makes local streams to the server, empty to connect over the network
+   std::function<std::unique_ptr<ByteStream>()> _local_connector;
 
    //! list of given names
    std::vector<std::string> _given_names;

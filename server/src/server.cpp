@@ -6,6 +6,7 @@
 #include "serverversion.h"
 
 // shared
+#include "bytestream.h"
 #include "creategamerequestpacket.h"
 #include "creategameresponsepacket.h"
 #include "joingamerequestpacket.h"
@@ -37,24 +38,27 @@
 // SDL
 #include <SDL3_net/SDL_net.h>
 
-Server::Server()
+Server::Server(bool listen)
 {
    initServerConfiguration();
 
    Log::info(std::format("Server::Server: Dynablaster Revenge Server - v{}, rev. {}", SERVER_VERSION, SERVER_REVISION));
 
-   Log::info(std::format("Server::Server: binding to port {}..", SERVER_PORT));
-
-   // create server, listening on all local addresses
-   _net_server.reset(NET_CreateServer(nullptr, SERVER_PORT, 0));
-
-   if (!_net_server)
+   if (listen)
    {
-      Log::info(std::format("Server::Server: Dynablaster Revenge Server: Unable to start the server: {}.", SDL_GetError()));
-   }
-   else
-   {
-      Log::info("Server::Server: Dynablaster Revenge Server: server initialized");
+      Log::info(std::format("Server::Server: binding to port {}..", SERVER_PORT));
+
+      // create server, listening on all local addresses
+      _net_server.reset(NET_CreateServer(nullptr, SERVER_PORT, 0));
+
+      if (!_net_server)
+      {
+         Log::info(std::format("Server::Server: Dynablaster Revenge Server: Unable to start the server: {}.", SDL_GetError()));
+      }
+      else
+      {
+         Log::info("Server::Server: Dynablaster Revenge Server: server initialized");
+      }
    }
 
    // check for incoming connections and incoming data once per tick - not started here,
@@ -118,6 +122,11 @@ std::optional<std::reference_wrapper<Game>> Server::findGame(const Connection& c
 
 void Server::acceptConnections()
 {
+   if (!_net_server)
+   {
+      return;
+   }
+
    while (true)
    {
       // C API out parameter, owned by the connection right away
@@ -136,13 +145,32 @@ void Server::acceptConnections()
 
       const auto connection_id = _connection_id++;
 
-      auto connection =
-         std::make_unique<Connection>(connection_id, NetStreamSocketHandle(accepted_socket, &NET_DestroyStreamSocket), _player_id++);
+      auto connection = std::make_unique<Connection>(
+         connection_id, std::make_unique<NetByteStream>(NetStreamSocketHandle(accepted_socket, &NET_DestroyStreamSocket)), _player_id++
+      );
 
       Log::info(std::format("Server::acceptConnections: peer address: {}, connection: {}", connection->getPeerAddress(), connection_id));
 
       _connections[connection_id] = std::move(connection);
    }
+}
+
+void Server::connectLocal(std::unique_ptr<ByteStream> stream)
+{
+   const auto connection_id = _connection_id++;
+   _connections[connection_id] = std::make_unique<Connection>(connection_id, std::move(stream), _player_id++);
+}
+
+std::optional<std::reference_wrapper<Game>> Server::getGame(int game_id) const
+{
+   const auto game_iterator = _games.find(game_id);
+
+   if (game_iterator == _games.end())
+   {
+      return std::nullopt;
+   }
+
+   return *game_iterator->second;
 }
 
 void Server::poll()

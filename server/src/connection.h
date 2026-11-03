@@ -6,17 +6,17 @@
 #include <string>
 
 // shared
-#include "nethandles.h"
+#include "bytestream.h"
 #include "packetstreambuffer.h"
 #include "player.h"
 
 class Packet;
 
-//! one client connected to the server: its socket, its incoming bytes and its player
+//! one client connected to the server: its byte stream, its incoming bytes and its player
 class Connection
 {
 public:
-   Connection(int32_t id, NetStreamSocketHandle socket, int32_t player_id);
+   Connection(int32_t id, std::unique_ptr<ByteStream> stream, int32_t player_id);
 
    Connection(const Connection&) = delete;
    Connection& operator=(const Connection&) = delete;
@@ -46,7 +46,7 @@ public:
 
 private:
    int32_t _id = 0;
-   NetStreamSocketHandle _socket;
+   std::unique_ptr<ByteStream> _stream;
    Player _player;
    PacketStreamBuffer _buffer;
    uint16_t _expected_packet_size = 0;

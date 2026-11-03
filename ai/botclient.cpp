@@ -2,6 +2,7 @@
 
 // shared
 #include "botbombmapitem.h"
+#include "bytestream.h"
 #include "extramapitem.h"
 #include "log.h"
 #include "mapitem.h"
@@ -72,6 +73,17 @@ void BotClient::connectToServer()
    }
 }
 
+void BotClient::connectLocal(std::unique_ptr<ByteStream> stream)
+{
+   _stream = std::move(stream);
+   clientConnect();
+
+   if (_auto_join)
+   {
+      login();
+   }
+}
+
 // poll for connection progress and incoming data, once per tick
 void BotClient::poll()
 {
@@ -104,6 +116,7 @@ void BotClient::poll()
 
       if (status == NET_SUCCESS)
       {
+         _stream = std::make_unique<NetByteStream>(std::move(_socket));
          clientConnect();
 
          if (_auto_join)
@@ -120,7 +133,7 @@ void BotClient::poll()
       return;
    }
 
-   if (_socket && _connected)
+   if (_stream && _connected)
    {
       readData();
    }
@@ -186,9 +199,9 @@ void BotClient::send(Packet& packet)
 {
    packet.serialize();
 
-   if (_socket)
+   if (_stream)
    {
-      NET_WriteToStreamSocket(_socket.get(), packet.data(), static_cast<int>(packet.size()));
+      _stream->write(packet);
    }
 }
 
@@ -272,14 +285,14 @@ void BotClient::readData()
    std::array<char, 4096> chunk{};
    int bytes_read = 0;
 
-   while ((bytes_read = NET_ReadFromStreamSocket(_socket.get(), chunk.data(), static_cast<int>(chunk.size()))) > 0)
+   while ((bytes_read = _stream->read(chunk)) > 0)
    {
       _buffer.append(std::span(chunk).first(static_cast<size_t>(bytes_read)));
    }
 
    if (bytes_read < 0)
    {
-      _socket.reset();
+      _stream.reset();
       clientDisconnect();
       return;
    }

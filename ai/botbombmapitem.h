@@ -2,6 +2,7 @@
 #define BOTBOMBMAPITEM_H
 
 #include "bombmapitem.h"
+#include "clock.h"
 
 #include <chrono>
 
@@ -19,7 +20,7 @@ public:
 
 protected:
    //! bomb drop time
-   std::chrono::steady_clock::time_point _drop_time = std::chrono::steady_clock::now();
+   std::chrono::steady_clock::time_point _drop_time = Clock::now();
 };
 
 #endif  // BOTBOMBMAPITEM_H

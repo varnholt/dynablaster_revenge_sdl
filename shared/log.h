@@ -29,6 +29,9 @@ void error(std::string_view message, const std::source_location& source = std::s
 //! logs and aborts, the program can't go on
 [[noreturn]] void fatal(std::string_view message, const std::source_location& source = std::source_location::current());
 
+//! messages below this level are dropped, everything is logged by default
+void setMinimumLevel(Level level);
+
 //! compact "file:function:line" tag of a call site
 [[nodiscard]] std::string parseSourceTag(const std::source_location& source);
 

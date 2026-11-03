@@ -57,6 +57,10 @@ set(DYNABLASTER_SHARED_SOURCES
     ../shared/bombmapitem.h
     ../shared/bombpacket.cpp
     ../shared/bombpacket.h
+    ../shared/bytestream.cpp
+    ../shared/bytestream.h
+    ../shared/clock.cpp
+    ../shared/clock.h
     ../shared/constants.cpp
     ../shared/constants.h
     ../shared/countdownpacket.cpp
