@@ -95,6 +95,7 @@ std::optional<LearnedBotWeights> LearnedBotWeights::load(const std::string& path
    }
 
    auto parameters = defaults().toParameters();
+   float randomness = 0.0f;
    std::string line;
 
    while (std::getline(file, line))
@@ -108,6 +109,12 @@ std::optional<LearnedBotWeights> LearnedBotWeights::load(const std::string& path
          continue;
       }
 
+      if (name == "play.randomness")
+      {
+         randomness = value;
+         continue;
+      }
+
       const auto it = std::ranges::find(parameter_names, name);
 
       if (it != parameter_names.end())
@@ -116,7 +123,9 @@ std::optional<LearnedBotWeights> LearnedBotWeights::load(const std::string& path
       }
    }
 
-   return fromParameters(parameters);
+   LearnedBotWeights weights = fromParameters(parameters);
+   weights._randomness = randomness;
+   return weights;
 }
 
 bool LearnedBotWeights::write(const std::string& path) const
@@ -133,6 +142,11 @@ bool LearnedBotWeights::write(const std::string& path) const
    for (int i = 0; i < ParameterCount; i++)
    {
       file << std::format("{} {:.5f}\n", parameter_names[static_cast<size_t>(i)], parameters[static_cast<size_t>(i)]);
+   }
+
+   if (_randomness != 0.0f)
+   {
+      file << std::format("play.randomness {:.5f}\n", _randomness);
    }
 
    return file.good();

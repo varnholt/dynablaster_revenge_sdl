@@ -60,6 +60,10 @@ struct LearnedBotWeights
    std::array<float, BombFeatureCount> _bomb{};
    std::array<float, KickFeatureCount> _kick{};
 
+   //! how much random noise is added to every score, for easier bot levels; not trained.
+   //! The noise for a field holds for a moment, so the bot doesn't change its mind every tick.
+   float _randomness = 0.0f;
+
    //! hand-set start values that roughly follow ProtoBot's priorities
    static LearnedBotWeights defaults();
 
@@ -69,7 +73,8 @@ struct LearnedBotWeights
    //! inverse of toParameters()
    static LearnedBotWeights fromParameters(std::span<const float, ParameterCount> parameters);
 
-   //! reads "name value" lines, see write(); missing names keep their default
+   //! reads "name value" lines, see write(); missing names keep their default, "play.randomness"
+   //! sets _randomness
    static std::optional<LearnedBotWeights> load(const std::string& path);
 
    //! writes one "name value" line per parameter

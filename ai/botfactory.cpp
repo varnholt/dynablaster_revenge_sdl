@@ -15,6 +15,7 @@
 #include "stringutils.h"
 
 #include <algorithm>
+#include <format>
 #include <fstream>
 
 BotFactory::BotFactory() = default;
@@ -22,7 +23,28 @@ BotFactory::BotFactory() = default;
 // bots are deleted in client destructor
 BotFactory::~BotFactory() = default;
 
-void BotFactory::createBotClientPair(BotType type)
+std::shared_ptr<const LearnedBotWeights> BotFactory::levelWeights(int level)
+{
+   level = std::clamp(level, 1, 5);
+   auto& weights = _level_weights[level];
+
+   if (!weights)
+   {
+      const std::string path = std::format("data/server/learnedbot_level{}.txt", level);
+      auto loaded = LearnedBotWeights::load(path);
+
+      if (!loaded)
+      {
+         Log::warning(std::format("BotFactory: {} not found, learned bots use default weights", path));
+      }
+
+      weights = std::make_shared<const LearnedBotWeights>(loaded.value_or(LearnedBotWeights::defaults()));
+   }
+
+   return weights;
+}
+
+void BotFactory::createBotClientPair(BotType type, int level)
 {
    // todo read data from command line
    // - host
@@ -34,19 +56,7 @@ void BotFactory::createBotClientPair(BotType type)
 
    if (type == BotType::Learned)
    {
-      if (!_learned_weights)
-      {
-         auto loaded = LearnedBotWeights::load("data/server/learnedbot.txt");
-
-         if (!loaded)
-         {
-            Log::warning("BotFactory: data/server/learnedbot.txt not found, learned bots use default weights");
-         }
-
-         _learned_weights = std::make_shared<const LearnedBotWeights>(loaded.value_or(LearnedBotWeights::defaults()));
-      }
-
-      bot_owner = std::make_unique<LearnedBot>(client.getPlayerInfoMap(), _learned_weights);
+      bot_owner = std::make_unique<LearnedBot>(client.getPlayerInfoMap(), _learned_weights ? _learned_weights : levelWeights(level));
    }
    else
    {
@@ -152,13 +162,13 @@ void BotFactory::createBotClientPair(BotType type)
 /*!
    \param count number of bots to add
 */
-void BotFactory::add(int count, BotType type)
+void BotFactory::add(int count, BotType type, int level)
 {
    _given_names.clear();
 
    for (int i = 0; i < count; i++)
    {
-      createBotClientPair(type);
+      createBotClientPair(type, level);
    }
 
    _given_names.clear();

@@ -4,6 +4,7 @@
 #include "bottype.h"
 
 #include <functional>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -21,8 +22,9 @@ public:
 
    virtual ~BotFactory();
 
-   //! adds bots of the given type, they connect and join the game right away
-   void add(int count = 1, BotType type = BotType::Proto);
+   //! adds bots of the given type, they connect and join the game right away; learned bots of
+   //! level n (1 to 5) use data/server/learnedbot_level<n>.txt
+   void add(int count = 1, BotType type = BotType::Proto, int level = 3);
 
    void setHostname(const std::string& hostname);
 
@@ -39,12 +41,15 @@ public:
    //! bots connect through streams made by this instead of the network, e.g. in a headless simulation
    void setLocalConnector(std::function<std::unique_ptr<ByteStream>()> connector);
 
-   //! weights for learned bots added from now on; without, they load data/server/learnedbot.txt
+   //! weights for learned bots added from now on, whatever their level (the sim's --weights)
    void setLearnedWeights(std::shared_ptr<const LearnedBotWeights> weights);
 
 protected:
    //! create a bot and a client instance
-   void createBotClientPair(BotType type);
+   void createBotClientPair(BotType type, int level);
+
+   //! the weights of a level, loaded once
+   std::shared_ptr<const LearnedBotWeights> levelWeights(int level);
 
    //! host to connect to
    std::string _hostname = "127.0.0.1";
@@ -64,8 +69,11 @@ protected:
    //! makes local streams to the server, empty to connect over the network
    std::function<std::unique_ptr<ByteStream>()> _local_connector;
 
-   //! weights shared by the learned bots
+   //! weights given by setLearnedWeights(), they win over the level files
    std::shared_ptr<const LearnedBotWeights> _learned_weights;
+
+   //! weights per level, loaded on first use
+   std::map<int, std::shared_ptr<const LearnedBotWeights>> _level_weights;
 
    //! list of given names
    std::vector<std::string> _given_names;

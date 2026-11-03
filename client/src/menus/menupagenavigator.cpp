@@ -1057,6 +1057,7 @@ void MenuPageNavigator::initializeCreateGameOptions()
    MenuPageComboBoxItem& time_combo = page.getPageItem<MenuPageComboBoxItem>("combobox_time_table")->get();
    MenuPageComboBoxItem& max_players_combo = page.getPageItem<MenuPageComboBoxItem>("combobox_maxplayers_table")->get();
    MenuPageComboBoxItem& bot_count_combo = page.getPageItem<MenuPageComboBoxItem>("combobox_bots_table")->get();
+   MenuPageComboBoxItem& bot_level_combo = page.getPageItem<MenuPageComboBoxItem>("combobox_botlevel_table")->get();
    MenuPageComboBoxItem& level_combo = page.getPageItem<MenuPageComboBoxItem>("combobox_level_table")->get();
    MenuPageComboBoxItem& rounds_combo = page.getPageItem<MenuPageComboBoxItem>("combobox_rounds_table")->get();
 
@@ -1068,6 +1069,11 @@ void MenuPageNavigator::initializeCreateGameOptions()
 
    if (!_create_game_options_initialized)
    {
+      for (int level = 1; level <= 5; level++)
+      {
+         bot_level_combo.appendItem(std::to_string(level));
+      }
+
       time_combo.appendItem("2");
       time_combo.appendItem("3");
       time_combo.appendItem("5");
@@ -1098,6 +1104,7 @@ void MenuPageNavigator::initializeCreateGameOptions()
    time_combo.setValue(std::to_string(create_game_settings.getDuration()));
    max_players_combo.setValue(std::to_string(create_game_settings.getMaxPlayers()));
    bot_count_combo.setValue(std::to_string(create_game_settings.getBotCount()));
+   bot_level_combo.setValue(std::to_string(create_game_settings.getBotLevel()));
 
    int level_index = create_game_settings.getLevelIndex();
    if (static_cast<size_t>(level_index) >= _sorted_level_names.size())
@@ -1687,6 +1694,7 @@ void MenuPageNavigator::createGame()
    MenuPageComboBoxItem& time_combo = page.getPageItem<MenuPageComboBoxItem>("combobox_time_table")->get();
    MenuPageComboBoxItem& max_players_combo = page.getPageItem<MenuPageComboBoxItem>("combobox_maxplayers_table")->get();
    MenuPageComboBoxItem& bot_count_combo = page.getPageItem<MenuPageComboBoxItem>("combobox_bots_table")->get();
+   MenuPageComboBoxItem& bot_level_combo = page.getPageItem<MenuPageComboBoxItem>("combobox_botlevel_table")->get();
    MenuPageComboBoxItem& level_combo = page.getPageItem<MenuPageComboBoxItem>("combobox_level_table")->get();
    MenuPageComboBoxItem& rounds_combo = page.getPageItem<MenuPageComboBoxItem>("combobox_rounds_table")->get();
 
@@ -1706,6 +1714,7 @@ void MenuPageNavigator::createGame()
    const int duration_seconds = duration_minutes * 60;
    const int max_players = std::atoi(max_players_combo.getValue().c_str());
    const int bot_count = std::atoi(bot_count_combo.getValue().c_str());
+   const int bot_level = std::atoi(bot_level_combo.getValue().c_str());
    const int rounds = std::atoi(rounds_combo.getValue().c_str());
 
    const bool extra_bombs = bomb_extras_checkbox.isChecked();
@@ -1732,6 +1741,7 @@ void MenuPageNavigator::createGame()
    create_game_settings.setExtraSkullsEnabled(extra_skulls);
    create_game_settings.setDimensions(dimension);
    create_game_settings.setBotCount(bot_count);
+   create_game_settings.setBotLevel(bot_level);
    create_game_settings.serialize();
 
    BombermanClient::getInstance().createGame(

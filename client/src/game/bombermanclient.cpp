@@ -2409,7 +2409,8 @@ void BombermanClient::initializeBots()
       const auto& settings = isSinglePlayer() ? GameSettings::getInstance().getCreateGameSettingsSingle()
                                               : GameSettings::getInstance().getCreateGameSettingsMulti();
 
-      _bot_factory->add(settings.getBotCount(), settings.getBotType());
+      // the learned bot plays every level; ProtoBot stays the opponent it is trained and measured against
+      _bot_factory->add(settings.getBotCount(), BotType::Learned, settings.getBotLevel());
    }
 }
 

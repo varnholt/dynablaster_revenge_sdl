@@ -39,6 +39,10 @@ private:
    //! its flames reach, so the bot is out of the blast, and arrive before it explodes
    std::optional<Point> chooseKick();
 
+   //! noise in -1..1 for this bot, a decision ("salt") and a field, that changes every 1.5 s;
+   //! scaled by the weights' randomness it makes easier levels pick worse options now and then
+   float noise(uint32_t salt, int index) const;
+
    std::shared_ptr<const LearnedBotWeights> _weights;
 
    std::vector<int> _distances;

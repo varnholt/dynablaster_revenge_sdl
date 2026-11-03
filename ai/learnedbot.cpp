@@ -9,6 +9,7 @@
 #include "botplayerinfo.h"
 
 // shared
+#include "clock.h"
 #include "mapitem.h"
 
 #include <algorithm>
@@ -34,6 +35,21 @@ float dot(const std::array<float, count>& weights, const std::array<float, count
 
 const std::array<Point, 4> directions = {Point(0, -1), Point(0, 1), Point(-1, 0), Point(1, 0)};
 }  // namespace
+
+float LearnedBot::noise(uint32_t salt, int index) const
+{
+   const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now().time_since_epoch()).count();
+   uint64_t x = static_cast<uint64_t>(ms / 1500) * 0x9E3779B97F4A7C15ull;
+   x ^= (static_cast<uint64_t>(_id) << 40) ^ (static_cast<uint64_t>(salt) << 20) ^ static_cast<uint64_t>(index);
+
+   // splitmix64
+   x += 0x9E3779B97F4A7C15ull;
+   x = (x ^ (x >> 30)) * 0xBF58476D1CE4E5B9ull;
+   x = (x ^ (x >> 27)) * 0x94D049BB133111EBull;
+   x ^= x >> 31;
+
+   return static_cast<float>(x >> 40) / static_cast<float>(1ull << 23) - 1.0f;
+}
 
 LearnedBot::LearnedBot(const PlayerInfoMap& player_info_map, std::shared_ptr<const LearnedBotWeights> weights)
     : ProtoBot(player_info_map), _weights(std::move(weights))
@@ -267,7 +283,7 @@ std::optional<Point> LearnedBot::chooseKick()
       features[LearnedBotWeights::KickSlide] = static_cast<float>(slide) / 10.0f;
       features[LearnedBotWeights::KickFuseLeft] = std::min(1.0f, static_cast<float>(fuse_left) / 3000.0f);
 
-      const float score = dot(_weights->_kick, features);
+      const float score = dot(_weights->_kick, features) + _weights->_randomness * noise(3, bomb_field.y() * width + bomb_field.x());
 
       if (score > best_score)
       {
@@ -398,7 +414,7 @@ void LearnedBot::scoreGoals()
          features[LearnedBotWeights::GoalEnemyTrapped] =
             (features[LearnedBotWeights::GoalEnemyInLine] > 0.0f && isEnemyTrapped(p, flames)) ? 1.0f : 0.0f;
 
-         const float score = dot(_weights->_goal, features);
+         const float score = dot(_weights->_goal, features) + _weights->_randomness * noise(1, y * width + x);
 
          if (score > best_score)
          {
@@ -431,7 +447,7 @@ void LearnedBot::scoreGoals()
       (features[LearnedBotWeights::BombEnemyInLine] > 0.0f && isEnemyTrapped(current, flames)) ? 1.0f : 0.0f;
    features[LearnedBotWeights::BombFlames] = static_cast<float>(flames) / 8.0f;
 
-   if (dot(_weights->_bomb, features) > 0.0f && isSafeEscapePossible())
+   if (dot(_weights->_bomb, features) + _weights->_randomness * noise(2, 0) > 0.0f && isSafeEscapePossible())
    {
       auto option = std::make_unique<BotOption>();
       option->setScore(2);

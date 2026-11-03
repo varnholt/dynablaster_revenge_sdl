@@ -2,6 +2,7 @@
 
 #include "tools/singleton.h"
 
+#include <algorithm>
 #include <cstdint>
 
 #ifdef __SWITCH__
@@ -532,7 +533,7 @@ void GameSettings::CreateGameSettings::serialize()
       setValue("creategamesingle/duration", getDuration());
       setValue("creategamesingle/maxplayers", getMaxPlayers());
       setValue("creategamesingle/botcount", getBotCount());
-      setValue("creategamesingle/bottype", std::string(toString(getBotType())));
+      setValue("creategamesingle/botlevel", getBotLevel());
       setValue("creategamesingle/extrabombs", isExtraBombsEnabled());
       setValue("creategamesingle/extraflames", isExtraFlamesEnabled());
       setValue("creategamesingle/extrakicks", isExtraKicksEnabled());
@@ -548,7 +549,7 @@ void GameSettings::CreateGameSettings::serialize()
       setValue("creategamemulti/duration", getDuration());
       setValue("creategamemulti/maxplayers", getMaxPlayers());
       setValue("creategamemulti/botcount", getBotCount());
-      setValue("creategamemulti/bottype", std::string(toString(getBotType())));
+      setValue("creategamemulti/botlevel", getBotLevel());
       setValue("creategamemulti/extrabombs", isExtraBombsEnabled());
       setValue("creategamemulti/extraflames", isExtraFlamesEnabled());
       setValue("creategamemulti/extrakicks", isExtraKicksEnabled());
@@ -568,7 +569,7 @@ void GameSettings::CreateGameSettings::deserialize()
       setDuration(value("creategamesingle/duration", 3).toInt());
       setMaxPlayers(value("creategamesingle/maxplayers", 5).toInt());
       setBotCount(value("creategamesingle/botcount", 4).toInt());
-      setBotType(botTypeFromString(value("creategamesingle/bottype", "proto").toString()).value_or(BotType::Proto));
+      setBotLevel(value("creategamesingle/botlevel", 3).toInt());
 
       setExtraBombsEnabled(value("creategamesingle/extrabombs", true).toBool());
       setExtraFlamesEnabled(value("creategamesingle/extraflames", true).toBool());
@@ -588,7 +589,7 @@ void GameSettings::CreateGameSettings::deserialize()
       setDuration(value("creategamemulti/duration", 3).toInt());
       setMaxPlayers(value("creategamemulti/maxplayers", 5).toInt());
       setBotCount(value("creategamemulti/botcount", 0).toInt());
-      setBotType(botTypeFromString(value("creategamemulti/bottype", "proto").toString()).value_or(BotType::Proto));
+      setBotLevel(value("creategamemulti/botlevel", 3).toInt());
 
       setExtraBombsEnabled(value("creategamemulti/extrabombs", true).toBool());
       setExtraFlamesEnabled(value("creategamemulti/extraflames", true).toBool());
@@ -652,14 +653,14 @@ int GameSettings::CreateGameSettings::getBotCount() const
    return _bot_count;
 }
 
-void GameSettings::CreateGameSettings::setBotType(BotType type)
+void GameSettings::CreateGameSettings::setBotLevel(int level)
 {
-   _bot_type = type;
+   _bot_level = std::clamp(level, 1, 5);
 }
 
-BotType GameSettings::CreateGameSettings::getBotType() const
+int GameSettings::CreateGameSettings::getBotLevel() const
 {
-   return _bot_type;
+   return _bot_level;
 }
 
 void GameSettings::CreateGameSettings::setMaxPlayers(int val)
