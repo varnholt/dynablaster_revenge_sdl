@@ -124,6 +124,10 @@ public:
       //! setter for controllers enabled flag
       void setControllersEnabled(bool value);
 
+      //! development: one level per bot, e.g. "1,2,3,4,5" from development/botlevels; empty to use
+      //! the Create Game page's level for all of them. Bots are then named by their level.
+      const std::vector<int>& getBotLevels() const;
+
       //! getter for pouet page
       std::string getPagePouet() const;
 
@@ -163,6 +167,9 @@ public:
 
       //! controllers enabled
       bool _controllers_enabled = true;
+
+      //! one level per bot, see getBotLevels()
+      std::vector<int> _bot_levels;
 
       //! pouet page
       std::string _page_pouet;
@@ -623,6 +630,12 @@ public:
       //! getter for bot count
       int getBotCount() const;
 
+      //! setter for the computer players' level, 1 (easiest) to 5
+      void setBotLevel(int level);
+
+      //! getter for the computer players' level, ini key "botlevel"
+      int getBotLevel() const;
+
       //! setter for maximum player count
       void setMaxPlayers(int);
 
@@ -692,6 +705,9 @@ public:
 
       //! bot count
       int _bot_count = 0;
+
+      //! bot level, 1 to 5
+      int _bot_level = 3;
 
       //! extra flag: bombs
       bool _extra_bombs = false;

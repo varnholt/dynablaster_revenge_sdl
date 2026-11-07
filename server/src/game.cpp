@@ -1468,6 +1468,10 @@ void Game::bombExploded(BombMapItem& bomb, bool /*unused*/)
       return;
    }
 
+   // the map may hold the only reference: a kicked bomb that came to rest on an extra shares the
+   // extra's field, clearing that field below would destroy the bomb in the middle of this call
+   const auto bomb_owner = bomb.shared_from_this();
+
    std::vector<std::unique_ptr<Packet>> remove_items;
 
    // player may drop one more bomb
@@ -1873,7 +1877,11 @@ void Game::bombExploded(BombMapItem& bomb, bool /*unused*/)
    // cleanup map when all explosions are finished
    for (const auto& destroyed_item : _destroyed_map_items)
    {
-      _map->setItem(destroyed_item->getX(), destroyed_item->getY(), nullptr);
+      // a shadowed extra isn't on the map itself, its field holds the bomb covering it
+      if (_map->getItem(destroyed_item->getX(), destroyed_item->getY()) == destroyed_item)
+      {
+         _map->setItem(destroyed_item->getX(), destroyed_item->getY(), nullptr);
+      }
 
       if (destroyed_item->getType() == MapItem::Stone)
       {
@@ -1925,7 +1933,7 @@ void Game::bombExploded(BombMapItem& bomb, bool /*unused*/)
    // this runs synchronously from inside bomb's own explodedSignal dispatch - destroying it here
    // would destroy the object while one of its own methods is still on the call stack. Keep it
    // until the next tick instead, same pattern as BombMapItem::explodeDelayed().
-   _exploded_bombs.push_back(bomb.shared_from_this());
+   _exploded_bombs.push_back(bomb_owner);
    singleShotWhileAlive(0, [this]() { _exploded_bombs.clear(); });
 
    // remove bomb from the map

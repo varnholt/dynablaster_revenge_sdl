@@ -13,6 +13,11 @@ std::mt19937& engine()
 }
 }  // namespace
 
+void seed(uint32_t value)
+{
+   engine().seed(value);
+}
+
 int32_t bounded(int32_t bound)
 {
    if (bound <= 0)

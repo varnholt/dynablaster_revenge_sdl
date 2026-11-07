@@ -20,6 +20,7 @@
 #include "timer.h"
 
 // forward declarations
+class ByteStream;
 class CreateGameRequestPacket;
 class Game;
 class JoinGameRequestPacket;
@@ -31,7 +32,8 @@ class StartGameRequestPacket;
 class Server
 {
 public:
-   Server();
+   //! listen selects whether clients can connect over the network, a headless simulation only plugs in local streams
+   explicit Server(bool listen = true);
    ~Server();
 
    //! check if server is listening
@@ -42,6 +44,12 @@ public:
 
    //! start the poll timer
    void startPolling();
+
+   //! connect a client through an in-memory stream instead of a socket
+   void connectLocal(std::unique_ptr<ByteStream> stream);
+
+   //! game by id, if it exists
+   std::optional<std::reference_wrapper<Game>> getGame(int game_id) const;
 
 protected:
    //! initialize server configuration

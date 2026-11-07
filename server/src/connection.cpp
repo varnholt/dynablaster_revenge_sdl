@@ -4,8 +4,8 @@
 // shared
 #include "packet.h"
 
-Connection::Connection(int32_t id, NetStreamSocketHandle socket, int32_t player_id)
-    : _id(id), _socket(std::move(socket)), _player(player_id)
+Connection::Connection(int32_t id, std::unique_ptr<ByteStream> stream, int32_t player_id)
+    : _id(id), _stream(std::move(stream)), _player(player_id)
 {
 }
 
@@ -41,16 +41,15 @@ void Connection::setExpectedPacketSize(uint16_t size)
 
 int32_t Connection::read(std::span<char> buffer)
 {
-   return NET_ReadFromStreamSocket(_socket.get(), buffer.data(), static_cast<int>(buffer.size()));
+   return _stream->read(buffer);
 }
 
 void Connection::write(const Packet& packet)
 {
-   NET_WriteToStreamSocket(_socket.get(), packet.data(), static_cast<int>(packet.size()));
+   _stream->write(packet);
 }
 
 std::string Connection::getPeerAddress() const
 {
-   const NetAddressHandle address(NET_GetStreamSocketAddress(_socket.get()), &NET_UnrefAddress);
-   return address ? NET_GetAddressString(address.get()) : "?";
+   return _stream->getPeerAddress();
 }

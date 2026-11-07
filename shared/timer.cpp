@@ -1,5 +1,7 @@
 #include "timer.h"
 
+#include "clock.h"
+
 #include <atomic>
 #include <vector>
 
@@ -47,7 +49,7 @@ int32_t Timer::interval() const
 
 void Timer::start()
 {
-   _start_time = std::chrono::steady_clock::now();
+   _start_time = Clock::now();
    _owner_thread = std::this_thread::get_id();
    _active = true;
    _paused = false;
@@ -83,7 +85,7 @@ void Timer::setPaused(bool paused)
    }
 
    std::lock_guard<std::mutex> lock(_mutex);
-   const auto now = std::chrono::steady_clock::now();
+   const auto now = Clock::now();
 
    if (paused)
    {
@@ -101,13 +103,13 @@ void Timer::singleShot(int32_t milliseconds, std::function<void()> callback)
 {
    std::lock_guard<std::mutex> lock(_single_shot_mutex);
    _pending_single_shots.push_back(
-      {std::chrono::steady_clock::now() + std::chrono::milliseconds(milliseconds), std::move(callback), std::this_thread::get_id()}
+      {Clock::now() + std::chrono::milliseconds(milliseconds), std::move(callback), std::this_thread::get_id()}
    );
 }
 
 void Timer::update()
 {
-   const auto now = std::chrono::steady_clock::now();
+   const auto now = Clock::now();
    const auto calling_thread = std::this_thread::get_id();
 
    std::vector<uint64_t> due;

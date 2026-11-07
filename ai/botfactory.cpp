@@ -1,16 +1,21 @@
 #include "botfactory.h"
 
+#include "log.h"
 #include "random.h"
 #include "timer.h"
 
 // bot
 #include "botclient.h"
 #include "botmap.h"
+#include "bytestream.h"
+#include "learnedbot.h"
+#include "learnedbotweights.h"
 #include "protobot.h"
 #include "protobotinsults.h"
 #include "stringutils.h"
 
 #include <algorithm>
+#include <format>
 #include <fstream>
 
 BotFactory::BotFactory() = default;
@@ -18,16 +23,46 @@ BotFactory::BotFactory() = default;
 // bots are deleted in client destructor
 BotFactory::~BotFactory() = default;
 
-void BotFactory::createBotClientPair()
+std::shared_ptr<const LearnedBotWeights> BotFactory::levelWeights(int level)
+{
+   level = std::clamp(level, 1, 5);
+   auto& weights = _level_weights[level];
+
+   if (!weights)
+   {
+      const std::string path = std::format("data/server/learnedbot_level{}.txt", level);
+      auto loaded = LearnedBotWeights::load(path);
+
+      if (!loaded)
+      {
+         Log::warning(std::format("BotFactory: {} not found, learned bots use default weights", path));
+      }
+
+      weights = std::make_shared<const LearnedBotWeights>(loaded.value_or(LearnedBotWeights::defaults()));
+   }
+
+   return weights;
+}
+
+void BotFactory::createBotClientPair(BotType type, int level)
 {
    // todo read data from command line
-   // - bot type
    // - host
    // - game id or command to create game
    // - start game flag or command to wait
    auto client_owner = std::make_unique<BotClient>();
    BotClient& client = *client_owner;
-   auto bot_owner = std::make_unique<ProtoBot>(client.getPlayerInfoMap());
+   std::unique_ptr<ProtoBot> bot_owner;
+
+   if (type == BotType::Learned)
+   {
+      bot_owner = std::make_unique<LearnedBot>(client.getPlayerInfoMap(), _learned_weights ? _learned_weights : levelWeights(level));
+   }
+   else
+   {
+      bot_owner = std::make_unique<ProtoBot>(client.getPlayerInfoMap());
+   }
+
    ProtoBot& bot = *bot_owner;
 
    std::vector<std::string> nicks;
@@ -75,6 +110,14 @@ void BotFactory::createBotClientPair()
       nick = nicks[Random::bounded(static_cast<int>(nicks.size()) - 1)];
    }
 
+   if (_names_show_level && type == BotType::Learned)
+   {
+      // repeats get a letter: level5, level5b, level5c
+      const int clamped = std::clamp(level, 1, 5);
+      const int repeat = _level_name_counts[clamped]++;
+      nick = repeat == 0 ? std::format("level{}", clamped) : std::format("level{}{}", clamped, static_cast<char>('a' + repeat));
+   }
+
    client.setBot(std::move(bot_owner));
    client.setGameId(getGameId());
    client.setHost(getHostname());
@@ -82,7 +125,15 @@ void BotFactory::createBotClientPair()
    client.setAutoJoin(true);
    client.setAutoStart(false);
    client.initialize();
-   client.connectToServer();
+
+   if (_local_connector)
+   {
+      client.connectLocal(_local_connector());
+   }
+   else
+   {
+      client.connectToServer();
+   }
 
    bot.startTicking();
 
@@ -119,16 +170,31 @@ void BotFactory::createBotClientPair()
 /*!
    \param count number of bots to add
 */
-void BotFactory::add(int count)
+void BotFactory::add(int count, BotType type, int level)
 {
    _given_names.clear();
 
    for (int i = 0; i < count; i++)
    {
-      createBotClientPair();
+      createBotClientPair(type, level);
    }
 
    _given_names.clear();
+}
+
+void BotFactory::setLocalConnector(std::function<std::unique_ptr<ByteStream>()> connector)
+{
+   _local_connector = std::move(connector);
+}
+
+void BotFactory::setNamesShowLevel(bool enabled)
+{
+   _names_show_level = enabled;
+}
+
+void BotFactory::setLearnedWeights(std::shared_ptr<const LearnedBotWeights> weights)
+{
+   _learned_weights = std::move(weights);
 }
 
 void BotFactory::setHostname(const std::string& hostname)

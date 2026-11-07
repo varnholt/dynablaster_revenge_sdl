@@ -22,6 +22,7 @@
 // forward declarations
 class Bot;
 class BotPlayerInfo;
+class ByteStream;
 class CountdownPacket;
 class ExtraMapItemCreatedPacket;
 class ExtraShakePacket;
@@ -58,6 +59,9 @@ public:
 
    //! connect to server
    void connectToServer();
+
+   //! connect through an in-memory stream, the other end being handed to Server::connectLocal()
+   void connectLocal(std::unique_ptr<ByteStream> stream);
 
    void initializeAutoJoinStart();
 
@@ -283,8 +287,11 @@ private:
    //! reset walk count
    void resetWalkCount();
 
-   //! stream socket to server, empty unless connected or connecting
+   //! socket to the server while the connection is still being established
    NetStreamSocketHandle _socket{nullptr, &NET_DestroyStreamSocket};
+
+   //! stream to the server once connected
+   std::unique_ptr<ByteStream> _stream;
 
    //! host address pending resolution, empty once resolved (or if not resolving)
    NetAddressHandle _address{nullptr, &NET_UnrefAddress};

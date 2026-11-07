@@ -2406,14 +2406,26 @@ void BombermanClient::initializeBots()
       _bot_factory->setHostname(getHost());
       _bot_factory->setGameId(getGameId());
 
-      int bots = 0;
+      const auto& settings = isSinglePlayer() ? GameSettings::getInstance().getCreateGameSettingsSingle()
+                                              : GameSettings::getInstance().getCreateGameSettingsMulti();
 
-      if (isSinglePlayer())
-         bots = GameSettings::getInstance().getCreateGameSettingsSingle().getBotCount();
+      // the learned bot plays every level; ProtoBot stays the opponent it is trained and measured against
+      const std::vector<int>& mixed_levels = GameSettings::getInstance().getDevelopmentSettings().getBotLevels();
+
+      if (mixed_levels.empty())
+      {
+         _bot_factory->add(settings.getBotCount(), BotType::Learned, settings.getBotLevel());
+      }
       else
-         bots = GameSettings::getInstance().getCreateGameSettingsMulti().getBotCount();
+      {
+         // development: bots of different levels in one game, named by their level
+         _bot_factory->setNamesShowLevel(true);
 
-      _bot_factory->add(bots);
+         for (int i = 0; i < settings.getBotCount(); i++)
+         {
+            _bot_factory->add(1, BotType::Learned, mixed_levels[static_cast<size_t>(i) % mixed_levels.size()]);
+         }
+      }
    }
 }
 
