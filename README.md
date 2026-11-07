@@ -1,5 +1,7 @@
 # Dynablaster Revenge
 
+![Main menu captured from the SDL port](client/tests/comparison_output/mainmenu_port.png)
+
 [![build](https://github.com/varnholt/dynablaster_revenge_sdl/actions/workflows/build.yml/badge.svg)](https://github.com/varnholt/dynablaster_revenge_sdl/actions/workflows/build.yml)
 [![Switch homebrew](https://github.com/varnholt/dynablaster_revenge_sdl/actions/workflows/switch.yml/badge.svg)](https://github.com/varnholt/dynablaster_revenge_sdl/actions/workflows/switch.yml)
 
