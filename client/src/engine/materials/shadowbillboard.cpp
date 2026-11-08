@@ -100,7 +100,9 @@ void ShadowBillboard::begin()
 
    glDepthMask(GL_FALSE);
    glEnable(GL_BLEND);
-   glBlendFunc(GL_ZERO, GL_SRC_COLOR);
+   // Shadows darken RGB without cutting transparent holes in the scene's alpha.
+   // The final browser canvas is composited using that alpha too.
+   glBlendFuncSeparate(GL_ZERO, GL_SRC_COLOR, GL_ZERO, GL_ONE);
 
    glActiveTexture(GL_TEXTURE0_ARB);
    glBindTexture(GL_TEXTURE_2D, _color_map);

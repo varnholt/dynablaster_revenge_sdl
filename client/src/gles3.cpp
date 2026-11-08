@@ -10,6 +10,7 @@ PFNGLCLEARPROC glClear;
 PFNGLENABLEPROC glEnable;
 PFNGLDISABLEPROC glDisable;
 PFNGLBLENDFUNCPROC glBlendFunc;
+PFNGLBLENDFUNCSEPARATEPROC glBlendFuncSeparate;
 PFNGLPIXELSTOREIPROC glPixelStorei;
 PFNGLREADPIXELSPROC glReadPixels;
 PFNGLSCISSORPROC glScissor;
@@ -112,6 +113,7 @@ bool loadGles3Functions()
    ok &= load(glEnable, "glEnable");
    ok &= load(glDisable, "glDisable");
    ok &= load(glBlendFunc, "glBlendFunc");
+   ok &= load(glBlendFuncSeparate, "glBlendFuncSeparate");
    ok &= load(glPixelStorei, "glPixelStorei");
    ok &= load(glReadPixels, "glReadPixels");
    ok &= load(glScissor, "glScissor");

@@ -655,7 +655,6 @@ int main(int /*argc*/, char** /*argv*/)
    // in drawing order
    const std::array<std::reference_wrapper<Drawable>, 15> painted_drawables{
       menu_drawable,
-      menu_cursor,
       logo_drawable,
       story_intro_drawable,
       story_ending_drawable,
@@ -668,7 +667,9 @@ int main(int /*argc*/, char** /*argv*/)
       game_win_drawable,
       music_player_drawable,
       game_help_drawable,
-      hotkey_drawable
+      hotkey_drawable,
+      // The software cursor must stay above the logo and every other menu overlay.
+      menu_cursor
    };
 
    // a std::function so Emscripten can drive it from requestAnimationFrame, a blocking loop
