@@ -14,7 +14,7 @@
 #include "elapsedtimer.h"
 #include "gameinformation.h"
 #include "gamesignal.h"
-#include "nethandles.h"
+#include "clientconnection.h"
 #include "packetstreambuffer.h"
 #include "serverconfiguration.h"
 #include "timer.h"
@@ -287,14 +287,11 @@ private:
    //! reset walk count
    void resetWalkCount();
 
-   //! socket to the server while the connection is still being established
-   NetStreamSocketHandle _socket{nullptr, &NET_DestroyStreamSocket};
+   //! TCP or WebSocket connection while it is being established
+   std::unique_ptr<ClientConnection> _connection;
 
    //! stream to the server once connected
    std::unique_ptr<ByteStream> _stream;
-
-   //! host address pending resolution, empty once resolved (or if not resolving)
-   NetAddressHandle _address{nullptr, &NET_UnrefAddress};
 
    //! drives poll() once per tick
    Timer _poll_timer;

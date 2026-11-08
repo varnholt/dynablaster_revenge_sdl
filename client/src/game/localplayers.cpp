@@ -57,7 +57,8 @@ void LocalPlayers::add(const Player& player)
    Slot slot;
    slot.id = _next_slot_id++;
    slot.controller = player.controller;
-   slot.client = std::make_unique<LocalPlayerClient>(_client.getHost(), player.nick, _client.getGameId(), player.color);
+   slot.client =
+      std::make_unique<LocalPlayerClient>(_client.getHost(), player.nick, _client.getGameId(), player.color, _client.createConnection());
 
    LocalPlayerClient& client = *slot.client;
    const uint32_t slot_id = slot.id;

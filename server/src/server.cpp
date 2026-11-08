@@ -7,6 +7,8 @@
 
 // shared
 #include "bytestream.h"
+#include "netbytestream.h"
+#include "websocketbytestream.h"
 #include "creategamerequestpacket.h"
 #include "creategameresponsepacket.h"
 #include "joingamerequestpacket.h"
@@ -38,7 +40,8 @@
 // SDL
 #include <SDL3_net/SDL_net.h>
 
-Server::Server(bool listen)
+Server::Server(bool listen, uint16_t websocket_port, std::vector<std::string> websocket_origins)
+    : _websocket_port(websocket_port), _websocket_origins(std::move(websocket_origins))
 {
    initServerConfiguration();
 
@@ -58,6 +61,19 @@ Server::Server(bool listen)
       else
       {
          Log::info("Server::Server: Dynablaster Revenge Server: server initialized");
+      }
+
+      if (_net_server && _websocket_port && !_websocket_origins.empty())
+      {
+         _websocket_server.reset(NET_CreateServer(nullptr, _websocket_port, 0));
+         if (_websocket_server)
+         {
+            Log::info(std::format("Server::Server: WebSocket listener on port {}", _websocket_port));
+         }
+         else
+         {
+            Log::warning(std::format("Server::Server: Cannot bind WebSocket listener: {}", SDL_GetError()));
+         }
       }
    }
 
@@ -84,7 +100,7 @@ Server::~Server()
 
 bool Server::isListening() const
 {
-   return _net_server != nullptr;
+   return _net_server != nullptr && (!_websocket_port || _websocket_server != nullptr);
 }
 
 const ServerConfiguration& Server::getServerConfiguration() const
@@ -122,7 +138,13 @@ std::optional<std::reference_wrapper<Game>> Server::findGame(const Connection& c
 
 void Server::acceptConnections()
 {
-   if (!_net_server)
+   acceptConnections(_net_server.get(), false);
+   acceptConnections(_websocket_server.get(), true);
+}
+
+void Server::acceptConnections(NET_Server* listener, bool websocket)
+{
+   if (!listener)
    {
       return;
    }
@@ -132,7 +154,7 @@ void Server::acceptConnections()
       // C API out parameter, owned by the connection right away
       NET_StreamSocket* accepted_socket = nullptr;
 
-      if (!NET_AcceptClient(_net_server.get(), &accepted_socket))
+      if (!NET_AcceptClient(listener, &accepted_socket))
       {
          Log::info(std::format("Server::acceptConnections: accept failed: {}", SDL_GetError()));
          break;
@@ -145,9 +167,17 @@ void Server::acceptConnections()
 
       const auto connection_id = _connection_id++;
 
-      auto connection = std::make_unique<Connection>(
-         connection_id, std::make_unique<NetByteStream>(NetStreamSocketHandle(accepted_socket, &NET_DestroyStreamSocket)), _player_id++
-      );
+      NetStreamSocketHandle socket(accepted_socket, &NET_DestroyStreamSocket);
+      std::unique_ptr<ByteStream> stream;
+      if (websocket)
+      {
+         stream = std::make_unique<WebSocketByteStream>(std::move(socket), _websocket_origins);
+      }
+      else
+      {
+         stream = std::make_unique<NetByteStream>(std::move(socket));
+      }
+      auto connection = std::make_unique<Connection>(connection_id, std::move(stream), _player_id++);
 
       Log::info(std::format("Server::acceptConnections: peer address: {}, connection: {}", connection->getPeerAddress(), connection_id));
 

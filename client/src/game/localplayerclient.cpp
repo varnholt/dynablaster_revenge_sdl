@@ -13,7 +13,6 @@
 #include "playersynchronizepacket.h"
 
 #include <SDL3/SDL.h>
-#include <SDL3_net/SDL_net.h>
 
 #include <array>
 #include <span>
@@ -23,17 +22,19 @@ namespace
 constexpr int32_t poll_interval_ms = 16;
 }  // namespace
 
-LocalPlayerClient::LocalPlayerClient(std::string host, std::string nick, int32_t game_id, std::optional<Constants::Color> preferred_color)
+LocalPlayerClient::LocalPlayerClient(
+   std::string host,
+   std::string nick,
+   int32_t game_id,
+   std::optional<Constants::Color> preferred_color,
+   std::unique_ptr<ClientConnection> connection
+)
     : _host(std::move(host)), _nick(std::move(nick)), _game_id(game_id), _preferred_color(preferred_color)
 {
    _poll_timer.timeoutSignal.connect([this]() { poll(); });
    _poll_timer.start(poll_interval_ms);
 
-   _address.reset(NET_ResolveHostname(_host.c_str()));
-   if (!_address)
-   {
-      SDL_Log("LocalPlayerClient: cannot resolve %s", _host.c_str());
-   }
+   _connection = connection ? std::move(connection) : connectToHost(_host, SERVER_PORT);
 }
 
 LocalPlayerClient::~LocalPlayerClient()
@@ -43,40 +44,29 @@ LocalPlayerClient::~LocalPlayerClient()
 
 void LocalPlayerClient::poll()
 {
-   if (_address)
+   if (!_connection)
    {
-      const NET_Status status = NET_GetAddressStatus(_address.get());
-      if (status == NET_SUCCESS)
+      return;
+   }
+   const auto state = _connection->poll();
+   if (state == ConnectionState::Failed)
+   {
+      const bool joining = !_joined;
+      disconnect();
+      if (joining)
       {
-         _socket.reset(NET_CreateClient(_address.get(), SERVER_PORT, 0));
-         _address.reset();
-      }
-      else if (status == NET_FAILURE)
-      {
-         _address.reset();
          joinFailedSignal();
       }
       return;
    }
-
-   if (_socket && !_connected)
+   if (state == ConnectionState::Connected && !_connected)
    {
-      const NET_Status status = NET_GetConnectionStatus(_socket.get());
-      if (status == NET_SUCCESS)
-      {
-         _connected = true;
-         LoginRequestPacket login(_nick, false);
-         send(login);
-      }
-      else if (status == NET_FAILURE)
-      {
-         disconnect();
-         joinFailedSignal();
-      }
+      _connected = true;
+      LoginRequestPacket login(_nick, false);
+      send(login);
       return;
    }
-
-   if (_socket)
+   if (state == ConnectionState::Connected)
    {
       readData();
    }
@@ -86,7 +76,7 @@ void LocalPlayerClient::readData()
 {
    std::array<char, 4096> chunk{};
    int32_t bytes_read = 0;
-   while ((bytes_read = NET_ReadFromStreamSocket(_socket.get(), chunk.data(), static_cast<int>(chunk.size()))) > 0)
+   while ((bytes_read = _connection->read(chunk)) > 0)
    {
       _buffer.append(std::span(chunk).first(static_cast<size_t>(bytes_read)));
    }
@@ -198,13 +188,13 @@ void LocalPlayerClient::processPacket(const Packet& packet)
 
 void LocalPlayerClient::send(Packet& packet)
 {
-   if (!_socket || !_connected)
+   if (!_connection || !_connected)
    {
       return;
    }
 
    packet.serialize();
-   NET_WriteToStreamSocket(_socket.get(), packet.data(), static_cast<int>(packet.size()));
+   _connection->write(packet);
 }
 
 void LocalPlayerClient::setKeys(uint8_t keys)
@@ -258,15 +248,11 @@ void LocalPlayerClient::leave()
 void LocalPlayerClient::disconnect()
 {
    _poll_timer.stop();
-
-   _address.reset();
-
-   if (_socket)
+   if (_connection)
    {
-      NET_WaitUntilStreamSocketDrained(_socket.get(), 100);
-      _socket.reset();
+      _connection->drain(100);
    }
-
+   _connection.reset();
    _connected = false;
    _joined = false;
 }

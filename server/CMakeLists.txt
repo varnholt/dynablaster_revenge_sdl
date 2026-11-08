@@ -59,6 +59,8 @@ set(DYNABLASTER_SHARED_SOURCES
     ../shared/bombpacket.h
     ../shared/bytestream.cpp
     ../shared/bytestream.h
+    ../shared/websocketbytestream.cpp
+    ../shared/websocketbytestream.h
     ../shared/clock.cpp
     ../shared/clock.h
     ../shared/constants.cpp
@@ -232,6 +234,8 @@ set(DYNABLASTER_SERVER_SOURCES
 
 add_executable(dynablaster_server
     src/main.cpp
+    src/serveroptions.cpp
+    src/serveroptions.h
     ${DYNABLASTER_SHARED_SOURCES}
     ${DYNABLASTER_SERVER_SOURCES}
 )

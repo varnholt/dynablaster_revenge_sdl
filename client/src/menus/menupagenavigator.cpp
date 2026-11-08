@@ -127,6 +127,9 @@ bool isOptionsPage(const std::string& page)
 // SINGLE always does), rather than only connecting out to a remote one.
 bool isHostLocal(const std::string& host_name)
 {
+#ifdef __EMSCRIPTEN__
+   return !usesRemoteTransport(host_name);
+#else
 #ifdef __SWITCH__
    // libnx has no getifaddrs, so SDL_net cannot enumerate loopback here.
    if (host_name == "127.0.0.1" || StringUtils::toLower(host_name) == "localhost")
@@ -152,6 +155,7 @@ bool isHostLocal(const std::string& host_name)
    }
 
    return local;
+#endif
 }
 
 bool needsBrowser(const std::string& action)

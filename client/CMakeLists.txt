@@ -552,9 +552,9 @@ if(NINTENDO_SWITCH)
         ROMFS ${CMAKE_CURRENT_BINARY_DIR}/romfs)
 endif()
 
-# wasm32 target (browser build). No raw sockets in a browser, so real client<->server networking
-# doesn't work here (see main.cpp's __EMSCRIPTEN__ NET_Init handling) - this is client-only.
+# Browser connections use binary WebSockets to an external TCP bridge.
 if (EMSCRIPTEN)
+    target_link_libraries(dynablaster_core PUBLIC "-lwebsocket.js")
     target_link_options(dynablaster_revenge PRIVATE
         -sMAX_WEBGL_VERSION=2
         -sMIN_WEBGL_VERSION=2

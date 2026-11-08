@@ -3,6 +3,7 @@
 
 // server
 #include "server.h"
+#include "serveroptions.h"
 
 // shared
 #include "log.h"
@@ -12,21 +13,41 @@
 #include <chrono>
 #include <format>
 #include <thread>
+#include <utility>
 
-int main(int /*argc*/, char** /*argv*/)
+int main(int argc, char** argv)
 {
+   auto options = ServerOptions::parse(argc, argv);
+   if (!options)
+   {
+      Log::warning(options.error());
+      return 1;
+   }
+   if (options->show_help)
+   {
+      Log::info(ServerOptions::usage);
+      return 0;
+   }
    if (!NET_Init())
    {
       Log::warning(std::format("Failed to initialize SDL_net: {}", SDL_GetError()));
       return 1;
    }
 
-   Server server;
+   // Declared before Server so its sockets are destroyed before SDL_net shuts down.
+   struct NetQuit
+   {
+      ~NetQuit()
+      {
+         NET_Quit();
+      }
+   } net_quit;
+
+   Server server(true, options->websocket_port, std::move(options->websocket_origins));
 
    // the port is taken, e.g. by another server; nobody could ever connect to this one
    if (!server.isListening())
    {
-      NET_Quit();
       return 1;
    }
 

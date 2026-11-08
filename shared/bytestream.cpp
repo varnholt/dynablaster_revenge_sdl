@@ -1,4 +1,5 @@
 #include "bytestream.h"
+#include "netbytestream.h"
 
 #include <algorithm>
 #include <deque>
