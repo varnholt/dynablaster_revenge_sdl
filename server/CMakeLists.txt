@@ -234,6 +234,8 @@ set(DYNABLASTER_SERVER_SOURCES
 
 add_executable(dynablaster_server
     src/main.cpp
+    src/serveroptions.cpp
+    src/serveroptions.h
     ${DYNABLASTER_SHARED_SOURCES}
     ${DYNABLASTER_SERVER_SOURCES}
 )

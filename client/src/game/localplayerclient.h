@@ -19,8 +19,13 @@ class Packet;
 class LocalPlayerClient
 {
 public:
-   LocalPlayerClient(std::string host, std::string nick, int32_t game_id, std::optional<Constants::Color> preferred_color = std::nullopt,
-                     std::unique_ptr<ClientConnection> connection = nullptr);
+   LocalPlayerClient(
+      std::string host,
+      std::string nick,
+      int32_t game_id,
+      std::optional<Constants::Color> preferred_color = std::nullopt,
+      std::unique_ptr<ClientConnection> connection = nullptr
+   );
    LocalPlayerClient(const LocalPlayerClient&) = delete;
    LocalPlayerClient& operator=(const LocalPlayerClient&) = delete;
    ~LocalPlayerClient();

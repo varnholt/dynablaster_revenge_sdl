@@ -208,7 +208,9 @@ int main(int /*argc*/, char** /*argv*/)
    // Before settings, audio assets or sockets; destroyed after the client/server.
    SwitchPlatform switch_platform;
    if (!switch_platform.initialize())
+   {
       return 1;
+   }
 #endif
    // must run before any NET_* call (BombermanClient's own connection or an embedded Server via
    // host()); nearly everything in SDL3_net is undefined behavior before this succeeds.

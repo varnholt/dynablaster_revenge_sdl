@@ -67,9 +67,13 @@ Server::Server(bool listen, uint16_t websocket_port, std::vector<std::string> we
       {
          _websocket_server.reset(NET_CreateServer(nullptr, _websocket_port, 0));
          if (_websocket_server)
+         {
             Log::info(std::format("Server::Server: WebSocket listener on port {}", _websocket_port));
+         }
          else
+         {
             Log::warning(std::format("Server::Server: Cannot bind WebSocket listener: {}", SDL_GetError()));
+         }
       }
    }
 
@@ -166,9 +170,13 @@ void Server::acceptConnections(NET_Server* listener, bool websocket)
       NetStreamSocketHandle socket(accepted_socket, &NET_DestroyStreamSocket);
       std::unique_ptr<ByteStream> stream;
       if (websocket)
+      {
          stream = std::make_unique<WebSocketByteStream>(std::move(socket), _websocket_origins);
+      }
       else
+      {
          stream = std::make_unique<NetByteStream>(std::move(socket));
+      }
       auto connection = std::make_unique<Connection>(connection_id, std::move(stream), _player_id++);
 
       Log::info(std::format("Server::acceptConnections: peer address: {}, connection: {}", connection->getPeerAddress(), connection_id));

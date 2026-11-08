@@ -18,7 +18,7 @@ enum class ConnectionState
 // neither TCP reads nor WebSocket messages are game-packet boundaries.
 class ClientConnection : public ByteStream
 {
-  public:
+public:
    virtual ConnectionState poll() = 0;
    [[nodiscard]] virtual std::string_view error() const = 0;
    virtual void drain(int32_t timeout_ms) = 0;

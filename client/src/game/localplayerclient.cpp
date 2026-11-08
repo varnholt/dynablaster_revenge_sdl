@@ -22,8 +22,13 @@ namespace
 constexpr int32_t poll_interval_ms = 16;
 }  // namespace
 
-LocalPlayerClient::LocalPlayerClient(std::string host, std::string nick, int32_t game_id, std::optional<Constants::Color> preferred_color,
-                                   std::unique_ptr<ClientConnection> connection)
+LocalPlayerClient::LocalPlayerClient(
+   std::string host,
+   std::string nick,
+   int32_t game_id,
+   std::optional<Constants::Color> preferred_color,
+   std::unique_ptr<ClientConnection> connection
+)
     : _host(std::move(host)), _nick(std::move(nick)), _game_id(game_id), _preferred_color(preferred_color)
 {
    _poll_timer.timeoutSignal.connect([this]() { poll(); });
@@ -40,14 +45,18 @@ LocalPlayerClient::~LocalPlayerClient()
 void LocalPlayerClient::poll()
 {
    if (!_connection)
+   {
       return;
+   }
    const auto state = _connection->poll();
    if (state == ConnectionState::Failed)
    {
       const bool joining = !_joined;
       disconnect();
       if (joining)
+      {
          joinFailedSignal();
+      }
       return;
    }
    if (state == ConnectionState::Connected && !_connected)
@@ -58,7 +67,9 @@ void LocalPlayerClient::poll()
       return;
    }
    if (state == ConnectionState::Connected)
+   {
       readData();
+   }
 }
 
 void LocalPlayerClient::readData()
@@ -238,7 +249,9 @@ void LocalPlayerClient::disconnect()
 {
    _poll_timer.stop();
    if (_connection)
+   {
       _connection->drain(100);
+   }
    _connection.reset();
    _connected = false;
    _joined = false;

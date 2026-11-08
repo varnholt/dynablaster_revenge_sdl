@@ -7,25 +7,43 @@ namespace
 class LocalConnection final : public ClientConnection
 {
 public:
-   explicit LocalConnection(std::unique_ptr<ByteStream> stream) : _stream(std::move(stream)) {}
-   ConnectionState poll() override { return _state; }
+   explicit LocalConnection(std::unique_ptr<ByteStream> stream) : _stream(std::move(stream))
+   {
+   }
+   ConnectionState poll() override
+   {
+      return _state;
+   }
    int32_t read(std::span<char> buffer) override
    {
       const auto count = _stream->read(buffer);
       if (count < 0)
+      {
          _state = ConnectionState::Failed;
+      }
       return count;
    }
-   void write(std::span<const uint8_t> bytes) override { _stream->write(bytes); }
-   std::string getPeerAddress() const override { return _stream->getPeerAddress(); }
-   std::string_view error() const override { return "Local game server disconnected"; }
-   void drain(int32_t) override {}
+   void write(std::span<const uint8_t> bytes) override
+   {
+      _stream->write(bytes);
+   }
+   std::string getPeerAddress() const override
+   {
+      return _stream->getPeerAddress();
+   }
+   std::string_view error() const override
+   {
+      return "Local game server disconnected";
+   }
+   void drain(int32_t) override
+   {
+   }
 
 private:
    std::unique_ptr<ByteStream> _stream;
    ConnectionState _state = ConnectionState::Connected;
 };
-}
+}  // namespace
 
 std::unique_ptr<ClientConnection> connectToLocalStream(std::unique_ptr<ByteStream> stream)
 {
@@ -76,7 +94,7 @@ namespace
 {
 class WebSocketConnection final : public ClientConnection
 {
-  public:
+public:
    explicit WebSocketConnection(const std::string& host)
    {
       char* url = dynablaster_websocket_url(host.c_str());
@@ -92,44 +110,60 @@ class WebSocketConnection final : public ClientConnection
       attributes.protocols = "binary";
       attributes.createOnMainThread = true;
       _socket =
-          dynablaster_websocket_create(reinterpret_cast<intptr_t>(&emscripten_websocket_new), reinterpret_cast<intptr_t>(&attributes));
+         dynablaster_websocket_create(reinterpret_cast<intptr_t>(&emscripten_websocket_new), reinterpret_cast<intptr_t>(&attributes));
       if (_socket <= 0)
       {
          fail("Cannot open the game WebSocket; check the server URL and HTTPS/WSS settings");
          return;
       }
-      emscripten_websocket_set_onopen_callback(_socket, this,
-                                               [](int, const EmscriptenWebSocketOpenEvent*, void* data)
-                                               {
-                                                  auto& self = *static_cast<WebSocketConnection*>(data);
-                                                  if (self._state == ConnectionState::Connecting)
-                                                     self._state = ConnectionState::Connected;
-                                                  return true;
-                                               });
-      emscripten_websocket_set_onmessage_callback(_socket, this,
-                                                  [](int, const EmscriptenWebSocketMessageEvent* event, void* data)
-                                                  {
-                                                     auto& self = *static_cast<WebSocketConnection*>(data);
-                                                     if (event->isText || event->numBytes > buffer_limit - self._incoming.size())
-                                                        self.fail("Invalid or oversized game server message");
-                                                     else if (self._state == ConnectionState::Connected)
-                                                        self._incoming.insert(self._incoming.end(), event->data,
-                                                                              event->data + event->numBytes);
-                                                     return true;
-                                                  });
+      emscripten_websocket_set_onopen_callback(
+         _socket,
+         this,
+         [](int, const EmscriptenWebSocketOpenEvent*, void* data)
+         {
+            auto& self = *static_cast<WebSocketConnection*>(data);
+            if (self._state == ConnectionState::Connecting)
+            {
+               self._state = ConnectionState::Connected;
+            }
+            return true;
+         }
+      );
+      emscripten_websocket_set_onmessage_callback(
+         _socket,
+         this,
+         [](int, const EmscriptenWebSocketMessageEvent* event, void* data)
+         {
+            auto& self = *static_cast<WebSocketConnection*>(data);
+            if (event->isText || event->numBytes > buffer_limit - self._incoming.size())
+            {
+               self.fail("Invalid or oversized game server message");
+            }
+            else if (self._state == ConnectionState::Connected)
+            {
+               self._incoming.insert(self._incoming.end(), event->data, event->data + event->numBytes);
+            }
+            return true;
+         }
+      );
       emscripten_websocket_set_onerror_callback(
-          _socket, this,
-          [](int, const EmscriptenWebSocketErrorEvent*, void* data)
-          {
-             static_cast<WebSocketConnection*>(data)->fail("Game server connection failed; check its URL, origin and TLS configuration");
-             return true;
-          });
-      emscripten_websocket_set_onclose_callback(_socket, this,
-                                                [](int, const EmscriptenWebSocketCloseEvent*, void* data)
-                                                {
-                                                   static_cast<WebSocketConnection*>(data)->fail("Game server connection closed");
-                                                   return true;
-                                                });
+         _socket,
+         this,
+         [](int, const EmscriptenWebSocketErrorEvent*, void* data)
+         {
+            static_cast<WebSocketConnection*>(data)->fail("Game server connection failed; check its URL, origin and TLS configuration");
+            return true;
+         }
+      );
+      emscripten_websocket_set_onclose_callback(
+         _socket,
+         this,
+         [](int, const EmscriptenWebSocketCloseEvent*, void* data)
+         {
+            static_cast<WebSocketConnection*>(data)->fail("Game server connection closed");
+            return true;
+         }
+      );
    }
 
    ~WebSocketConnection() override
@@ -146,7 +180,9 @@ class WebSocketConnection final : public ClientConnection
    ConnectionState poll() override
    {
       if (_state == ConnectionState::Connecting && std::chrono::steady_clock::now() - _started > std::chrono::seconds(10))
+      {
          fail("Game server connection timed out");
+      }
       return _state;
    }
 
@@ -161,25 +197,39 @@ class WebSocketConnection final : public ClientConnection
    void write(std::span<const uint8_t> bytes) override
    {
       if (_state != ConnectionState::Connected)
+      {
          return;
+      }
       size_t queued = 0;
       if (emscripten_websocket_get_buffered_amount(_socket, &queued) != EMSCRIPTEN_RESULT_SUCCESS || queued > buffer_limit ||
           bytes.size() > buffer_limit - queued ||
           emscripten_websocket_send_binary(_socket, const_cast<uint8_t*>(bytes.data()), static_cast<uint32_t>(bytes.size())) !=
-              EMSCRIPTEN_RESULT_SUCCESS)
+             EMSCRIPTEN_RESULT_SUCCESS)
+      {
          fail("Game server send failed or its outgoing buffer is full");
+      }
    }
 
-   std::string getPeerAddress() const override { return _url; }
-   std::string_view error() const override { return _error; }
+   std::string getPeerAddress() const override
+   {
+      return _url;
+   }
+   std::string_view error() const override
+   {
+      return _error;
+   }
    // The browser event loop must keep running to flush WebSocket frames.
-   void drain(int32_t) override {}
+   void drain(int32_t) override
+   {
+   }
 
-  private:
+private:
    void fail(std::string reason)
    {
       if (_state != ConnectionState::Failed)
+      {
          _error = std::move(reason);
+      }
       _state = ConnectionState::Failed;
    }
 
@@ -211,18 +261,22 @@ namespace
 {
 class TcpConnection final : public ClientConnection
 {
-  public:
+public:
    TcpConnection(const std::string& host, uint16_t port) : _host(host), _port(port)
    {
       _address.reset(NET_ResolveHostname(host.c_str()));
       if (!_address)
+      {
          fail();
+      }
    }
 
    ConnectionState poll() override
    {
       if (_state == ConnectionState::Failed)
+      {
          return _state;
+      }
       if (_state == ConnectionState::Connecting && std::chrono::steady_clock::now() - _started > std::chrono::seconds(10))
       {
          _error = "Game server connection timed out";
@@ -233,22 +287,30 @@ class TcpConnection final : public ClientConnection
       {
          const auto status = NET_GetAddressStatus(_address.get());
          if (status == NET_FAILURE)
+         {
             fail();
+         }
          else if (status == NET_SUCCESS)
          {
             _socket.reset(NET_CreateClient(_address.get(), _port, 0));
             _address.reset();
             if (!_socket)
+            {
                fail();
+            }
          }
       }
       if (_socket && _state == ConnectionState::Connecting)
       {
          const auto status = NET_GetConnectionStatus(_socket.get());
          if (status == NET_FAILURE)
+         {
             fail();
+         }
          else if (status == NET_SUCCESS)
+         {
             _state = ConnectionState::Connected;
+         }
       }
       return _state;
    }
@@ -257,25 +319,37 @@ class TcpConnection final : public ClientConnection
    {
       const int32_t count = NET_ReadFromStreamSocket(_socket.get(), buffer.data(), static_cast<int>(buffer.size()));
       if (count < 0)
+      {
          fail();
+      }
       return count;
    }
 
    void write(std::span<const uint8_t> bytes) override
    {
       if (_state == ConnectionState::Connected && !NET_WriteToStreamSocket(_socket.get(), bytes.data(), static_cast<int>(bytes.size())))
+      {
          fail();
+      }
    }
 
-   std::string getPeerAddress() const override { return _host; }
-   std::string_view error() const override { return _error; }
+   std::string getPeerAddress() const override
+   {
+      return _host;
+   }
+   std::string_view error() const override
+   {
+      return _error;
+   }
    void drain(int32_t timeout_ms) override
    {
       if (_socket && _state == ConnectionState::Connected)
+      {
          NET_WaitUntilStreamSocketDrained(_socket.get(), timeout_ms);
+      }
    }
 
-  private:
+private:
    void fail()
    {
       _error = SDL_GetError();

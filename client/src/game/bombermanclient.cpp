@@ -1538,7 +1538,9 @@ void BombermanClient::readData()
 void BombermanClient::poll()
 {
    if (!_connection)
+   {
       return;
+   }
    const auto state = _connection->poll();
    if (state == ConnectionState::Failed)
    {
@@ -1546,7 +1548,9 @@ void BombermanClient::poll()
       _connection.reset();
       reportConnectionError(reason);
       if (isConnected())
+      {
          clientDisconnect();
+      }
       return;
    }
    if (state == ConnectionState::Connected && !isConnected())
@@ -1556,7 +1560,9 @@ void BombermanClient::poll()
       return;
    }
    if (state == ConnectionState::Connected)
+   {
       readData();
+   }
 }
 
 //-----------------------------------------------------------------------------
@@ -2341,7 +2347,8 @@ void BombermanClient::gameListRequest()
 bool BombermanClient::host()
 {
 #ifdef __EMSCRIPTEN__
-   const std::string host = getGameMode() == Constants::GameModeStory ? "127.0.0.1" : GameSettings::getInstance().getLoginSettings().getHost();
+   const std::string host =
+      getGameMode() == Constants::GameModeStory ? "127.0.0.1" : GameSettings::getInstance().getLoginSettings().getHost();
    if (!usesRemoteTransport(host) && !_server)
    {
       // No listening socket or worker thread: the real server's timers run on
@@ -2401,9 +2408,13 @@ void BombermanClient::initializeBots()
 {
 #ifdef __EMSCRIPTEN__
    if (_server && !usesRemoteTransport(getHost()))
+   {
       _bot_factory->setLocalConnector([this]() { return createConnection(); });
+   }
    else
+   {
       _bot_factory->setLocalConnector({});
+   }
 #endif
    if (isPlayerOwner() && getGameMode() != Constants::GameModeStory)
    {

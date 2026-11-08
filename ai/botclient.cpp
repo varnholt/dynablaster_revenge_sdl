@@ -97,12 +97,16 @@ void BotClient::poll()
          _stream = std::move(_connection);
          clientConnect();
          if (_auto_join)
+         {
             login();
+         }
       }
       return;
    }
    if (_stream && _connected)
+   {
       readData();
+   }
 }
 
 void BotClient::clientConnect()
