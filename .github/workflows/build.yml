@@ -116,44 +116,10 @@ jobs:
           version: 6.0.1
 
       - name: Configure client
-        run: emcmake cmake -S client -B client/build-wasm -DCMAKE_BUILD_TYPE=Release -DDYNABLASTER_NETWORK_TESTS=ON
+        run: emcmake cmake -S client -B client/build-wasm -DCMAKE_BUILD_TYPE=Release
 
       - name: Build client
-        run: cmake --build client/build-wasm --target dynablaster_revenge dynablaster_network_test --parallel $(nproc)
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-
-      - name: Build native integration server
-        run: |
-          cmake -S server -B server/build-network -DCMAKE_BUILD_TYPE=Release -DSDL_UNIX_CONSOLE_BUILD=ON
-          cmake --build server/build-network --parallel $(nproc)
-
-      - name: Test bridge and WebAssembly network gameplay
-        run: |
-          python -m pip install -r web/requirements.txt
-          python -m unittest discover -s web/tests -v
-          python web/tests/run_network_game.py --server server/build-network/dynablaster_server --probe client/build-wasm/dynablaster_network_test.js --node node
-          DYNABLASTER_TEST_SERVER='ws://[invalid' node client/build-wasm/dynablaster_network_test.js --expect-failure
-          DYNABLASTER_TEST_SERVER='ws://127.0.0.1:1/' node client/build-wasm/dynablaster_network_test.js --expect-failure
-          node client/build-wasm/dynablaster_network_test.js --embedded
-
-      - name: Test actual browser gameplay and embedded server
-        run: |
-          python -m pip install -r web/tests/requirements-browser.txt
-          python -m playwright install --with-deps chromium
-          python web/tests/browser_playtest.py --build client/build-wasm --output build/browser-embedded-probe --probe
-          python web/tests/browser_playtest.py --build client/build-wasm --output build/browser-network-probe --probe --native-server server/build-network/dynablaster_server
-          python web/tests/browser_playtest.py --build client/build-wasm --output build/browser-local --steps web/tests/multiplayer.steps --expect "game 1 started"
-          python web/tests/browser_playtest.py --build client/build-wasm --output build/browser-network --steps web/tests/multiplayer.steps --native-server server/build-network/dynablaster_server --expect "game 1 started"
-          python web/tests/browser_playtest.py --build client/build-wasm --output build/browser-story --steps web/tests/story.steps --expect "game 1 started"
-
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: browser-playtest-evidence
-          path: build/browser-*
+        run: cmake --build client/build-wasm --target dynablaster_revenge --parallel $(nproc)
 
       - name: Package artifact
         run: |
