@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#13181d">
+  <meta name="description" content="Play Dynablaster Revenge in your browser. Start a story or a local battle against bots, with no installation.">
+  <title>Play Dynablaster Revenge</title>
+  <style>
+    :root { color-scheme: dark; font: 16px/1.6 system-ui, sans-serif; background: #13181d; color: #e9edef; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    main { width: min(1180px, 94%); margin: 2rem auto; }
+    header, .toolbar { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; justify-content: space-between; }
+    h1 { margin: 0; font-size: clamp(1.6rem, 4vw, 2.8rem); line-height: 1.2; }
+    h2 { font-size: 1rem; color: #e9edef; }
+    a { color: #efb369; text-underline-offset: .2em; }
+    p { color: #b9c3cb; }
+    .eyebrow { color: #efb369; letter-spacing: .14em; text-transform: uppercase; font-size: .75rem; margin: 0 0 .5rem; }
+    .stage { margin-top: 1.5rem; background: #080b0e; border: 1px solid #34404a; border-radius: .6rem; overflow: hidden; }
+    .intro { padding: clamp(1.5rem, 5vw, 4rem); max-width: 52rem; }
+    .intro h2 { font-size: 1.65rem; margin-top: 0; }
+    button { border: 1px solid #efb369; border-radius: .3rem; padding: .7rem 1.1rem; background: #efb369; color: #13181d; font: inherit; font-weight: 650; cursor: pointer; }
+    button:disabled { opacity: .55; cursor: default; }
+    button:focus-visible, a:focus-visible, canvas:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+    canvas { display: block; width: 100%; height: auto; background: #000; }
+    canvas[hidden], [hidden] { display: none !important; }
+    canvas:fullscreen { width: 100vw; height: 100vh; object-fit: contain; }
+    .toolbar { padding: .8rem 1rem; border-top: 1px solid #34404a; }
+    .toolbar p { margin: 0; }
+    .toolbar button { background: transparent; color: #efb369; padding: .35rem .8rem; }
+    progress { display: block; width: 100%; height: .7rem; accent-color: #efb369; margin-top: 1rem; }
+    .help { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; }
+    kbd { font: inherit; color: #e9edef; background: #26313a; border-radius: .2rem; padding: .1rem .35rem; }
+    footer { border-top: 1px solid #34404a; padding-top: 1rem; font-size: .85rem; color: #b9c3cb; }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div><p class="eyebrow">SDL3 · Browser edition</p><h1>Dynablaster Revenge</h1></div>
+      <nav aria-label="Project"><a href="https://varnholt.github.io/">More projects</a> · <a href="https://github.com/varnholt/dynablaster_revenge_sdl">Source &amp; downloads</a></nav>
+    </header>
+    <section class="stage" aria-label="Game">
+      <div class="intro" id="intro">
+        <h2>Arena battles, right in your browser.</h2>
+        <p>Play the story or create a local battle against bots. Your browser runs both the game and its local server.</p>
+        <p>The first launch downloads approximately <strong>514 MiB</strong> of game assets. Use a desktop browser with WebGL 2 and a keyboard or controller; loading may take a few minutes.</p>
+        <button id="start" type="button">Download &amp; play</button>
+        <noscript><p>Enable JavaScript to play the browser version.</p></noscript>
+      </div>
+      <canvas id="canvas" tabindex="0" aria-label="Dynablaster Revenge game. Click here to focus keyboard controls." hidden></canvas>
+      <div class="toolbar">
+        <div>
+          <p id="status" role="status">Ready when you are.</p>
+          <progress id="progress" aria-label="Game download progress" hidden></progress>
+          <a id="reload" href="" hidden>Reload to try again</a>
+        </div>
+        <button id="fullscreen" type="button" disabled>Fullscreen</button>
+      </div>
+    </section>
+    <div class="help">
+      <section><h2>Start a game</h2><p>Keep the default local host and choose <strong>Single</strong> for the story. For an arena battle, choose <strong>Multi</strong>, create a game and add at least two bots.</p></section>
+      <section><h2>Controls</h2><p>Click the game to focus. Move with the <kbd>arrow keys</kbd>, place bombs with <kbd>Space</kbd>, and leave a game with <kbd>Esc</kbd>. Controllers are supported too.</p></section>
+      <section><h2>Play online</h2><p>This page runs local games in your tab. To play with friends on other devices, connect to a separately hosted game server. <a href="https://github.com/varnholt/dynablaster_revenge_sdl/blob/main/docs/web-networking.md">Online setup</a></p></section>
+    </div>
+    <footer>Dynablaster Revenge team · Browser edition uses the castle arena; other arena selections fall back to it.</footer>
+  </main>
+  <script>
+    const canvas = document.getElementById('canvas');
+    const status = document.getElementById('status');
+    const progress = document.getElementById('progress');
+    const fullscreen = document.getElementById('fullscreen');
+    let failed = false;
+
+    function fail(message) {
+      failed = true;
+      status.textContent = message;
+      progress.hidden = true;
+      fullscreen.disabled = true;
+      document.getElementById('reload').hidden = false;
+    }
+
+    // The generated runtime reads this global before loading its Wasm and asset bundle.
+    var Module = {
+      canvas,
+      print: (...args) => console.log(...args),
+      printErr: (...args) => console.error(...args),
+      onAbort: () => fail('The game could not start. Reload, or try the desktop download.'),
+      setStatus(text) {
+        if (failed) { return; }
+        const download = text.match(/Downloading data\.\.\. \(([\d.]+)\/([\d.]+)\)/);
+        progress.hidden = !download;
+        if (download) {
+          progress.value = Number(download[1]);
+          progress.max = Number(download[2]);
+          status.textContent = `Downloading game assets: ${(progress.value / 1048576).toFixed(0)} / ${(progress.max / 1048576).toFixed(0)} MiB`;
+        } else {
+          status.textContent = text || 'Click the game to focus keyboard controls.';
+        }
+      },
+      onRuntimeInitialized() {
+        if (failed) { return; }
+        document.getElementById('intro').hidden = true;
+        canvas.hidden = false;
+        fullscreen.disabled = !canvas.requestFullscreen;
+        canvas.focus();
+      }
+    };
+
+    document.getElementById('start').addEventListener('click', event => {
+      event.currentTarget.disabled = true;
+      status.textContent = 'Preparing download…';
+      // Keep the generated script inert until the visitor chooses to download the game.
+      const generated = document.getElementById('runtime').content.querySelector('script');
+      const script = document.createElement('script');
+      script.src = generated.src;
+      script.onerror = () => fail('The game download failed. Check your connection and reload.');
+      document.body.append(script);
+    }, { once: true });
+
+    fullscreen.addEventListener('click', () => {
+      canvas.requestFullscreen().then(() => canvas.focus()).catch(() => {
+        status.textContent = 'Fullscreen is unavailable. You can keep playing in the page.';
+      });
+    });
+    canvas.addEventListener('click', () => canvas.focus());
+    canvas.addEventListener('contextmenu', event => event.preventDefault());
+    canvas.addEventListener('webglcontextlost', event => {
+      event.preventDefault();
+      fail('The graphics context was lost. Reload to restart the game.');
+    });
+    canvas.addEventListener('keydown', event => {
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'Tab', 'PageUp', 'PageDown'].includes(event.key)) {
+        event.preventDefault();
+      }
+    });
+    window.addEventListener('error', () => fail('The game encountered an error. Check WebGL 2 support and reload.'));
+    window.addEventListener('unhandledrejection', () => fail('The game could not load. Check your connection and reload.'));
+  </script>
+  <template id="runtime">{{{ SCRIPT }}}</template>
+</body>
+</html>

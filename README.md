@@ -18,6 +18,10 @@ game server, both written in C++23 with no Qt dependency.
 
 # Get a Build
 
+[**Play in your browser**](https://varnholt.github.io/dynablaster_revenge_sdl/) — story mode and local battles against bots,
+with no installation. The first launch downloads roughly 514 MiB of assets. Online games need a separately hosted
+game server; see [browser networking](docs/web-networking.md).
+
 Every push to `main` is built for all five platforms. These links always give you the newest
 successful build and need no GitHub account:
 

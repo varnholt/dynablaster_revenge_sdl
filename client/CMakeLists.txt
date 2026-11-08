@@ -552,10 +552,12 @@ if(NINTENDO_SWITCH)
         ROMFS ${CMAKE_CURRENT_BINARY_DIR}/romfs)
 endif()
 
-# Browser connections use binary WebSockets to an external TCP bridge.
+# Browser games use an in-tab server or binary WebSockets to a native server.
 if (EMSCRIPTEN)
     target_link_libraries(dynablaster_core PUBLIC "-lwebsocket.js")
+    set_property(TARGET dynablaster_revenge APPEND PROPERTY LINK_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/web/shell.html)
     target_link_options(dynablaster_revenge PRIVATE
+        "SHELL:--shell-file \"${CMAKE_CURRENT_SOURCE_DIR}/web/shell.html\""
         -sMAX_WEBGL_VERSION=2
         -sMIN_WEBGL_VERSION=2
         -sFULL_ES3=1

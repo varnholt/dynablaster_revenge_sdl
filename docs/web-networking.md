@@ -7,6 +7,10 @@ interface. SDL_net is the only networking library.
 
 ## Local browser games
 
+The [published browser version](https://varnholt.github.io/dynablaster_revenge_sdl/)
+is rebuilt and deployed by GitHub Actions after each push to `main`. Choose
+**Download & play** to load the game; no assets download before that click.
+
 Serve the WebAssembly build output with a static HTTP server, or deploy it to
 GitHub Pages. Open `dynablaster_revenge.html` with the default local host.
 **Single** starts the story inside the browser. **Multi** lets you create a local
