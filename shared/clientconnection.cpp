@@ -84,7 +84,7 @@ class WebSocketConnection final : public ClientConnection
       std::free(url);
       if (!emscripten_websocket_is_supported() || (!_url.starts_with("ws://") && !_url.starts_with("wss://")))
       {
-         fail("A ws:// or wss:// game bridge URL is required");
+         fail("A ws:// or wss:// game server URL is required");
          return;
       }
       EmscriptenWebSocketCreateAttributes attributes{};
@@ -95,7 +95,7 @@ class WebSocketConnection final : public ClientConnection
           dynablaster_websocket_create(reinterpret_cast<intptr_t>(&emscripten_websocket_new), reinterpret_cast<intptr_t>(&attributes));
       if (_socket <= 0)
       {
-         fail("Cannot open the game WebSocket; check the bridge URL and HTTPS/WSS settings");
+         fail("Cannot open the game WebSocket; check the server URL and HTTPS/WSS settings");
          return;
       }
       emscripten_websocket_set_onopen_callback(_socket, this,
@@ -111,7 +111,7 @@ class WebSocketConnection final : public ClientConnection
                                                   {
                                                      auto& self = *static_cast<WebSocketConnection*>(data);
                                                      if (event->isText || event->numBytes > buffer_limit - self._incoming.size())
-                                                        self.fail("Invalid or oversized game bridge message");
+                                                        self.fail("Invalid or oversized game server message");
                                                      else if (self._state == ConnectionState::Connected)
                                                         self._incoming.insert(self._incoming.end(), event->data,
                                                                               event->data + event->numBytes);
@@ -121,13 +121,13 @@ class WebSocketConnection final : public ClientConnection
           _socket, this,
           [](int, const EmscriptenWebSocketErrorEvent*, void* data)
           {
-             static_cast<WebSocketConnection*>(data)->fail("Game bridge connection failed; check its URL, origin and TLS configuration");
+             static_cast<WebSocketConnection*>(data)->fail("Game server connection failed; check its URL, origin and TLS configuration");
              return true;
           });
       emscripten_websocket_set_onclose_callback(_socket, this,
                                                 [](int, const EmscriptenWebSocketCloseEvent*, void* data)
                                                 {
-                                                   static_cast<WebSocketConnection*>(data)->fail("Game bridge connection closed");
+                                                   static_cast<WebSocketConnection*>(data)->fail("Game server connection closed");
                                                    return true;
                                                 });
    }
@@ -146,7 +146,7 @@ class WebSocketConnection final : public ClientConnection
    ConnectionState poll() override
    {
       if (_state == ConnectionState::Connecting && std::chrono::steady_clock::now() - _started > std::chrono::seconds(10))
-         fail("Game bridge connection timed out");
+         fail("Game server connection timed out");
       return _state;
    }
 
@@ -167,7 +167,7 @@ class WebSocketConnection final : public ClientConnection
           bytes.size() > buffer_limit - queued ||
           emscripten_websocket_send_binary(_socket, const_cast<uint8_t*>(bytes.data()), static_cast<uint32_t>(bytes.size())) !=
               EMSCRIPTEN_RESULT_SUCCESS)
-         fail("Game bridge send failed or its outgoing buffer is full");
+         fail("Game server send failed or its outgoing buffer is full");
    }
 
    std::string getPeerAddress() const override { return _url; }

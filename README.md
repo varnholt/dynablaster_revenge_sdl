@@ -33,7 +33,7 @@ The desktop archives contain `dynablaster_revenge`/`dynablaster_revenge.exe` nex
 directory - run it from that folder. The web archive holds the Emscripten output (`.html`/`.js`/
 `.wasm`/`.data`) and needs to be served over HTTP, not opened as a local file. Browser gameplay
 can run its server inside the browser for local games, or connect to a native game
-server through the included WebSocket bridge; see
+server through its built-in SDL_net WebSocket listener; see
 [browser networking setup](docs/web-networking.md) for local play and WSS hosting.
 The browser-local server does not listen on TCP. The Switch archive
 holds a single `.nro`; see [docs/switch.md](docs/switch.md) for how to install it.

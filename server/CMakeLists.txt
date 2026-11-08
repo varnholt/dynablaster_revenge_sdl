@@ -59,6 +59,8 @@ set(DYNABLASTER_SHARED_SOURCES
     ../shared/bombpacket.h
     ../shared/bytestream.cpp
     ../shared/bytestream.h
+    ../shared/websocketbytestream.cpp
+    ../shared/websocketbytestream.h
     ../shared/clock.cpp
     ../shared/clock.h
     ../shared/constants.cpp

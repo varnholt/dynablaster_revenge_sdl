@@ -24,7 +24,7 @@ class ClientConnection : public ByteStream
    virtual void drain(int32_t timeout_ms) = 0;
 };
 
-// Desktop: SDL_net TCP. Browser: binary WebSocket to a fixed-target TCP bridge.
+// Desktop: SDL_net TCP. Browser: binary WebSocket to the native server.
 std::unique_ptr<ClientConnection> connectToHost(const std::string& host, uint16_t port);
 
 // Wrap a connected in-memory stream with the same lifecycle interface.

@@ -33,7 +33,7 @@ class Server
 {
 public:
    //! listen selects whether clients can connect over the network, a headless simulation only plugs in local streams
-   explicit Server(bool listen = true);
+   explicit Server(bool listen = true, uint16_t websocket_port = 0, std::vector<std::string> websocket_origins = {});
    ~Server();
 
    //! check if server is listening
@@ -79,6 +79,7 @@ private:
 
    //! accept all pending incoming connections
    void acceptConnections();
+   void acceptConnections(NET_Server* listener, bool websocket);
 
    //! read and dispatch all available data for one connection
    void readSocket(int32_t connection_id);
@@ -94,6 +95,9 @@ private:
 
    //! listen socket
    NetServerHandle _net_server{nullptr, &NET_DestroyServer};
+   NetServerHandle _websocket_server{nullptr, &NET_DestroyServer};
+   uint16_t _websocket_port = 0;
+   std::vector<std::string> _websocket_origins;
 
    //! drives poll() once per tick
    Timer _poll_timer;
