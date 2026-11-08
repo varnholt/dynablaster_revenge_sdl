@@ -7,6 +7,7 @@
 
 // shared
 #include "bytestream.h"
+#include "netbytestream.h"
 #include "creategamerequestpacket.h"
 #include "creategameresponsepacket.h"
 #include "joingamerequestpacket.h"

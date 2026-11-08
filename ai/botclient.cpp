@@ -7,9 +7,6 @@
 #include "log.h"
 #include "mapitem.h"
 
-// SDL
-#include <SDL3_net/SDL_net.h>
-
 // ai
 #include "bot.h"
 #include "botconstants.h"
@@ -65,16 +62,16 @@ void BotClient::initialize()
 
 void BotClient::connectToServer()
 {
-   _address.reset(NET_ResolveHostname(_host.c_str()));
-
-   if (!_address)
-   {
-      clientDisconnect();
-   }
+   _stream.reset();
+   _connected = false;
+   _buffer = PacketStreamBuffer{};
+   _block_size = 0;
+   _connection = connectToHost(_host, SERVER_PORT);
 }
 
 void BotClient::connectLocal(std::unique_ptr<ByteStream> stream)
 {
+   _connection.reset();
    _stream = std::move(stream);
    clientConnect();
 
@@ -87,56 +84,25 @@ void BotClient::connectLocal(std::unique_ptr<ByteStream> stream)
 // poll for connection progress and incoming data, once per tick
 void BotClient::poll()
 {
-   if (_address)
+   if (_connection)
    {
-      NET_Status status = NET_GetAddressStatus(_address.get());
-
-      if (status == NET_SUCCESS)
+      const auto state = _connection->poll();
+      if (state == ConnectionState::Failed)
       {
-         _socket.reset(NET_CreateClient(_address.get(), 6300, 0));
-         _address.reset();
-
-         if (!_socket)
-         {
-            clientDisconnect();
-         }
-      }
-      else if (status == NET_FAILURE)
-      {
-         _address.reset();
+         _connection.reset();
          clientDisconnect();
       }
-
-      return;
-   }
-
-   if (_socket && !_connected)
-   {
-      NET_Status status = NET_GetConnectionStatus(_socket.get());
-
-      if (status == NET_SUCCESS)
+      else if (state == ConnectionState::Connected)
       {
-         _stream = std::make_unique<NetByteStream>(std::move(_socket));
+         _stream = std::move(_connection);
          clientConnect();
-
          if (_auto_join)
-         {
             login();
-         }
       }
-      else if (status == NET_FAILURE)
-      {
-         _socket.reset();
-         clientDisconnect();
-      }
-
       return;
    }
-
    if (_stream && _connected)
-   {
       readData();
-   }
 }
 
 void BotClient::clientConnect()

@@ -1,7 +1,5 @@
 #pragma once
 
-#include "nethandles.h"
-
 #include <cstdint>
 #include <memory>
 #include <span>
@@ -23,20 +21,6 @@ public:
 
    //! address of the peer, for logging
    [[nodiscard]] virtual std::string getPeerAddress() const = 0;
-};
-
-// a byte stream over a connected SDL_net socket
-class NetByteStream : public ByteStream
-{
-public:
-   explicit NetByteStream(NetStreamSocketHandle socket);
-
-   int32_t read(std::span<char> buffer) override;
-   void write(std::span<const uint8_t> bytes) override;
-   [[nodiscard]] std::string getPeerAddress() const override;
-
-private:
-   NetStreamSocketHandle _socket;
 };
 
 // two in-memory streams wired to each other: what one writes the other reads. Destroying one end

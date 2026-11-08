@@ -2,7 +2,7 @@
 
 #include "constants.h"
 #include "gamesignal.h"
-#include "nethandles.h"
+#include "clientconnection.h"
 #include "packetstreambuffer.h"
 #include "timer.h"
 
@@ -58,8 +58,7 @@ private:
    uint8_t _keys = 0;
    bool _bomb_released = true;
 
-   NetAddressHandle _address{nullptr, &NET_UnrefAddress};
-   NetStreamSocketHandle _socket{nullptr, &NET_DestroyStreamSocket};
+   std::unique_ptr<ClientConnection> _connection;
    PacketStreamBuffer _buffer;
    uint16_t _block_size = 0;
    Timer _poll_timer;

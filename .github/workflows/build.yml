@@ -115,13 +115,28 @@ jobs:
         with:
           version: 6.0.1
 
-      # client only - no raw sockets in a browser, so the server (and real client<->server
-      # networking) doesn't work here. See client/src/main.cpp's __EMSCRIPTEN__ NET_Init handling.
       - name: Configure client
-        run: emcmake cmake -S client -B client/build-wasm -DCMAKE_BUILD_TYPE=Release
+        run: emcmake cmake -S client -B client/build-wasm -DCMAKE_BUILD_TYPE=Release -DDYNABLASTER_NETWORK_TESTS=ON
 
       - name: Build client
-        run: cmake --build client/build-wasm --target dynablaster_revenge --parallel $(nproc)
+        run: cmake --build client/build-wasm --target dynablaster_revenge dynablaster_network_test --parallel $(nproc)
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Build native integration server
+        run: |
+          cmake -S server -B server/build-network -DCMAKE_BUILD_TYPE=Release -DSDL_UNIX_CONSOLE_BUILD=ON
+          cmake --build server/build-network --parallel $(nproc)
+
+      - name: Test bridge and WebAssembly network gameplay
+        run: |
+          python -m pip install -r web/requirements.txt
+          python -m unittest discover -s web/tests -v
+          python web/tests/run_network_game.py --server server/build-network/dynablaster_server --probe client/build-wasm/dynablaster_network_test.js --node node
+          DYNABLASTER_TEST_SERVER='ws://[invalid' node client/build-wasm/dynablaster_network_test.js --expect-failure
+          DYNABLASTER_TEST_SERVER='ws://127.0.0.1:1/' node client/build-wasm/dynablaster_network_test.js --expect-failure
 
       - name: Package artifact
         run: |

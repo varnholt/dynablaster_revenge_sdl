@@ -212,17 +212,14 @@ int main(int /*argc*/, char** /*argv*/)
 #endif
    // must run before any NET_* call (BombermanClient's own connection or an embedded Server via
    // host()); nearly everything in SDL3_net is undefined behavior before this succeeds.
-   // SDL3_net builds as a stub-only lib under Emscripten (no raw sockets in a browser), so
-   // NET_Init() always fails there - log it and keep going instead of aborting before the menu.
+   // Browsers use ClientConnection's WebSocket backend, never SDL_net's stub.
+#ifndef __EMSCRIPTEN__
    if (!NET_Init())
    {
-#ifdef __EMSCRIPTEN__
-      SDL_Log("SDL_net unavailable in the browser build, networking disabled: %s", SDL_GetError());
-#else
       SDL_Log("Failed to initialize SDL_net: %s", SDL_GetError());
       return 1;
-#endif
    }
+#endif
 
    // NET_Quit() runs once everything below is destroyed - the embedded server keeps polling its
    // sockets on its own thread until the BombermanClient is gone
@@ -230,7 +227,9 @@ int main(int /*argc*/, char** /*argv*/)
    {
       ~NetQuit()
       {
+#ifndef __EMSCRIPTEN__
          NET_Quit();
+#endif
       }
    } net_quit;
 

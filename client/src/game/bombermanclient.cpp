@@ -306,9 +306,9 @@ void BombermanClient::send(Packet& packet)
 {
    packet.serialize();
 
-   if (_socket)
+   if (_connection)
    {
-      NET_WriteToStreamSocket(_socket.get(), packet.data(), static_cast<int>(packet.size()));
+      _connection->write(packet);
    }
 }
 
@@ -335,12 +335,9 @@ const std::string& BombermanClient::getHost() const
  */
 void BombermanClient::connectToServer()
 {
-   _address.reset(NET_ResolveHostname(getHost().c_str()));
-
-   if (!_address)
-   {
-      reportConnectionError(SDL_GetError());
-   }
+   _buffer = PacketStreamBuffer{};
+   _block_size = 0;
+   _connection = connectToHost(getHost(), SERVER_PORT);
 }
 
 //-----------------------------------------------------------------------------
@@ -408,8 +405,9 @@ void BombermanClient::clearMapItems()
 */
 void BombermanClient::disconnectFromServer()
 {
-   _address.reset();
-   _socket.reset();
+   _connection.reset();
+   _buffer = PacketStreamBuffer{};
+   _block_size = 0;
 
    clientDisconnect();
 }
@@ -1490,14 +1488,14 @@ void BombermanClient::readData()
    std::array<char, 4096> chunk{};
    int bytes_read;
 
-   while ((bytes_read = NET_ReadFromStreamSocket(_socket.get(), chunk.data(), static_cast<int>(chunk.size()))) > 0)
+   while ((bytes_read = _connection->read(chunk)) > 0)
    {
       _buffer.append(std::span(chunk).first(static_cast<size_t>(bytes_read)));
    }
 
    if (bytes_read < 0)
    {
-      _socket.reset();
+      _connection.reset();
       clientDisconnect();
       return;
    }
@@ -1526,51 +1524,26 @@ void BombermanClient::readData()
 */
 void BombermanClient::poll()
 {
-   if (_address)
+   if (!_connection)
+      return;
+   const auto state = _connection->poll();
+   if (state == ConnectionState::Failed)
    {
-      NET_Status status = NET_GetAddressStatus(_address.get());
-
-      if (status == NET_SUCCESS)
-      {
-         _socket.reset(NET_CreateClient(_address.get(), SERVER_PORT, 0));
-         _address.reset();
-
-         if (!_socket)
-         {
-            reportConnectionError(SDL_GetError());
-         }
-      }
-      else if (status == NET_FAILURE)
-      {
-         reportConnectionError(SDL_GetError());
-         _address.reset();
-      }
-
+      const std::string reason(_connection->error());
+      _connection.reset();
+      reportConnectionError(reason);
+      if (isConnected())
+         clientDisconnect();
       return;
    }
-
-   if (_socket && !isConnected())
+   if (state == ConnectionState::Connected && !isConnected())
    {
-      NET_Status status = NET_GetConnectionStatus(_socket.get());
-
-      if (status == NET_SUCCESS)
-      {
-         clientConnect();
-         connectedSignal();
-      }
-      else if (status == NET_FAILURE)
-      {
-         reportConnectionError(SDL_GetError());
-         _socket.reset();
-      }
-
+      clientConnect();
+      connectedSignal();
       return;
    }
-
-   if (_socket && isConnected())
-   {
+   if (state == ConnectionState::Connected)
       readData();
-   }
 }
 
 //-----------------------------------------------------------------------------
@@ -2278,7 +2251,7 @@ void BombermanClient::setLoginAfterConnect(bool login_after_connect)
 void BombermanClient::loginRequest(const std::string& host, const std::string& nick)
 {
    const std::string previous_host = getHost();
-   const bool connected_or_connecting = static_cast<bool>(_socket) || static_cast<bool>(_address);
+   const bool connected_or_connecting = static_cast<bool>(_connection);
 
    setHost(host);
    setNick(nick);
@@ -2354,6 +2327,11 @@ void BombermanClient::gameListRequest()
  */
 bool BombermanClient::host()
 {
+#ifdef __EMSCRIPTEN__
+   // Browsers create their games on the external server behind the bridge.
+   // They cannot bind a TCP listening socket inside the tab.
+   return true;
+#else
    if (!_server)
    {
       _server = std::make_unique<Server>();
@@ -2393,6 +2371,7 @@ bool BombermanClient::host()
    }
 
    return _server != nullptr;
+#endif
 }
 
 //-----------------------------------------------------------------------------
@@ -2447,6 +2426,7 @@ std::vector<std::string> BombermanClient::getLocalIps() const
 {
    std::vector<std::string> ips;
 
+#ifndef __EMSCRIPTEN__
    int count = 0;
    const std::unique_ptr<NET_Address*[], decltype(&NET_FreeLocalAddresses)> addresses(
       NET_GetLocalAddresses(&count), &NET_FreeLocalAddresses
@@ -2469,6 +2449,7 @@ std::vector<std::string> BombermanClient::getLocalIps() const
       }
    }
 
+#endif
    return ips;
 }
 

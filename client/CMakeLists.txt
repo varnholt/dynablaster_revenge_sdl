@@ -552,9 +552,9 @@ if(NINTENDO_SWITCH)
         ROMFS ${CMAKE_CURRENT_BINARY_DIR}/romfs)
 endif()
 
-# wasm32 target (browser build). No raw sockets in a browser, so real client<->server networking
-# doesn't work here (see main.cpp's __EMSCRIPTEN__ NET_Init handling) - this is client-only.
+# Browser connections use binary WebSockets to an external TCP bridge.
 if (EMSCRIPTEN)
+    target_link_libraries(dynablaster_core PUBLIC "-lwebsocket.js")
     target_link_options(dynablaster_revenge PRIVATE
         -sMAX_WEBGL_VERSION=2
         -sMIN_WEBGL_VERSION=2
@@ -630,6 +630,20 @@ add_dependencies(dynablaster_revenge dynablaster_data)
 add_dependencies(dynablaster_revenge_harness dynablaster_data)
 
 enable_testing()
+option(DYNABLASTER_NETWORK_TESTS "Build the two-client network gameplay probe" OFF)
+if(DYNABLASTER_NETWORK_TESTS)
+    add_executable(dynablaster_network_test tests/test_network_game.cpp)
+    target_link_libraries(dynablaster_network_test PRIVATE dynablaster_core)
+    if(NOT EMSCRIPTEN AND NOT NINTENDO_SWITCH)
+        add_executable(dynablaster_network_server ../server/src/main.cpp)
+        target_link_libraries(dynablaster_network_server PRIVATE dynablaster_core)
+    endif()
+    if(EMSCRIPTEN)
+        target_link_options(dynablaster_network_test PRIVATE
+            -sENVIRONMENT=node -sEXIT_RUNTIME=1 -sDISABLE_EXCEPTION_CATCHING=0
+            "SHELL:--pre-js ${CMAKE_CURRENT_SOURCE_DIR}/../web/tests/node-environment.js")
+    endif()
+endif()
 add_executable(dynablaster_gles_compatibility_test tests/test_gles_compatibility.cpp)
 target_link_libraries(dynablaster_gles_compatibility_test PRIVATE dynablaster_core)
 add_test(NAME gles_compatibility COMMAND dynablaster_gles_compatibility_test)

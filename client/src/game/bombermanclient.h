@@ -3,7 +3,7 @@
 
 // shared
 #include "gamesignal.h"
-#include "nethandles.h"
+#include "clientconnection.h"
 #include "packetstreambuffer.h"
 #include "timer.h"
 
@@ -474,11 +474,8 @@ private:
    //! flag indicating bomb key was released
    bool _bomb_released = true;
 
-   //! stream socket to server, empty unless connected or connecting
-   NetStreamSocketHandle _socket{nullptr, &NET_DestroyStreamSocket};
-
-   //! host address pending resolution, empty once resolved (or if not resolving)
-   NetAddressHandle _address{nullptr, &NET_UnrefAddress};
+   //! asynchronous TCP or WebSocket connection to the server
+   std::unique_ptr<ClientConnection> _connection;
 
    //! drives poll() once per tick
    Timer _poll_timer;

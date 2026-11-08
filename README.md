@@ -31,9 +31,10 @@ successful build and need no GitHub account:
 
 The desktop archives contain `dynablaster_revenge`/`dynablaster_revenge.exe` next to its `data/`
 directory - run it from that folder. The web archive holds the Emscripten output (`.html`/`.js`/
-`.wasm`/`.data`) and needs to be served over HTTP, not opened as a local file. Note: browser
-multiplayer doesn't work yet - the web build reaches the main menu only, since SDL3_net has no
-WebSocket backend to talk to a real game server from inside a browser sandbox. The Switch archive
+`.wasm`/`.data`) and needs to be served over HTTP, not opened as a local file. Browser gameplay
+connects to a native game server through the included WebSocket bridge; see
+[browser networking setup](docs/web-networking.md) for local play and WSS hosting.
+The browser does not start its own TCP server. The Switch archive
 holds a single `.nro`; see [docs/switch.md](docs/switch.md) for how to install it.
 
 # Project layout
