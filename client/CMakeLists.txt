@@ -640,8 +640,9 @@ if(DYNABLASTER_NETWORK_TESTS)
     endif()
     if(EMSCRIPTEN)
         target_link_options(dynablaster_network_test PRIVATE
-            -sENVIRONMENT=node -sEXIT_RUNTIME=1 -sDISABLE_EXCEPTION_CATCHING=0
+            -sENVIRONMENT=web,node -sEXIT_RUNTIME=1 -sDISABLE_EXCEPTION_CATCHING=0
             "SHELL:--pre-js ${CMAKE_CURRENT_SOURCE_DIR}/../web/tests/node-environment.js")
+        set_target_properties(dynablaster_network_test PROPERTIES SUFFIX ".html")
     endif()
 endif()
 add_executable(dynablaster_gles_compatibility_test tests/test_gles_compatibility.cpp)

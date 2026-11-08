@@ -12,11 +12,14 @@
 #include "positionpacket.h"
 #include "startgamerequestpacket.h"
 #include "startgameresponsepacket.h"
+#include "server.h"
+#include "timer.h"
 
 #include <array>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <functional>
 #include <optional>
 #include <thread>
 
@@ -29,9 +32,22 @@
 namespace
 {
 bool expect_failure = false;
+std::unique_ptr<Server> local_server;
+std::function<void()> cleanup;
+
+std::unique_ptr<ClientConnection> createConnection()
+{
+   if (!local_server)
+      return connectToHost("127.0.0.1", SERVER_PORT);
+   auto [client, server] = LoopbackByteStream::createPair();
+   local_server->connectLocal(std::move(server));
+   return connectToLocalStream(std::move(client));
+}
 [[noreturn]] void finish(int status, const char* message)
 {
    std::puts(message);
+   if (cleanup)
+      cleanup();
 #ifdef __EMSCRIPTEN__
    emscripten_force_exit(status);
 #else
@@ -41,7 +57,7 @@ bool expect_failure = false;
 
 struct Peer
 {
-   std::unique_ptr<ClientConnection> connection = connectToHost("127.0.0.1", SERVER_PORT);
+   std::unique_ptr<ClientConnection> connection = createConnection();
    PacketStreamBuffer buffer;
    int32_t id = -1;
    bool login_sent = false;
@@ -206,6 +222,7 @@ int matches = 0;
 
 void tickProbe()
 {
+   Timer::update();
    probe->tick();
    if (probe->finished)
    {
@@ -225,7 +242,13 @@ int main(int argc, char** argv)
    if (!NET_Init())
       finish(1, "FAIL: NET_Init");
 #endif
+   if (argc > 1 && std::string_view(argv[1]) == "--embedded")
+   {
+      local_server = std::make_unique<Server>(false);
+      local_server->startPolling();
+   }
    probe = std::make_unique<Probe>();
+   cleanup = [] { probe.reset(); local_server.reset(); };
 #ifdef __EMSCRIPTEN__
    emscripten_set_main_loop(tickProbe, 0, true);
 #else

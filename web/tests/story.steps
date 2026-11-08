@@ -1,0 +1,14 @@
+click 350 1010
+wait 1000
+# Skip the introductory cutscene through its normal input handler.
+click 960 500
+wait-log game 1 started
+wait 500
+shot story-before.png
+key ArrowRight 500
+key Space 100
+wait 800
+shot story-after.png
+key Escape 100
+wait 1000
+shot story-menu.png

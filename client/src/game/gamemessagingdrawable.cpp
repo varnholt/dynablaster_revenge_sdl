@@ -7,6 +7,7 @@
 
 #include "bombermanclient.h"
 #include "gamestatemachine.h"
+#include "menus/defaultshader.h"
 #include "menus/fontpool.h"
 #include "menus/psdlayer.h"
 #include "stringutils.h"
@@ -292,7 +293,9 @@ void GameMessagingDrawable::initGlParameters()
    glDisable(GL_DEPTH_TEST);
    glDepthMask(GL_FALSE);
 
-   activeDevice().setShader(0);
+   // PSD layers need an explicit program in GLES/WebGL; there is no
+   // fixed-function fallback for the messaging bar during game transitions.
+   activeDevice().setShader(getDefaultMenuShader());
 }
 
 void GameMessagingDrawable::cleanupGlParameters()

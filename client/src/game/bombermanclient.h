@@ -333,6 +333,9 @@ public:
    //! returns true if the server is listening (already or now), false if its port couldn't be bound
    bool host();
 
+   //! Connect another local player using this client's selected transport.
+   std::unique_ptr<ClientConnection> createConnection();
+
    //! initialize bots
    void initializeBots();
 

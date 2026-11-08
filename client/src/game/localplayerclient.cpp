@@ -22,13 +22,14 @@ namespace
 constexpr int32_t poll_interval_ms = 16;
 }  // namespace
 
-LocalPlayerClient::LocalPlayerClient(std::string host, std::string nick, int32_t game_id, std::optional<Constants::Color> preferred_color)
+LocalPlayerClient::LocalPlayerClient(std::string host, std::string nick, int32_t game_id, std::optional<Constants::Color> preferred_color,
+                                   std::unique_ptr<ClientConnection> connection)
     : _host(std::move(host)), _nick(std::move(nick)), _game_id(game_id), _preferred_color(preferred_color)
 {
    _poll_timer.timeoutSignal.connect([this]() { poll(); });
    _poll_timer.start(poll_interval_ms);
 
-   _connection = connectToHost(_host, SERVER_PORT);
+   _connection = connection ? std::move(connection) : connectToHost(_host, SERVER_PORT);
 }
 
 LocalPlayerClient::~LocalPlayerClient()

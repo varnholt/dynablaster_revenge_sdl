@@ -26,3 +26,10 @@ class ClientConnection : public ByteStream
 
 // Desktop: SDL_net TCP. Browser: binary WebSocket to a fixed-target TCP bridge.
 std::unique_ptr<ClientConnection> connectToHost(const std::string& host, uint16_t port);
+
+// Wrap a connected in-memory stream with the same lifecycle interface.
+std::unique_ptr<ClientConnection> connectToLocalStream(std::unique_ptr<ByteStream> stream);
+
+// Browsers can run a local server unless an external endpoint was selected.
+// Native builds always use their TCP transport.
+bool usesRemoteTransport(const std::string& host);

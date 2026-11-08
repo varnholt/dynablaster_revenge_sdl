@@ -1,6 +1,7 @@
 # Browser networking
 
-The WebAssembly client uses binary WebSockets. Desktop and Switch clients keep
+The WebAssembly build can run the real server inside the tab for local games,
+or connect through binary WebSockets for network games. Desktop and Switch clients keep
 using SDL_net TCP; both carry the same length-prefixed game packets. A small
 Python bridge converts WebSocket messages into a byte stream to one configured
 native server. Browser and desktop players can join the same games.
@@ -11,6 +12,25 @@ Desktop game -------------------------- TCP :6300 --> same server
 ```
 
 ## Run locally
+
+Build the browser client and serve it over HTTP:
+
+```sh
+python -m http.server 8000 --directory client/build-wasm
+```
+
+Open `http://localhost:8000/dynablaster_revenge.html`. With the default local host,
+**Single** starts the story in the browser. **Multi** lets you create a local
+battle; set the number of bots to two or more for a match against the computer.
+The server, bots and players exchange ordinary game packets over in-memory
+streams on the browser event loop. No native server, bridge, listening socket,
+WebAssembly threads or isolation headers are needed for this mode.
+
+This local server belongs to its tab. It does not accept connections from another
+browser, tab or desktop client. Sharing a browser-hosted game over the internet
+would need a separate peer transport and signaling service, such as WebRTC.
+
+## Network games
 
 Build the native server and browser client with the commands in the README.
 Run the native server from its packaged directory so it finds `data/` and the
@@ -38,11 +58,12 @@ http://localhost:8000/dynablaster_revenge.html?server=ws://127.0.0.1:8081/
 Choose a nickname, then **Multi** to create or join a game. Other browser tabs
 using this endpoint and desktop clients connecting to the native server can join
 the same game. Additional controller players and bots use their own connections
-through the same endpoint. **Single** creates a story game on that external server;
-it does not start an embedded server in the browser. The server must remain running
-for both modes. Browser hosting does not open an inbound port on the player's device.
+through the same endpoint. With an explicit `?server=`, **Single** also creates its
+story game on that external server. The selected native server must remain running
+for network games. Browser hosting does not open an inbound port on the player's device.
 
-Without `?server=`, a browser uses `ws://<host>:8081/`, or `wss://<host>:8081/`
+Without `?server=`, local host names (`127.0.0.1`, `localhost`, `::1`) select the
+embedded server. A remote host selects `ws://<host>:8081/`, or `wss://<host>:8081/`
 when the page uses HTTPS. The host field may also contain a complete WebSocket URL.
 An explicit `?server=` overrides the host field for every client and bot. Use it
 for deployed sites, custom ports and reverse-proxy paths. URL-encode the endpoint
@@ -86,7 +107,9 @@ and an optional drain operation. `connectToHost` selects the platform backend:
 - Native builds resolve the hostname and connect through SDL_net.
 - WebAssembly builds use Emscripten's WebSocket API with binary frames and bounded
   send/receive buffers. Browser callbacks never parse game packets.
-- The existing in-memory stream remains available to the headless simulator.
+- Browser-local games wrap the existing in-memory stream in `ClientConnection`.
+  The real server runs its normal timers on the browser event loop, and the same
+  local factory supplies connections for additional players and bots.
 
 The main client, additional local players and bot connections share this factory.
 The server's accepted TCP sockets use `NetByteStream`. Packet reassembly stays
@@ -121,7 +144,32 @@ game, synchronize, start, move and place a bomb. Reads and writes deliberately s
 packets to exercise stream reassembly. Both clients then disconnect and repeat the
 match in the same runtime to check connection and callback cleanup. CI also checks
 malformed and unreachable WebSocket endpoints. The WebAssembly protocol test uses Node's
-WebSocket API; it does not test browser rendering, audio or controller input.
+WebSocket API. `dynablaster_network_test.js --embedded` runs the same repeated
+matches with the server compiled into WebAssembly.
+
+For actual Chromium tests, install `web/tests/requirements-browser.txt` and run
+`python -m playwright install chromium` (or set `CHROMIUM_PATH` to a test browser).
+
+```sh
+python web/tests/browser_playtest.py --build client/build-wasm --output build/browser-embedded-probe --probe
+python web/tests/browser_playtest.py --build client/build-wasm --output build/browser-network-probe --probe --native-server client/build/dynablaster_network_server
+python web/tests/browser_playtest.py --build client/build-wasm --output build/browser-local --steps web/tests/multiplayer.steps --expect "game 1 started"
+python web/tests/browser_playtest.py --build client/build-wasm --output build/browser-network --steps web/tests/multiplayer.steps --native-server client/build/dynablaster_network_server --expect "game 1 started"
+```
+
+The rendered playtests use the normal menus to select two bots, create and join a
+game, start, move, place a bomb and leave. They retain screenshots and console logs.
+The browser probe checks two clients and repeated sessions inside a real browser.
+
+On Windows, the normal desktop executable can run the same gameplay script:
+
+```sh
+python client/tests/playtest_windows.py --executable client/build/Release/dynablaster_revenge.exe --steps web/tests/multiplayer.steps --output build/windows-gameplay
+```
+
+That runner uses the game's existing `DYNABLASTER_DEV_SCRIPT` hook and records the
+normal rendered game and embedded TCP server, rather than a diagnostic executable.
+Audio playback quality and physical controllers still require a manual check.
 
 Before deploying a public frontend, also play a match in two browser tabs and
 with a desktop client, including leaving, reconnecting and a stopped bridge.

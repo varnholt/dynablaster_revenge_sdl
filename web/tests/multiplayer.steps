@@ -1,0 +1,28 @@
+# Menu coordinates use the game's 1920x1080 page space.
+click 660 1010
+wait 1500
+click 960 1010
+wait 1000
+# Select two bots.
+click 1475 490
+wait 300
+click 1050 595
+wait 300
+click 660 1010
+wait 1000
+click 660 1010
+wait 8000
+shot lobby.png
+click 660 1010
+wait 7500
+wait-log game 1 started
+shot gameplay-before.png
+key ArrowRight 700
+key Space 100
+shot bomb.png
+key ArrowDown 700
+wait 2500
+shot gameplay-after.png
+key Escape 100
+wait 1000
+shot menu-after.png

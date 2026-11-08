@@ -2,6 +2,36 @@
 
 #include <chrono>
 
+namespace
+{
+class LocalConnection final : public ClientConnection
+{
+public:
+   explicit LocalConnection(std::unique_ptr<ByteStream> stream) : _stream(std::move(stream)) {}
+   ConnectionState poll() override { return _state; }
+   int32_t read(std::span<char> buffer) override
+   {
+      const auto count = _stream->read(buffer);
+      if (count < 0)
+         _state = ConnectionState::Failed;
+      return count;
+   }
+   void write(std::span<const uint8_t> bytes) override { _stream->write(bytes); }
+   std::string getPeerAddress() const override { return _stream->getPeerAddress(); }
+   std::string_view error() const override { return "Local game server disconnected"; }
+   void drain(int32_t) override {}
+
+private:
+   std::unique_ptr<ByteStream> _stream;
+   ConnectionState _state = ConnectionState::Connected;
+};
+}
+
+std::unique_ptr<ClientConnection> connectToLocalStream(std::unique_ptr<ByteStream> stream)
+{
+   return std::make_unique<LocalConnection>(std::move(stream));
+}
+
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #include <emscripten/websocket.h>
@@ -13,6 +43,11 @@
 // A deployment may supply ?server=wss://example.org/dynablaster. All players and
 // bots use the same endpoint, including story mode's native loopback host name.
 // clang-format off
+EM_JS(bool, dynablaster_remote_transport, (const char* host), {
+   const name = UTF8ToString(host).toLowerCase();
+   return !!new URLSearchParams(location.search).get('server') ||
+      !["", 'localhost', '127.0.0.1', '::1'].includes(name);
+});
 EM_JS(char*, dynablaster_websocket_url, (const char* host), {
    const configured = new URLSearchParams(location.search).get('server');
    const name = UTF8ToString(host);
@@ -163,6 +198,11 @@ std::unique_ptr<ClientConnection> connectToHost(const std::string& host, uint16_
    return std::make_unique<WebSocketConnection>(host);
 }
 
+bool usesRemoteTransport(const std::string& host)
+{
+   return dynablaster_remote_transport(host.c_str());
+}
+
 #else
 
 #include "nethandles.h"
@@ -255,5 +295,10 @@ class TcpConnection final : public ClientConnection
 std::unique_ptr<ClientConnection> connectToHost(const std::string& host, uint16_t port)
 {
    return std::make_unique<TcpConnection>(host, port);
+}
+
+bool usesRemoteTransport(const std::string&)
+{
+   return true;
 }
 #endif

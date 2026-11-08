@@ -337,7 +337,20 @@ void BombermanClient::connectToServer()
 {
    _buffer = PacketStreamBuffer{};
    _block_size = 0;
-   _connection = connectToHost(getHost(), SERVER_PORT);
+   _connection = createConnection();
+}
+
+std::unique_ptr<ClientConnection> BombermanClient::createConnection()
+{
+#ifdef __EMSCRIPTEN__
+   if (_server && !usesRemoteTransport(getHost()))
+   {
+      auto [client, server] = LoopbackByteStream::createPair();
+      _server->connectLocal(std::move(server));
+      return connectToLocalStream(std::move(client));
+   }
+#endif
+   return connectToHost(getHost(), SERVER_PORT);
 }
 
 //-----------------------------------------------------------------------------
@@ -2328,8 +2341,15 @@ void BombermanClient::gameListRequest()
 bool BombermanClient::host()
 {
 #ifdef __EMSCRIPTEN__
-   // Browsers create their games on the external server behind the bridge.
-   // They cannot bind a TCP listening socket inside the tab.
+   const std::string host = getGameMode() == Constants::GameModeStory ? "127.0.0.1" : GameSettings::getInstance().getLoginSettings().getHost();
+   if (!usesRemoteTransport(host) && !_server)
+   {
+      // No listening socket or worker thread: the real server's timers run on
+      // the same event loop as the browser client and its local bots.
+      _server = std::make_unique<Server>(false);
+      _server->startPolling();
+      hostingSignal(true);
+   }
    return true;
 #else
    if (!_server)
@@ -2379,6 +2399,12 @@ bool BombermanClient::host()
  */
 void BombermanClient::initializeBots()
 {
+#ifdef __EMSCRIPTEN__
+   if (_server && !usesRemoteTransport(getHost()))
+      _bot_factory->setLocalConnector([this]() { return createConnection(); });
+   else
+      _bot_factory->setLocalConnector({});
+#endif
    if (isPlayerOwner() && getGameMode() != Constants::GameModeStory)
    {
       // pass relevant data to bot factory
