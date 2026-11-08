@@ -10,6 +10,7 @@
 namespace
 {
 constexpr size_t message_limit = 1024 * 1024;
+// Bound memory held by peers that send too quickly or stop reading.
 constexpr size_t queue_limit = 8 * 1024 * 1024;
 
 std::string lower(std::string text)
@@ -204,6 +205,7 @@ void WebSocketByteStream::close(uint16_t code)
       sendFrame(8, status);
    }
    _closing = true;
+   // Give the close frame (or HTTP rejection) time to drain without blocking a game tick.
    _deadline = std::chrono::steady_clock::now() + std::chrono::seconds(1);
 }
 
@@ -239,6 +241,7 @@ void WebSocketByteStream::handshake()
    valid = valid && !headers["host"].empty() && lower(headers["upgrade"]) == "websocket" &&
            token(lower(headers["connection"]), "upgrade") && headers["sec-websocket-version"] == "13" &&
            validKey(headers["sec-websocket-key"]) && token(headers["sec-websocket-protocol"], "binary");
+   // Only explicitly configured page origins may open browser game connections.
    const bool origin_allowed = std::ranges::find(_origins, headers["origin"]) != _origins.end();
    if (!valid || !origin_allowed)
    {
@@ -254,6 +257,7 @@ void WebSocketByteStream::handshake()
       acceptKey(headers["sec-websocket-key"]) + "\r\n\r\n";
    sendRaw({reinterpret_cast<const uint8_t*>(response.data()), response.size()});
    _upgraded = true;
+   // TCP may deliver the first WebSocket frame together with the upgrade request.
    _wire.erase(_wire.begin(), _wire.begin() + static_cast<std::ptrdiff_t>(end + 4));
 }
 
@@ -267,6 +271,7 @@ bool WebSocketByteStream::receiveFrame()
    const bool final = (_wire[0] & 0x80) != 0;
    uint64_t length = _wire[1] & 127;
    const bool control = opcode >= 8;
+   // Client frames must be masked; control frames may interrupt a fragmented binary message.
    if ((_wire[0] & 0x70) || !(_wire[1] & 0x80) || (opcode != 0 && opcode != 2 && opcode != 8 && opcode != 9 && opcode != 10) ||
        (control && (!final || length > 125)) || (!control && ((opcode == 0) != _fragmented)))
    {
@@ -393,6 +398,7 @@ int32_t WebSocketByteStream::read(std::span<char> buffer)
    }
    if (_upgraded)
    {
+      // Bound frame parsing per read so control-only traffic cannot monopolize a game tick.
       for (int frames = 0; frames < 64 && !_closing && receiveFrame(); ++frames)
       {
       }

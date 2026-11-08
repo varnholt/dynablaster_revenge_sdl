@@ -34,6 +34,7 @@ int main(int argc, char** argv)
       return 1;
    }
 
+   // Declared before Server so its sockets are destroyed before SDL_net shuts down.
    struct NetQuit
    {
       ~NetQuit()

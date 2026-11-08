@@ -19,8 +19,10 @@ enum class ConnectionState
 class ClientConnection : public ByteStream
 {
 public:
+   // Advance connection setup each client tick; read/write require Connected.
    virtual ConnectionState poll() = 0;
    [[nodiscard]] virtual std::string_view error() const = 0;
+   // Best-effort flush before disconnecting; browsers cannot wait synchronously.
    virtual void drain(int32_t timeout_ms) = 0;
 };
 

@@ -25,9 +25,9 @@ private:
 
    NetStreamSocketHandle _socket;
    std::vector<std::string> _origins;
-   std::vector<uint8_t> _wire;
-   std::vector<uint8_t> _message;
-   std::vector<uint8_t> _received;
+   std::vector<uint8_t> _wire;      // Incomplete HTTP request or WebSocket frames from TCP.
+   std::vector<uint8_t> _message;   // Binary message assembled across continuation frames.
+   std::vector<uint8_t> _received;  // Completed messages exposed as an ordered game byte stream.
    bool _upgraded = false;
    bool _fragmented = false;
    bool _closing = false;

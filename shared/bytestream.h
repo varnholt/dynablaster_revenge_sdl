@@ -6,8 +6,8 @@
 #include <string>
 #include <utility>
 
-// a connected, ordered byte stream between a client and the server, either a real socket or an
-// in-memory pipe for headless simulations
+// A connected, ordered byte stream between a client and the server, backed by
+// TCP, WebSocket or an in-memory pipe for local games and headless simulations.
 class ByteStream
 {
 public:
