@@ -1464,6 +1464,7 @@ void BombermanClient::processPacket(const Packet& packet)
       {
          const auto& state = static_cast<const StoryStatePacket&>(packet);
          _story_game_over = state.getState() == StoryStatePacket::StateGameOver;
+         storyCodeSignal(state.getCode());
          storyStateSignal(state.getStage(), state.getLives(), state.getScore(), state.getState(), state.getEnemiesLeft());
          break;
       }
@@ -2136,14 +2137,15 @@ void BombermanClient::setPreferredColor(std::optional<Constants::Color> color)
 //-----------------------------------------------------------------------------
 /*!
    \param first_stage stage index to begin with
+   \param code the original's level code, overrides first_stage when valid
 */
-void BombermanClient::createStoryGame(int first_stage)
+void BombermanClient::createStoryGame(int first_stage, const std::string& code)
 {
    CreateGameRequestPacket packet(
       "story", Level::getLevelDirectoryName(Level::LevelCastle), 1, STORY_STAGE_TIME, 1, false, false, false, false, false,
       Constants::Dimension13x11
    );
-   packet.setStory(first_stage);
+   packet.setStory(first_stage, code);
    send(packet);
 }
 

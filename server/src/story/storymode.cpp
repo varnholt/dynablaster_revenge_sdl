@@ -65,9 +65,35 @@ int32_t tileOf(float value)
 }
 }  // namespace
 
-StoryMode::StoryMode(Game& game, int32_t first_stage)
+StoryMode::StoryMode(Game& game, int32_t first_stage, const std::optional<StoryCode>& code)
     : _game(game), _stage_index(std::clamp(first_stage, 0, static_cast<int32_t>(getStoryStages().size()) - 1))
 {
+   if (code)
+   {
+      _stage_index = std::clamp(code->_stage_index, 0, static_cast<int32_t>(getStoryStages().size()) - 1);
+      _abilities = abilitiesFromCode(*code);
+   }
+}
+
+StoryCode StoryMode::getCode() const
+{
+   StoryCode code;
+   code._stage_index = _stage_index;
+   code._bombs = _abilities._bombs;
+   code._flames = _abilities._flames;
+   code._speedup = _abilities._speed > SERVER_DEFAULT_SPEED;
+   return code;
+}
+
+StoryMode::CarriedAbilities StoryMode::abilitiesFromCode(const StoryCode& code)
+{
+   CarriedAbilities abilities;
+
+   // a code may say 0, the game can't be played like that
+   abilities._bombs = std::max(code._bombs, 1);
+   abilities._flames = std::max(code._flames, 1);
+   abilities._speed = code._speedup ? SERVER_DEFAULT_SPEED + SERVER_SPEEDUP_INCREMENT : SERVER_DEFAULT_SPEED;
+   return abilities;
 }
 
 StoryMode::~StoryMode() = default;
@@ -653,7 +679,9 @@ void StoryMode::continueGame()
 {
    _lives = STORY_LIVES;
    _score = 0;
-   _abilities = {};
+
+   // what the level code shown at game over would give
+   _abilities = abilitiesFromCode(getCode());
    _game_over = false;
 }
 
@@ -669,7 +697,8 @@ void StoryMode::sendState(StoryStatePacket::State state)
       static_cast<int8_t>(std::clamp(_lives, 0, 99)),
       _score,
       static_cast<int8_t>(state),
-      static_cast<int8_t>(std::min(enemiesLeft(), 127))
+      static_cast<int8_t>(std::min(enemiesLeft(), 127)),
+      getCode()
    ));
 
    _sent_enemies_left = enemiesLeft();

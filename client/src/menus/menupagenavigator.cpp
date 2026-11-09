@@ -550,9 +550,10 @@ void MenuPageNavigator::onLoginResponse(bool granted)
       // story games have nothing to set up
       if (mode == Constants::GameModeStory)
       {
-         // development runs may start at a later stage
+         // development runs may start at a later stage, or from one of the original's level codes
          const char* first_stage = std::getenv("DYNABLASTER_STORY_STAGE");
-         BombermanClient::getInstance().createStoryGame(first_stage ? std::atoi(first_stage) : 0);
+         const char* code = std::getenv("DYNABLASTER_STORY_CODE");
+         BombermanClient::getInstance().createStoryGame(first_stage ? std::atoi(first_stage) : 0, code ? code : "");
          return;
       }
 

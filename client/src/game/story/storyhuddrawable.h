@@ -24,6 +24,9 @@ public:
    //! state as sent by the server (StoryStatePacket)
    void setState(int32_t stage, int32_t lives, int32_t score, int32_t state, int32_t enemies_left);
 
+   //! the level code for the current stage, as sent by the server along with the state
+   void setCode(const std::string& code);
+
    //! shows the pause screen
    void setPaused(bool paused);
 
@@ -39,7 +42,7 @@ private:
    //! the big "PAUSED" in the countdown's look, with the hint how to continue
    void drawPaused(BitmapFont& font);
 
-   //! "GAME OVER" and the password kept up, below them "CONTINUE?", yes and no and the seconds left
+   //! "GAME OVER" and the level code kept up, below them "CONTINUE?", yes and no and the seconds left
    void drawContinuePrompt(BitmapFont& font);
 
    BitmapFont* _font = nullptr;
@@ -51,6 +54,7 @@ private:
    int32_t _score = 0;
    int32_t _state = -1;
    int32_t _enemies_left = 0;
+   std::string _code;
    std::string _banner_title;
    std::string _banner_subtitle;
    float _banner_time = -1.0f;
