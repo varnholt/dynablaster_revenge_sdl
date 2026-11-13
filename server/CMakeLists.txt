@@ -85,6 +85,8 @@ set(DYNABLASTER_SHARED_SOURCES
     ../shared/enemypositionpacket.h
     ../shared/enemytype.cpp
     ../shared/enemytype.h
+    ../shared/storycode.cpp
+    ../shared/storycode.h
     ../shared/storystage.h
     ../shared/storystages.cpp
     ../shared/storystatepacket.cpp

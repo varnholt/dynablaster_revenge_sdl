@@ -233,6 +233,9 @@ public:
    Signal<int, bool> enemyKilledSignal;
    Signal<int, int> enemyHitSignal;
    Signal<int, int, int, int, int> storyStateSignal;
+
+   //! the level code for the current stage, sent ahead of storyStateSignal
+   Signal<const std::string&> storyCodeSignal;
    Signal<bool> pausedSignal;
 
    //! the story's continue prompt after the last life: shown or not, "yes" selected or "no"
@@ -298,8 +301,9 @@ public:
    //! start a game
    void startGame(int game = 1);
 
-   //! creates a story mode game beginning at the given stage (0..63)
-   void createStoryGame(int first_stage);
+   //! creates a story mode game beginning at the given stage (0..63), or where the original's level code
+   //! says, with the abilities it gives
+   void createStoryGame(int first_stage, const std::string& code = {});
 
    //! the current game is a story mode game
    bool isStory() const;

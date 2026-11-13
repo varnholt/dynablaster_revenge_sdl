@@ -458,6 +458,7 @@ int main(int /*argc*/, char** /*argv*/)
                                                 { game_drawable.setEnemyPosition(id, x, y, angle, dx, dy, flags); });
    bomberman_client.enemyHitSignal.connect([&](int id, int) { game_drawable.enemyHit(id); });
    bomberman_client.enemyKilledSignal.connect([&](int id, bool removed) { game_drawable.enemyKilled(id, removed); });
+   bomberman_client.storyCodeSignal.connect([&](const std::string& code) { story_hud_drawable.setCode(code); });
    bomberman_client.storyStateSignal.connect(
       [&](int stage, int lives, int score, int state, int enemies_left)
       {

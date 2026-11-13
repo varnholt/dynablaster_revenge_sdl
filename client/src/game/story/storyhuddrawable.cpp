@@ -89,7 +89,7 @@ void StoryHudDrawable::setState(int32_t stage, int32_t lives, int32_t score, int
          showBanner("STAGE CLEAR", std::format("SCORE {}", score));
          break;
       case StoryStatePacket::StateGameOver:
-         showBanner("GAME OVER", std::format("PASSWORD {}", stages[static_cast<size_t>(stage)]._password));
+         showBanner("GAME OVER", std::format("PASSWORD {}", _code));
          break;
       case StoryStatePacket::StateCompleted:
          showBanner("CONGRATULATIONS", std::format("FINAL SCORE {}", score));
@@ -97,6 +97,11 @@ void StoryHudDrawable::setState(int32_t stage, int32_t lives, int32_t score, int
       default:
          break;
    }
+}
+
+void StoryHudDrawable::setCode(const std::string& code)
+{
+   _code = code;
 }
 
 void StoryHudDrawable::setPaused(bool paused)
@@ -168,8 +173,6 @@ void StoryHudDrawable::drawPaused(BitmapFont& font)
 
 void StoryHudDrawable::drawContinuePrompt(BitmapFont& font)
 {
-   const auto& stages = getStoryStages();
-   const std::string_view password = stages[static_cast<size_t>(std::clamp(_stage, 0, static_cast<int32_t>(stages.size()) - 1))]._password;
    const int32_t seconds = std::max(STORY_CONTINUE_TIME - static_cast<int32_t>(std::floor(_continue_time)), 0);
    const float alpha = std::min(_continue_time / FADE_TIME, 1.0f);
 
@@ -177,7 +180,7 @@ void StoryHudDrawable::drawContinuePrompt(BitmapFont& font)
    font.buildVertices(0.45f, "GAME OVER", 0.0f, SCREEN_HEIGHT * 0.36f, SCREEN_WIDTH);
    font.draw();
    font.setColor(1.0f, 0.85f, 0.4f, 1.0f);
-   font.buildVertices(0.2f, std::format("PASSWORD {}", password), 0.0f, SCREEN_HEIGHT * 0.48f, SCREEN_WIDTH);
+   font.buildVertices(0.2f, std::format("PASSWORD {}", _code), 0.0f, SCREEN_HEIGHT * 0.48f, SCREEN_WIDTH);
    font.draw();
 
    font.setColor(1.0f, 1.0f, 1.0f, alpha);
