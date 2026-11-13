@@ -36,6 +36,22 @@ void MenuPageButtonItem::setEnabled(bool enabled)
 
 void MenuPageButtonItem::draw()
 {
+   // a disabled button is greyed out: its idle look, faded into the page
+   if (!isEnabled())
+   {
+      constexpr float disabled_alpha = 0.35f;
+
+      if (isVisible() && isLayerDrawn())
+      {
+         if (const auto layer = getInactiveLayer())
+         {
+            layer->get().render(0.0f, 0.0f, disabled_alpha);
+         }
+      }
+
+      return;
+   }
+
    MenuPageItem::draw();
 
    if (isVisible())

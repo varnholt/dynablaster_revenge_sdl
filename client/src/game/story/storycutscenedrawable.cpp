@@ -244,6 +244,15 @@ bool StoryCutsceneDrawable::load()
 
    _sky = std::make_unique<NightSky>(SKY);
 
+   // upload every actor's textures and buffers now, not on its first draw: the mipmaps of the big lightmaps are
+   // built on the GPU, and in the browser the frames after an upload wait for them, the actors walking in a few
+   // seconds in would stall the picture; play() starts the clock once all of it is done
+   for (const Actor& actor : _actors)
+   {
+      actor._model->initializeGL();
+   }
+   glFinish();
+
    _loaded = true;
    return true;
 }

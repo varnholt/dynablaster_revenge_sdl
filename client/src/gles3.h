@@ -234,6 +234,7 @@ using PFNGLTEXIMAGE2DPROC = void (*)(GLenum, GLint, GLint, GLsizei, GLsizei, GLi
 using PFNGLTEXIMAGE3DPROC = void (*)(GLenum, GLint, GLint, GLsizei, GLsizei, GLsizei, GLint, GLenum, GLenum, const void*);
 using PFNGLTEXPARAMETERIPROC = void (*)(GLenum, GLenum, GLint);
 using PFNGLGENERATEMIPMAPPROC = void (*)(GLenum);
+using PFNGLFINISHPROC = void (*)();
 using PFNGLDELETETEXTURESPROC = void (*)(GLsizei, const GLuint*);
 using PFNGLACTIVETEXTUREPROC = void (*)(GLenum);
 using PFNGLCOPYTEXIMAGE2DPROC = void (*)(GLenum, GLint, GLenum, GLint, GLint, GLsizei, GLsizei, GLint);
@@ -338,6 +339,7 @@ extern PFNGLTEXIMAGE2DPROC glTexImage2D;
 extern PFNGLTEXIMAGE3DPROC glTexImage3D;
 extern PFNGLTEXPARAMETERIPROC glTexParameteri;
 extern PFNGLGENERATEMIPMAPPROC glGenerateMipmap;
+extern PFNGLFINISHPROC glFinish;
 extern PFNGLDELETETEXTURESPROC glDeleteTextures;
 extern PFNGLACTIVETEXTUREPROC glActiveTexture;
 extern PFNGLCOPYTEXIMAGE2DPROC glCopyTexImage2D;
