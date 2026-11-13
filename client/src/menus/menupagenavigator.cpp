@@ -231,6 +231,14 @@ MenuPageNavigator::MenuPageNavigator()
    // the very first time), so this can't wait for onPageChanged()'s own kMainMenu branch below.
    deserializeLoginData();
    deserializeVersion();
+
+#ifdef __EMSCRIPTEN__
+   // a browser tab can't be quit, stopping the main loop would only freeze the page: QUIT stays greyed out
+   if (const auto quit = Menu::getInstance().getPageByName(kMainMenu)->get().getPageItem("button_quit"))
+   {
+      quit->get().setEnabled(false);
+   }
+#endif
 }
 
 MenuPageNavigator::~MenuPageNavigator()
