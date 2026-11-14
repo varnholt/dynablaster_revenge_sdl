@@ -20,6 +20,15 @@
 
 #define DEFAULT_VIDEO_RESOLUTION 1
 #define DEFAULT_VIDEO_ANTIALIAS 4
+#define DEFAULT_VIDEO_FULLSCREEN false
+#define DEFAULT_VIDEO_VSYNC 1
+#define DEFAULT_VIDEO_ZOOM 1
+#define DEFAULT_VIDEO_BORDERLEFT 0
+#define DEFAULT_VIDEO_BORDERTOP 0
+#define DEFAULT_VIDEO_BORDERRIGHT 0
+#define DEFAULT_VIDEO_BORDERBOTTOM 0
+#define DEFAULT_GAMEPLAY_CAMERA_SHAKE_INTENSITY 1.0f
+#define DEFAULT_GAMEPLAY_CAMERA_FOLLOWS_PLAYER true
 
 class GameSettings
 {
@@ -214,10 +223,10 @@ public:
 
    protected:
       //! camera shake intensity
-      float _camera_shake_intensity = 1.0f;
+      float _camera_shake_intensity = DEFAULT_GAMEPLAY_CAMERA_SHAKE_INTENSITY;
 
       //! camera follows player
-      bool _camera_follows_player = true;
+      bool _camera_follows_player = DEFAULT_GAMEPLAY_CAMERA_FOLLOWS_PLAYER;
    };
 
    //! audio settings
@@ -510,25 +519,25 @@ public:
       int _antialias = DEFAULT_VIDEO_ANTIALIAS;
 
       //! fullscreen flag
-      bool _fullscreen = false;
+      bool _fullscreen = DEFAULT_VIDEO_FULLSCREEN;
 
       //! brightness
       float _brightness = 2.2f;
 
       //! vsync
-      int _v_sync = 1;
+      int _v_sync = DEFAULT_VIDEO_VSYNC;
 
       //! show fps
       bool _show_fps = true;
 
       //! camera zoom factor
-      float _zoom = 1.0f;
+      float _zoom = DEFAULT_VIDEO_ZOOM;
 
       //! screen border compensation
-      int _border_left = 0;
-      int _border_top = 0;
-      int _border_right = 0;
-      int _border_bottom = 0;
+      int _border_left = DEFAULT_VIDEO_BORDERLEFT;
+      int _border_top = DEFAULT_VIDEO_BORDERTOP;
+      int _border_right = DEFAULT_VIDEO_BORDERRIGHT;
+      int _border_bottom = DEFAULT_VIDEO_BORDERBOTTOM;
    };
 
    class ControllerSettings : public SettingsPrivate
