@@ -18,6 +18,9 @@
 #include "constants.h"
 #include "settings.h"
 
+#define DEFAULT_VIDEO_RESOLUTION 1
+#define DEFAULT_VIDEO_ANTIALIAS 4
+
 class GameSettings
 {
 public:
@@ -501,11 +504,10 @@ public:
       int _height = -1;
 
       //! rendering resolution (eg 1x1, 2x2, ...)
-      int _resolution = 1;
+      int _resolution = DEFAULT_VIDEO_RESOLUTION;
 
       //! antialias samples
-      static constexpr int kDefaultAntialias = 4;
-      int _antialias = kDefaultAntialias;
+      int _antialias = DEFAULT_VIDEO_ANTIALIAS;
 
       //! fullscreen flag
       bool _fullscreen = false;

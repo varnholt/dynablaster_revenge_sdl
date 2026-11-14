@@ -22,7 +22,6 @@
 // video
 #define DEFAULT_VIDEO_WIDTH 1024
 #define DEFAULT_VIDEO_HEIGHT 576
-#define DEFAULT_VIDEO_RESOLUTION 1
 #define DEFAULT_VIDEO_FULLSCREEN false
 #define DEFAULT_VIDEO_BRIGHTNESS 0.5
 #define DEFAULT_VIDEO_VSYNC 1
@@ -1149,7 +1148,7 @@ void GameSettings::VideoSettings::deserialize()
    setWidth(value("video/width", DEFAULT_VIDEO_WIDTH).toInt());
    setHeight(value("video/height", DEFAULT_VIDEO_HEIGHT).toInt());
    setResolution(value("video/resolution", DEFAULT_VIDEO_RESOLUTION).toInt());
-   setAntialias(value("video/antialias", kDefaultAntialias).toInt());
+   setAntialias(value("video/antialias", DEFAULT_VIDEO_ANTIALIAS).toInt());
    setFullscreen(value("video/fullscreen", DEFAULT_VIDEO_FULLSCREEN).toBool());
    setBrightness(value("video/brightness", DEFAULT_VIDEO_BRIGHTNESS).toFloat());
    setVSync(value("video/vsync", DEFAULT_VIDEO_VSYNC).toInt());
@@ -1185,7 +1184,7 @@ void GameSettings::VideoSettings::restoreDefaults()
    setWidth(DEFAULT_VIDEO_WIDTH);
    setHeight(DEFAULT_VIDEO_HEIGHT);
    setResolution(DEFAULT_VIDEO_RESOLUTION);
-   setAntialias(kDefaultAntialias);
+   setAntialias(DEFAULT_VIDEO_ANTIALIAS);
    setFullscreen(DEFAULT_VIDEO_FULLSCREEN);
    setBrightness(DEFAULT_VIDEO_BRIGHTNESS);
    setVSync(DEFAULT_VIDEO_VSYNC);
