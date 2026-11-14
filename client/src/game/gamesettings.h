@@ -504,7 +504,8 @@ public:
       int _resolution = 1;
 
       //! antialias samples
-      int _antialias = 4;
+      static constexpr int kDefaultAntialias = 4;
+      int _antialias = kDefaultAntialias;
 
       //! fullscreen flag
       bool _fullscreen = false;
