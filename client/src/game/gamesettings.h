@@ -20,6 +20,8 @@
 
 #define DEFAULT_VIDEO_RESOLUTION 1
 #define DEFAULT_VIDEO_ANTIALIAS 4
+#define DEFAULT_VIDEO_BRIGHTNESS 0.5
+#define DEFAULT_VIDEO_SHOWFPS false
 #define DEFAULT_VIDEO_FULLSCREEN false
 #define DEFAULT_VIDEO_VSYNC 1
 #define DEFAULT_VIDEO_ZOOM 1
@@ -522,13 +524,13 @@ public:
       bool _fullscreen = DEFAULT_VIDEO_FULLSCREEN;
 
       //! brightness
-      float _brightness = 2.2f;
+      float _brightness = DEFAULT_VIDEO_BRIGHTNESS;
 
       //! vsync
       int _v_sync = DEFAULT_VIDEO_VSYNC;
 
       //! show fps
-      bool _show_fps = true;
+      bool _show_fps = DEFAULT_VIDEO_SHOWFPS;
 
       //! camera zoom factor
       float _zoom = DEFAULT_VIDEO_ZOOM;
