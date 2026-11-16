@@ -9,6 +9,7 @@
 #include "enemies/enemyworld.h"
 
 // shared
+#include "storycode.h"
 #include "storystage.h"
 #include "storystatepacket.h"
 
@@ -21,7 +22,8 @@ class Player;
 class StoryMode : public EnemyWorld
 {
 public:
-   StoryMode(Game& game, int32_t first_stage);
+   //! a valid level code overrides the first stage and sets the abilities the player starts with
+   StoryMode(Game& game, int32_t first_stage, const std::optional<StoryCode>& code = std::nullopt);
    ~StoryMode() override;
 
    [[nodiscard]] const StoryStage& getStage() const;
@@ -71,7 +73,7 @@ public:
    [[nodiscard]] bool isGameOver() const;
 
    //! the player continues after the last life: the stage again with fresh lives, the score back to 0 and the
-   //! starting abilities, as the original's password for the stage would give them
+   //! abilities the level code shown at game over gives
    void continueGame();
 
    //! milliseconds until the next attempt or stage begins
@@ -103,6 +105,12 @@ private:
       bool _wall_pass = false;
       bool _bomb_pass = false;
    };
+
+   //! the level code for the current stage and the abilities carried into it
+   [[nodiscard]] StoryCode getCode() const;
+
+   //! the abilities a level code gives: bombs, flames and the speed-up, nothing else survives a code
+   [[nodiscard]] static CarriedAbilities abilitiesFromCode(const StoryCode& code);
 
    void removeAllEnemies();
    void spawnStageEnemies();

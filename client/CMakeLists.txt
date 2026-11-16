@@ -635,6 +635,9 @@ enable_testing()
 add_executable(dynablaster_gles_compatibility_test tests/test_gles_compatibility.cpp)
 target_link_libraries(dynablaster_gles_compatibility_test PRIVATE dynablaster_core)
 add_test(NAME gles_compatibility COMMAND dynablaster_gles_compatibility_test)
+add_executable(dynablaster_storycode_test tests/test_storycode.cpp ../shared/storycode.cpp ../shared/storycode.h)
+target_include_directories(dynablaster_storycode_test PRIVATE ../shared)
+add_test(NAME storycode COMMAND dynablaster_storycode_test)
 add_test(NAME selftest_smoke
     COMMAND dynablaster_revenge_harness --selftest --screenshot=${CMAKE_BINARY_DIR}/selftest.png
 )

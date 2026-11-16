@@ -31,4 +31,7 @@ public:
 
    //! story stage to begin with (0..63)
    int32_t _story_stage = 0;
+
+   //! the original's level code to begin with instead, it also sets the abilities; empty for none
+   std::string _story_code;
 };

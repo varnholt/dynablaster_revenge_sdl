@@ -236,7 +236,7 @@ void Game::initialize()
 
    if (_create_game_data._story)
    {
-      _story = std::make_unique<StoryMode>(*this, _create_game_data._story_stage);
+      _story = std::make_unique<StoryMode>(*this, _create_game_data._story_stage, decodeStoryCode(_create_game_data._story_code));
       _create_game_data._duration = STORY_STAGE_TIME;
 
       // the campaign decides when it's over, every attempt at a stage is one round
